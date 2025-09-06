@@ -175,29 +175,6 @@ const CATEGORY_ICONS = {
   }
 };
 
-const quickTiles = [
-  {
-    label: "Add Notes",
-    icon: <StickyNote2OutlinedIcon />,
-    onClick: navigate => navigate("/notes"),
-  },
-  {
-    label: "Reminder",
-    icon: <AlarmOutlinedIcon />,
-    onClick: (navigate, setRemindersDrawerOpen) => setRemindersDrawerOpen(true),
-  },
-  {
-    label: "Trip",
-    icon: <ExploreOutlinedIcon />,
-    onClick: navigate => navigate("/trips"),
-  },
-  {
-    label: "Budget",
-    icon: <AccountBalanceWalletOutlinedIcon />,
-    onClick: navigate => navigate("/budget-mngr"),
-  },
-];
-
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
 const WEATHER_API_KEY = "c5298240cb3e71775b479a32329803ab";
@@ -668,26 +645,69 @@ const Home = () => {
                 </Container>
 
                 {/* TILES */}
-                <Container maxWidth="lg" sx={{ mb: 3, p: 0 }}>
-                  <Grid container spacing={1.2} justifyContent="center" alignItems="stretch">
-                    {quickTiles.map((tile) => (
-                      <Grid item xs={3} key={tile.label} sx={{ display: "flex" }}>
+                <Container maxWidth="lg" sx={{ mb: 3, padding: 0 }}>
+                  <Grid
+                    container
+                    spacing={1.2}
+                    justifyContent="center"
+                    alignItems="stretch"
+                  >
+                    {[
+                      {
+                        label: "Add Notes",
+                        icon: <StickyNote2OutlinedIcon />,
+                        onClick: () => navigate("/notes"),
+                      },
+                      {
+                        label: "Reminder",
+                        icon: <AlarmOutlinedIcon />,
+                        onClick: () => setRemindersDrawerOpen(true),
+                      },
+                      {
+                        label: "Trip",
+                        icon: <ExploreOutlinedIcon />,
+                        onClick: () => navigate("/trips"),
+                      },
+                      {
+                        label: "Budget",
+                        icon: <AccountBalanceWalletOutlinedIcon />,
+                        onClick: () => navigate("/budget-mngr"),
+                      },
+                    ].map((tile) => (
+                      <Grid
+                        item
+                        xs={3}
+                        sm={3}
+                        md={3}
+                        lg={3}
+                        key={tile.label}
+                        sx={{ display: "flex" }}
+                      >
                         <Card
                           sx={{
-                            flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                            minHeight: 105, width: "21vw", aspectRatio: "1 / 1", cursor: "pointer",
-                            background: mode === "dark" ? "#f1f1f111" : "#0c0c0c07", borderRadius: 5, boxShadow: "none"
+                            flex: 1,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minHeight: 105,
+                            width: "21vw",
+                            aspectRatio: "1 / 1",
+                            cursor: "pointer",
+                            background: mode === "dark" ? "#f1f1f111" : "#0c0c0c07",
+                            borderRadius: 5,
+                            boxShadow: "none",
+                            transition: "background 0.2s",
                           }}
-                          onClick={() =>
-                            (tile.label === "Reminder"
-                              ? tile.onClick(null, setRemindersDrawerOpen)
-                              : tile.onClick(navigate))
-                          }
+                          onClick={tile.onClick}
                         >
-                          <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 6, bgcolor: theme.palette.primary.bgr, color: theme.palette.primary.main }}>
+                          <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 6, backgroundColor: theme.palette.primary.bgr, color: theme.palette.primary.main }}>
                             {tile.icon}
                           </Box>
-                          <Typography variant="subtitle6" sx={{ color: "text.primary", fontSize: "10.5px" }}>
+                          <Typography
+                            variant="subtitle6"
+                            sx={{ color: "text.primary", fontSize: "10.5px" }}
+                          >
                             {tile.label}
                           </Typography>
                         </Card>

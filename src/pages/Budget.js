@@ -1013,7 +1013,7 @@ const handleDeleteExpense = (index) => {
 };
 
   const goBack = () => {
-    history("/");
+    history(-1);
   };
 
   // Extract all unique categories for filter dropdown
