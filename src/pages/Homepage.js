@@ -1,23 +1,35 @@
 import React, { useRef, useState } from "react";
 import {
-  AppBar, Toolbar, Typography, Container, Box, Grid, Card, CardContent,
-  CircularProgress, ThemeProvider, Button, useTheme, useMediaQuery, Fab, Zoom
+  AppBar,
+  Toolbar,
+  Typography,
+  Container,
+  Box,
+  Grid,
+  Card,
+  CardContent,
+  Button,
+  CircularProgress,
+  useTheme,
+  useMediaQuery,
+  Fab,
+  Zoom,
+  ThemeProvider,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { useWeather } from "../contexts/WeatherContext"; // Optional, can remove if not needed
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import ProfilePic from "../components/Profile";
 import Reminders from "./Reminders";
-import packageJson from '../../package.json';
+import packageJson from "../../package.json";
 
 // Icons
-import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
-import AlarmOutlinedIcon from '@mui/icons-material/AlarmOutlined';
-import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
-import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import StickyNote2OutlinedIcon from "@mui/icons-material/StickyNote2Outlined";
+import AlarmOutlinedIcon from "@mui/icons-material/AlarmOutlined";
+import ExploreOutlinedIcon from "@mui/icons-material/ExploreOutlined";
+import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 const DASHBOARD_TILES = [
   { label: "Notes", icon: <StickyNote2OutlinedIcon />, path: "/notes" },
@@ -34,11 +46,10 @@ const Homepage = () => {
   const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const remindersRef = useRef();
 
-  // Dummy user
-  const [user] = useState({ uid: "dummyUser123", displayName: "John Doe" });
+  // Dummy user & data instead of Firebase
+  const [user] = useState({ uid: "dummy123", displayName: "John Doe" });
   const [userType] = useState("Traveler");
 
-  // Dummy data instead of Firebase
   const [budgets] = useState([
     { id: "b1", name: "Goa Trip Budget", amount: 12000 },
     { id: "b2", name: "College Expenses", amount: 5000 },
@@ -61,51 +72,73 @@ const Homepage = () => {
 
   const DASH_SECTIONS = [
     {
-      label: "Your Trips", items: myTrips,
-      emptyMsg: "No trips found.", onViewMore: () => navigate("/trips"),
-      render: trip => (
+      label: "Your Trips",
+      items: myTrips,
+      emptyMsg: "No trips found.",
+      onViewMore: () => navigate("/trips"),
+      render: (trip) => (
         <Card key={trip.id} sx={{ my: 1, p: 1 }}>
           <Typography variant="subtitle1">{trip.name}</Typography>
-          <Typography variant="caption">{trip.from} → {trip.location}</Typography>
+          <Typography variant="caption">
+            {trip.from} → {trip.location}
+          </Typography>
         </Card>
-      )
+      ),
     },
     {
-      label: "Your Budgets", items: budgets,
-      emptyMsg: "No budgets found.", onViewMore: () => navigate("/budget-mngr"),
-      render: budget => (
+      label: "Your Budgets",
+      items: budgets,
+      emptyMsg: "No budgets found.",
+      onViewMore: () => navigate("/budget-mngr"),
+      render: (budget) => (
         <Card key={budget.id} sx={{ my: 1, p: 1 }}>
           <Typography variant="subtitle1">{budget.name}</Typography>
           <Typography variant="caption">₹{budget.amount}</Typography>
         </Card>
-      )
+      ),
     },
     {
-      label: "Reminders", items: reminders.filter(r => !r.completed),
-      emptyMsg: "No reminders yet.", onViewMore: () => remindersRef.current?.openAddReminderDrawer?.(),
-      render: reminder => (
+      label: "Reminders",
+      items: reminders.filter((r) => !r.completed),
+      emptyMsg: "No reminders yet.",
+      onViewMore: () => remindersRef.current?.openAddReminderDrawer?.(),
+      render: (reminder) => (
         <Card key={reminder.id} sx={{ my: 1, p: 1 }}>
           <Typography variant="body2">{reminder.text}</Typography>
         </Card>
-      )
+      ),
     },
   ];
+
+  if (!user) {
+    return (
+      <Box display="flex" minHeight="100vh" alignItems="center" justifyContent="center">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>
       <AppBar position="fixed" elevation={0}>
         <Toolbar>
           <Typography variant="h6">
-            BunkMates {userType && <span style={{ fontSize: 14, background: "#eee", marginLeft: 8 }}>{userType}</span>}
+            BunkMates{" "}
+            {userType && (
+              <span style={{ fontSize: 14, background: "#eee", marginLeft: 8 }}>
+                {userType}
+              </span>
+            )}
           </Typography>
           <ProfilePic />
         </Toolbar>
       </AppBar>
       <Box height={77} />
+
       <Container maxWidth="lg" sx={{ pt: 2 }}>
-        {/* Tiles Grid */}
+        {/* Tiles */}
         <Grid container spacing={2}>
-          {DASHBOARD_TILES.map(tile => (
+          {DASHBOARD_TILES.map((tile) => (
             <Grid item xs={3} key={tile.label}>
               <Card
                 onClick={() => handleTileClick(tile)}
@@ -117,9 +150,10 @@ const Homepage = () => {
             </Grid>
           ))}
         </Grid>
+
         {/* Sections */}
         <Grid container spacing={2} sx={{ mt: 3 }}>
-          {DASH_SECTIONS.map(section => (
+          {DASH_SECTIONS.map((section) => (
             <Grid item xs={12} md={4} key={section.label}>
               <Card>
                 <CardContent>
@@ -129,9 +163,11 @@ const Homepage = () => {
                       View More <ChevronRightIcon />
                     </Button>
                   </Box>
-                  {section.items.length === 0
-                    ? <Typography>{section.emptyMsg}</Typography>
-                    : section.items.slice(0, 3).map(section.render)}
+                  {section.items.length === 0 ? (
+                    <Typography>{section.emptyMsg}</Typography>
+                  ) : (
+                    section.items.slice(0, 3).map(section.render)
+                  )}
                 </CardContent>
               </Card>
             </Grid>
@@ -139,18 +175,25 @@ const Homepage = () => {
         </Grid>
       </Container>
 
-      {/* Floating Chat Icon for small screens */}
-      {isSmallScreen && <Zoom in>
-        <Fab color="primary" sx={{ position: 'fixed', bottom: 30, right: 30 }} onClick={() => navigate("/chats")}>
-          <ChatBubbleOutlineIcon />
-        </Fab>
-      </Zoom>}
+      {/* Floating Chat */}
+      {isSmallScreen && (
+        <Zoom in>
+          <Fab
+            color="primary"
+            sx={{ position: "fixed", bottom: 30, right: 30 }}
+            onClick={() => navigate("/chats")}
+          >
+            <ChatBubbleOutlineIcon />
+          </Fab>
+        </Zoom>
+      )}
 
-      {/* Dummy Reminders Drawer */}
       <Reminders ref={remindersRef} open={false} onClose={() => {}} asDrawer />
 
       <Box textAlign="center" mt={4} opacity={0.5}>
-        <Typography variant="caption">BunkMate v{packageJson.version} — Dummy Mode</Typography>
+        <Typography variant="caption">
+          BunkMate v{packageJson.version} — Dummy Mode
+        </Typography>
       </Box>
     </ThemeProvider>
   );
