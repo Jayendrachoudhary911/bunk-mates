@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useImperativeHandle, forwardRef, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Typography,
   Box,
@@ -125,9 +126,11 @@ function getTodayStr() {
 }
 
 const Reminders = forwardRef(({ open, onClose }, ref) => {
+  const navigate = useNavigate();
   const [reminders, setReminders] = useState([]);
   const [reminderText, setReminderText] = useState("");
   const [reminderTime, setReminderTime] = useState("");
+  const [remindersLoading, setRemindersLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -419,62 +422,18 @@ useImperativeHandle(ref, () => ({
 
   return (
     <ThemeProvider theme={theme}>
-      <SwipeableDrawer
-        anchor="bottom"
-        open={open}
-        onClose={onClose}
-        onOpen={() => {}}
-        disableSwipeToOpen={true}
-        disableDiscovery={true}
-        PaperProps={{
-          sx: {
-            width: "100vw",
-            maxWidth: 480,
-            mx: "auto",
-            height: "92vh",
-            background: mode === "dark" ? "#0c0c0c11" : "#f1f1f1d3",
-            backdropFilter: "blur(80px)",
-            color: mode === "dark" ? "#fff" : "#000",
-            borderTopLeftRadius: 25,
-            borderTopRightRadius: 25,
-            borderBottomLeftRadius: 0,
-            borderBottomRightRadius: 0,
-            p: 0,
-            boxShadow: 8,
-            touchAction: "none",
-            transition: drawerTranslate
-              ? "transform 0s"
-              : "transform 0.3s cubic-bezier(.4,2,.6,1)",
-          },
-        }}
-        ModalProps={{
-          keepMounted: true,
-        }}
-      >
+      <Box>
         <Box
           sx={{ height: "100vh", overflowY: "auto" }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Drag handle visual */}
-          <Box
-            ref={handleRef}
-            sx={{
-              width: 40,
-              height: 5,
-              background: "#444",
-              borderRadius: 3,
-              mx: "auto",
-              my: 1,
-              opacity: 0.5,
-              touchAction: "pan-y",
-            }}
-          />
+
           {/* Close button and Reminders content */}
           <Box sx={{ display: "flex", alignItems: "center", p: 2 }}>
             <Button
-              onClick={onClose}
+              onClick={() => navigate(-1)}
               sx={{
                 mr: 2,
                 width: 36,
@@ -488,7 +447,7 @@ useImperativeHandle(ref, () => ({
             >
               <ArrowBackIcon />
             </Button>
-            <Typography variant="h4" fontWeight="bold" sx={{ flex: 1 }}>
+            <Typography variant="h4" fontWeight="bold" sx={{ flex: 1, color: mode === "dark" ? "#fff" : "#000" }}>
               Reminders
             </Typography>
           </Box>
@@ -508,7 +467,7 @@ useImperativeHandle(ref, () => ({
             )}
 
             <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-              <Typography variant="h6" fontWeight="bold" sx={{ flex: 1 }}>
+              <Typography variant="h6" fontWeight="bold" sx={{ flex: 1, color: mode === "dark" ? "#fff" : "#000" }}>
                 Your Reminders
               </Typography>
               <Tooltip title="Add Reminder">
@@ -936,7 +895,7 @@ useImperativeHandle(ref, () => ({
             }
           `}
         </style>
-      </SwipeableDrawer>
+      </Box>
     </ThemeProvider>
   );
 });

@@ -684,7 +684,7 @@ const Home = () => {
                       {
                         label: "Reminder",
                         icon: <AlarmOutlinedIcon />,
-                        onClick: () => setRemindersDrawerOpen(true),
+                        onClick: () => navigate("/reminders"),
                       },
                       {
                         label: "Trip",
@@ -1048,25 +1048,6 @@ const Home = () => {
                               <AlarmOutlinedIcon sx={{ mr: 1 }} />
                               <Typography variant="h6">Reminders</Typography>
                             </Box>
-
-                            <Button
-                              size="small"
-                              sx={{
-                                height: 30,
-                                minWidth: 30,
-                                borderRadius: "80px",
-                                backgroundColor: theme.palette.primary.bgr,
-                                color: theme.palette.primary.main,
-                                fontSize: 24,
-                                padding: "4px 6px",
-                                boxShadow: "none",
-                              }}
-                              onClick={() => {
-                                remindersRef.current?.openAddReminderDrawer();
-                              }}
-                            >
-                              +
-                            </Button>
                           </Box>
 
                           {remindersLoading ? (
@@ -1131,7 +1112,7 @@ const Home = () => {
                               boxShadow: "none",
                               borderRadius: 3,
                             }}
-                            onClick={() => setRemindersDrawerOpen(true)}
+                            onClick={() => navigate("/reminders")}
                           >
                             View All
                           </Button>
