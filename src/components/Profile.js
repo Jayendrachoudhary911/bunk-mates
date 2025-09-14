@@ -569,7 +569,7 @@ sx={{
 
         {/* Accounts */}
         <ListItem sx={{ pb: 0 }}>
-          <ListItemButton onClick={() => handleSetDrawerPage("accounts")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: theme.palette.action.hover } }}>
+          <ListItemButton onClick={() => handleSetDrawerPage("accounts")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><AccountCircleOutlinedIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
             <ListItemText primary="Accounts" secondary="User privacy and security" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
@@ -577,7 +577,7 @@ sx={{
 
         {/* Chats */}
         <ListItem sx={{ pb: 0 }}>
-          <ListItemButton onClick={() => handleSetDrawerPage("chats")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: theme.palette.action.hover } }}>
+          <ListItemButton onClick={() => handleSetDrawerPage("chats")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><ChatBubbleOutlineIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
             <ListItemText primary="Chats" secondary="Theme, Wallpapers, and Chat Settings" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
@@ -585,7 +585,7 @@ sx={{
 
         {/* General Settings */}
         <ListItem sx={{ pb: 0 }}>
-          <ListItemButton onClick={() => handleSetDrawerPage("generalSettings")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: theme.palette.action.hover } }}>
+          <ListItemButton onClick={() => handleSetDrawerPage("generalSettings")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><SettingsOutlinedIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
             <ListItemText primary="General Settings" secondary="App Theme, Language, and Location" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
@@ -593,7 +593,7 @@ sx={{
 
         {/* Help */}
         <ListItem sx={{ pb: 0 }}>
-          <ListItemButton onClick={() => handleSetDrawerPage("support")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: theme.palette.action.hover } }}>
+          <ListItemButton onClick={() => handleSetDrawerPage("support")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><HelpOutlineIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
             <ListItemText primary="Help" secondary="Contact support and privacy policies" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
@@ -601,7 +601,7 @@ sx={{
 
         {/* Send Feedback */}
         <ListItem sx={{ pb: 0 }}>
-          <ListItemButton onClick={() => handleSetDrawerPage("feedback")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: theme.palette.action.hover } }}>
+          <ListItemButton onClick={() => handleSetDrawerPage("feedback")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><FeedbackOutlinedIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
             <ListItemText primary="Send feedback" secondary="Report technical issues" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
@@ -609,7 +609,7 @@ sx={{
 
         {/* Invite a Friend */}
         <ListItem sx={{ pb: 0 }}>
-          <ListItemButton onClick={() => handleSetDrawerPage("inviteFriend")} sx={{ borderRadius: 3, py: 1.5, px: 1, '&:hover': { bgcolor: theme.palette.action.hover } }}>
+          <ListItemButton onClick={() => handleSetDrawerPage("inviteFriend")} sx={{ borderRadius: 3, py: 1.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><PersonAddOutlinedIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
             <ListItemText primary="Invite a Friend" primaryTypographyProps={{ fontWeight: 'medium' }} />
           </ListItemButton>
@@ -617,7 +617,7 @@ sx={{
 
         {/* About */}
         <ListItem sx={{ pb: 0 }}>
-          <ListItemButton onClick={() => handleSetDrawerPage("about")} sx={{ borderRadius: 3, py: 1.5, px: 1, '&:hover': { bgcolor: theme.palette.action.hover } }}>
+          <ListItemButton onClick={() => handleSetDrawerPage("about")} sx={{ borderRadius: 3, py: 1.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><InfoOutlinedIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
             <ListItemText primary="About" primaryTypographyProps={{ fontWeight: 'medium' }} />
           </ListItemButton>
@@ -1235,7 +1235,7 @@ sx={{
       '&:hover': {
         bgcolor: 'primary.dark',
       },
-      color: 'white',
+      color: mode === "dark" ? 'white' : 'black',
     }}
   >
     <EditOutlinedIcon />
