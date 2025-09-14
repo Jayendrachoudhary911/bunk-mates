@@ -427,7 +427,7 @@ const handleIconUpload = (e) => {
   );
 
   const goBack = () => {
-    history(-1);
+    history("/");
   };
 
   const today = new Date();

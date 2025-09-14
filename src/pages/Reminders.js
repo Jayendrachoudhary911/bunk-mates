@@ -433,7 +433,7 @@ useImperativeHandle(ref, () => ({
           {/* Close button and Reminders content */}
           <Box sx={{ display: "flex", alignItems: "center", p: 2 }}>
             <Button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate("/")}
               sx={{
                 mr: 2,
                 width: 36,

@@ -656,6 +656,7 @@ useEffect(() => {
       });
       setEditMessageId(null);
     } else {
+      // Save chat message
       await addDoc(collection(db, "chats", chatId, "messages"), {
         text: input.trim(),
         senderId: currentUser.uid,
@@ -666,7 +667,19 @@ useEffect(() => {
           text: replyingTo.text,
           senderId: replyingTo.senderId
         } : null
-      });      
+      });
+
+      // Save notification in Firestore for the receiver
+      await addDoc(collection(db, "notifications"), {
+        uid: friendId, // receiver's uid
+        type: "chat",
+        title: (currentUser.displayName || "A user") + " sent a new message"  ,
+        pic: currentUser.photoURL || "",
+        content: input.trim(),
+        timestamp: serverTimestamp(),
+        seen: false,
+        senderId: currentUser.uid
+      });
     }
     setInput('');
     setIsSending(false);
@@ -1760,7 +1773,6 @@ const removeUserReaction = async (msg, emoji) => {
         </IconButton>
       )}
 
-
       <IconButton
         onClick={() => setOpenProfile(false)}
         sx={{
@@ -1892,31 +1904,23 @@ const removeUserReaction = async (msg, emoji) => {
                 </Typography>
                 {timelineStatsMap?.[trip.id] && (
                   <Box mb={1} minWidth={110}>
-                    <Typography variant="caption" sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>
-                      {timelineStatsMap[trip.id]?.completed} / {timelineStatsMap[trip.id]?.total} complete
+                    <Typography variant="caption" sx={{
+                      color: mode === "dark" ? "#ccc" : "#555",
+                    }}>
+                      {timelineStatsMap[trip.id].messages} messages
                     </Typography>
-                    <LinearProgress
-                      value={timelineStatsMap[trip.id]?.percent}
-                      variant="determinate"
-                      sx={{
-                        mt: 0.5, borderRadius: 20, height: 7, bgcolor: mode === "dark" ? "#ffffff36" : "#00000036",
-                        "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#fff" : "#000" }
-                      }}
-                    />
                   </Box>
                 )}
-              </Box>
-              <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", display: "flex", alignItems: "center" }}>
-                <LocationOn sx={{ fontSize: 16, mr: 1 }} /> {trip.from} → {trip.location}
-              </Typography>
               <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", display: "flex", alignItems: "center" }}>
                 <AccessTime sx={{ fontSize: 16, mr: 1 }} /> {trip.startDate} → {trip.endDate}
               </Typography>
             </Box>
           </Box>
+          </Box>
         </CardContent>
       </Card>
     ))}
+
     {moreCount > 0 && (
       <Button
         variant="contained"

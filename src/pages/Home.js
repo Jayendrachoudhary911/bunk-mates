@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { doc, collection, query, where, orderBy, getDoc, onSnapshot, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -13,6 +13,8 @@ import "slick-carousel/slick/slick-theme.css";
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+import Snackbar from "@mui/material/Snackbar";
+import MuiAlert from "@mui/material/Alert";
 
 import {
   AppBar,
@@ -62,6 +64,7 @@ import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
 import AlarmOutlinedIcon from '@mui/icons-material/AlarmOutlined';
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
 
 const fadeIn = keyframes`
   from {
@@ -178,6 +181,10 @@ const CATEGORY_ICONS = {
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
 const WEATHER_API_KEY = "c5298240cb3e71775b479a32329803ab"; // <-- Replace with your API key
+const NOTIF_API_URL = "http://localhost:5000/notifications"; // Adjust if needed
+const VAPID_PUBLIC_KEY_URL = "http://localhost:5000/vapid_public_key";
+const SAVE_SUBSCRIPTION_URL = "http://localhost:5000/save_subscription";
+const POLL_INTERVAL = 6000; // ms
 
 function getUserFromStorage() {
   try {
@@ -239,6 +246,7 @@ const Home = () => {
   const navigate = useNavigate();
   const muiTheme = useTheme();
   const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
+  const location = useLocation();
 
   const [authInitialized, setAuthInitialized] = useState(false);
   const [user, setUser] = useState(null);
@@ -261,6 +269,9 @@ const Home = () => {
 
   const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
+
+  const [notifications, setNotifications] = useState([]);
+  const [notifPopup, setNotifPopup] = useState({ open: false, message: "", id: null });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -289,61 +300,109 @@ const Home = () => {
         setLoading(false);
       });
 
+      // Register push subscription
+      if (Notification.permission === "granted") {
+        registerPushSubscription(firebaseUser.uid);
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") {
+            registerPushSubscription(firebaseUser.uid);
+          }
+        });
+      }
+
       // Cleanup on unmount
-      return () => unsubscribeUser();
+      return () => {
+        unsubscribeUser();
+      };
     });
 
     return () => unsubscribe();
   }, []);
 
   // Weather with cache
-  useEffect(() => {
-    let cachedWeather = null;
+
+const [settings, setSettings] = useState(() => {
+  const saved = localStorage.getItem('settings');
+  return saved ? JSON.parse(saved) : { locationMode: 'auto', manualLocation: '' };
+});
+
+
+useEffect(() => {
+  const fetchWeather = async (location) => {
     try {
-      const local = localStorage.getItem(WEATHER_STORAGE_KEY);
-      if (local) cachedWeather = JSON.parse(local);
-      if (!cachedWeather) {
-        const cookieWeather = document.cookie
-          .split("; ")
-          .find(row => row.startsWith(WEATHER_STORAGE_KEY + "="))
-          ?.split("=")[1];
-        if (cookieWeather) cachedWeather = JSON.parse(decodeURIComponent(cookieWeather));
+      let url = '';
+      if (location.mode === "auto") {
+        url = `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${WEATHER_API_KEY}&units=metric`;
+      } else if (location.mode === "manual") {
+        url = `https://api.openweathermap.org/data/2.5/weather?q=${location.manualLocation}&appid=${WEATHER_API_KEY}&units=metric`;
       }
-    } catch {}
-    if (cachedWeather) {
-      setWeather(cachedWeather);
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.cod !== 200) throw new Error("Location not found");
+      const weatherObj = {
+        main: data.weather?.[0]?.main || "Default",
+        desc: data.weather?.[0]?.description || "",
+        temp: Math.round(data.main?.temp),
+        city: data.name,
+      };
+      setWeather(weatherObj);
       setWeatherLoading(false);
-    } else {
-      setWeatherLoading(true);
+      localStorage.setItem(WEATHER_STORAGE_KEY, JSON.stringify(weatherObj));
+      document.cookie = `${WEATHER_STORAGE_KEY}=${encodeURIComponent(
+        JSON.stringify(weatherObj)
+      )}; path=/; max-age=1800`;
+    } catch (error) {
+      console.error("Weather fetch error:", error);
+      setWeather(null);
+      setWeatherLoading(false);
+    }
+  };
+
+  const loadWeather = () => {
+    const cached = localStorage.getItem(WEATHER_STORAGE_KEY);
+    if (cached) {
+      setWeather(JSON.parse(cached));
+      setWeatherLoading(false);
+      return;
+    }
+
+    setWeatherLoading(true);
+    if (settings.locationMode === "auto") {
       if (!navigator.geolocation) {
         setWeatherLoading(false);
         return;
       }
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        try {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
           const { latitude, longitude } = position.coords;
-          const res = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${WEATHER_API_KEY}&units=metric`
-          );
-          const data = await res.json();
-          const weatherObj = {
-            main: data.weather?.[0]?.main || "Default",
-            desc: data.weather?.[0]?.description || "",
-            temp: Math.round(data.main?.temp),
-            city: data.name,
+          const location = {
+            mode: "auto",
+            lat: latitude,
+            lon: longitude,
           };
-          setWeather(weatherObj);
-          localStorage.setItem(WEATHER_STORAGE_KEY, JSON.stringify(weatherObj));
-          document.cookie = `${WEATHER_STORAGE_KEY}=${encodeURIComponent(
-            JSON.stringify(weatherObj)
-          )}; path=/; max-age=1800`;
-        } catch {
-          setWeather(null);
-        }
+          fetchWeather(location);
+        },
+        () => setWeatherLoading(false),
+        { timeout: 10000 }
+      );
+    } else if (settings.locationMode === "manual") {
+      const manualLocation = localStorage.getItem("manualLocation") || settings.manualLocation;
+      if (manualLocation) {
+        const location = {
+          mode: "manual",
+          manualLocation,
+        };
+        fetchWeather(location);
+      } else {
         setWeatherLoading(false);
-      }, () => setWeatherLoading(false), { timeout: 10000 });
+      }
     }
-  }, []);
+  };
+
+  loadWeather();
+}, [settings.locationMode, settings.manualLocation]);
+
 
   useEffect(() => {
     const fetchReminders = async () => {
@@ -400,6 +459,106 @@ const Home = () => {
 
     return () => unsubscribeBudgets();
   }, [user]);
+
+  // Fetch notifications from backend (show popup only on Home page)
+  useEffect(() => {
+    const user = getUserFromStorage();
+    if (!user?.uid) return;
+    // Only show popup if on Home page (not /chats)
+    if (location.pathname !== "/" && location.pathname !== "/homepage") return;
+    fetch(`${NOTIF_API_URL}?uid=${user.uid}`)
+      .then(res => res.json())
+      .then(data => {
+        setNotifications(data);
+        // Show popup for the latest unseen notification
+        const unseen = data.filter(n => !n.seen);
+        if (unseen.length > 0) {
+          setNotifPopup({ open: true, message: unseen[0].title || unseen[0].text || "New Notification", id: unseen[0].id });
+        }
+      })
+      .catch(() => {});
+  }, [user, location.pathname]);
+
+  // Poll notifications from backend and show popup only on Home page
+  useEffect(() => {
+    let poller;
+    const user = getUserFromStorage();
+    if (!user?.uid) return;
+
+    let errorLogged = false;
+
+    function fetchAndShowPopup() {
+      if (location.pathname !== "/" && location.pathname !== "/homepage") return;
+      fetch(`${NOTIF_API_URL}?uid=${user.uid}`)
+        .then(async res => {
+          let data;
+          try {
+            data = await res.json();
+          } catch {
+            throw new Error("Invalid backend response");
+          }
+          if (!res.ok || data.error) {
+            // If index_link is present, show a clickable link in the popup
+            if (data.index_link) {
+              setNotifPopup({
+                open: true,
+                message: (
+                  <span>
+                    Firestore index required for notifications.<br />
+                    <a
+                      href={data.index_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "#fff", textDecoration: "underline" }}
+                    >
+                      Click here to create the required index
+                    </a>
+                  </span>
+                ),
+                id: null
+              });
+            } else {
+              setNotifPopup({
+                open: true,
+                message: "Notification backend error: " + (data.error || "Backend not reachable"),
+                id: null
+              });
+            }
+            throw new Error(data.error || "Backend not reachable");
+          }
+          setNotifications(data);
+          const unseen = data.filter(n => !n.seen);
+          if (unseen.length > 0) {
+            setNotifPopup({ open: true, message: unseen[0].title || unseen[0].text || "New Notification", id: unseen[0].id });
+          }
+          errorLogged = false;
+        })
+        .catch((err) => {
+          if (!errorLogged) {
+            console.warn("Notification backend unreachable:", err.message || err);
+            errorLogged = true;
+          }
+          setNotifications([]);
+        });
+    }
+
+    fetchAndShowPopup();
+    poller = setInterval(fetchAndShowPopup, POLL_INTERVAL);
+
+    return () => {
+      if (poller) clearInterval(poller);
+    };
+  }, [location.pathname]);
+
+  // Mark notification as seen (send to backend if id exists)
+  const handleNotifClose = () => {
+    setNotifPopup({ open: false, message: "", id: null });
+    if (notifPopup.id) {
+      fetch(`${NOTIF_API_URL}/${notifPopup.id}/seen`, {
+        method: "POST"
+      }).catch(() => {});
+    }
+  };
 
   const weatherBg =
     weather && weatherGradients[weather.main]
@@ -512,6 +671,61 @@ const Home = () => {
     auth.signOut().then(() => navigate("/login"));
   };
 
+  // Register push subscription with backend
+  async function registerPushSubscription(uid) {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        // Get VAPID public key from backend
+        const vapidRes = await fetch(VAPID_PUBLIC_KEY_URL);
+        const { publicKey } = await vapidRes.json();
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        });
+      }
+      // Save subscription to backend
+      await fetch(`${SAVE_SUBSCRIPTION_URL}?uid=${uid}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sub),
+      });
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
+  // Helper to convert VAPID key
+  function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  // Listen for push events and show notification
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.ready.then(reg => {
+      reg.addEventListener("message", event => {
+        if (event.data && event.data.type === "push-notification") {
+          const { title, body } = event.data;
+          if (Notification.permission === "granted") {
+            new Notification(title, { body });
+          }
+        }
+      });
+    });
+  }, []);
+
   if (!authInitialized) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
@@ -559,7 +773,14 @@ const Home = () => {
                     </Typography>
                   )}
                 </Typography>
-                <ProfilePic />
+                {/* Notification icon before profile icon */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <NotificationsNoneOutlinedIcon
+                    sx={{ fontSize: 28, color: mode === "dark" ? "#fff" : "#333", cursor: "pointer" }}
+                    onClick={() => navigate("/notifications")}
+                  />
+                  <ProfilePic />
+                </Box>
               </Toolbar>
             </AppBar>
             <Box sx={{ height: { xs: 0, sm: 77 } }} />
@@ -631,40 +852,41 @@ const Home = () => {
                       {getGreeting()},<br /><Typography variant="title" style={{ fontWeight: "bold", fontSize: "1.8rem" }}>{userData.name || "user"}!</Typography>
                     </Typography>
                     {/* Weather Widget */}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1.5,
-                        px: 2,
-                        py: 1,
-                        borderRadius: 5,
-                        background: mode === "dark" ? "#0c0c0c5a" : "#f1f1f19a",
-                        minWidth: 170,
-                        minHeight: 56,
-                        animation: `${fadeIn} 0.7s`,
-                      }}
-                    >
-                      {weatherLoading ? (
-                        <CircularProgress size={24} color={theme.palette.background.primary} />
-                      ) : weather ? (
-                        <>
-                          {weatherIcons[weather.main] || weatherIcons.Default}
-                          <Box>
-                            <Typography variant="body1" sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: 600 }}>
-                              {weather.temp}°C {weather.city && `in ${weather.city}`}
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                              {weather.desc.charAt(0).toUpperCase() + weather.desc.slice(1)}
-                            </Typography>
-                          </Box>
-                        </>
-                      ) : (
-                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                          Weather unavailable
-                        </Typography>
-                      )}
-                    </Box>
+<Box
+  sx={{
+    display: "flex",
+    alignItems: "center",
+    gap: 1.5,
+    px: 2,
+    py: 1,
+    borderRadius: 5,
+    background: mode === "dark" ? "#0c0c0c5a" : "#f1f1f19a",
+    minWidth: 170,
+    minHeight: 56,
+    animation: `${fadeIn} 0.7s`,
+  }}
+>
+  {weatherLoading ? (
+    <CircularProgress size={24} color={theme.palette.background.primary} />
+  ) : weather ? (
+    <>
+      {weatherIcons[weather.main] || weatherIcons.Default}
+      <Box>
+        <Typography variant="body1" sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: 600 }}>
+          {weather.temp}°C {weather.city && `in ${weather.city}`}
+        </Typography>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+          {weather.desc.charAt(0).toUpperCase() + weather.desc.slice(1)}
+        </Typography>
+      </Box>
+    </>
+  ) : (
+    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+      Weather unavailable
+    </Typography>
+  )}
+</Box>
+
                   </Box>
                 </Container>
 
@@ -1173,6 +1395,16 @@ const Home = () => {
                 </Zoom>
               )}
             </Grid>
+            <Snackbar
+              open={notifPopup.open}
+              autoHideDuration={4000}
+              onClose={handleNotifClose}
+              anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+              <MuiAlert elevation={6} variant="filled" severity="info" onClose={handleNotifClose}>
+                {notifPopup.message}
+              </MuiAlert>
+            </Snackbar>
           </Box>
         </BetaAccessGuard>
       </DeviceGuard>

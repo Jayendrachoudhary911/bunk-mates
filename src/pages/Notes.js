@@ -664,7 +664,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
 }, [notes]);
 
  const goBack = () => {
-    history(-1);
+    history("/");
  };
 
  useEffect(() => {

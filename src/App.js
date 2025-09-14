@@ -28,6 +28,7 @@ import PrivacyPolicy from "./components/PrivacyPolicy";
 import TermsAndConditions from "./components/TermsAndConditions";
 import CommunityPage from "./components/CommunityPage";
 import GroupInvitePage from "./components/GroupInvitePage";
+import Notifications from "./components/Notifications";
 import { ThemeToggleProvider, useThemeToggle } from './contexts/ThemeToggleContext';
 
 const vapidKey = 'BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs'; // From Firebase console
@@ -87,6 +88,7 @@ function App() {
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/community" element={<CommunityPage />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="/" element={
           // <ProtectedRoute>
             <Home />

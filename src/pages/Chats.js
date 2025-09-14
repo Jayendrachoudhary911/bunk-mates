@@ -563,7 +563,7 @@ useEffect(() => {
 }, [userGroups, currentUser]);
 
   const goBack = () => {
-    history(-1);
+    history("/");
   };
 
 
