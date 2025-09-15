@@ -146,6 +146,9 @@ function GroupChat() {
   const [mentionDrawerOpen, setMentionDrawerOpen] = useState(false);
   const [mentionSelected, setMentionSelected] = useState(false);
 
+  const [chatFontSize, setChatFontSize] = useState(parseInt(localStorage.getItem('bunkmate_fontSize'), 10) || 16);
+  const [chatWallpaper, setChatWallpaper] = useState(localStorage.getItem('bunkmate_chatWallpaper') || 'default');
+  const [effectiveChatTheme, setEffectiveChatTheme] = useState('dark'); // 'light' or 'dark'
 
 
 useEffect(() => {
@@ -196,6 +199,63 @@ const handleMentionSelect = (username) => {
   setMentionSelected(true);
   setMentionDrawerOpen(false);
 };
+
+    const getWallpaperUrl = () => {
+        const selectedWallpaper = localStorage.getItem('bunkmate_chatWallpaper') || 'default';
+        if (selectedWallpaper === 'none') {
+            return 'none'; // No background image
+        }
+        if (selectedWallpaper === 'default') {
+            // Use default light/dark wallpaper based on the effective theme
+            return effectiveChatTheme === 'dark'
+                ? 'url(/assets/images/chatbg/dark.png)'
+                : 'url(/assets/images/chatbg/light.png)';
+        }
+        // If it's not 'default' or 'none', it's a custom URL
+        return `url(${selectedWallpaper})`;
+    };
+
+
+    // --- USEEFFECT HOOKS ---
+
+    // ⭐️ 3. DETERMINE THE EFFECTIVE CHAT THEME ON LOAD
+    useEffect(() => {
+        const savedThemeSetting = localStorage.getItem('bunkmate_chatTheme') || 'system';
+
+        const applySystemTheme = (e) => {
+            const isSystemDark = e.matches;
+            setEffectiveChatTheme(isSystemDark ? 'dark' : 'light');
+        };
+
+        if (savedThemeSetting === 'system') {
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            setEffectiveChatTheme(mediaQuery.matches ? 'dark' : 'light'); // Set initial value
+            mediaQuery.addEventListener('change', applySystemTheme);
+
+            return () => mediaQuery.removeEventListener('change', applySystemTheme);
+        } else {
+            setEffectiveChatTheme(savedThemeSetting); // 'light' or 'dark'
+        }
+    }, []);
+
+    // ⭐️ 4. LISTEN FOR REAL-TIME CHANGES FROM OTHER TABS
+    useEffect(() => {
+        const handleStorageChange = (event) => {
+            if (event.key === 'bunkmate_fontSize') {
+                setChatFontSize(parseInt(event.newValue, 10) || 16);
+            }
+            if (event.key === 'bunkmate_chatWallpaper') {
+                setChatWallpaper(event.newValue || 'default');
+            }
+            if (event.key === 'bunkmate_chatTheme') {
+                // For theme, we just reload to apply all changes consistently
+                window.location.reload();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
 
 
 useEffect(() => {
@@ -920,7 +980,10 @@ const renderMessageWithMentions = (text) => {
         paddingTop: '60px',
         overflowY: 'auto',
         marginBottom: '0px',
-        backgroundImage: mode === "dark" ? `url(/assets/images/chatbg/dark.png)` : `url(/assets/images/chatbg/light.png)`,
+        backgroundImage: getWallpaperUrl(),
+        backgroundColor: getWallpaperUrl() === 'none'
+            ? (effectiveChatTheme === 'dark' ? '#0c0c0c' : '#f0f2f5')
+            : 'transparent',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
@@ -1435,7 +1498,7 @@ if (msg.type === "system") {
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
     color: mode === "dark" ? "#fff" : "#000",
-    fontSize: '15px'
+    fontSize: `${chatFontSize}px`
   }}
 >
   {renderMessageWithMentions(msg.text)}

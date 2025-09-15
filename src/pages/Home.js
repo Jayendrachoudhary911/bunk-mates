@@ -37,6 +37,7 @@ import {
   useMediaQuery,
   Fab,
   Zoom,
+  Badge,
 } from "@mui/material";
 import {
   LocationOn,
@@ -272,6 +273,7 @@ const Home = () => {
 
   const [notifications, setNotifications] = useState([]);
   const [notifPopup, setNotifPopup] = useState({ open: false, message: "", id: null });
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -387,7 +389,7 @@ useEffect(() => {
         { timeout: 10000 }
       );
     } else if (settings.locationMode === "manual") {
-      const manualLocation = localStorage.getItem("manualLocation") || settings.manualLocation;
+      const manualLocation = localStorage.getItem("manualLocation") || settings.manualLocation;  
       if (manualLocation) {
         const location = {
           mode: "manual",
@@ -460,105 +462,24 @@ useEffect(() => {
     return () => unsubscribeBudgets();
   }, [user]);
 
-  // Fetch notifications from backend (show popup only on Home page)
-  useEffect(() => {
-    const user = getUserFromStorage();
-    if (!user?.uid) return;
-    // Only show popup if on Home page (not /chats)
-    if (location.pathname !== "/" && location.pathname !== "/homepage") return;
-    fetch(`${NOTIF_API_URL}?uid=${user.uid}`)
-      .then(res => res.json())
-      .then(data => {
-        setNotifications(data);
-        // Show popup for the latest unseen notification
-        const unseen = data.filter(n => !n.seen);
-        if (unseen.length > 0) {
-          setNotifPopup({ open: true, message: unseen[0].title || unseen[0].text || "New Notification", id: unseen[0].id });
-        }
-      })
-      .catch(() => {});
-  }, [user, location.pathname]);
 
-  // Poll notifications from backend and show popup only on Home page
-  useEffect(() => {
-    let poller;
-    const user = getUserFromStorage();
-    if (!user?.uid) return;
+    useEffect(() => {
+        if (!auth.currentUser) return;
 
-    let errorLogged = false;
+        const userId = auth.currentUser.uid;
+        const notificationsQuery = query(
+            collection(db, "notifications"),
+            where("uid", "==", userId),
+            where("seen", "==", false)
+        );
 
-    function fetchAndShowPopup() {
-      if (location.pathname !== "/" && location.pathname !== "/homepage") return;
-      fetch(`${NOTIF_API_URL}?uid=${user.uid}`)
-        .then(async res => {
-          let data;
-          try {
-            data = await res.json();
-          } catch {
-            throw new Error("Invalid backend response");
-          }
-          if (!res.ok || data.error) {
-            // If index_link is present, show a clickable link in the popup
-            if (data.index_link) {
-              setNotifPopup({
-                open: true,
-                message: (
-                  <span>
-                    Firestore index required for notifications.<br />
-                    <a
-                      href={data.index_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: "#fff", textDecoration: "underline" }}
-                    >
-                      Click here to create the required index
-                    </a>
-                  </span>
-                ),
-                id: null
-              });
-            } else {
-              setNotifPopup({
-                open: true,
-                message: "Notification backend error: " + (data.error || "Backend not reachable"),
-                id: null
-              });
-            }
-            throw new Error(data.error || "Backend not reachable");
-          }
-          setNotifications(data);
-          const unseen = data.filter(n => !n.seen);
-          if (unseen.length > 0) {
-            setNotifPopup({ open: true, message: unseen[0].title || unseen[0].text || "New Notification", id: unseen[0].id });
-          }
-          errorLogged = false;
-        })
-        .catch((err) => {
-          if (!errorLogged) {
-            console.warn("Notification backend unreachable:", err.message || err);
-            errorLogged = true;
-          }
-          setNotifications([]);
+        const unsubscribe = onSnapshot(notificationsQuery, (querySnapshot) => {
+            setUnreadCount(querySnapshot.size);
         });
-    }
 
-    fetchAndShowPopup();
-    poller = setInterval(fetchAndShowPopup, POLL_INTERVAL);
-
-    return () => {
-      if (poller) clearInterval(poller);
-    };
-  }, [location.pathname]);
-
-  // Mark notification as seen (send to backend if id exists)
-  const handleNotifClose = () => {
-    setNotifPopup({ open: false, message: "", id: null });
-    if (notifPopup.id) {
-      fetch(`${NOTIF_API_URL}/${notifPopup.id}/seen`, {
-        method: "POST"
-      }).catch(() => {});
-    }
-  };
+        // Cleanup listener on component unmount
+        return () => unsubscribe();
+    }, []);
 
   const weatherBg =
     weather && weatherGradients[weather.main]
@@ -775,10 +696,22 @@ useEffect(() => {
                 </Typography>
                 {/* Notification icon before profile icon */}
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <NotificationsNoneOutlinedIcon
-                    sx={{ fontSize: 28, color: mode === "dark" ? "#fff" : "#333", cursor: "pointer" }}
-                    onClick={() => navigate("/notifications")}
-                  />
+                  <Badge
+                      color="error"
+                      variant="dot"
+                      invisible={unreadCount === 0}
+                      sx={{
+                          '& .MuiBadge-badge': {
+                              right: 8,
+                              top: 6,
+                          },
+                      }}
+                  >
+                    <NotificationsNoneOutlinedIcon
+                      sx={{ fontSize: 28, color: mode === "dark" ? "#fff" : "#333", cursor: "pointer" }}
+                      onClick={() => navigate("/notifications")}
+                    />
+                  </Badge>
                   <ProfilePic />
                 </Box>
               </Toolbar>
@@ -1395,16 +1328,6 @@ useEffect(() => {
                 </Zoom>
               )}
             </Grid>
-            <Snackbar
-              open={notifPopup.open}
-              autoHideDuration={4000}
-              onClose={handleNotifClose}
-              anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-            >
-              <MuiAlert elevation={6} variant="filled" severity="info" onClose={handleNotifClose}>
-                {notifPopup.message}
-              </MuiAlert>
-            </Snackbar>
           </Box>
         </BetaAccessGuard>
       </DeviceGuard>

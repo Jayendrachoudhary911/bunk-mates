@@ -246,11 +246,69 @@ function ChatRoom() {
 
   const [notification, setNotification] = useState(null);
 
+  const [chatFontSize, setChatFontSize] = useState(parseInt(localStorage.getItem('bunkmate_fontSize'), 10) || 16);
+  const [chatWallpaper, setChatWallpaper] = useState(localStorage.getItem('bunkmate_chatWallpaper') || 'default');
+  const [effectiveChatTheme, setEffectiveChatTheme] = useState('dark'); // 'light' or 'dark'
+
+
   const messageVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: 20, transition: { duration: 0.2 } },
   };
+
+    const getWallpaperUrl = () => {
+      const selectedWallpaper = localStorage.getItem('bunkmate_chatWallpaper') || 'default';
+      if (selectedWallpaper === 'none') {
+          return 'none'; // No background image
+      }
+      if (selectedWallpaper === 'default') {
+          // Use default light/dark wallpaper based on the effective theme
+          return effectiveChatTheme === 'dark'
+              ? 'url(/assets/images/chatbg/dark.png)'
+              : 'url(/assets/images/chatbg/light.png)';
+      }
+      // If it's not 'default' or 'none', it's a custom URL
+      return `url(${selectedWallpaper})`;
+    };
+
+    useEffect(() => {
+        const savedThemeSetting = localStorage.getItem('bunkmate_chatTheme') || 'system';
+
+        const applySystemTheme = (e) => {
+            const isSystemDark = e.matches;
+            setEffectiveChatTheme(isSystemDark ? 'dark' : 'light');
+        };
+
+        if (savedThemeSetting === 'system') {
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            setEffectiveChatTheme(mediaQuery.matches ? 'dark' : 'light'); // Set initial value
+            mediaQuery.addEventListener('change', applySystemTheme);
+
+            return () => mediaQuery.removeEventListener('change', applySystemTheme);
+        } else {
+            setEffectiveChatTheme(savedThemeSetting); // 'light' or 'dark'
+        }
+    }, []);
+
+    // ⭐️ 4. LISTEN FOR REAL-TIME CHANGES FROM OTHER TABS
+    useEffect(() => {
+        const handleStorageChange = (event) => {
+            if (event.key === 'bunkmate_fontSize') {
+                setChatFontSize(parseInt(event.newValue, 10) || 16);
+            }
+            if (event.key === 'bunkmate_chatWallpaper') {
+                setChatWallpaper(event.newValue || 'default');
+            }
+            if (event.key === 'bunkmate_chatTheme') {
+                // For theme, we just reload to apply all changes consistently
+                window.location.reload();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
 
   useEffect(() => {
   // Request notification permission and FCM token
@@ -812,7 +870,10 @@ const removeUserReaction = async (msg, emoji) => {
       <Box
         ref={scrollContainerRef}
         sx={{
-          backgroundImage: mode === "dark" ? 'url(/assets/images/chatbg/dark.png)' : 'url(/assets/images/chatbg/light.png)',
+          backgroundImage: getWallpaperUrl(),
+          backgroundColor: getWallpaperUrl() === 'none'
+              ? (effectiveChatTheme === 'dark' ? '#0c0c0c' : '#f0f2f5')
+              : 'transparent',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
@@ -1012,7 +1073,7 @@ const removeUserReaction = async (msg, emoji) => {
                       boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)',
                     }}
                   >
-                    <Typography variant="body1">{msg.text}</Typography>
+                    <Typography variant="body1" sx={{ fontSize: `${chatFontSize}px` }}>{msg.text}</Typography>
 
                     {msg.reactions && msg.reactions.length > 0 && (
                       <Box

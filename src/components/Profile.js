@@ -33,6 +33,12 @@ import {
   Drawer,
   IconButton,
   InputAdornment,
+  FormControl,
+  Select,
+  MenuItem,
+  DialogContent,
+  DialogContentText,
+  Grid
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -44,6 +50,7 @@ import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 import LanguageOutlinedIcon from '@mui/icons-material/LanguageOutlined';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
@@ -52,6 +59,11 @@ import FeedbackOutlinedIcon from '@mui/icons-material/FeedbackOutlined';
 import CheckIcon from '@mui/icons-material/Check';
 import SearchIcon from '@mui/icons-material/Search';
 import LanguageIcon from '@mui/icons-material/Language';
+import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
+import WallpaperOutlinedIcon from '@mui/icons-material/WallpaperOutlined';
+import FormatSizeOutlinedIcon from '@mui/icons-material/FormatSizeOutlined';
+import DeleteSweepOutlinedIcon from '@mui/icons-material/DeleteSweepOutlined';
+import DeleteForeverOutlinedIcon from '@mui/icons-material/DeleteForeverOutlined';
 
 
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
@@ -84,7 +96,6 @@ const fadeIn = keyframes`
 `;
 
 
-
 const ProfilePic = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -112,6 +123,7 @@ const ProfilePic = () => {
     name: userData.name || "",
     email: userData.email || "",
   });
+
   const [userType, setUserType] = useState("");
   const [photoFile, setPhotoFile] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -157,12 +169,38 @@ const ProfilePic = () => {
   // const [languageDrawerOpen, setLanguageDrawerOpen] = useState(false);
   // const [searchTerm, setSearchTerm] = useState('');
 
+  const [chatTheme, setChatTheme] = useState(localStorage.getItem('bunkmate_chatTheme') || 'system');
+  const [fontSize, setFontSize] = useState(parseInt(localStorage.getItem('bunkmate_fontSize'), 10) || 14);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [chatWallpaper, setChatWallpaper] = useState(localStorage.getItem('bunkmate_chatWallpaper') || '/assets/images/chatbg/dark.png');
+  const [wallpaperDrawerOpen, setWallpaperDrawerOpen] = useState(false); // ⭐️ State for the drawer
+
+
+  const handleWallpaperSelect = (wallpaperUrl) => {
+        setChatWallpaper(wallpaperUrl);
+        localStorage.setItem('bunkmate_chatWallpaper', wallpaperUrl);
+    };
 
   const buttonWeatherBg =
   weather && weatherColors[weather.main]
     ? weatherColors[weather.main]
     : weatherColors.Default;
     
+
+
+// Place this array inside your ProfilePic component or import it
+const wallpapers = [
+  { id: 'none', name: 'Solid Color', url: 'none', theme: 'both' },
+  // Dark Themes
+  { id: 'dark_default', name: 'Default Dark', url: '/assets/images/chatbg/dark.png', theme: 'dark' },
+  // { id: 'dark_pattern', name: 'Dark Pattern', url: '/assets/images/chatbg/dark_pattern.png', theme: 'dark' },
+  // { id: 'dark_abstract', name: 'Dark Abstract', url: '/assets/images/chatbg/dark_abstract.jpg', theme: 'dark' },
+  // Light Themes
+  { id: 'light_default', name: 'Default Light', url: '/assets/images/chatbg/light.png', theme: 'light' },
+  // { id: 'light_pattern', name: 'Light Pattern', url: '/assets/images/chatbg/light_pattern.png', theme: 'light' },
+  // { id: 'light_subtle', name: 'Light Subtle', url: '/assets/images/chatbg/light_subtle.jpg', theme: 'light' },
+];
 
 const [features] = useState([
   {
@@ -530,7 +568,7 @@ sx={{
     sx: {
       mx: "auto",
       width: isSmallScreen ? "92vw" : 400,
-      backgroundColor: theme.palette.background.main,
+      backgroundColor: mode === "dark" ? "#00000059" : "#ffffffb4",
       backdropFilter: 'blur(80px)',
       backgroundImage: 'none',
       color: theme.palette.text.primary,
@@ -569,40 +607,40 @@ sx={{
 
         {/* Accounts */}
         <ListItem sx={{ pb: 0 }}>
-          <ListItemButton onClick={() => handleSetDrawerPage("accounts")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><AccountCircleOutlinedIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
+          <ListItemButton onClick={() => handleSetDrawerPage("accounts")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+            <ListItemIcon sx={{ minWidth: 40 }}><AccountCircleOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="Accounts" secondary="User privacy and security" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
         </ListItem>
 
         {/* Chats */}
         <ListItem sx={{ pb: 0 }}>
-          <ListItemButton onClick={() => handleSetDrawerPage("chats")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><ChatBubbleOutlineIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
+          <ListItemButton onClick={() => handleSetDrawerPage("chats")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+            <ListItemIcon sx={{ minWidth: 40 }}><ChatBubbleOutlineIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="Chats" secondary="Theme, Wallpapers, and Chat Settings" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
         </ListItem>
 
         {/* General Settings */}
         <ListItem sx={{ pb: 0 }}>
-          <ListItemButton onClick={() => handleSetDrawerPage("generalSettings")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><SettingsOutlinedIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
+          <ListItemButton onClick={() => handleSetDrawerPage("generalSettings")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+            <ListItemIcon sx={{ minWidth: 40 }}><SettingsOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="General Settings" secondary="App Theme, Language, and Location" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
         </ListItem>
 
         {/* Help */}
         <ListItem sx={{ pb: 0 }}>
-          <ListItemButton onClick={() => handleSetDrawerPage("support")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><HelpOutlineIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
+          <ListItemButton onClick={() => handleSetDrawerPage("support")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+            <ListItemIcon sx={{ minWidth: 40 }}><HelpOutlineIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="Help" secondary="Contact support and privacy policies" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
         </ListItem>
 
         {/* Send Feedback */}
         <ListItem sx={{ pb: 0 }}>
-          <ListItemButton onClick={() => handleSetDrawerPage("feedback")} sx={{ borderRadius: 3, py: 0.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><FeedbackOutlinedIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
+          <ListItemButton onClick={() => handleSetDrawerPage("feedback")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+            <ListItemIcon sx={{ minWidth: 40 }}><FeedbackOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="Send feedback" secondary="Report technical issues" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
         </ListItem>
@@ -610,7 +648,7 @@ sx={{
         {/* Invite a Friend */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("inviteFriend")} sx={{ borderRadius: 3, py: 1.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><PersonAddOutlinedIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
+            <ListItemIcon sx={{ minWidth: 40 }}><PersonAddOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="Invite a Friend" primaryTypographyProps={{ fontWeight: 'medium' }} />
           </ListItemButton>
         </ListItem>
@@ -618,7 +656,7 @@ sx={{
         {/* About */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("about")} sx={{ borderRadius: 3, py: 1.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><InfoOutlinedIcon sx={{ color: theme.palette.text.primary }} /></ListItemIcon>
+            <ListItemIcon sx={{ minWidth: 40 }}><InfoOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="About" primaryTypographyProps={{ fontWeight: 'medium' }} />
           </ListItemButton>
         </ListItem>
@@ -629,7 +667,7 @@ sx={{
   {/* ⭐️ NEW: Accounts Page */}
   {drawerPage === "accounts" && (
     <Container sx={{ mt: 1, mb: 2 }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => handleSetDrawerPage("main")} sx={{ mb: 2, borderRadius: 8, color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", '&:hover': { backgroundColor: "#f1f1f121" } }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2, borderRadius: 8, color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", '&:hover': { backgroundColor: "#f1f1f121" } }}>
         Back
       </Button>
       <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>
@@ -642,26 +680,238 @@ sx={{
     </Container>
   )}
 
-  {/* ⭐️ NEW: Chats Page */}
-  {drawerPage === "chats" && (
+{/* ⭐️ NEW: Chats Page - Expanded */}
+{/* ⭐️ NEW: Chats Page with localStorage Persistence */}
+{drawerPage === "chats" && (
     <Container sx={{ mt: 1, mb: 2 }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => handleSetDrawerPage("main")} sx={{ mb: 2, borderRadius: 8, color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", '&:hover': { backgroundColor: "#f1f1f121" } }}>
-        Back
-      </Button>
-      <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>
-        Chat Settings
-      </Typography>
-      <Typography>
-        Theme, wallpaper, and other chat-related settings will be here.
-      </Typography>
-      {/* Add your chat settings components here */}
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2, borderRadius: 8, color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", '&:hover': { backgroundColor: "#f1f1f121" } }}>
+            Back
+        </Button>
+        <Typography variant="h5" fontWeight="bold" sx={{ mb: 2 }}>
+            Chat Settings
+        </Typography>
+
+        <List>
+            {/* --- Appearance Section --- */}
+            <Typography variant="overline" color="text.secondary" sx={{ pl: 2 }}>Appearance</Typography>
+            <ListItem>
+                <ListItemIcon><PaletteOutlinedIcon /></ListItemIcon>
+                <ListItemText primary="Theme" />
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <Select
+                        value={chatTheme}
+                        onChange={(e) => {
+                            const newTheme = e.target.value;
+                            // ⭐️ UPDATE STATE AND SAVE TO LOCALSTORAGE
+                            setChatTheme(newTheme);
+                            localStorage.setItem('bunkmate_chatTheme', newTheme);
+                        }}
+                    >
+                        <MenuItem value="system">System</MenuItem>
+                        <MenuItem value="light">Light</MenuItem>
+                        <MenuItem value="dark">Dark</MenuItem>
+                    </Select>
+                </FormControl>
+            </ListItem>
+
+            <ListItemButton onClick={() => setWallpaperDrawerOpen(true)} sx={{ borderRadius: 2 }}>
+                <ListItemIcon><WallpaperOutlinedIcon /></ListItemIcon>
+                <ListItemText primary="Wallpaper" secondary="Choose a background for your chats" />
+            </ListItemButton>
+
+            <ListItem>
+                <ListItemIcon><FormatSizeOutlinedIcon /></ListItemIcon>
+                <ListItemText primary="Font Size" sx={{ mr: 4 }} />
+                <Slider
+                    value={fontSize}
+                    onChange={(e, newValue) => {
+                        // ⭐️ UPDATE STATE AND SAVE TO LOCALSTORAGE
+                        setFontSize(newValue);
+                        localStorage.setItem('bunkmate_fontSize', newValue);
+                    }}
+                    aria-labelledby="font-size-slider"
+                    valueLabelDisplay="auto"
+                    step={1}
+                    marks={[
+                        { value: 12, label: 'S' },
+                        { value: 14, label: 'M' },
+                        { value: 18, label: 'L' },
+                    ]}
+                    min={12}
+                    max={18}
+                />
+            </ListItem>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* --- Chat History Section (No changes here) --- */}
+            <Typography variant="overline" color="text.secondary" sx={{ pl: 2 }}>Chat History</Typography>
+            <ListItemButton onClick={() => setClearDialogOpen(true)} sx={{ borderRadius: 2 }}>
+                <ListItemIcon sx={{ color: 'warning.main' }}><DeleteSweepOutlinedIcon /></ListItemIcon>
+                <ListItemText primary="Clear all chats" secondary="Deletes all messages from every chat" primaryTypographyProps={{ color: 'warning.main' }} />
+            </ListItemButton>
+
+            <ListItemButton onClick={() => setDeleteDialogOpen(true)} sx={{ borderRadius: 2 }}>
+                <ListItemIcon sx={{ color: 'error.main' }}><DeleteForeverOutlinedIcon /></ListItemIcon>
+                <ListItemText primary="Delete all chats" secondary="Permanently removes all chats and messages" primaryTypographyProps={{ color: 'error.main' }} />
+            </ListItemButton>
+        </List>
+
+<SwipeableDrawer
+    anchor="bottom"
+    open={wallpaperDrawerOpen}
+    onClose={() => setWallpaperDrawerOpen(false)}
+    onOpen={() => setWallpaperDrawerOpen(true)}
+    PaperProps={{
+        sx: {
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            maxHeight: '70%',
+            backgroundColor: mode === "dark" ? "rgba(20, 20, 20, 0.8)" : "rgba(255, 255, 255, 0.8)",
+            backdropFilter: 'blur(20px)',
+        },
+    }}
+>
+    <Box sx={{ p: 2, overflowY: 'auto' }}>
+        <Box
+            sx={{
+                width: 40,
+                height: 5,
+                backgroundColor: "grey.400",
+                borderRadius: 3,
+                mx: 'auto',
+                mb: 2,
+            }}
+        />
+        <Typography variant="h6" fontWeight="bold" textAlign="center" sx={{ mb: 2 }}>
+            Chat Wallpaper
+        </Typography>
+
+        {/* --- Dark Theme Wallpapers --- */}
+        <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, pl: 1 }}>Dark Theme</Typography>
+            <Grid container spacing={1}>
+                {wallpapers.filter(w => w.theme === 'dark' || w.theme === 'both').map(wallpaper => (
+                    <Grid item xs={4} key={wallpaper.id}>
+                        <Box
+                            onClick={() => handleWallpaperSelect(wallpaper.url)}
+                            sx={{
+                                position: 'relative',
+                                height: 160,
+                                width: 100,
+                                borderRadius: 2,
+                                cursor: 'pointer',
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                backgroundImage: wallpaper.url === 'none' ? 'none' : `url(${wallpaper.url})`,
+                                backgroundColor: wallpaper.url === 'none' ? '#121212' : 'transparent',
+                                border: chatWallpaper === wallpaper.url ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
+                                transition: 'border 0.2s ease-in-out',
+                                '&:hover': {
+                                    opacity: 0.8
+                                }
+                            }}
+                        >
+                            {chatWallpaper === wallpaper.url && (
+                                <CheckCircleIcon sx={{ position: 'absolute', top: 8, right: 8, color: 'primary.main', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '50%' }} />
+                            )}
+                            <Typography sx={{ position: 'absolute', bottom: 8, left: 8, color: '#fff', backgroundColor: 'rgba(0,0,0,0.5)', px: 1, borderRadius: 1, fontSize: '0.75rem' }}>
+                                {wallpaper.name}
+                            </Typography>
+                        </Box>
+                    </Grid>
+                ))}
+            </Grid>
+        </Box>
+
+        {/* --- Light Theme Wallpapers --- */}
+        <Box>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, pl: 1 }}>Light Theme</Typography>
+            <Grid container spacing={1}>
+                {wallpapers.filter(w => w.theme === 'light').map(wallpaper => (
+                    <Grid item xs={4} key={wallpaper.id}>
+                         <Box
+                            onClick={() => handleWallpaperSelect(wallpaper.url)}
+                            sx={{
+                                position: 'relative',
+                                height: 160,
+                                width: 100,
+                                borderRadius: 2,
+                                cursor: 'pointer',
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                backgroundImage: `url(${wallpaper.url})`,
+                                border: chatWallpaper === wallpaper.url ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
+                                transition: 'border 0.2s ease-in-out',
+                                '&:hover': {
+                                    opacity: 0.8
+                                }
+                            }}
+                        >
+                            {chatWallpaper === wallpaper.url && (
+                                <CheckCircleIcon sx={{ position: 'absolute', top: 8, right: 8, color: 'primary.main', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '50%' }} />
+                            )}
+                            <Typography sx={{ position: 'absolute', bottom: 8, left: 8, color: '#000', backgroundColor: 'rgba(255,255,255,0.6)', px: 1, borderRadius: 1, fontSize: '0.75rem' }}>
+                                {wallpaper.name}
+                            </Typography>
+                        </Box>
+                    </Grid>
+                ))}
+            </Grid>
+        </Box>
+    </Box>
+</SwipeableDrawer>
+
+        {/* --- Dialogs (No changes here) --- */}
+        <Dialog
+            open={clearDialogOpen}
+            onClose={() => setClearDialogOpen(false)}
+        >
+            <DialogTitle>{"Clear All Chats?"}</DialogTitle>
+            <DialogContent>
+                <DialogContentText>
+                    Are you sure you want to clear all messages? This action cannot be undone. Your chat list will remain, but all messages will be deleted.
+                </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={() => setClearDialogOpen(false)}>Cancel</Button>
+                <Button onClick={() => {
+                    console.log("Clearing all chats...");
+                    setClearDialogOpen(false);
+                }} color="warning" autoFocus>
+                    Clear Chats
+                </Button>
+            </DialogActions>
+        </Dialog>
+
+        <Dialog
+            open={deleteDialogOpen}
+            onClose={() => setDeleteDialogOpen(false)}
+        >
+            <DialogTitle>{"Delete All Chats Permanently?"}</DialogTitle>
+            <DialogContent>
+                <DialogContentText>
+                    Are you sure? This will permanently delete all of your chats and messages. This action cannot be undone.
+                </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+                <Button onClick={() => {
+                    console.log("Deleting all chats...");
+                    setDeleteDialogOpen(false);
+                }} color="error" autoFocus>
+                    Delete Permanently
+                </Button>
+            </DialogActions>
+        </Dialog>
+
     </Container>
-  )}
+)}
 
   {/* ⭐️ NEW: Invite a Friend Page */}
   {drawerPage === "inviteFriend" && (
     <Container sx={{ mt: 1, mb: 2 }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => handleSetDrawerPage("main")} sx={{ mb: 2, borderRadius: 8, color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", '&:hover': { backgroundColor: "#f1f1f121" } }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2, borderRadius: 8, color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", '&:hover': { backgroundColor: "#f1f1f121" } }}>
         Back
       </Button>
       <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>
@@ -689,7 +939,7 @@ sx={{
         {/* Header */}
 <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
   <IconButton
-    onClick={() => handleSetDrawerPage("main")}
+    onClick={() => navigate(-1)}
     sx={{
       mr: 2,
       borderRadius: 8,
@@ -966,7 +1216,7 @@ sx={{
     {/* Back Button */}
     <Button
       startIcon={<ArrowBackIcon />}
-      onClick={() => handleSetDrawerPage("main")}
+      onClick={() => navigate(-1)}
       sx={{
         mb: 2,
         borderRadius: 8, 
@@ -1138,7 +1388,7 @@ sx={{
   <Container sx={{ mt: 1, mb: 2 }}>
     <Button
       startIcon={<ArrowBackIcon />}
-      onClick={() => handleSetDrawerPage("main")}
+      onClick={() => navigate(-1)}
       sx={{
         mb: 1,
         borderRadius: 8, 
@@ -1215,7 +1465,7 @@ sx={{
     <>
     <Button
       startIcon={<ArrowBackIcon />}
-      onClick={() => handleSetDrawerPage("main")}
+      onClick={() => navigate(-1)}
       sx={{
         borderRadius: 8,
         color: theme.palette.text.primary,
@@ -1703,7 +1953,7 @@ sx={{
     {/* Back Button */}
     <Button
       startIcon={<ArrowBackIcon />}
-      onClick={() => handleSetDrawerPage("main")}
+      onClick={() => navigate(-1)}
       sx={{
         mb: 3,
         borderRadius: 8,
