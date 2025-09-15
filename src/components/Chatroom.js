@@ -70,7 +70,7 @@ function showLocalNotification(title, options) {
 
   const theme = createTheme({
     palette: {
-      mode: "dark",
+      effectiveChatTheme: "dark",
       background: {
         default: "#02020200", // almost transparent black for main background
         paper: "#0c0c0c", // deep black for dialogs/paper
@@ -274,21 +274,29 @@ function ChatRoom() {
 
     useEffect(() => {
         const savedThemeSetting = localStorage.getItem('bunkmate_chatTheme') || 'system';
-
-        const applySystemTheme = (e) => {
-            const isSystemDark = e.matches;
-            setEffectiveChatTheme(isSystemDark ? 'dark' : 'light');
+        if (savedThemeSetting !== 'system') {
+            setEffectiveChatTheme(savedThemeSetting);
+            return;
+        }
+        const applyAppTheme = () => {
+            const globalAppTheme = localStorage.getItem('theme') || 'dark';
+            setEffectiveChatTheme(globalAppTheme);
         };
 
-        if (savedThemeSetting === 'system') {
-            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-            setEffectiveChatTheme(mediaQuery.matches ? 'dark' : 'light'); // Set initial value
-            mediaQuery.addEventListener('change', applySystemTheme);
+        applyAppTheme();
 
-            return () => mediaQuery.removeEventListener('change', applySystemTheme);
-        } else {
-            setEffectiveChatTheme(savedThemeSetting); // 'light' or 'dark'
-        }
+        const handleStorageChange = (event) => {
+            if (event.key === 'theme') {
+                applyAppTheme();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        // Cleanup the listener when the component unmounts
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
     }, []);
 
     // ⭐️ 4. LISTEN FOR REAL-TIME CHANGES FROM OTHER TABS
@@ -817,7 +825,7 @@ const removeUserReaction = async (msg, emoji) => {
 
   if (authLoading || !currentUser) {
     return (
-      <Box sx={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: mode === "dark" ? "#fff" : "#000" }}>
+      <Box sx={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
         <CircularProgress color="inherit" />
       </Box>
     );
@@ -825,13 +833,13 @@ const removeUserReaction = async (msg, emoji) => {
   
   return (
     <ThemeProvider theme={theme}>
-          <Box sx={{ backgroundColor: '#21212100', height: '98vh', display: 'flex', flexDirection: 'column', color: mode === "dark" ? "#fff" : "#000" }}>
+          <Box sx={{ backgroundColor: '#21212100', height: '98vh', display: 'flex', flexDirection: 'column', color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
       
       {/* Header */}
       <AppBar
         position="fixed"
         sx={{
-          background: mode === "dark" ? 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to bottom, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
+          background: effectiveChatTheme === "dark" ? 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to bottom, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
           backdropFilter: 'blur(0px)',
           padding: '18px 10px 10px 10px',
           borderBottom: "none",
@@ -842,22 +850,22 @@ const removeUserReaction = async (msg, emoji) => {
       >
         <Box display={"flex"} justifyContent={"space-between"} alignItems={"center"}>
           <Box display={"flex"} alignItems={"center"}>
-          <IconButton onClick={goBack} sx={{ mr: 1, color: mode === "dark" ? "#fff" : "#000" }}>
+          <IconButton onClick={goBack} sx={{ mr: 1, color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
             <ArrowBackIcon />
           </IconButton>
           <Avatar src={friendDetails.photoURL} alt={friendDetails.name} sx={{ mr: 2, height: '40px', width: '40px' }} />
           <Box onClick={() => setOpenProfile(true)}>
-            <Typography variant="h6" color={mode === "dark" ? "#fff" : "#000"} fontSize="14px">
+            <Typography variant="h6" color={effectiveChatTheme === "dark" ? "#fff" : "#000"} fontSize="14px">
               {nickname ? nickname : friendDetails.name}
             </Typography>
-            <Typography variant="h6" color={mode === "dark" ? "#aaa" : "#333"} fontSize="10px">@{friendDetails.username}</Typography>
+            <Typography variant="h6" color={effectiveChatTheme === "dark" ? "#aaa" : "#333"} fontSize="10px">@{friendDetails.username}</Typography>
             <Typography variant="body2" sx={{ color: friendDetails.status === 'online' ? '#AEEA00' : '#BDBDBD' }}>
               {friendDetails.status}
             </Typography>
           </Box>
           </Box>
                   <IconButton
-                    sx={{ color: mode === "dark" ? "#fff" : "#000", backgroundColor: mode === "dark" ? "#181818" : "#d6d6d6ff", backdropFilter: "blur(80px)", borderRadius: 8, py: 1, px: 1, display: "flex", alignItems: "center", mr: 2 }}
+                    sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", backgroundColor: effectiveChatTheme === "dark" ? "#181818" : "#d6d6d6ff", backdropFilter: "blur(80px)", borderRadius: 8, py: 1, px: 1, display: "flex", alignItems: "center", mr: 2 }}
                     onClick={() => window.open(`tel:${friendDetails.mobile}`, '_blank')}
                     disabled={!friendDetails.mobile}
                   >
@@ -913,9 +921,9 @@ const removeUserReaction = async (msg, emoji) => {
                     sx={{
                       px: 1,
                       py: 1,
-                      bgcolor: mode === "dark" ? "#f1f1f111" : "#00000011",
+                      bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#00000011",
                       backdropFilter: "blur(80px)",
-                      color: mode === "dark" ? "#fff" : "#000",
+                      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
                       borderRadius: '12px',
                       fontStyle: 'italic',
                       fontSize: '0.95em',
@@ -974,7 +982,7 @@ const removeUserReaction = async (msg, emoji) => {
                   >
                     <Typography
                       variant="caption"
-                      sx={{ color: mode === "dark" ? "#aaa" : "#333", backgroundColor: mode === "dark" ? "#f1f1f111" : "#88888811", backdropFilter: "blur(120px)", px: 1, borderRadius: 8, textAlign: 'center' }}
+                      sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333", backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#88888811", backdropFilter: "blur(120px)", px: 1, borderRadius: 8, textAlign: 'center' }}
                     >
                       {getMessageDate(msg.timestamp)}
                     </Typography>
@@ -1001,16 +1009,16 @@ const removeUserReaction = async (msg, emoji) => {
 {msg.replyTo && (
   <Box
     sx={{
-      border: mode === "dark" ? '1px solid #6565659d' : '1px solid #9f9f9fff',
-      borderLeft: mode === "dark" ? '4px solid #00f72172' : '4px solid #057c1572',
+      border: effectiveChatTheme === "dark" ? '1px solid #6565659d' : '1px solid #9f9f9fff',
+      borderLeft: effectiveChatTheme === "dark" ? '4px solid #00f72172' : '4px solid #057c1572',
       px: 1.5,
       py: 0.2,
       mb: 0.3,
-      bgcolor: mode === "dark" ? '#4a4a4a00' : "#ececec70",
+      bgcolor: effectiveChatTheme === "dark" ? '#4a4a4a00' : "#ececec70",
       backdropFilter: 'blur(24px)',
-      color: mode === "dark" ? "#fff" : "#222",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
       borderRadius: 2,
-      boxShadow: mode === "dark"
+      boxShadow: effectiveChatTheme === "dark"
         ? "0 2px 8px #0002"
         : "0 2px 8px #8881",
       display: "flex",
@@ -1033,7 +1041,7 @@ const removeUserReaction = async (msg, emoji) => {
         variant="caption"
         sx={{
           fontWeight: 700,
-          color: mode === "dark" ? "#00f721ab" : "#057c1572",
+          color: effectiveChatTheme === "dark" ? "#00f721ab" : "#057c1572",
           letterSpacing: 0.2,
         }}
       >
@@ -1047,7 +1055,7 @@ const removeUserReaction = async (msg, emoji) => {
     <Typography
       variant="body2"
       sx={{
-        color: mode === "dark" ? "#919191ff" : "#7c7c7cff",
+        color: effectiveChatTheme === "dark" ? "#919191ff" : "#7c7c7cff",
         fontStyle: 'italic',
         fontSize: "0.97em",
         wordBreak: "break-word",
@@ -1066,9 +1074,9 @@ const removeUserReaction = async (msg, emoji) => {
                       py: 0.5,
                       maxWidth: '70%',
                       minWidth: "100px",
-                      bgcolor: isOwn ? mode === "dark" ? "#005c4b" : "#d9fdd3" : mode === "dark" ? "#353535" : "#ffffff",
+                      bgcolor: isOwn ? effectiveChatTheme === "dark" ? "#005c4b" : "#d9fdd3" : effectiveChatTheme === "dark" ? "#353535" : "#ffffff",
                       borderRadius: isOwn ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-                      color: mode === "dark" ? "#fff" : "#000",
+                      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
                       position: 'relative',
                       boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)',
                     }}
@@ -1106,16 +1114,16 @@ const removeUserReaction = async (msg, emoji) => {
     </span>}
   size="small"
   sx={{
-    bgcolor: mode === "dark" ? "#353535" : "#ffffff",
-    color: mode === "dark" ? "#fff" : "#222",
+    bgcolor: effectiveChatTheme === "dark" ? "#353535" : "#ffffff",
+    color: effectiveChatTheme === "dark" ? "#fff" : "#222",
     borderRadius: '25px',
     cursor: 'pointer',
-    border: mode === "dark" ? '1.5px solid #000000ff' : '1.5px solid #d3d3d3ff',
+    border: effectiveChatTheme === "dark" ? '1.5px solid #000000ff' : '1.5px solid #d3d3d3ff',
     height: 20,
     width: 20,
     minWidth: 0,
     minHeight: 0,
-    boxShadow: mode === "dark"
+    boxShadow: effectiveChatTheme === "dark"
       ? "0 2px 8px #000a"
       : "0 2px 8px #8882",
     display: "flex",
@@ -1123,10 +1131,10 @@ const removeUserReaction = async (msg, emoji) => {
     justifyContent: "center",
     transition: "all 0.18s cubic-bezier(0.4,0,0.2,1)",
     '&:hover': {
-      bgcolor: mode === "dark" ? "#444" : "#f5f5f5",
-      borderColor: mode === "dark" ? "#b2b2b2ff" : "#565656ff",
+      bgcolor: effectiveChatTheme === "dark" ? "#444" : "#f5f5f5",
+      borderColor: effectiveChatTheme === "dark" ? "#b2b2b2ff" : "#565656ff",
       transform: "scale(1.13)",
-      boxShadow: mode === "dark"
+      boxShadow: effectiveChatTheme === "dark"
         ? "0 4px 16px #000c"
         : "0 4px 16px #1976d233",
     },
@@ -1149,7 +1157,7 @@ const removeUserReaction = async (msg, emoji) => {
                         fontSize: '0.7rem',
                         width: '75%',
                         minWidth: "100px",
-                        color: mode === "dark" ? "#ccc" : "#555",
+                        color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
                         mt: 0.5,
                         display: "flex",
                         justifyContent: "space-between",
@@ -1203,20 +1211,20 @@ const removeUserReaction = async (msg, emoji) => {
       </Box>
 
       {replyingTo && (
-        <Paper sx={{ p: 1, position: 'relative', bottom: '55px', width: '90vw', mx: "auto", bgcolor: mode === "dark" ? '#2b2b2bc0' : "#dadadac0", boxShadow: "none", mb: 1, borderLeft: mode === "dark" ? "4px solid #00f721" : "4px solid #057c15ff", backdropFilter: 'blur(80px)', borderRadius: '11px', zIndex: 1000 }}>
+        <Paper sx={{ p: 1, position: 'relative', bottom: '55px', width: '90vw', mx: "auto", bgcolor: effectiveChatTheme === "dark" ? '#2b2b2bc0' : "#dadadac0", boxShadow: "none", mb: 1, borderLeft: effectiveChatTheme === "dark" ? "4px solid #00f721" : "4px solid #057c15ff", backdropFilter: 'blur(80px)', borderRadius: '11px', zIndex: 1000 }}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Box>
-              <Typography variant="caption" color={mode === "dark" ? "#00f721" : "#057c15ff"}>
+              <Typography variant="caption" color={effectiveChatTheme === "dark" ? "#00f721" : "#057c15ff"}>
                 Replying to {replyingTo.senderId === currentUser.uid ? 'Self' : friendDetails.name}
               </Typography>
-              <Typography variant="body2" sx={{ color: mode === "dark" ? "#e7e7e7ff" : "#242424ff" }}>
+              <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#e7e7e7ff" : "#242424ff" }}>
                 {replyingTo.text.length > 60
                   ? replyingTo.text.slice(0, 60) + '...'
                   : replyingTo.text}
               </Typography>
             </Box>
             <IconButton onClick={() => setReplyingTo(null)}>
-              <CloseIcon fontSize="small" sx={{ color: {color: mode === "dark" ? "#fff" : "#000"} }} />
+              <CloseIcon fontSize="small" sx={{ color: {color: effectiveChatTheme === "dark" ? "#fff" : "#000"} }} />
             </IconButton>
           </Box>
         </Paper>
@@ -1238,7 +1246,7 @@ const removeUserReaction = async (msg, emoji) => {
           alignItems: 'center',
           zIndex: '1200',
           borderTop: '0px solid #5E5E5E',
-          background: mode === "dark" ? 'linear-gradient(to top, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to top, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
+          background: effectiveChatTheme === "dark" ? 'linear-gradient(to top, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to top, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
         }}
       >
         <TextField
@@ -1255,7 +1263,7 @@ const removeUserReaction = async (msg, emoji) => {
             mr: 1,
             borderRadius: '40px',
             input: {
-              color: mode === "dark" ? "#fff" : "#000",
+              color: effectiveChatTheme === "dark" ? "#fff" : "#000",
               height: '28px',
               borderRadius: '40px',
               backdropFilter: "blur(30px)",
@@ -1275,12 +1283,12 @@ const removeUserReaction = async (msg, emoji) => {
               },
             },
             '& .MuiInputBase-input::placeholder': {
-              color: mode === "dark" ? "#cccccc" : "#343434ff"
+              color: effectiveChatTheme === "dark" ? "#cccccc" : "#343434ff"
             }
           }}
         />
-        <Button type="submit" sx={{ backgroundColor: mode === "dark" ? "#fff" : "#000", height: '45px', width: '30px', borderRadius: 8, }} disabled={isSending}>
-          {isSending ? <CircularProgress size={24} sx={{ color: mode === "dark" ? "#000" : "#fff" }} /> : <SendIcon sx={{ color: mode === "dark" ? "#000" : "#fff" }} />}
+        <Button type="submit" sx={{ backgroundColor: effectiveChatTheme === "dark" ? "#fff" : "#000", height: '45px', width: '30px', borderRadius: 8, }} disabled={isSending}>
+          {isSending ? <CircularProgress size={24} sx={{ color: effectiveChatTheme === "dark" ? "#000" : "#fff" }} /> : <SendIcon sx={{ color: effectiveChatTheme === "dark" ? "#000" : "#fff" }} />}
         </Button>
       </Box>
 
@@ -1293,12 +1301,12 @@ const removeUserReaction = async (msg, emoji) => {
     sx: {
       minWidth: 220,
       borderRadius: 4,
-      bgcolor: mode === "dark" ? "#18181823" : "#ffffff43",
-      color: mode === "dark" ? "#fff" : "#222",
-      boxShadow: mode === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
+      bgcolor: effectiveChatTheme === "dark" ? "#18181823" : "#ffffff43",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+      boxShadow: effectiveChatTheme === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
       p: 1,
-      backdropFilter: mode === "dark" ? 'blur(18px)' : 'blur(8px)',
-      border: mode === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
+      backdropFilter: effectiveChatTheme === "dark" ? 'blur(18px)' : 'blur(8px)',
+      border: effectiveChatTheme === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
       overflow: 'hidden',
       transition: "box-shadow 0.3s, background 0.3s",
     },
@@ -1316,16 +1324,16 @@ const removeUserReaction = async (msg, emoji) => {
           width: 38,
           height: 38,
           fontSize: 20,
-          bgcolor: mode === "dark" ? 'rgba(41,41,41,0.85)' : '#f7f7f7',
+          bgcolor: effectiveChatTheme === "dark" ? 'rgba(41,41,41,0.85)' : '#f7f7f7',
           borderRadius: 2,
-          color: mode === "dark" ? "#fff" : "#222",
-          backdropFilter: mode === "dark" ? 'blur(10px)' : 'blur(2px)',
-          border: mode === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
-          boxShadow: mode === "dark" ? '0 2px 8px #0004' : '0 2px 8px #bbb2',
+          color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+          backdropFilter: effectiveChatTheme === "dark" ? 'blur(10px)' : 'blur(2px)',
+          border: effectiveChatTheme === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
+          boxShadow: effectiveChatTheme === "dark" ? '0 2px 8px #0004' : '0 2px 8px #bbb2',
           transition: 'all 0.18s cubic-bezier(0.4,0,0.2,1)',
           '&:hover': {
-            bgcolor: mode === "dark" ? '#333' : '#e0e0e0',
-            borderColor: mode === "dark" ? '#444' : '#bdbdbd'
+            bgcolor: effectiveChatTheme === "dark" ? '#333' : '#e0e0e0',
+            borderColor: effectiveChatTheme === "dark" ? '#444' : '#bdbdbd'
           },
         }}
       >
@@ -1340,16 +1348,16 @@ const removeUserReaction = async (msg, emoji) => {
       sx={{
         width: 38,
         height: 38,
-        bgcolor: mode === "dark" ? '#292929d9' : '#ffffffff',
+        bgcolor: effectiveChatTheme === "dark" ? '#292929d9' : '#ffffffff',
         borderRadius: 2,
-        color: mode === "dark" ? "#fff" : "#222",
-        border: mode === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
-        boxShadow: mode === "dark" ? '0 2px 8px #0004' : '0 2px 8px #bbb2',
-        backdropFilter: mode === "dark" ? 'blur(10px)' : 'blur(2px)',
+        color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+        border: effectiveChatTheme === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
+        boxShadow: effectiveChatTheme === "dark" ? '0 2px 8px #0004' : '0 2px 8px #bbb2',
+        backdropFilter: effectiveChatTheme === "dark" ? 'blur(10px)' : 'blur(2px)',
         transition: 'all 0.18s cubic-bezier(0.4,0,0.2,1)',
         '&:hover': {
-          bgcolor: mode === "dark" ? '#333' : '#e0e0e0',
-          borderColor: mode === "dark" ? '#444' : '#bdbdbd'
+          bgcolor: effectiveChatTheme === "dark" ? '#333' : '#e0e0e0',
+          borderColor: effectiveChatTheme === "dark" ? '#444' : '#bdbdbd'
         },
       }}
     >
@@ -1357,7 +1365,7 @@ const removeUserReaction = async (msg, emoji) => {
     </IconButton>
   </Box>
 
-  <Divider sx={{ my: 1, bgcolor: mode === "dark" ? '#333' : '#e0e0e0', borderRadius: 2 }} />
+  <Divider sx={{ my: 1, bgcolor: effectiveChatTheme === "dark" ? '#333' : '#e0e0e0', borderRadius: 2 }} />
 
   <MenuItem
     onClick={() => {
@@ -1370,16 +1378,16 @@ const removeUserReaction = async (msg, emoji) => {
       borderRadius: 2,
       mx: 0.5,
       my: 0.2,
-      backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
-      color: mode === "dark" ? "#fff" : "#222",
-      '&:hover': { bgcolor: mode === "dark" ? '#232323' : '#ffffffff' },
+      backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+      '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
       transition: 'background 0.2s',
       display: 'flex',
       alignItems: 'center',
       gap: 1,
     }}
   >
-    <ReplyIcon fontSize="small" sx={{ color: mode === "dark" ? "#fff" : "#222" }} />
+    <ReplyIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
     Reply
   </MenuItem>
 
@@ -1396,15 +1404,15 @@ const removeUserReaction = async (msg, emoji) => {
           borderRadius: 2,
           mx: 0.5,
           my: 0.2,
-          backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
-          color: mode === "dark" ? "#fff" : "#222",
-          '&:hover': { bgcolor: mode === "dark" ? '#232323' : '#ffffffff' },
+          backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+          color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+          '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
           display: 'flex',
           alignItems: 'center',
           gap: 1,
         }}
       >
-        <EditIcon fontSize="small" sx={{ color: mode === "dark" ? "#fff" : "#222" }} />
+        <EditIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
         Edit
       </MenuItem>
       <MenuItem
@@ -1419,8 +1427,8 @@ const removeUserReaction = async (msg, emoji) => {
           borderRadius: 2,
           mx: 0.5,
           my: 0.2,
-          backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
-          '&:hover': { bgcolor: mode === "dark" ? '#2a1818' : '#ffe2e2ff' },
+          backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+          '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#2a1818' : '#ffe2e2ff' },
           display: 'flex',
           alignItems: 'center',
           gap: 1,
@@ -1432,7 +1440,7 @@ const removeUserReaction = async (msg, emoji) => {
     </>
   )}
 
-  <Divider sx={{ my: 0.5, bgcolor: mode === "dark" ? '#333' : '#e0e0e0', borderRadius: 2 }} />
+  <Divider sx={{ my: 0.5, bgcolor: effectiveChatTheme === "dark" ? '#333' : '#e0e0e0', borderRadius: 2 }} />
 
   <MenuItem
     onClick={() => {
@@ -1445,15 +1453,15 @@ const removeUserReaction = async (msg, emoji) => {
       borderRadius: 2,
       mx: 0.5,
       my: 0.2,
-      backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
-      color: mode === "dark" ? "#fff" : "#222",
-      '&:hover': { bgcolor: mode === "dark" ? '#232323' : '#ffffffff' },
+      backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+      '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
       display: 'flex',
       alignItems: 'center',
       gap: 1,
     }}
   >
-    <ContentCopyIcon fontSize="small" sx={{ color: mode === "dark" ? "#fff" : "#222" }} />
+    <ContentCopyIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
     Copy Text
   </MenuItem>
 
@@ -1471,15 +1479,15 @@ const removeUserReaction = async (msg, emoji) => {
         borderRadius: 2,
         mx: 0.5,
         my: 0.2,
-        backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
-        color: mode === "dark" ? "#fff" : "#222",
-        '&:hover': { bgcolor: mode === "dark" ? '#232323' : '#ffffffff' },
+        backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+        color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+        '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
         display: 'flex',
         alignItems: 'center',
         gap: 1,
       }}
     >
-      <SearchIcon fontSize="small" sx={{ color: mode === "dark" ? "#fff" : "#222" }} />
+      <SearchIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
       Search on Google
     </MenuItem>
   )}
@@ -1499,9 +1507,9 @@ const removeUserReaction = async (msg, emoji) => {
     sx: {
       minWidth: 220,
       borderRadius: "25px 25px 0 0",
-      bgcolor: mode === "dark" ? "#00000026" : "#ffffffde",
-      color: mode === "dark" ? "#fff" : "#222",
-      boxShadow: mode === "dark" ? "0 12px 32px #000c" : "0 8px 32px #8882",
+      bgcolor: effectiveChatTheme === "dark" ? "#00000026" : "#ffffffde",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+      boxShadow: effectiveChatTheme === "dark" ? "0 12px 32px #000c" : "0 8px 32px #8882",
       p: 2,
       backdropFilter: "blur(40px)",
       border: "none",
@@ -1514,7 +1522,7 @@ const removeUserReaction = async (msg, emoji) => {
     sx={{
       width: 40,
       height: 4,
-      bgcolor: mode === "dark" ? '#6a6a6aff' : '#818181ff',
+      bgcolor: effectiveChatTheme === "dark" ? '#6a6a6aff' : '#818181ff',
       borderRadius: 3,
       mx: 'auto',
       mb: 1.5,
@@ -1525,13 +1533,13 @@ const removeUserReaction = async (msg, emoji) => {
   <Typography
     variant="subtitle2"
     sx={{
-      color: mode === "dark" ? "#fff" : "#222",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
       textAlign: "center",
       mb: 1,
       letterSpacing: 1,
       fontWeight: 600,
       opacity: 0.8,
-      textShadow: mode === "dark" ? "0 2px 8px #0008" : "none"
+      textShadow: effectiveChatTheme === "dark" ? "0 2px 8px #0008" : "none"
     }}
   >
     Reactions
@@ -1551,19 +1559,19 @@ const removeUserReaction = async (msg, emoji) => {
               my: 0.7,
               px: 2,
               py: 1.2,
-              bgcolor: mode === "dark" ? "#0000003d" : "#31313121",
-              color: mode === "dark"
+              bgcolor: effectiveChatTheme === "dark" ? "#0000003d" : "#31313121",
+              color: effectiveChatTheme === "dark"
                 ? "#fff"
                 : "#222",
               fontWeight: 500,
               fontSize: 17,
               boxShadow: "none",
-              backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
+              backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
               border: "none",
               transition: "background 0.2s",
               '&:hover': {
-                bgcolor: mode === "dark" ? '#232323' : '#e0e0e0',
-                borderColor: mode === "dark" ? "#444" : "#bdbdbd"
+                bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#e0e0e0',
+                borderColor: effectiveChatTheme === "dark" ? "#444" : "#bdbdbd"
               },
               flexDirection: "column",
               alignItems: "flex-start",
@@ -1585,9 +1593,9 @@ const removeUserReaction = async (msg, emoji) => {
                   width: 28,
                   height: 28,
                   mr: 1.2,
-                  border: mode === "dark" ? "2px solid #232323" : "2px solid #e0e0e0",
-                  bgcolor: mode === "dark" ? "#222" : "#fafafa",
-                  color: mode === "dark" ? "#fff" : "#222",
+                  border: effectiveChatTheme === "dark" ? "2px solid #232323" : "2px solid #e0e0e0",
+                  bgcolor: effectiveChatTheme === "dark" ? "#222" : "#fafafa",
+                  color: effectiveChatTheme === "dark" ? "#fff" : "#222",
                   fontWeight: 700,
                   fontSize: 18,
                 }}
@@ -1599,7 +1607,7 @@ const removeUserReaction = async (msg, emoji) => {
                 variant="body1"
                 sx={{
                   fontWeight: 700,
-                  color: mode === "dark" ? "#fff" : "#222",
+                  color: effectiveChatTheme === "dark" ? "#fff" : "#222",
                   fontSize: 13,
                   flex: 1,
                   overflow: "hidden",
@@ -1616,7 +1624,7 @@ const removeUserReaction = async (msg, emoji) => {
               <Typography
                 variant="caption"
                 sx={{
-                  color: mode === "dark" ? "#b4b4b4ff" : "#333333ff",
+                  color: effectiveChatTheme === "dark" ? "#b4b4b4ff" : "#333333ff",
                   fontWeight: 500,
                   opacity: 0.8,
                   fontSize: 10,
@@ -1645,7 +1653,7 @@ const removeUserReaction = async (msg, emoji) => {
       ))
     }
     {!reactionMsg && (
-      <Typography variant="body2" sx={{ color: mode === "dark" ? "#bbb" : "#888", textAlign: "center", py: 2 }}>
+      <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#bbb" : "#888", textAlign: "center", py: 2 }}>
         No reactions yet.
       </Typography>
     )}
@@ -1680,7 +1688,7 @@ const removeUserReaction = async (msg, emoji) => {
       handleReaction(emojiData.emoji, reactionMsg);
       setShowEmojiPicker(false);
     }}
-    theme={ mode === "dark" ? "dark" : "light" }
+    theme={ effectiveChatTheme === "dark" ? "dark" : "light" }
   />
 </Popover>
 
@@ -1698,7 +1706,7 @@ const removeUserReaction = async (msg, emoji) => {
               right: 20,
               padding: '10px',
               backgroundColor: '#000',
-              color: mode === "dark" ? "#fff" : "#000",
+              color: effectiveChatTheme === "dark" ? "#fff" : "#000",
               borderRadius: '5px',
               zIndex: 1000,
             }}
@@ -1724,9 +1732,9 @@ const removeUserReaction = async (msg, emoji) => {
   PaperProps={{
     sx: {
       border: 'transparent',
-      backgroundColor: mode === "dark" ? '#0c0c0c0a' : '#f1f1f1de',
+      backgroundColor: effectiveChatTheme === "dark" ? '#0c0c0c0a' : '#f1f1f1de',
       backdropFilter: 'blur(70px)',
-      color: mode === "dark" ? "#fff" : "#000",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
       maxWidth: 470,
       mx: 'auto',
     },
@@ -1740,8 +1748,8 @@ const removeUserReaction = async (msg, emoji) => {
       sx={{
         mb: 0,
         borderRadius: 8,
-        color: mode === "dark" ? "#fff" : "#000",
-        backgroundColor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
+        color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+        backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
         '&:hover': { backgroundColor: "#f1f1f121" },
       }}
     >
@@ -1751,17 +1759,17 @@ const removeUserReaction = async (msg, emoji) => {
     {/* Profile Section */}
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 2 }}>
       <Avatar src={friendDetails.photoURL} sx={{ width: 90, height: 90, mb: 2 }} />
-      <Typography variant="h6" fontWeight="bold" color={mode === "dark" ? "#fff" : "#000"}>{friendDetails.name}</Typography>
-      <Typography variant="subtitle1" sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>@{friendDetails.username}</Typography>
+      <Typography variant="h6" fontWeight="bold" color={effectiveChatTheme === "dark" ? "#fff" : "#000"}>{friendDetails.name}</Typography>
+      <Typography variant="subtitle1" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>@{friendDetails.username}</Typography>
 
       <Typography
         variant="body2"
         sx={{
-          backgroundColor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
+          backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
           px: 2,
           py: 0.5,
           borderRadius: 4,
-          color: mode === "dark" ? "#aaa" : "#333",
+          color: effectiveChatTheme === "dark" ? "#aaa" : "#333",
         }}
       >
         {nickname || friendDetails.name}
@@ -1770,8 +1778,8 @@ const removeUserReaction = async (msg, emoji) => {
       {friendDetails.bio && (
         <Box
           sx={{
-            bgcolor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
-            color: mode === "dark" ? "#aaa" : "#333",
+            bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
+            color: effectiveChatTheme === "dark" ? "#aaa" : "#333",
             borderRadius: 1.2,
             py: 1.4,
             px: 2,
@@ -1795,8 +1803,8 @@ const removeUserReaction = async (msg, emoji) => {
         onClick={() => window.open(`mailto:${friendDetails.email}`, '_blank')}
         disabled={!friendDetails.email}
         sx={{
-          bgcolor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
-          color: mode === "dark" ? "#fff" : "#000",
+          bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
+          color: effectiveChatTheme === "dark" ? "#fff" : "#000",
           py: 1.4,
           px: 2,
           borderRadius: "20px 20px 7px 7px",
@@ -1807,7 +1815,7 @@ const removeUserReaction = async (msg, emoji) => {
         }}
       >
         <EmailOutlinedIcon />
-        <Typography variant="body1" sx={{ fontSize: 16, color: mode === "dark" ? "#aaa" : "#333" }}>
+        <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
           {friendDetails.email || 'Email not available'}
         </Typography>
       </IconButton> */}
@@ -1816,8 +1824,8 @@ const removeUserReaction = async (msg, emoji) => {
         <IconButton
           onClick={() => window.open(`tel:${friendDetails.mobile}`, '_blank')}
           sx={{
-            bgcolor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
-            color: mode === "dark" ? "#fff" : "#000",
+            bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
+            color: effectiveChatTheme === "dark" ? "#fff" : "#000",
             py: 1.4,
             px: 2,
             borderRadius: "20px 20px 7px 7px",
@@ -1828,7 +1836,7 @@ const removeUserReaction = async (msg, emoji) => {
           }}
         >
           <PhoneOutlinedIcon />
-          <Typography variant="body1" sx={{ fontSize: 16, color: mode === "dark" ? "#aaa" : "#333" }}>
+          <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
             {friendDetails.mobile}
           </Typography>
         </IconButton>
@@ -1837,8 +1845,8 @@ const removeUserReaction = async (msg, emoji) => {
       <IconButton
         onClick={() => setOpenProfile(false)}
         sx={{
-          bgcolor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
-          color: mode === "dark" ? "#fff" : "#000",
+          bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
+          color: effectiveChatTheme === "dark" ? "#fff" : "#000",
           py: 1.4,
           px: 2,
           borderRadius: "7px",
@@ -1849,7 +1857,7 @@ const removeUserReaction = async (msg, emoji) => {
         }}
       >
         <ChatOutlinedIcon />
-        <Typography variant="body1" sx={{ fontSize: 16, color: mode === "dark" ? "#aaa" : "#333" }}>
+        <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
           Send a Message
         </Typography>
       </IconButton>
@@ -1860,8 +1868,8 @@ const removeUserReaction = async (msg, emoji) => {
           setEditNickname(true);
         }}
         sx={{
-          bgcolor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
-          color: mode === "dark" ? "#fff" : "#000",
+          bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
+          color: effectiveChatTheme === "dark" ? "#fff" : "#000",
           py: 1.4,
           px: 2,
           borderRadius: "7px 7px 20px 20px",
@@ -1872,7 +1880,7 @@ const removeUserReaction = async (msg, emoji) => {
         }}
       >
         <TextFieldsIcon />
-        <Typography variant="body1" sx={{ fontSize: 16, color: mode === "dark" ? "#aaa" : "#333" }}>
+        <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
           Add a Nickname
         </Typography>
       </IconButton>
@@ -1884,17 +1892,17 @@ const removeUserReaction = async (msg, emoji) => {
   <Grid container spacing={0.5} mb={2}>
     {(commonGroups.slice(0,3)).map(group => (
       <Grid item xs={12} sm={6} md={4} key={group.id}>
-        <Card sx={{ bgcolor: mode === "dark" ? "#f1f1f106" : "#0c0c0c06", color: mode === "dark" ? "#fff" : "#000", borderRadius: "10px", overflow: 'hidden', boxShadow: "none"}}>
+        <Card sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f106" : "#0c0c0c06", color: effectiveChatTheme === "dark" ? "#fff" : "#000", borderRadius: "10px", overflow: 'hidden', boxShadow: "none"}}>
           <CardActionArea onClick={() => history(`/group/${group.id}`)}>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Avatar
                 src={group.iconURL}
-                sx={{ bgcolor: mode === "dark" ? "#fff" : "#000", color: '#111' }}
+                sx={{ bgcolor: effectiveChatTheme === "dark" ? "#fff" : "#000", color: '#111' }}
               >
                 {group.emoji || group.name?.charAt(0)}
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body1" color={mode === "dark" ? "#fff" : "#000"} fontWeight={"bolder"} noWrap>
+                <Typography variant="body1" color={effectiveChatTheme === "dark" ? "#fff" : "#000"} fontWeight={"bolder"} noWrap>
                   {group.name}
                 </Typography>
                 <Box
@@ -1904,7 +1912,7 @@ const removeUserReaction = async (msg, emoji) => {
                     whiteSpace: 'nowrap',
                     textOverflow: 'ellipsis',
                     fontSize: 13,
-                    color: mode === "dark" ? "#ccc" : "#555",
+                    color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
                   }}
                 >
                   {(group.members ?? [])
@@ -1924,7 +1932,7 @@ const removeUserReaction = async (msg, emoji) => {
         <Button
           variant="contained"
           fullWidth
-          sx={{ color: mode === "dark" ? "#fff" : "#000", backgroundColor: mode === "dark" ? "#f1f1f121" : "#0c0c0c11", borderRadius: 3, fontWeight: 600, boxShadow: "none" }}
+          sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f121" : "#0c0c0c11", borderRadius: 3, fontWeight: 600, boxShadow: "none" }}
           onClick={() => setAllCommonGroupsDrawerOpen(true)}
         >
           {commonGroups.length - 3} more group{commonGroups.length - 3 > 1 ? "s" : ""}
@@ -1941,9 +1949,9 @@ const removeUserReaction = async (msg, emoji) => {
         sx={{
           background: `url(${trip?.iconURL})`,
           backgroundSize: "cover",
-          backgroundColor: mode === "dark" ? "#f1f1f111" : "#0c0c0c01",
+          backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c01",
           backgroundPosition: "center",
-          color: mode === "dark" ? "#fff" : "#000",
+          color: effectiveChatTheme === "dark" ? "#fff" : "#000",
           borderRadius: "20px 20px 7px 7px",
           boxShadow: "none",
           mb: 0.5,
@@ -1966,13 +1974,13 @@ const removeUserReaction = async (msg, emoji) => {
                 {timelineStatsMap?.[trip.id] && (
                   <Box mb={1} minWidth={110}>
                     <Typography variant="caption" sx={{
-                      color: mode === "dark" ? "#ccc" : "#555",
+                      color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
                     }}>
                       {timelineStatsMap[trip.id].messages} messages
                     </Typography>
                   </Box>
                 )}
-              <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", display: "flex", alignItems: "center" }}>
+              <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333", display: "flex", alignItems: "center" }}>
                 <AccessTime sx={{ fontSize: 16, mr: 1 }} /> {trip.startDate} → {trip.endDate}
               </Typography>
             </Box>
@@ -1987,7 +1995,7 @@ const removeUserReaction = async (msg, emoji) => {
         variant="contained"
         fullWidth
         sx={{
-          color: mode === "dark" ? "#fff" : "#000", backgroundColor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11", borderRadius: "7px 7px 20px 20px", fontWeight: 600, boxShadow: "none",
+          color: effectiveChatTheme === "dark" ? "#fff" : "#000", backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11", borderRadius: "7px 7px 20px 20px", fontWeight: 600, boxShadow: "none",
           fontWeight: 600, py: 1, px: 2,
         }}
         onClick={() => setShowAllTripsDrawer(true)}
@@ -2005,7 +2013,7 @@ const removeUserReaction = async (msg, emoji) => {
         <Typography variant="subtitle2" fontWeight="bold" mt={2} mb={1}>Shared Budgets</Typography>
         <List>
           {sharedBudgets.map(budget => (
-            <Card key={budget.id} sx={{ bgcolor: '#232323', color: mode === "dark" ? "#fff" : "#000", mb: 2, borderRadius: 3 }}>
+            <Card key={budget.id} sx={{ bgcolor: '#232323', color: effectiveChatTheme === "dark" ? "#fff" : "#000", mb: 2, borderRadius: 3 }}>
               <CardActionArea onClick={() => history(`/budgets/${budget.id}`)}>
                 <CardContent sx={{ display: 'flex', alignItems: 'center' }}>
                   <Avatar sx={{ bgcolor: "#00f721", color: '#000', mr: 2 }}>
@@ -2030,7 +2038,7 @@ const removeUserReaction = async (msg, emoji) => {
       <IconButton
         onClick={handleClearChat}
         sx={{
-          bgcolor: mode === "dark" ? "#ff676711" : "#ff676726",
+          bgcolor: effectiveChatTheme === "dark" ? "#ff676711" : "#ff676726",
           color: '#ff6767',
           py: 1.4,
           px: 2,
@@ -2050,7 +2058,7 @@ const removeUserReaction = async (msg, emoji) => {
       <IconButton
         onClick={handleRemoveFriend}
         sx={{
-          bgcolor: mode === "dark" ? "#ff676711" : "#ff676726",
+          bgcolor: effectiveChatTheme === "dark" ? "#ff676711" : "#ff676726",
           color: '#ff6767',
           py: 1.4,
           px: 2,
@@ -2077,9 +2085,9 @@ const removeUserReaction = async (msg, emoji) => {
   PaperProps={{
     sx: {
       borderTopLeftRadius: 20, borderTopRightRadius: 20,
-      backgroundColor: mode === "dark" ? "#0c0c0c0a" : "#f1f1f19a",
+      backgroundColor: effectiveChatTheme === "dark" ? "#0c0c0c0a" : "#f1f1f19a",
       backdropFilter: 'blur(70px)',
-      color: mode === "dark" ? "#fff" : "#000",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
       maxWidth: 470, mx: 'auto',
       p: 2, height: '90vh'
     }
@@ -2098,7 +2106,7 @@ const removeUserReaction = async (msg, emoji) => {
       size="small"
       variant="outlined"
       InputProps={{
-        style: { color: mode === "dark" ? "#fafafa" : "#0c0c0c", borderRadius: 8 },
+        style: { color: effectiveChatTheme === "dark" ? "#fafafa" : "#0c0c0c", borderRadius: 8 },
         startAdornment: (
           <InputAdornment position="start">
             <SearchIcon sx={{ color: "#777" }} />
@@ -2116,7 +2124,7 @@ const removeUserReaction = async (msg, emoji) => {
         )
         .map(group => (
           <Card key={group.id}
-            sx={{ bgcolor: mode === "dark" ? '#0c0c0c11' : '#ffffff31', color: mode === "dark" ? "#fff" : "#000", borderRadius: 2, mb: 0.5, boxShadow: "none", overflow: "hidden" }}>
+            sx={{ bgcolor: effectiveChatTheme === "dark" ? '#0c0c0c11' : '#ffffff31', color: effectiveChatTheme === "dark" ? "#fff" : "#000", borderRadius: 2, mb: 0.5, boxShadow: "none", overflow: "hidden" }}>
             <CardActionArea onClick={() => {
               setAllCommonGroupsDrawerOpen(false);
               history(`/group/${group.id}`);
@@ -2124,12 +2132,12 @@ const removeUserReaction = async (msg, emoji) => {
               <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                 <Avatar
                   src={group.iconURL}
-                  sx={{ bgcolor: mode === "dark" ? "#fff" : "#000", color: '#111' }}
+                  sx={{ bgcolor: effectiveChatTheme === "dark" ? "#fff" : "#000", color: '#111' }}
                 >
                   {group.emoji || group.name?.charAt(0)}
                 </Avatar>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="body1" color={mode === "dark" ? "#fff" : "#000"} fontWeight="regular" noWrap>
+                  <Typography variant="body1" color={effectiveChatTheme === "dark" ? "#fff" : "#000"} fontWeight="regular" noWrap>
                     {group.name}
                   </Typography>
                   <Box
@@ -2139,7 +2147,7 @@ const removeUserReaction = async (msg, emoji) => {
                       whiteSpace: 'nowrap',
                       textOverflow: 'ellipsis',
                       fontSize: 11,
-                      color: mode === "dark" ? "#ccc" : "#555",
+                      color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
                     }}
                   >
                     {(group.members ?? [])
@@ -2164,7 +2172,7 @@ const removeUserReaction = async (msg, emoji) => {
   onClose={() => setShowAllTripsDrawer(false)}
   onOpen={() => {}}
   PaperProps={{
-    sx: { borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: mode === "dark" ? "#0c0c0c0a" : "#f1f1f19a", backdropFilter: 'blur(70px)', color: mode === "dark" ? "#fff" : "#000", maxWidth: 470, mx: 'auto', p: 2, height: '90vh' }
+    sx: { borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: effectiveChatTheme === "dark" ? "#0c0c0c0a" : "#f1f1f19a", backdropFilter: 'blur(70px)', color: effectiveChatTheme === "dark" ? "#fff" : "#000", maxWidth: 470, mx: 'auto', p: 2, height: '90vh' }
   }}
 >
       <Box sx={{ width: 40, height: 5, bgcolor: '#555', borderRadius: 3, mx: 'auto', mb: 2 }} />
@@ -2179,7 +2187,7 @@ const removeUserReaction = async (msg, emoji) => {
       size="small"
       variant="outlined"
       sx={{ mb: 2 }}
-      InputProps={{ style: { borderRadius: 8, color: mode === "dark" ? "#fafafa" : "#0c0c0c" },
+      InputProps={{ style: { borderRadius: 8, color: effectiveChatTheme === "dark" ? "#fafafa" : "#0c0c0c" },
         startAdornment: (
           <InputAdornment position="start">
             <SearchIcon sx={{ color: "#777" }} />
@@ -2197,7 +2205,7 @@ const removeUserReaction = async (msg, emoji) => {
           background: `url(${trip.iconURL})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          color: mode === "dark" ? "#fff" : "#000",
+          color: effectiveChatTheme === "dark" ? "#fff" : "#000",
           mb: 1,
           overflow: "hidden",
           boxShadow: "none",
@@ -2207,25 +2215,25 @@ const removeUserReaction = async (msg, emoji) => {
               <Typography variant="h6" noWrap>{trip.name}</Typography>
               {timelineStatsMap?.[trip.id] && (
                 <Box minWidth={110}>
-                  <Typography variant="caption" sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>
+                  <Typography variant="caption" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
                     {timelineStatsMap[trip.id]?.completed} / {timelineStatsMap[trip.id]?.total} complete
                   </Typography>
                   <LinearProgress
                     value={timelineStatsMap[trip.id]?.percent}
                     variant="determinate"
                     sx={{
-                      mt: 0.5, borderRadius: 20, height: 7, bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
-                      "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#1e1e1eff" }
+                      mt: 0.5, borderRadius: 20, height: 7, bgcolor: effectiveChatTheme === "dark" ? "#ffffff36" : "#00000018",
+                      "& .MuiLinearProgress-bar": { bgcolor: effectiveChatTheme === "dark" ? "#ffffff" : "#1e1e1eff" }
                     }}
                   />
                 </Box>
               )}
             </Box>
-            <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", display: "flex", flexDirection: "row", alignItems: "center" }}>
+            <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333", display: "flex", flexDirection: "row", alignItems: "center" }}>
               <LocationOn sx={{ fontSize: 14, mr: 1 }} />
               {trip.from} → {trip.location}
             </Typography>
-            <Typography variant="body2" sx={{ color: mode === "dark" ? "#ccc" : "#555", display: "flex", flexDirection: "row", alignItems: "center" }}>
+            <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#ccc" : "#555", display: "flex", flexDirection: "row", alignItems: "center" }}>
               <AccessTime sx={{ fontSize: 14, mr: 1 }} />
               {trip.startDate} → {trip.endDate}
             </Typography>
@@ -2247,7 +2255,7 @@ const removeUserReaction = async (msg, emoji) => {
                       sx: {
                         borderTopLeftRadius: 20,
                         borderTopRightRadius: 20,
-                        backgroundColor: mode === "dark" ? "#00000011" : "#ffffffd1",
+                        backgroundColor: effectiveChatTheme === "dark" ? "#00000011" : "#ffffffd1",
                         backdropFilter: "blur(80px)",
                         p: 3,
                         maxWidth: 400,
@@ -2255,7 +2263,7 @@ const removeUserReaction = async (msg, emoji) => {
                       },
                     }}
                   >
-                  <Typography variant="subtitle2" sx={{ color: mode === "dark" ? "#fff" : "#000", mb: 0.5 }}>Add a Nickname</Typography>
+                  <Typography variant="subtitle2" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", mb: 0.5 }}>Add a Nickname</Typography>
                   {editNickname && (
                     <Box sx={{ display: 'flex', mt: 2, flexDirection: "column", alignItems: 'center', gap: 1 }}>
                       <TextField
@@ -2267,19 +2275,19 @@ const removeUserReaction = async (msg, emoji) => {
                         variant="outlined"
                         sx={{ 
                           borderRadius: 1,
-                          input: { color: mode === "dark" ? "#fff" : "#000" }
+                          input: { color: effectiveChatTheme === "dark" ? "#fff" : "#000" }
                         }}
                         InputProps={{
                           disableUnderline: true,
                           sx: {
                             fontSize: 22,
                             fontWeight: 600,
-                            color: mode === "dark" ? "#fff" : "#000",
+                            color: effectiveChatTheme === "dark" ? "#fff" : "#000",
                             mb: 1,
                           },
                         }}
                         InputLabelProps={{ 
-                          style: { color: mode === "dark" ? "#aaa" : "#333" }
+                          style: { color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }
                         }}
                       />
                       <Box 
@@ -2291,9 +2299,9 @@ const removeUserReaction = async (msg, emoji) => {
                       >
                         <Button
                         sx={{ 
-                          backgroundColor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
+                          backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
                           fontSize: 14,
-                          color: mode === "dark" ? "#fff" : "#000",
+                          color: effectiveChatTheme === "dark" ? "#fff" : "#000",
                           width: "100vw",
                           px: 2,
                           py: 1,
@@ -2307,9 +2315,9 @@ const removeUserReaction = async (msg, emoji) => {
                         </Button>
                         <Button 
                         sx={{ 
-                          backgroundColor: mode === "dark" ? "#f1f1f1" : "#0c0c0c",
+                          backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f1" : "#0c0c0c",
                           fontSize: 14,
-                          color: mode === "dark" ? "#000" : "#fff",
+                          color: effectiveChatTheme === "dark" ? "#000" : "#fff",
                           width: "100vw",
                           px: 2,
                           py: 1,

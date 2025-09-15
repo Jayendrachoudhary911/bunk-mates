@@ -64,7 +64,14 @@ import WallpaperOutlinedIcon from '@mui/icons-material/WallpaperOutlined';
 import FormatSizeOutlinedIcon from '@mui/icons-material/FormatSizeOutlined';
 import DeleteSweepOutlinedIcon from '@mui/icons-material/DeleteSweepOutlined';
 import DeleteForeverOutlinedIcon from '@mui/icons-material/DeleteForeverOutlined';
-
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import ChatIcon from '@mui/icons-material/Chat';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import EmailIcon from '@mui/icons-material/Email';
+import TelegramIcon from '@mui/icons-material/Telegram';
+import ShareIcon from '@mui/icons-material/Share';
 
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
 
@@ -94,6 +101,17 @@ const fadeIn = keyframes`
     transform: translateY(0);
   }
 `;
+
+const buttonStyle = (mode, theme) => ({
+  borderRadius: 2,
+  textTransform: "none",
+  bgcolor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+  color: theme.palette.text.primary,
+  '&:hover': {
+    bgcolor: mode === "dark" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)",
+  },
+  px: 7,
+});
 
 
 const ProfilePic = () => {
@@ -175,6 +193,7 @@ const ProfilePic = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [chatWallpaper, setChatWallpaper] = useState(localStorage.getItem('bunkmate_chatWallpaper') || '/assets/images/chatbg/dark.png');
   const [wallpaperDrawerOpen, setWallpaperDrawerOpen] = useState(false); // ⭐️ State for the drawer
+  const [fontDrawerOpen, setFontDrawerOpen] = useState(false); // ⭐️ State for the drawer
 
 
   const handleWallpaperSelect = (wallpaperUrl) => {
@@ -515,6 +534,7 @@ const [features] = useState([
     navigate(-1);
   };
 
+  const inviteLink = `${window.location.origin}/invite/${userData.username}`;
 
   return (
   <ThemeProvider theme={theme}>
@@ -583,7 +603,7 @@ sx={{
     <>
       {/* User info */}
       <Box sx={{ display: "flex", alignItems: "left", my: 2, mx: 2 }}>
-        <IconButton edge="start" color="inherit" onClick={handleDrawerClose} sx={{ mr: 2 }}>
+        <IconButton edge="start" color="inherit" onClick={() => navigate(-1)} sx={{ mr: 2 }}>
           <ArrowBackIcon />
         </IconButton>
         <Typography sx={{ fontSize: '1.5rem' }}><h2>Settings</h2></Typography>
@@ -666,7 +686,7 @@ sx={{
 
   {/* ⭐️ NEW: Accounts Page */}
   {drawerPage === "accounts" && (
-    <Container sx={{ mt: 1, mb: 2 }}>
+    <Container sx={{ mt: 5, mb: 2 }}>
       <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2, borderRadius: 8, color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", '&:hover': { backgroundColor: "#f1f1f121" } }}>
         Back
       </Button>
@@ -680,97 +700,339 @@ sx={{
     </Container>
   )}
 
-{/* ⭐️ NEW: Chats Page - Expanded */}
-{/* ⭐️ NEW: Chats Page with localStorage Persistence */}
 {drawerPage === "chats" && (
-    <Container sx={{ mt: 1, mb: 2 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2, borderRadius: 8, color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", '&:hover': { backgroundColor: "#f1f1f121" } }}>
-            Back
-        </Button>
-        <Typography variant="h5" fontWeight="bold" sx={{ mb: 2 }}>
-            Chat Settings
-        </Typography>
+<Container sx={{ mt: 5, mb: 2 }}>
+<Box
+  sx={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: 2,
+    mb: 2,
+  }}
+>
+  <IconButton
+    onClick={() => navigate(-1)}
+    sx={{
+      borderRadius: 8,
+      color: theme.palette.text.primary,
+      backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+      '&:hover': { backgroundColor: "#f1f1f121" },
+    }}
+  >
+    <ArrowBackIcon />
+  </IconButton>
 
-        <List>
-            {/* --- Appearance Section --- */}
-            <Typography variant="overline" color="text.secondary" sx={{ pl: 2 }}>Appearance</Typography>
-            <ListItem>
-                <ListItemIcon><PaletteOutlinedIcon /></ListItemIcon>
-                <ListItemText primary="Theme" />
-                <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <Select
-                        value={chatTheme}
-                        onChange={(e) => {
-                            const newTheme = e.target.value;
-                            // ⭐️ UPDATE STATE AND SAVE TO LOCALSTORAGE
-                            setChatTheme(newTheme);
-                            localStorage.setItem('bunkmate_chatTheme', newTheme);
-                        }}
-                    >
-                        <MenuItem value="system">System</MenuItem>
-                        <MenuItem value="light">Light</MenuItem>
-                        <MenuItem value="dark">Dark</MenuItem>
-                    </Select>
-                </FormControl>
-            </ListItem>
+  <Typography
+    variant="h5"
+    fontWeight="bold"
+    sx={{
+      flexGrow: 1,
+      textAlign: 'left',
+      color: theme.palette.text.primary,
+    }}
+  >
+    Chat Settings
+  </Typography>
+</Box>
 
-            <ListItemButton onClick={() => setWallpaperDrawerOpen(true)} sx={{ borderRadius: 2 }}>
-                <ListItemIcon><WallpaperOutlinedIcon /></ListItemIcon>
-                <ListItemText primary="Wallpaper" secondary="Choose a background for your chats" />
-            </ListItemButton>
 
-            <ListItem>
-                <ListItemIcon><FormatSizeOutlinedIcon /></ListItemIcon>
-                <ListItemText primary="Font Size" sx={{ mr: 4 }} />
-                <Slider
-                    value={fontSize}
-                    onChange={(e, newValue) => {
-                        // ⭐️ UPDATE STATE AND SAVE TO LOCALSTORAGE
-                        setFontSize(newValue);
-                        localStorage.setItem('bunkmate_fontSize', newValue);
-                    }}
-                    aria-labelledby="font-size-slider"
-                    valueLabelDisplay="auto"
-                    step={1}
-                    marks={[
-                        { value: 12, label: 'S' },
-                        { value: 14, label: 'M' },
-                        { value: 18, label: 'L' },
-                    ]}
-                    min={12}
-                    max={18}
-                />
-            </ListItem>
+<List>
+  
+  {/* --- Appearance Section --- */}
+  <Typography variant="overline" color="text.secondary" sx={{ pl: 2, mb: 1 }}>
+    Appearance
+  </Typography>
 
-            <Divider sx={{ my: 2 }} />
+  <ListItem sx={{ pb: 0 }}>
+      <ListItemIcon sx={{ minWidth: 40 }}><PaletteOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+      <ListItemText primary="Theme" primaryTypographyProps={{ fontWeight: 'medium' }} />
+      <FormControl size="small" sx={{ minWidth: 120 }}>
+    <Select
+      value={chatTheme}
+      onChange={(e) => {
+        const newTheme = e.target.value;
+        setChatTheme(newTheme);
+        localStorage.setItem('bunkmate_chatTheme', newTheme);
+      }}
+      sx={{
+        bgcolor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+        borderRadius: 2,
+        border: mode === "dark" ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)",
+        boxShadow: mode === "dark" ? "0 4px 12px rgba(0,0,0,0.3)" : "0 4px 12px rgba(0,0,0,0.1)",
+        transition: "all 0.3s ease",
+        '&:hover': {
+          bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+          boxShadow: mode === "dark" ? "0 4px 16px rgba(255,255,255,0.1)" : "0 4px 16px rgba(0,0,0,0.2)",
+        },
+        '& .MuiSelect-select': {
+          p: 1,
+            display: 'flex',
+            alignItems: 'center',
+        },
+        '& .MuiSvgIcon-root': {
+          color: theme.palette.text.secondary,
+        },
+      }}
+      MenuProps={{
+        PaperProps: {
+          sx: {
+            bgcolor: mode === "dark" ? "rgba(26, 26, 26, 0.52)" : "rgba(255, 255, 255, 0.74)",
+              backdropFilter: "blur(10px)",
+              borderRadius: 2,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            p: 1,
+          },
+        },
+      }}
+    >
+    <MenuItem
+      value="system"
+      sx={{
+        borderRadius: 1.5,
+        transition: "background-color 0.2s ease, transform 0.2s ease",
+        '&:hover': {
+          bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+          transform: "scale(1.02)",
+        },
+      }}
+    >
+      System
+    </MenuItem>
 
-            {/* --- Chat History Section (No changes here) --- */}
-            <Typography variant="overline" color="text.secondary" sx={{ pl: 2 }}>Chat History</Typography>
-            <ListItemButton onClick={() => setClearDialogOpen(true)} sx={{ borderRadius: 2 }}>
-                <ListItemIcon sx={{ color: 'warning.main' }}><DeleteSweepOutlinedIcon /></ListItemIcon>
-                <ListItemText primary="Clear all chats" secondary="Deletes all messages from every chat" primaryTypographyProps={{ color: 'warning.main' }} />
-            </ListItemButton>
+    <MenuItem
+      value="light"
+      sx={{
+        borderRadius: 1.5,
+        transition: "background-color 0.2s ease, transform 0.2s ease",
+        '&:hover': {
+          bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+          transform: "scale(1.02)",
+        },
+      }}
+    >
+      Light
+    </MenuItem>
 
-            <ListItemButton onClick={() => setDeleteDialogOpen(true)} sx={{ borderRadius: 2 }}>
-                <ListItemIcon sx={{ color: 'error.main' }}><DeleteForeverOutlinedIcon /></ListItemIcon>
-                <ListItemText primary="Delete all chats" secondary="Permanently removes all chats and messages" primaryTypographyProps={{ color: 'error.main' }} />
-            </ListItemButton>
-        </List>
+    <MenuItem
+      value="dark"
+      sx={{
+        borderRadius: 1.5,
+        transition: "background-color 0.2s ease, transform 0.2s ease",
+        '&:hover': {
+          bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+          transform: "scale(1.02)",
+        },
+      }}
+    >
+      Dark
+    </MenuItem>
+
+  </Select>
+      </FormControl>
+  </ListItem>
+
+  <ListItem sx={{ pb: 0 }}>
+    <ListItemButton onClick={() => setWallpaperDrawerOpen(true)} sx={{ borderRadius: 3, py: 1.5, px: 0, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+      <ListItemIcon sx={{ minWidth: 40 }}><WallpaperOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+      <ListItemText primary="Chat wallpaper" secondary="Choose a background for your chats" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
+    </ListItemButton>
+  </ListItem>
+
+  <ListItem sx={{ pb: 0 }}>
+    <ListItemButton onClick={() => setFontDrawerOpen(true)} sx={{ borderRadius: 3, py: 1.5, px: 0, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+      <ListItemIcon sx={{ minWidth: 40 }}><FormatSizeOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+      <ListItemText primary="Font Size" sx={{ mr: 4 }} />
+      <Typography
+        variant="body2"
+        sx={{
+          color: theme.palette.text.secondary,
+          mr: 2,
+          p: 0.5,
+          borderRadius: 1.5,
+          border: "2px solid rgba(136,136,136,0.3)",
+          bgcolor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+          minWidth: 50,
+          textAlign: 'center'
+        }}
+      >
+        {fontSize}px
+      </Typography>
+    </ListItemButton>
+  </ListItem>
+
+  <Divider sx={{ my: 2 }} />
+
+  {/* --- Chat History Section --- */}
+  <Typography variant="overline" color="text.secondary" sx={{ pl: 2, mb: 1 }}>
+    Chat History
+  </Typography>
+
+  <ListItem sx={{ pb: 0 }}>
+    <ListItemButton onClick={() => setClearDialogOpen(true)} sx={{ borderRadius: 3, py: 1.5, px: 0, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+      <ListItemIcon sx={{ minWidth: 40 }}><DeleteSweepOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+      <ListItemText primary="Clear all chats" secondary="Deletes all messages from every chat" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
+    </ListItemButton>
+  </ListItem>
+
+  <ListItem sx={{ pb: 0 }}>
+    <ListItemButton onClick={() => setDeleteDialogOpen(true)} sx={{ borderRadius: 3, py: 1.5, px: 0, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+      <ListItemIcon sx={{ minWidth: 40 }}><DeleteForeverOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+      <ListItemText primary="Delete all chats" secondary="Permanently removes all chats and messages" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
+    </ListItemButton>
+  </ListItem>
+
+</List>
+
+
+<SwipeableDrawer
+  anchor="bottom"
+  open={fontDrawerOpen}
+  onClose={() => setFontDrawerOpen(false)}
+  onOpen={() => setFontDrawerOpen(true)}
+  ModalProps={{
+    BackdropProps: {
+      sx: {
+        p: 3,
+        backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
+        backdropFilter: "blur(5px)",
+      },
+    },
+  }}
+  PaperProps={{
+    sx: {
+      p: 1,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      maxHeight: "70vh",
+      overflowY: "auto",
+      backdropFilter: "blur(50px)",
+      backgroundColor: mode === "dark" ? "#00000038" : "#ffffff9b",
+      boxShadow: "none"
+    },
+  }}
+>
+  <Box sx={{ p: 2.5, overflowY: 'auto' }}>
+    <Box
+      sx={{
+        width: 40,
+        height: 5,
+        backgroundColor: "grey.400",
+        borderRadius: 3,
+        mx: 'auto',
+        mb: 2,
+      }}
+    />
+
+    <ListItem sx={{ flexWrap: 'wrap', gap: 2 }}>
+      <ListItemIcon><FormatSizeOutlinedIcon /></ListItemIcon>
+      <ListItemText primary="Font Size" sx={{ mr: 4 }} />
+      <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mr: 2, p: 0.5, borderRadius: 1.5, border: "2px solid #88888848" }}>
+        {fontSize}px
+      </Typography>
+    </ListItem>
+
+        {/* Sample text preview */}
+    <Box sx={{ my: 4, p: 3, borderRadius: 3, textAlign: 'center', backgroundColor: theme.palette.secondary.main }}>
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        Preview
+      </Typography>
+      <Typography
+        sx={{
+          fontSize: `${fontSize}px`,
+          color: mode === "dark" ? "#fff" : "#000",
+          transition: "font-size 0.3s ease",
+        }}
+      >
+        The quick brown fox jumps over the lazy dog.
+      </Typography>
+    </Box>
+
+    <Slider
+      sx={{
+        mx: "auto",
+        color: mode === "dark" ? "#fff" : "#000",
+        height: 20,
+        '& .MuiSlider-thumb': {
+          height: 20,
+          width: 35,
+          borderRadius: 4,
+          backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
+          border: "2px solid",
+          borderColor: theme.palette.primary.main,
+          transition: "0.3s ease",
+          '&:hover': {
+            boxShadow: `0 0 0 10px ${mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
+          },
+        },
+        '& .MuiSlider-track': {
+          border: "none",
+          background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+        },
+        '& .MuiSlider-rail': {
+          opacity: 0.2,
+          backgroundColor: mode === "dark" ? "#555" : "#ccc",
+        },
+        '& .MuiSlider-mark': {
+          height: 0,
+          width: 0,
+        },
+        '& .MuiSlider-markLabel': {
+          color: mode === "dark" ? "#ccc" : "#555",
+          fontSize: 12,
+          top: 45,
+        },
+      }}
+      value={fontSize}
+      onChange={(e, newValue) => {
+        setFontSize(newValue);
+        localStorage.setItem('bunkmate_fontSize', newValue);
+      }}
+      aria-labelledby="font-size-slider"
+      valueLabelDisplay="auto"
+      step={1}
+      marks={[
+        { value: 12, label: 'S' },
+        { value: 14, label: 'M' },
+        { value: 18, label: 'L' },
+      ]}
+      min={12}
+      max={18}
+    />
+
+      <Typography variant="caption" sx={{ mt: 1, textAlign: "center", display: "block", color: theme.palette.text.secondary }}>
+        Adjust the slider to see how text size changes.
+      </Typography>
+
+  </Box>
+</SwipeableDrawer>
+
 
 <SwipeableDrawer
     anchor="bottom"
     open={wallpaperDrawerOpen}
     onClose={() => setWallpaperDrawerOpen(false)}
     onOpen={() => setWallpaperDrawerOpen(true)}
-    PaperProps={{
-        sx: {
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-            maxHeight: '70%',
-            backgroundColor: mode === "dark" ? "rgba(20, 20, 20, 0.8)" : "rgba(255, 255, 255, 0.8)",
-            backdropFilter: 'blur(20px)',
-        },
-    }}
+        ModalProps={{
+          BackdropProps: {
+            sx: {
+              p: 3,
+              backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
+              backdropFilter: "blur(5px)",
+            },
+          },
+        }}
+        PaperProps={{
+          sx: {
+            p: 1,
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+            maxHeight: "70vh",
+            overflowY: "auto",
+            backdropFilter: "blur(50px)",
+            backgroundColor: mode === "dark" ? "#00000038" : "#ffffff9c",
+            boxShadow: "none"
+          },
+        }}
 >
     <Box sx={{ p: 2, overflowY: 'auto' }}>
         <Box
@@ -863,75 +1125,281 @@ sx={{
 </SwipeableDrawer>
 
         {/* --- Dialogs (No changes here) --- */}
-        <Dialog
-            open={clearDialogOpen}
-            onClose={() => setClearDialogOpen(false)}
-        >
-            <DialogTitle>{"Clear All Chats?"}</DialogTitle>
-            <DialogContent>
-                <DialogContentText>
-                    Are you sure you want to clear all messages? This action cannot be undone. Your chat list will remain, but all messages will be deleted.
-                </DialogContentText>
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={() => setClearDialogOpen(false)}>Cancel</Button>
-                <Button onClick={() => {
-                    console.log("Clearing all chats...");
-                    setClearDialogOpen(false);
-                }} color="warning" autoFocus>
-                    Clear Chats
-                </Button>
-            </DialogActions>
-        </Dialog>
+<Dialog
+  open={clearDialogOpen}
+  onClose={() => setClearDialogOpen(false)}
+  PaperProps={{
+    sx: {
+      borderRadius: 3,
+      p: 2,
+      minWidth: 320,
+      backgroundColor: mode === "dark" ? "#00000000" : "rgba(255, 255, 255, 0.8)",
+      backgroundImage: "none",
+      boxShadow: "none",
+    },
+  }}
+  BackdropProps={{
+    sx: {
+      backdropFilter: "blur(8px)",
+      backgroundColor: mode === "dark" ? "rgba(43, 43, 43, 0.5)" : "rgba(0, 0, 0, 0.2)",
+    },
+  }}
+  transitionDuration={300} // smooth fade
+>
+  <Box sx={{ textAlign: 'center', mb: 2, opacity: 0.7 }}>
+    <Avatar sx={{ bgcolor: "#ff000044", mx: 'auto', width: 66, height: 66, p: 2 }}>
+      <ChatIcon fontSize="large" sx={{ color: theme.palette.text.primary }} />
+    </Avatar>
+  </Box>
 
-        <Dialog
-            open={deleteDialogOpen}
-            onClose={() => setDeleteDialogOpen(false)}
-        >
-            <DialogTitle>{"Delete All Chats Permanently?"}</DialogTitle>
-            <DialogContent>
-                <DialogContentText>
-                    Are you sure? This will permanently delete all of your chats and messages. This action cannot be undone.
-                </DialogContentText>
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-                <Button onClick={() => {
-                    console.log("Deleting all chats...");
-                    setDeleteDialogOpen(false);
-                }} color="error" autoFocus>
-                    Delete Permanently
-                </Button>
-            </DialogActions>
-        </Dialog>
+  <DialogTitle sx={{ fontWeight: 'bold', textAlign: 'center', color: theme.palette.text.primary }}>
+    Clear All Chats?
+  </DialogTitle>
+
+  <DialogContent>
+    <DialogContentText sx={{ color: theme.palette.text.secondary, textAlign: 'center', mb: 2 }}>
+      Are you sure you want to clear all messages? This action cannot be undone.
+    </DialogContentText>
+    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: 'center' }}>
+      Your chat list will remain, but all message history will be deleted. Please confirm before proceeding.
+    </Typography>
+  </DialogContent>
+
+  <DialogActions sx={{ justifyContent: 'center', gap: 2, pb: 2 }}>
+    <Button
+      variant="outlined"
+      onClick={() => setClearDialogOpen(false)}
+      sx={{
+        px: 3,
+        textTransform: "none",
+        borderColor: mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
+        color: theme.palette.text.primary,
+        backdropFilter: "blur(4px)",
+        borderRadius: 8,
+        '&:hover': {
+          backgroundColor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+        },
+      }}
+    >
+      Cancel
+    </Button>
+    <Button
+      variant="contained"
+      onClick={() => {
+        console.log("Clearing all chats...");
+        setClearDialogOpen(false);
+      }}
+      sx={{
+        px: 3,
+        textTransform: "none",
+        backdropFilter: "blur(4px)",
+        borderRadius: 8,
+        backgroundColor: "#ff000044",
+        color: theme.palette.text.primary,
+        '&:hover': {
+          backgroundColor: "#ff000064",
+        },
+      }}
+      autoFocus
+    >
+      Clear Chats
+    </Button>
+  </DialogActions>
+</Dialog>
+
+
+{/* Delete Chats Dialog */}
+<Dialog
+  open={deleteDialogOpen}
+  onClose={() => setDeleteDialogOpen(false)}
+  PaperProps={{
+    sx: {
+      borderRadius: 3,
+      p: 2,
+      minWidth: 320,
+      backgroundColor: mode === "dark" ? "#00000000" : "rgba(255, 255, 255, 0.8)",
+      backgroundImage: "none",
+      boxShadow: "none",
+    },
+  }}
+  BackdropProps={{
+    sx: {
+      backdropFilter: "blur(8px)",
+      backgroundColor: mode === "dark" ? "rgba(43, 43, 43, 0.5)" : "rgba(0, 0, 0, 0.2)",
+    },
+  }}
+  transitionDuration={300} // smooth fade
+>
+  <Box sx={{ textAlign: 'center', mb: 2 }}>
+    <Avatar sx={{ bgcolor: theme.palette.error.main, mx: 'auto', opacity: 0.7, width: 66, height: 66, p: 0.5, boxShadow: "none" }}>
+      <DeleteForeverIcon fontSize="large" />
+    </Avatar>
+  </Box>
+
+  <DialogTitle sx={{ fontWeight: 'bold', textAlign: 'center', color: theme.palette.text.primary }}>
+    Delete All Chats Permanently?
+  </DialogTitle>
+
+  <DialogContent>
+    <DialogContentText sx={{ color: theme.palette.text.secondary, textAlign: 'center', mb: 2 }}>
+      This will permanently delete all of your chats and messages. It cannot be undone.
+    </DialogContentText>
+    <Typography variant="body2" sx={{ color: theme.palette.error.main, textAlign: 'center', mb: 1 }}>
+      Warning: This action is irreversible.
+    </Typography>
+    <Typography variant="caption" sx={{ color: theme.palette.text.secondary, textAlign: 'center' }}>
+      Please ensure you have backed up any important information before proceeding. Once deleted, you will not be able to recover the data.
+    </Typography>
+  </DialogContent>
+
+  <DialogActions sx={{ justifyContent: 'center', gap: 2, pb: 2 }}>
+    <Button
+      variant="outlined"
+      onClick={() => setDeleteDialogOpen(false)}
+      sx={{
+        px: 3,
+        borderRadius: 8,
+        textTransform: "none",
+        borderColor: mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
+        color: theme.palette.text.primary,
+        backdropFilter: "blur(4px)",
+        '&:hover': {
+          borderColor: theme.palette.primary.main,
+          backgroundColor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+        },
+      }}
+    >
+      Cancel
+    </Button>
+    <Button
+      variant="contained"
+      onClick={() => {
+        console.log("Deleting all chats...");
+        setDeleteDialogOpen(false);
+      }}
+      color="error"
+      sx={{
+        px: 3,
+        textTransform: "none",
+        backdropFilter: "blur(4px)",
+        borderRadius: 8,
+        '&:hover': {
+          backgroundColor: theme.palette.error.dark,
+        },
+      }}
+      autoFocus
+    >
+      Delete Permanently
+    </Button>
+  </DialogActions>
+</Dialog>
+
 
     </Container>
 )}
 
   {/* ⭐️ NEW: Invite a Friend Page */}
-  {drawerPage === "inviteFriend" && (
-    <Container sx={{ mt: 1, mb: 2 }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2, borderRadius: 8, color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", '&:hover': { backgroundColor: "#f1f1f121" } }}>
-        Back
-      </Button>
-      <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>
-        Invite a Friend
-      </Typography>
-      <Typography sx={{ mb: 2 }}>
-        Share your invite link with friends to connect on the app.
-      </Typography>
-      <TextField
-          label="Your Invite Link"
-          defaultValue="https://yourapp.com/invite/user123"
-          fullWidth
-          InputProps={{ readOnly: true }}
-      />
-      <Button variant="contained" sx={{ mt: 2 }} onClick={() => navigator.clipboard.writeText("https://yourapp.com/invite/user123")}>
-        Copy Link
-      </Button>
-    </Container>
-  )}
+{drawerPage === "inviteFriend" && (
+  <Container sx={{ mt: 5, mb: 2 }}>
 
+    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+  <IconButton
+    onClick={() => navigate(-1)}
+    sx={{
+      mr: 2,
+      borderRadius: 8,
+      color: theme.palette.text.primary,
+      backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+      '&:hover': { backgroundColor: "#f1f1f121" },
+    }}
+  >
+    <ArrowBackIcon />
+  </IconButton>
+  <Typography variant="h5" fontWeight="bold">
+    Invite a Friend
+  </Typography>
+</Box>
+
+    <Typography sx={{ mb: 2, color: theme.palette.text.secondary }}>
+      Share your invite link with friends to connect on the app.
+    </Typography>
+
+    <TextField
+      label="Your Invite Link"
+      defaultValue={inviteLink}
+      fullWidth
+      InputProps={{
+        readOnly: true,
+      }}
+      sx={{
+        mb: 2,
+        '& .MuiInputBase-root': {
+          bgcolor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+          borderRadius: 2,
+        },
+      }}
+    />
+
+    <Button
+      variant="contained"
+      onClick={() => navigator.clipboard.writeText(inviteLink)}
+      sx={{
+        mb: 3,
+        width: "100%",
+        borderRadius: 2,
+        textTransform: "none",
+        bgcolor: theme.palette.primary.main,
+        '&:hover': {
+          bgcolor: theme.palette.primary.dark,
+        },
+      }}
+    >
+      Copy Link
+    </Button>
+
+    <Typography variant="subtitle1" sx={{ mb: 2, color: theme.palette.text.secondary }}>
+      Share via
+    </Typography>
+
+    <Stack direction="row" spacing={2} justifyContent="center" sx={{ pb: 1, overflowX: "auto", width: "60%", pl: 18 }}>
+      <Button
+        startIcon={<WhatsAppIcon />}
+        onClick={() => window.open(`https://wa.me/?text=${inviteLink}`, "_blank")}
+        sx={buttonStyle(mode, theme)}
+      >
+        WhatsApp
+      </Button>
+
+      <Button
+        startIcon={<EmailIcon />}
+        onClick={() => window.open(`mailto:?subject=Join me on MyApp&body=Join using this link: ${inviteLink}`, "_blank")}
+        sx={buttonStyle(mode, theme)}
+      >
+        Email
+      </Button>
+
+      <Button
+        startIcon={<TelegramIcon />}
+        onClick={() => window.open(`https://t.me/share/url?url=${inviteLink}&text=Join me on MyApp!`, "_blank")}
+        sx={buttonStyle(mode, theme)}
+      >
+        Telegram
+      </Button>
+
+      <Button
+        startIcon={<ShareIcon />}
+        onClick={() => navigator.share && navigator.share({
+          title: 'Join me on MyApp!',
+          text: 'Join using this link:',
+          url: `${inviteLink}`,
+        })}
+        sx={buttonStyle(mode, theme)}
+      >
+        More
+      </Button>
+    </Stack>
+  </Container>
+)}
 
 {drawerPage === "generalSettings" && (
   <Container sx={{ mt: 5, mb: 2 }}>
@@ -1212,7 +1680,7 @@ sx={{
 
 
 {drawerPage === "about" && (
-  <Container sx={{ mt: 2, mb: 4 }}>
+  <Container sx={{ mt: 5, mb: 4 }}>
     {/* Back Button */}
     <Button
       startIcon={<ArrowBackIcon />}
@@ -1338,8 +1806,8 @@ sx={{
 )}
 
 
-      {drawerPage === "featuresChangelog" && (
-        <Container sx={{ mt: 1, mb: 2 }}>
+  {drawerPage === "featuresChangelog" && (
+    <Container sx={{ mt: 5, mb: 2 }}>
     <Button
       startIcon={<ArrowBackIcon />}
       onClick={() => handleSetDrawerPage("about")}
@@ -1385,7 +1853,7 @@ sx={{
       )}
 
 {drawerPage === "support" && (
-  <Container sx={{ mt: 1, mb: 2 }}>
+  <Container sx={{ mt: 5, mb: 2 }}>
     <Button
       startIcon={<ArrowBackIcon />}
       onClick={() => navigate(-1)}
@@ -1866,8 +2334,8 @@ sx={{
     color: mode === "dark" ? "#fff" : "#000",
     height: 20,
     '& .MuiSlider-thumb': {
-      height: 32,
-      width: 10,
+      height: 20,
+      width: 35,
       borderRadius: 4,
       backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
       border: "2px solid",
@@ -1949,7 +2417,7 @@ sx={{
 
 
 {drawerPage === "feedback" && (
-  <Container sx={{ mt: 2, mb: 4 }}>
+  <Container sx={{ mt: 5, mb: 4 }}>
     {/* Back Button */}
     <Button
       startIcon={<ArrowBackIcon />}

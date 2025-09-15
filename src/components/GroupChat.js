@@ -98,7 +98,7 @@ const MessageContainer = styled(Box)({
 function GroupChat() {
   const { groupName } = useParams();
   const { mode, accent, } = useThemeToggle();
-  const theme = getTheme(mode, accent);
+  const theme = getTheme(effectiveChatTheme, accent);
   const [messages, setMessages] = useState([]);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
@@ -216,29 +216,33 @@ const handleMentionSelect = (username) => {
     };
 
 
-    // --- USEEFFECT HOOKS ---
-
-    // ⭐️ 3. DETERMINE THE EFFECTIVE CHAT THEME ON LOAD
     useEffect(() => {
         const savedThemeSetting = localStorage.getItem('bunkmate_chatTheme') || 'system';
-
-        const applySystemTheme = (e) => {
-            const isSystemDark = e.matches;
-            setEffectiveChatTheme(isSystemDark ? 'dark' : 'light');
+        if (savedThemeSetting !== 'system') {
+            setEffectiveChatTheme(savedThemeSetting);
+            return;
+        }
+        const applyAppTheme = () => {
+            const globalAppTheme = localStorage.getItem('theme') || 'dark';
+            setEffectiveChatTheme(globalAppTheme);
         };
 
-        if (savedThemeSetting === 'system') {
-            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-            setEffectiveChatTheme(mediaQuery.matches ? 'dark' : 'light'); // Set initial value
-            mediaQuery.addEventListener('change', applySystemTheme);
+        applyAppTheme();
 
-            return () => mediaQuery.removeEventListener('change', applySystemTheme);
-        } else {
-            setEffectiveChatTheme(savedThemeSetting); // 'light' or 'dark'
-        }
+        const handleStorageChange = (event) => {
+            if (event.key === 'theme') {
+                applyAppTheme();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        // Cleanup the listener when the component unmounts
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
     }, []);
 
-    // ⭐️ 4. LISTEN FOR REAL-TIME CHANGES FROM OTHER TABS
     useEffect(() => {
         const handleStorageChange = (event) => {
             if (event.key === 'bunkmate_fontSize') {
@@ -820,7 +824,7 @@ const renderMessageWithMentions = (text) => {
           onClick={() => navigate(`/chat/${user.uid}`)}
           sx={{
             cursor: 'pointer',
-            color: mode === 'dark' ? '#00f721' : '#007700',
+            color: effectiveChatTheme === 'dark' ? '#00f721' : '#007700',
             fontWeight: 'bold',
             '&:hover': { textDecoration: 'underline' },
           }}
@@ -865,11 +869,11 @@ const renderMessageWithMentions = (text) => {
       padding: '10px 16px',
       display: 'flex',
       alignItems: 'center',
-      background: mode === "dark" ? 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to bottom, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
+      background: effectiveChatTheme === "dark" ? 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to bottom, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
       height: '64px',
     }}
   >
-    <IconButton onClick={handleBackButton} sx={{ mr: 1 }} style={{ color: mode === "dark" ? "#fff" : "#000" }}>
+    <IconButton onClick={handleBackButton} sx={{ mr: 1 }} style={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
       <ArrowBackIcon />
     </IconButton>
 
@@ -884,8 +888,8 @@ const renderMessageWithMentions = (text) => {
       <Avatar
         src={groupInfo.iconURL || ""}
         sx={{
-          bgcolor: mode === "dark" ? "#aaa" : "#333",
-          color: mode === "dark" ? '#000' : "#fff",
+          bgcolor: effectiveChatTheme === "dark" ? "#aaa" : "#333",
+          color: effectiveChatTheme === "dark" ? '#000' : "#fff",
           fontSize: 24,
           width: 40,
           height: 40,
@@ -908,7 +912,7 @@ const renderMessageWithMentions = (text) => {
             alignItems: 'center',
             gap: 1,
             fontSize: "14px",
-            color: mode === "dark" ? "#fff" : "#000",
+            color: effectiveChatTheme === "dark" ? "#fff" : "#000",
           }}
         >
           {groupInfo.name || groupName}
@@ -953,7 +957,7 @@ const renderMessageWithMentions = (text) => {
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            color: mode === "dark" ? "#ccc" : "#555",
+            color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
             mt: 0.1,
           }}
         >
@@ -1012,8 +1016,8 @@ const renderMessageWithMentions = (text) => {
         <Avatar
             src={groupInfo.iconURL ? groupInfo.iconURL : ""}
             sx={{
-              bgcolor: mode === "dark" ? '#f1f1f1' : "#0c0c0c",
-              color: mode === "dark" ? "#000" : "#fff",
+              bgcolor: effectiveChatTheme === "dark" ? '#f1f1f1' : "#0c0c0c",
+              color: effectiveChatTheme === "dark" ? "#000" : "#fff",
               fontSize: 38,
               width: 68,
               height: 68,
@@ -1031,7 +1035,7 @@ const renderMessageWithMentions = (text) => {
       whiteSpace: 'nowrap',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
-      color: mode === "dark" ? "#fff" : "#000",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
       mb: 0.5,
     }}
   >
@@ -1077,7 +1081,7 @@ const renderMessageWithMentions = (text) => {
       whiteSpace: 'pre-wrap',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
-      color: mode === "dark" ? "#fff" : "#000",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
       textAlign: "center",
       mb: 0.5,
       width: "80vw"
@@ -1087,24 +1091,24 @@ const renderMessageWithMentions = (text) => {
   </Typography>
 
   {createdByUser && (
-    <Typography variant="caption" sx={{ color: mode === "dark" ? "#ccc" : "#555", mb: 0.5 }}>
-      <strong sx={{color: mode === "dark" ? "#fff" : "#000"}}>Created by:</strong> {createdByUser.name}
+    <Typography variant="caption" sx={{ color: effectiveChatTheme === "dark" ? "#ccc" : "#555", mb: 0.5 }}>
+      <strong sx={{color: effectiveChatTheme === "dark" ? "#fff" : "#000"}}>Created by:</strong> {createdByUser.name}
     </Typography>
   )}
 
-  <Typography variant="caption" sx={{ color: mode === "dark" ? "#ccc" : "#555" }}>
-  <br></br><strong sx={{color: mode === "dark" ? "#fff" : "#000"}}>{groupInfo.members?.length || 0} Members</strong>
+  <Typography variant="caption" sx={{ color: effectiveChatTheme === "dark" ? "#ccc" : "#555" }}>
+  <br></br><strong sx={{color: effectiveChatTheme === "dark" ? "#fff" : "#000"}}>{groupInfo.members?.length || 0} Members</strong>
   </Typography>
 
 <Typography
   variant="caption"
   sx={{
-    color: mode === "dark" ? "#ccc" : "#555",
+    color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
     whiteSpace: 'pre-wrap',
     mt: 1,
   }}
 >
-  <strong style={{ color: mode === "dark" ? "#fff" : "#000" }}>Members Joined:</strong>
+  <strong style={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>Members Joined:</strong>
   {'\n'}
   {memberUsers.length === 0 ? (
     'None'
@@ -1120,13 +1124,13 @@ const renderMessageWithMentions = (text) => {
 
 
           {loading ? (
-            <Typography variant="body1" sx={{ textAlign: 'center', color: mode === "dark" ? "#aaa" : "#333" }}>
+            <Typography variant="body1" sx={{ textAlign: 'center', color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
               Loading messages...
             </Typography>
           ) : (
             Object.keys(groupedMessages).map((date) => (
               <Box key={date} sx={{ marginBottom: '80px' }}>
-                <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", bgcolor: mode === "dark" ? '#2b2b2b54' : "#0c0c0c24", borderRadius: '0px', textAlign: 'center', marginBottom: '10px' }}>
+                <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333", bgcolor: effectiveChatTheme === "dark" ? '#2b2b2b54' : "#0c0c0c24", borderRadius: '0px', textAlign: 'center', marginBottom: '10px' }}>
                   {date}
                 </Typography>
                 {(groupedMessages?.[date] || []).map((msg) => {
@@ -1157,7 +1161,7 @@ if (msg.type === "system") {
         <Typography
           variant="caption"
           sx={{
-            color: mode === "dark" ? "#ccc" : "#555",
+            color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
             fontStyle: "italic",
             fontSize: "13px",
             textAlign: "center",
@@ -1199,7 +1203,7 @@ if (msg.type === "system") {
                         alt={msg.senderName}
                         sx={{ width: 30, height: 30 }}
                       >
-                        {msg.photoURL && <AccountCircleIcon sx={{ fontSize: 40, color: mode === "dark" ? '#2f2f2fff' : "#fff" }} />}
+                        {msg.photoURL && <AccountCircleIcon sx={{ fontSize: 40, color: effectiveChatTheme === "dark" ? '#2f2f2fff' : "#fff" }} />}
                       </Avatar>
                     </Box>  
 
@@ -1237,16 +1241,16 @@ if (msg.type === "system") {
                           {msg.replyTo?.text && (
   <Box
     sx={{
-      border: mode === "dark" ? '1px solid #6565659d' : '1px solid #9f9f9fff',
-      borderLeft: mode === "dark" ? '4px solid #00f72172' : '4px solid #057c1572',
+      border: effectiveChatTheme === "dark" ? '1px solid #6565659d' : '1px solid #9f9f9fff',
+      borderLeft: effectiveChatTheme === "dark" ? '4px solid #00f72172' : '4px solid #057c1572',
       px: 1.5,
       py: 0.2,
       mb: 0.3,
-      bgcolor: mode === "dark" ? '#4a4a4a00' : "#ececec70",
+      bgcolor: effectiveChatTheme === "dark" ? '#4a4a4a00' : "#ececec70",
       backdropFilter: 'blur(24px)',
-      color: mode === "dark" ? "#fff" : "#222",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
       borderRadius: 2,
-      boxShadow: mode === "dark"
+      boxShadow: effectiveChatTheme === "dark"
         ? "0 2px 8px #0002"
         : "0 2px 8px #8881",
       display: "flex",
@@ -1264,7 +1268,7 @@ if (msg.type === "system") {
       }
     }}
   >
-    <Typography variant="caption" color={mode === "dark" ? "#00f721ab" : "#057c1572"}>
+    <Typography variant="caption" color={effectiveChatTheme === "dark" ? "#00f721ab" : "#057c1572"}>
   {msg.senderId === currentUser.uid
     ? 'You'
     : (msg.replyTo?.senderName?.length > 60
@@ -1272,7 +1276,7 @@ if (msg.type === "system") {
         : msg.replyTo?.senderName || 'Unknown')}
 </Typography>
 
-    <Typography variant="body2" sx={{ color: mode === "dark" ? "#919191ff" : "#7c7c7cff", fontStyle: 'italic', fontSize: "0.97em", wordBreak: "break-word" }}>
+    <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#919191ff" : "#7c7c7cff", fontStyle: 'italic', fontSize: "0.97em", wordBreak: "break-word" }}>
       {msg.replyTo.text.length > 60
         ? msg.replyTo.text.slice(0, 30) + '...'
         : msg.replyTo.text}
@@ -1289,9 +1293,9 @@ if (msg.type === "system") {
                         mx: 0,
                         maxWidth: "65vw",
                         minWidth: "100px",
-                        bgcolor: msg.senderId === currentUser.uid ? mode === "dark" ? "#005c4b" : "#d9fdd3" : mode === "dark" ? "#353535" : "#ffffff",
+                        bgcolor: msg.senderId === currentUser.uid ? effectiveChatTheme === "dark" ? "#005c4b" : "#d9fdd3" : effectiveChatTheme === "dark" ? "#353535" : "#ffffff",
                         borderRadius:msg.senderId === currentUser.uid ? '16px 16px 8px 16px' : '16px 16px 16px 8px',
-                        color: mode === "dark" ? "#fff" : "#000",
+                        color: effectiveChatTheme === "dark" ? "#fff" : "#000",
                         position: 'relative',
                         boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)',
                       }}
@@ -1302,7 +1306,7 @@ if (msg.type === "system") {
                           fontWeight: 'bold',
                           fontSize: '13px',
                           marginBottom: '5px',
-                          color: mode === "dark" ? '#a7a7a7' : "#696969ff",
+                          color: effectiveChatTheme === "dark" ? '#a7a7a7' : "#696969ff",
                           maxWidth: 'auto',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
@@ -1361,13 +1365,13 @@ if (msg.type === "system") {
 <Box sx={{ maxWidth: 250, minWidth: 220 }}>
   <Typography
     variant="subtitle1"
-    sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: 700, mb: 1 }}
+    sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: 700, mb: 1 }}
   >
     📅 Group Timeline
   </Typography>
   <List dense>
     {sortedTimeline.length === 0 && (
-      <Typography sx={{ color: mode === "dark" ? "#888888" : "#111111", mb: 1 }}>
+      <Typography sx={{ color: effectiveChatTheme === "dark" ? "#888888" : "#111111", mb: 1 }}>
         No timeline events yet.
       </Typography>
     )}
@@ -1421,10 +1425,10 @@ if (msg.type === "system") {
               sx={{
                 fontFamily: "monospace",
                 color: event.completed
-                  ? mode === "dark" ? "#c5c5c5ff" : "#313131ff"
+                  ? effectiveChatTheme === "dark" ? "#c5c5c5ff" : "#313131ff"
                   : isUpcoming
-                  ? mode === "dark" ? "#ffffffff" : "#000000"
-                  : mode === "dark" ? "#b6b6b6ff" : "#333333",
+                  ? effectiveChatTheme === "dark" ? "#ffffffff" : "#000000"
+                  : effectiveChatTheme === "dark" ? "#b6b6b6ff" : "#333333",
                 fontWeight: 700,
                 minWidth: 30,
               }}
@@ -1435,14 +1439,14 @@ if (msg.type === "system") {
               <Typography
                 variant="body2"
                 sx={{
-                  color: event.completed ? mode === "dark" ? "#c5c5c5ff" : "#333333" : mode === "dark" ? "#fff" : "#000",
+                  color: event.completed ? effectiveChatTheme === "dark" ? "#c5c5c5ff" : "#333333" : effectiveChatTheme === "dark" ? "#fff" : "#000",
                   fontWeight: 700,
                   lineHeight: 1.1,
                 }}
               >
                 {event.title || event.text || isUpcoming || "Untitled"}
               </Typography>
-              <Typography variant="caption" sx={{ color: event.completed ? mode === "dark" ? "#c5c5c5ff" : "#333333" : mode === "dark" ? "#fff" : "#000", fontWeight: isUpcoming ? 700 : 400 }}>
+              <Typography variant="caption" sx={{ color: event.completed ? effectiveChatTheme === "dark" ? "#c5c5c5ff" : "#333333" : effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: isUpcoming ? 700 : 400 }}>
                 {timeStr}
               </Typography>
             </Box>
@@ -1454,7 +1458,7 @@ if (msg.type === "system") {
 </Box>
 ) : msg.type === "checklist" && groupInfo?.tripId ? (
   <Box sx={{ maxWidth: 250, minWidth: 220 }}>
-    <Typography variant="subtitle1" sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: 700 }}>
+    <Typography variant="subtitle1" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: 700 }}>
       📝 Trip Checklist
     </Typography>
     <List dense>
@@ -1471,14 +1475,14 @@ if (msg.type === "system") {
                 checked={isChecked}
                 tabIndex={-1}
                 sx={{
-                  color: mode === "dark" ? "#fff" : "#000",
+                  color: effectiveChatTheme === "dark" ? "#fff" : "#000",
                   '&.Mui-checked': { color: "#56cb66ff" },
                 }}
               />
               <ListItemText
                 primary={item.text || "Untitled"}
                 sx={{
-                  color: isChecked ? "#56cb66ff" : mode === "dark" ? "#fff" : "#000",
+                  color: isChecked ? "#56cb66ff" : effectiveChatTheme === "dark" ? "#fff" : "#000",
                   textDecoration: isChecked ? "line-through" : "none",
                 }}
               />
@@ -1497,8 +1501,8 @@ if (msg.type === "system") {
   sx={{
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
-    color: mode === "dark" ? "#fff" : "#000",
-    fontSize: `${chatFontSize}px`
+    color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+    fontSize: '15px'
   }}
 >
   {renderMessageWithMentions(msg.text)}
@@ -1526,7 +1530,7 @@ if (msg.type === "system") {
           sx={{
             display: "flex",
             alignItems: "center",
-            bgcolor: mode ===  "dark" ? "#2b2b2b" : "#efefefff",
+            bgcolor: effectiveChatTheme ===  "dark" ? "#2b2b2b" : "#efefefff",
             borderRadius: "20px",
             px: 0.5,
             py: 0.2,
@@ -1606,12 +1610,12 @@ if (msg.type === "system") {
     sx: {
       minWidth: 220,
       borderRadius: 4,
-      bgcolor: mode === "dark" ? "#18181823" : "#ffffff43",
-      color: mode === "dark" ? "#fff" : "#222",
-      boxShadow: mode === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
+      bgcolor: effectiveChatTheme === "dark" ? "#18181823" : "#ffffff43",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+      boxShadow: effectiveChatTheme === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
       p: 1,
-      backdropFilter: mode === "dark" ? 'blur(18px)' : 'blur(8px)',
-      border: mode === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
+      backdropFilter: effectiveChatTheme === "dark" ? 'blur(18px)' : 'blur(8px)',
+      border: effectiveChatTheme === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
       overflow: 'hidden',
       transition: "box-shadow 0.3s, background 0.3s",
     },
@@ -1630,16 +1634,16 @@ if (msg.type === "system") {
           width: 38,
           height: 38,
           fontSize: 20,
-          bgcolor: mode === "dark" ? 'rgba(41,41,41,0.85)' : '#f7f7f7',
+          bgcolor: effectiveChatTheme === "dark" ? 'rgba(41,41,41,0.85)' : '#f7f7f7',
           borderRadius: 2,
-          color: mode === "dark" ? "#fff" : "#222",
-          backdropFilter: mode === "dark" ? 'blur(10px)' : 'blur(2px)',
-          border: mode === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
-          boxShadow: mode === "dark" ? '0 2px 8px #0004' : '0 2px 8px #bbb2',
+          color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+          backdropFilter: effectiveChatTheme === "dark" ? 'blur(10px)' : 'blur(2px)',
+          border: effectiveChatTheme === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
+          boxShadow: effectiveChatTheme === "dark" ? '0 2px 8px #0004' : '0 2px 8px #bbb2',
           transition: 'all 0.18s cubic-bezier(0.4,0,0.2,1)',
           '&:hover': {
-            bgcolor: mode === "dark" ? '#333' : '#e0e0e0',
-            borderColor: mode === "dark" ? '#444' : '#bdbdbd'
+            bgcolor: effectiveChatTheme === "dark" ? '#333' : '#e0e0e0',
+            borderColor: effectiveChatTheme === "dark" ? '#444' : '#bdbdbd'
           },
         }}
       >
@@ -1654,16 +1658,16 @@ if (msg.type === "system") {
       sx={{
         width: 38,
         height: 38,
-        bgcolor: mode === "dark" ? '#292929d9' : '#ffffffff',
+        bgcolor: effectiveChatTheme === "dark" ? '#292929d9' : '#ffffffff',
         borderRadius: 2,
-        color: mode === "dark" ? "#fff" : "#222",
-        border: mode === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
-        boxShadow: mode === "dark" ? '0 2px 8px #0004' : '0 2px 8px #bbb2',
-        backdropFilter: mode === "dark" ? 'blur(10px)' : 'blur(2px)',
+        color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+        border: effectiveChatTheme === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
+        boxShadow: effectiveChatTheme === "dark" ? '0 2px 8px #0004' : '0 2px 8px #bbb2',
+        backdropFilter: effectiveChatTheme === "dark" ? 'blur(10px)' : 'blur(2px)',
         transition: 'all 0.18s cubic-bezier(0.4,0,0.2,1)',
         '&:hover': {
-          bgcolor: mode === "dark" ? '#333' : '#e0e0e0',
-          borderColor: mode === "dark" ? '#444' : '#bdbdbd'
+          bgcolor: effectiveChatTheme === "dark" ? '#333' : '#e0e0e0',
+          borderColor: effectiveChatTheme === "dark" ? '#444' : '#bdbdbd'
         },
       }}
     >
@@ -1685,16 +1689,16 @@ if (msg.type === "system") {
           borderRadius: 2,
           mx: 0.5,
           my: 0.2,
-          backdropFilter: mode === "dark" ? 'blur(2px)' : 'blur(2px)',
-          color: mode === "dark" ? "#fff" : "#222",
-          '&:hover': { bgcolor: mode === "dark" ? '#232323' : '#ffffffff' },
+          backdropFilter: effectiveChatTheme === "dark" ? 'blur(2px)' : 'blur(2px)',
+          color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+          '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
           transition: 'background 0.2s',
           display: 'flex',
           alignItems: 'center',
           gap: 1,
         }}
       >
-        <ReplyIcon fontSize="small" sx={{ color: mode === "dark" ? "#fff" : "#222" }} />
+        <ReplyIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
         Reply
   </MenuItem>
 
@@ -1711,15 +1715,15 @@ if (msg.type === "system") {
           borderRadius: 2,
           mx: 0.5,
           my: 0.2,
-          backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
-          color: mode === "dark" ? "#fff" : "#222",
-          '&:hover': { bgcolor: mode === "dark" ? '#232323' : '#ffffffff' },
+          backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+          color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+          '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
           display: 'flex',
           alignItems: 'center',
           gap: 1,
         }}
       >
-        <EditIcon fontSize="small" sx={{ color: mode === "dark" ? "#fff" : "#222" }} />
+        <EditIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
         Edit
       </MenuItem>
       <MenuItem
@@ -1734,8 +1738,8 @@ if (msg.type === "system") {
           borderRadius: 2,
           mx: 0.5,
           my: 0.2,
-          backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
-          '&:hover': { bgcolor: mode === "dark" ? '#2a1818' : '#ffe2e2ff' },
+          backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+          '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#2a1818' : '#ffe2e2ff' },
           display: 'flex',
           alignItems: 'center',
           gap: 1,
@@ -1760,15 +1764,15 @@ if (msg.type === "system") {
       borderRadius: 2,
       mx: 0.5,
       my: 0.2,
-      backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
-      color: mode === "dark" ? "#fff" : "#222",
-      '&:hover': { bgcolor: mode === "dark" ? '#232323' : '#ffffffff' },
+      backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+      '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
       display: 'flex',
       alignItems: 'center',
       gap: 1,
     }}
   >
-    <ContentCopyIcon fontSize="small" sx={{ color: mode === "dark" ? "#fff" : "#222" }} />
+    <ContentCopyIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
     Copy Text
   </MenuItem>
 
@@ -1786,15 +1790,15 @@ if (msg.type === "system") {
               borderRadius: 2,
               mx: 0.5,
               my: 0.2,
-              backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
-              color: mode === "dark" ? "#fff" : "#222",
-              '&:hover': { bgcolor: mode === "dark" ? '#232323' : '#ffffffff' },
+              backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+              color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+              '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
               display: 'flex',
               alignItems: 'center',
               gap: 1,
             }}
           >
-            <SearchIcon fontSize="small" sx={{ color: mode === "dark" ? "#fff" : "#222" }} />
+            <SearchIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
             Search on Google
     </MenuItem>
   )}
@@ -1812,9 +1816,9 @@ if (msg.type === "system") {
     sx: {
       minWidth: 220,
       borderRadius: "25px 25px 0 0",
-      bgcolor: mode === "dark" ? "#00000026" : "#ffffffde",
-      color: mode === "dark" ? "#fff" : "#222",
-      boxShadow: mode === "dark" ? "0 12px 32px #000c" : "0 8px 32px #8882",
+      bgcolor: effectiveChatTheme === "dark" ? "#00000026" : "#ffffffde",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+      boxShadow: effectiveChatTheme === "dark" ? "0 12px 32px #000c" : "0 8px 32px #8882",
       p: 2,
       backdropFilter: "blur(40px)",
       border: "none",
@@ -1827,7 +1831,7 @@ if (msg.type === "system") {
       sx={{
         width: 40,
         height: 4,
-        bgcolor: mode === "dark" ? '#6a6a6aff' : '#818181ff',
+        bgcolor: effectiveChatTheme === "dark" ? '#6a6a6aff' : '#818181ff',
         borderRadius: 3,
         mx: 'auto',
         mb: 1.5,
@@ -1838,13 +1842,13 @@ if (msg.type === "system") {
     <Typography
       variant="subtitle2"
       sx={{
-        color: mode === "dark" ? "#fff" : "#222",
+        color: effectiveChatTheme === "dark" ? "#fff" : "#222",
         textAlign: "center",
         mb: 1,
         letterSpacing: 1,
         fontWeight: 600,
         opacity: 0.8,
-        textShadow: mode === "dark" ? "0 2px 8px #0008" : "none"
+        textShadow: effectiveChatTheme === "dark" ? "0 2px 8px #0008" : "none"
       }}
     >
       Reactions
@@ -1887,17 +1891,17 @@ if (msg.type === "system") {
         my: 0.7,
         px: 2,
         py: 1.2,
-        bgcolor: mode === "dark" ? "#0000003d" : "#31313121",
-        color: mode === "dark" ? "#fff" : "#222",
+        bgcolor: effectiveChatTheme === "dark" ? "#0000003d" : "#31313121",
+        color: effectiveChatTheme === "dark" ? "#fff" : "#222",
         fontWeight: 500,
         fontSize: 17,
         boxShadow: "none",
-        backdropFilter: mode === "dark" ? "blur(8px)" : "blur(2px)",
+        backdropFilter: effectiveChatTheme === "dark" ? "blur(8px)" : "blur(2px)",
         border: "none",
         transition: "background 0.2s",
         "&:hover": {
-          bgcolor: mode === "dark" ? "#232323" : "#e0e0e0",
-          borderColor: mode === "dark" ? "#444" : "#bdbdbd",
+          bgcolor: effectiveChatTheme === "dark" ? "#232323" : "#e0e0e0",
+          borderColor: effectiveChatTheme === "dark" ? "#444" : "#bdbdbd",
         },
         flexDirection: "column",
         gap: 0.5,
@@ -1927,8 +1931,8 @@ if (msg.type === "system") {
               width: 36,
               height: 36,
               border: "none",
-              bgcolor: mode === "dark" ? "#222" : "#fafafa",
-              color: mode === "dark" ? "#fff" : "#222",
+              bgcolor: effectiveChatTheme === "dark" ? "#222" : "#fafafa",
+              color: effectiveChatTheme === "dark" ? "#fff" : "#222",
               fontWeight: 700,
               fontSize: 18,
             }}
@@ -1939,7 +1943,7 @@ if (msg.type === "system") {
             variant="body1"
             sx={{
               fontWeight: 700,
-              color: mode === "dark" ? "#fff" : "#222",
+              color: effectiveChatTheme === "dark" ? "#fff" : "#222",
               fontSize: 15,
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -1952,7 +1956,7 @@ if (msg.type === "system") {
             <Typography
               variant="caption"
               sx={{
-                color: mode === "dark" ? "#b4b4b4ff" : "#333333ff",
+                color: effectiveChatTheme === "dark" ? "#b4b4b4ff" : "#333333ff",
                 fontWeight: 500,
                 opacity: 0.8,
                 fontSize: 10,
@@ -1977,7 +1981,7 @@ if (msg.type === "system") {
 })()}
 
     {!reactionMsg && (
-      <Typography variant="body2" sx={{ color: mode === "dark" ? "#bbb" : "#888", textAlign: "center", py: 2 }}>
+      <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#bbb" : "#888", textAlign: "center", py: 2 }}>
         No reactions yet.
       </Typography>
     )}
@@ -2011,7 +2015,7 @@ if (msg.type === "system") {
     handleReaction(emojiData.emoji, reactionMsg);
     setShowEmojiPicker(false);
   }}
-  theme={mode === "dark" ? "dark" : "light"}
+  theme={effectiveChatTheme === "dark" ? "dark" : "light"}
 />
 </Popover>
 
@@ -2073,7 +2077,7 @@ if (msg.type === "system") {
     zIndex: '1200',
     alignItems: 'center',
     borderTop: '0px solid #5E5E5E',
-    background: mode === "dark" ? 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to bottom, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
+    background: effectiveChatTheme === "dark" ? 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to bottom, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
   }}
 >
   <SwipeableDrawer
@@ -2085,8 +2089,8 @@ if (msg.type === "system") {
       height: '50vh',
       borderTopRightRadius: 24,
       borderTopLeftRadius: 24,
-      backgroundColor: mode === "dark" ? "#000000" : "#fff",
-      color: mode === "dark" ? "#fff" : "#000",
+      backgroundColor: effectiveChatTheme === "dark" ? "#000000" : "#fff",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
       p: 2,
     },
   }}
@@ -2096,7 +2100,7 @@ if (msg.type === "system") {
   </Typography>
   <List>
     {memberUsers.length === 0 && (
-      <Typography sx={{ textAlign: 'center', mt: 4, color: mode === "dark" ? "#aaa" : "#555" }}>
+      <Typography sx={{ textAlign: 'center', mt: 4, color: effectiveChatTheme === "dark" ? "#aaa" : "#555" }}>
         No members found
       </Typography>
     )}
@@ -2111,7 +2115,7 @@ if (msg.type === "system") {
           primary={member.name || member.username || 'Unknown'}
           secondary={member.username || ''}
           primaryTypographyProps={{ noWrap: true }}
-          secondaryTypographyProps={{ noWrap: true, variant: 'caption', sx: {color: mode === "dark" ? "#ccc" : "#666"} }}
+          secondaryTypographyProps={{ noWrap: true, variant: 'caption', sx: {color: effectiveChatTheme === "dark" ? "#ccc" : "#666"} }}
         />
       </ListItemButton>
     ))}
@@ -2134,7 +2138,7 @@ if (msg.type === "system") {
             p: 1,
             textAlign: 'center',
             width: '100%',
-            backgroundColor: mode === "dark" ? "#000000ff" : "#ffffff",
+            backgroundColor: effectiveChatTheme === "dark" ? "#000000ff" : "#ffffff",
             borderTop: "1px solid #737373ff"
           }}
         >
@@ -2157,7 +2161,7 @@ if (msg.type === "system") {
     zIndex: '1200',
     alignItems: 'center',
     borderTop: '0px solid #5e5e5e81',
-    background: mode === "dark" ? 'linear-gradient(to top, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to top, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
+    background: effectiveChatTheme === "dark" ? 'linear-gradient(to top, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to top, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
   }}
 >
   
@@ -2177,7 +2181,7 @@ sx={{
     <Button
     sx={{
       display: editingMsg ? "none" : "flex",
-      backgroundColor: mode === "dark" ? '#f1f1f11c' : "#ffffff1c",
+      backgroundColor: effectiveChatTheme === "dark" ? '#f1f1f11c' : "#ffffff1c",
       backdropFilter: "blur(80px)",
       height: '30px',
       px: 0,
@@ -2186,7 +2190,7 @@ sx={{
     }}
     onClick={(e) => setMoreAnchorEl(e.currentTarget)}
   >
-    <AddIcon sx={{ color: mode === "dark" ? '#ffffffff' : "#000000", fontSize: 24 }} />
+    <AddIcon sx={{ color: effectiveChatTheme === "dark" ? '#ffffffff' : "#000000", fontSize: 24 }} />
   </Button>
 
   <TextField
@@ -2202,7 +2206,7 @@ sx={{
             mr: 1,
             borderRadius: '40px',
             input: {
-              color: mode === "dark" ? "#fff" : "#000",
+              color: effectiveChatTheme === "dark" ? "#fff" : "#000",
               height: '28px',
               borderRadius: '40px',
             },
@@ -2221,7 +2225,7 @@ sx={{
               },
             },
             '& .MuiInputBase-input::placeholder': {
-              color: mode === "dark" ? "#cccccc" : "#343434ff"
+              color: effectiveChatTheme === "dark" ? "#cccccc" : "#343434ff"
             }
           }}
   />
@@ -2230,16 +2234,16 @@ sx={{
   {editingMsg ? (
     <>
       <Button
-        sx={{ backgroundColor: mode === "dark" ? '#430400ff' : '#ffd2cfff', height: '45px', width: '45px', borderRadius: 40, mr: 1 }}
+        sx={{ backgroundColor: effectiveChatTheme === "dark" ? '#430400ff' : '#ffd2cfff', height: '45px', width: '45px', borderRadius: 40, mr: 1 }}
         onClick={() => {
           setEditingMsg(null);
           setEditText("");
         }}
       >
-        <CloseIcon sx={{ color: mode === "dark" ? '#ffd2cfff' : '#430400ff' }} />
+        <CloseIcon sx={{ color: effectiveChatTheme === "dark" ? '#ffd2cfff' : '#430400ff' }} />
       </Button> 
       <Button
-        sx={{ backgroundColor: mode === "dark" ? '#ffffffff' : "#000000", height: '45px', width: '45px', borderRadius: 40 }}
+        sx={{ backgroundColor: effectiveChatTheme === "dark" ? '#ffffffff' : "#000000", height: '45px', width: '45px', borderRadius: 40 }}
         onClick={async () => {
           try {
             const msgRef = doc(
@@ -2261,17 +2265,17 @@ sx={{
           }
         }}
       >
-        <CheckIcon sx={{ color: mode === "dark" ? '#000' : "#fff" }} />
+        <CheckIcon sx={{ color: effectiveChatTheme === "dark" ? '#000' : "#fff" }} />
       </Button>
 
     </>
   ) : (
     <>
     <Button
-      sx={{ backgroundColor: mode === "dark" ? '#ffffffff' : "#000000", height: '45px', width: '54px', borderRadius: 40 }}
+      sx={{ backgroundColor: effectiveChatTheme === "dark" ? '#ffffffff' : "#000000", height: '45px', width: '54px', borderRadius: 40 }}
       onClick={sendMessage}
     >
-      <SendIcon sx={{ color: mode === "dark" ? '#000' : "#fff" }} />
+      <SendIcon sx={{ color: effectiveChatTheme === "dark" ? '#000' : "#fff" }} />
     </Button>
   </>
   )}
@@ -2283,13 +2287,13 @@ sx={{
   onClose={() => setMoreAnchorEl(null)}
   PaperProps={{
     sx: {
-      bgcolor: mode === "dark" ? "#232323e6" : "#f7f7f7e6",
-      color: mode === "dark" ? "#fff" : "#222",
+      bgcolor: effectiveChatTheme === "dark" ? "#232323e6" : "#f7f7f7e6",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
       borderRadius: 3,
       maxWidth: 370,
       minWidth: 260,
       backdropFilter: "blur(24px)",
-      boxShadow: mode === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
+      boxShadow: effectiveChatTheme === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
       p: 1,
       mx: "auto",
       my: 2,
@@ -2319,9 +2323,9 @@ sx={{
       mb: 1,
       px: 2,
       py: 1.5,
-      color: mode === "dark" ? "#fff" : "#222",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
       '&:hover': {
-        bgcolor: mode === "dark" ? "#232323" : "#e0e0e0"
+        bgcolor: effectiveChatTheme === "dark" ? "#232323" : "#e0e0e0"
       },
       transition: "background 0.2s"
     }}
@@ -2341,9 +2345,9 @@ sx={{
       mb: 1,
       px: 2,
       py: 1.5,
-      color: mode === "dark" ? "#fff" : "#222",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
       '&:hover': {
-        bgcolor: mode === "dark" ? "#232323" : "#e0e0e0"
+        bgcolor: effectiveChatTheme === "dark" ? "#232323" : "#e0e0e0"
       },
       transition: "background 0.2s"
     }}
@@ -2360,9 +2364,9 @@ sx={{
       mb: 1,
       px: 2,
       py: 1.5,
-      color: mode === "dark" ? "#fff" : "#222",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
       '&:hover': {
-        bgcolor: mode === "dark" ? "#232323" : "#e0e0e0"
+        bgcolor: effectiveChatTheme === "dark" ? "#232323" : "#e0e0e0"
       },
       transition: "background 0.2s"
     }}
@@ -2385,7 +2389,7 @@ sx={{
     }
   }}
 >
-  <DialogTitle sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: "bold" }}>
+  <DialogTitle sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: "bold" }}>
     📊 Create Poll
   </DialogTitle>
 
@@ -2398,7 +2402,7 @@ sx={{
       variant="outlined"
       sx={{ mb: 3 }}
       InputLabelProps={{ style: { color: '#aaa' } }}
-      InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+      InputProps={{ style: { color: effectiveChatTheme === "dark" ? "#fff" : "#000" } }}
     />
 
     {pollOptions.map((option, index) => (
@@ -2409,7 +2413,7 @@ sx={{
           value={option}
           onChange={(e) => handleOptionChange(index, e.target.value)}
           InputLabelProps={{ style: { color: '#aaa' } }}
-          InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+          InputProps={{ style: { color: effectiveChatTheme === "dark" ? "#fff" : "#000" } }}
         />
         <IconButton
           onClick={() => removeOption(index)}
@@ -2449,7 +2453,7 @@ sx={{
       <GroupInfoDrawer
         profileOpen={profileOpen}
         setProfileOpen={setProfileOpen}
-        // pass all required props here: groupInfo, user, handlers, mode, etc
+        // pass all required props here: groupInfo, user, handlers, effectiveChatTheme, etc
         groupInfo={groupInfo}
         groupName="My Group"
         mode="dark"
