@@ -98,7 +98,7 @@ const MessageContainer = styled(Box)({
 function GroupChat() {
   const { groupName } = useParams();
   const { mode, accent, } = useThemeToggle();
-  const theme = getTheme(effectiveChatTheme, accent);
+  const theme = getTheme(mode, accent);
   const [messages, setMessages] = useState([]);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);

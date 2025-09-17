@@ -72,11 +72,14 @@ import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import EmailIcon from '@mui/icons-material/Email';
 import TelegramIcon from '@mui/icons-material/Telegram';
 import ShareIcon from '@mui/icons-material/Share';
+import QrCodeIcon from "@mui/icons-material/QrCode";
+import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
+import CloseIcon from "@mui/icons-material/Close";
 
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
 
 import { signOut, updateProfile } from "firebase/auth";
-import { doc, updateDoc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot } from "firebase/firestore";
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 import { weatherColors } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
@@ -86,6 +89,8 @@ import { getTheme } from "../theme";
 import getCroppedImg from '../utils/cropImage';
 import Cropper from "react-easy-crop";
 import { availableLanguages } from '../utils/languages';
+import { QRCodeSVG } from "qrcode.react";
+import { Scanner } from '@yudiel/react-qr-scanner';
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -114,7 +119,7 @@ const buttonStyle = (mode, theme) => ({
 });
 
 
-const ProfilePic = () => {
+const ProfilePic = ({currentUser}) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -195,6 +200,11 @@ const ProfilePic = () => {
   const [wallpaperDrawerOpen, setWallpaperDrawerOpen] = useState(false); // ⭐️ State for the drawer
   const [fontDrawerOpen, setFontDrawerOpen] = useState(false); // ⭐️ State for the drawer
 
+  const [isQrDrawerOpen, setQrDrawerOpen] = useState(false);
+  const handleQrDrawerOpen = () => setQrDrawerOpen(true);
+  const handleQrDrawerClose = () => setQrDrawerOpen(false);
+  const [isScannerOpen, setScannerOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleWallpaperSelect = (wallpaperUrl) => {
         setChatWallpaper(wallpaperUrl);
@@ -207,6 +217,71 @@ const ProfilePic = () => {
     : weatherColors.Default;
     
 
+const handleScanCode = () => {
+  handleQrDrawerClose(); // Close the previous drawer
+  setScannerOpen(true);   // Open the scanner modal
+};
+
+const handleDecode = async (result) => {
+  // 1. Prevent multiple scans while one is being processed
+  if (isProcessing) return;
+  setIsProcessing(true);
+
+  const friendUid = result?.text;
+
+  // 2. Introduce a small delay BEFORE closing the scanner
+  setTimeout(() => {
+    setScannerOpen(false);
+  }, 500); // A 500ms delay is usually sufficient
+
+  if (!friendUid) {
+    alert("Invalid or empty QR Code.");
+    setIsProcessing(false); // Reset state and exit
+    return;
+  }
+
+  if (friendUid === currentUser.uid) {
+    alert("You can't add yourself as a friend!");
+    setIsProcessing(false); // Reset state and exit
+    return;
+  }
+
+  try {
+    const currentUserRef = doc(db, "users", currentUser.uid);
+    const userDocSnap = await getDoc(currentUserRef);
+
+    if (userDocSnap.data()?.friends?.includes(friendUid)) {
+      alert("This person is already your friend.");
+      return; // No need to reset state here, as we will in the finally block
+    }
+
+    await updateDoc(currentUserRef, {
+      friends: arrayUnion(friendUid),
+    });
+
+    const friendRef = doc(db, "users", friendUid);
+    await updateDoc(friendRef, {
+      friends: arrayUnion(currentUser.uid),
+    });
+
+    alert("Friend added successfully! 🎉");
+  } catch (error) {
+    console.error("Error adding friend:", error);
+    alert(
+      "Could not add friend. The user may not exist or there was a database error."
+    );
+  } finally {
+    // 3. IMPORTANT: Reset the processing state after everything is done
+    setIsProcessing(false);
+  }
+};
+
+const handleError = (error) => {
+  // Only log if it's not a "not found" error, which happens frequently
+  if (!error.message.includes("NotFoundException")) {
+    console.error("QR Scanner Error:", error?.message);
+  }
+};
 
 // Place this array inside your ProfilePic component or import it
 const wallpapers = [
@@ -490,7 +565,7 @@ const [features] = useState([
       // A list of valid pages to prevent opening the drawer for arbitrary URL params
       const validPages = [
         "main", "profile", "accounts", "chats", "generalSettings", 
-        "support", "feedback", "inviteFriend", "about", "featuresChangelog"
+        "support", "feedback", "inviteFriend", "about", "featuresChangelog", "adduser"
       ];
 
       if (validPages.includes(settingsPage)) {
@@ -541,6 +616,7 @@ const [features] = useState([
 <>
 {userData.type === "Dev Beta" ? (
 <>
+
   <Box
 sx={{
   display: "flex",
@@ -608,6 +684,8 @@ sx={{
         </IconButton>
         <Typography sx={{ fontSize: '1.5rem' }}><h2>Settings</h2></Typography>
       </Box>
+
+    <Box sx={{ display: "flex", alignItems: "center" }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 2, my: 0, mx: 2, py: 2, borderRadius: 5, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788'} }} onClick={() => handleSetDrawerPage("profile")}>
         <Avatar src={userData.photoURL || ""} sx={{ width: 50, height: 50 }} />
         <Box>
@@ -619,6 +697,22 @@ sx={{
           </Typography>
         </Box>
       </Box>
+      
+          <IconButton
+          onClick={() => handleSetDrawerPage("adduser")}
+          sx={{
+            ml: 1,
+            color: theme.palette.text.primary,
+            backgroundColor: "#101010",
+            "&:hover": {
+              backgroundColor: "#2c2c2c",
+            },
+          }}
+        >
+          <QrCodeIcon />
+        </IconButton>
+
+    </Box>
 
       <Divider sx={{ borderColor: "#333" }} />
 
@@ -2414,8 +2508,6 @@ sx={{
   </Container>
 )}
 
-
-
 {drawerPage === "feedback" && (
   <Container sx={{ mt: 5, mb: 4 }}>
     {/* Back Button */}
@@ -2504,6 +2596,127 @@ sx={{
         For urgent issues, email us at <a href="mailto:jayendrachoudhary.am@gmail.com" style={{ color: "#888888ff" }}>jayendrachoudhary.am@gmail.com</a>
       </Typography>
     </Box>
+  </Container>
+)}
+
+{drawerPage === "adduser" && (
+  <Container
+    sx={{
+      mt: 5,
+      mb: 4,
+      position: "relative",
+      p: 3,
+    }}
+  >
+    <IconButton
+      onClick={handleQrDrawerClose}
+      sx={{
+        position: "absolute",
+        top: 16,
+        right: 16,
+        color: "text.primary",
+        bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+        '&:hover': {
+          bgcolor: mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)",
+        },
+      }}
+    >
+      <CloseIcon />
+    </IconButton>
+
+    <Typography variant="h5" component="div" sx={{ fontWeight: "bold", mb: 3, textAlign: "center" }}>
+      Add Friend
+    </Typography>
+
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        p: 3,
+        bgcolor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+        borderRadius: 3,
+        mb: 3,
+      }}
+    >
+      <QRCodeSVG
+        value={JSON.parse(localStorage.getItem('bunkmateuser'))?.uid || "default-user-id"}
+        size={220}
+        level={"H"}
+        includeMargin={true}
+      />
+    </Box>
+
+    <Typography variant="body1" align="center" sx={{ color: "text.secondary", mb: 3 }}>
+      Scan this code to add {userData.name || "User"} as a friend.
+    </Typography>
+
+    <Button
+      variant="contained"
+      fullWidth
+      startIcon={<QrCodeScannerIcon />}
+      onClick={handleScanCode}
+      sx={{
+        py: 1.5,
+        textTransform: "none",
+        fontSize: "1rem",
+        borderRadius: 2,
+        bgcolor: theme.palette.primary.main,
+        '&:hover': {
+          bgcolor: theme.palette.primary.dark,
+        },
+      }}
+    >
+      Scan QR Code
+    </Button>
+
+    <Drawer
+      anchor="bottom"
+      open={isScannerOpen}
+      onClose={() => setScannerOpen(false)}
+      PaperProps={{
+        sx: {
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          p: 2,
+          bgcolor: mode === "dark" ? "rgba(26,26,26,0.95)" : "rgba(255,255,255,0.95)",
+          backdropFilter: "blur(8px)",
+        },
+      }}
+    >
+      <Box sx={{ width: "auto" }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 2,
+          }}
+        >
+          <Typography variant="h6">Scan QR Code</Typography>
+          <IconButton onClick={() => setScannerOpen(false)} sx={{
+            color: "text.primary",
+            bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+            '&:hover': {
+              bgcolor: mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)",
+            },
+          }}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        <Box sx={{
+          borderRadius: 2,
+          overflow: "hidden",
+          bgcolor: mode === "dark" ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.3)",
+        }}>
+          <Scanner
+            onDecode={handleDecode}
+            onError={handleError}
+            constraints={{ facingMode: 'environment' }}
+          />
+        </Box>
+      </Box>
+    </Drawer>
   </Container>
 )}
 
@@ -2667,15 +2880,6 @@ sx={{
           </ListItem>
         </List>
       </>
-    )}
-
-    {/* Edit Profile Page */}
-    {drawerPage === "profile" && (
-      <Container sx={{ mt: 1, mb: 2, color: theme.palette.text.primary }}>
-
-        {/* Your edit profile form here */}
-        {/* ... */}
-      </Container>
     )}
 
 {drawerPage === "generalSettings" && (
