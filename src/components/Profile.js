@@ -1537,6 +1537,7 @@ sx={{
             boxShadow: "none",
           }}
         >Dark</Button>
+
         <Button
           onClick={() => { setMode("light"); }}
           variant={mode === "light" ? "contained" : "outlined"}
@@ -1576,7 +1577,7 @@ sx={{
               backgroundColor: bg,
               boxShadow: "none",
               mb: 3,
-              color: accent === opt ? color : theme.palette.primary.main,
+              color: accent === opt ? color : theme.palette.primary.maintxt,
               '&:hover': {
                 backgroundColor: bg,
                 color: color
@@ -1586,18 +1587,14 @@ sx={{
         ))}
       </Box>
 
-<Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", width: 240, mx: "auto", }}>
+<Box sx={{ display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap", width: 340, mx: "auto", }}>
   {[
     { opt: "blue", label: "Blue", bg: "#bbdefb", color: "#fff" },
     { opt: "green", label: "Green", bg: "#c8e6c9", color: "#fff" },
-    { opt: "red", label: "Red", bg: "#EF5350", color: "#fff" },
     { opt: "orange", label: "Orange", bg: "#FFCC80", color: "#fff" },
-    { opt: "yellow", label: "Yellow", bg: "#FFEB3B", color: "#000" },
     { opt: "turquoise", label: "Turquoise", bg: "#b6f6ffff", color: "#fff" },
-    { opt: "lime", label: "Lime", bg: "#DCE775", color: "#000" },
-    { opt: "purple", label: "Purple", bg: "#f4b8ffff", color: "#fff" },
     { opt: "skyblue", label: "Sky Blue", bg: "#81D4FA", color: "#fff" },
-    { opt: "mint", label: "Mint", bg: "#A5D6A7", color: "#fff" },
+    { opt: "gray", label: "Gray", bg: "#808080", color: "#fff" },
   ].map(({ opt, label, bg, color }) => (
     <Button
       key={opt}
@@ -1665,13 +1662,11 @@ sx={{
         py: 1.5,
         fontWeight: 600,
         textTransform: "none",
-        backgroundColor: settings.locationMode === "auto" ? theme.palette.primary.main : "transparent",
-        color: settings.locationMode === "auto" ? "#fff" : theme.palette.text.primary,
+        filter: settings.locationMode === "auto" && mode === "dark" ? "none" : "invert(1)",
+        backgroundColor: settings.locationMode === "auto" ? theme.palette.primary.bg : "transparent",
+        color: settings.locationMode === "auto" ? theme.palette.primary.maintxt : theme.palette.primary.main,
         borderColor: settings.locationMode === "auto" ? theme.palette.primary.main : "#ccc",
         boxShadow: "none",
-        '&:hover': {
-          backgroundColor: settings.locationMode === "auto" ? theme.palette.primary.dark : "#f5f5f5",
-        },
         minWidth: 100,
       }}
     >
@@ -1687,13 +1682,11 @@ sx={{
         py: 1.5,
         fontWeight: 600,
         textTransform: "none",
-        backgroundColor: settings.locationMode !== "auto" ? theme.palette.primary.main : "transparent",
-        color: settings.locationMode !== "auto" ? "#fff" : theme.palette.text.primary,
+        filter: settings.locationMode === "auto" && mode === "dark" ? "none" : "invert(1)",
+        backgroundColor: settings.locationMode !== "auto" ? theme.palette.primary.bg : "transparent",
+        color: theme.palette.primary.maintxt,
         borderColor: settings.locationMode !== "auto" ? theme.palette.primary.main : "#ccc",
         boxShadow: "none",
-        '&:hover': {
-          backgroundColor: settings.locationMode !== "auto" ? theme.palette.primary.dark : "#f5f5f5",
-        },
         minWidth: 100,
       }}
     >
@@ -2234,7 +2227,8 @@ sx={{
         px: 3,
         py: 1.5,
         textTransform: "none",
-        borderColor: theme.palette.divider,
+        borderColor: theme.palette.primary.maintxt,
+        color: theme.palette.primary.maintxt,
         '&:hover': { backgroundColor: theme.palette.action.hover },
       }}
     >
@@ -2268,9 +2262,9 @@ sx={{
         px: 3,
         py: 1.5,
         textTransform: "none",
-        boxShadow: 3,
+        boxShadow: 0,
         backgroundColor: theme.palette.primary.main,
-        '&:hover': { backgroundColor: theme.palette.primary.dark },
+        '&:hover': { boxShadow: 0, backgroundColor: theme.palette.primary.dark },
       }}
     >
       Save Changes
