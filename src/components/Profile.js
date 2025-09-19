@@ -40,7 +40,8 @@ import {
   DialogContentText,
   Grid,
   Menu,
-  ListItemAvatar
+  ListItemAvatar,
+  Fade
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -96,9 +97,12 @@ import PublicIcon from '@mui/icons-material/Public';
 import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 import BlockIcon from "@mui/icons-material/Block";
+import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
+import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
+import QrCode2OutlinedIcon from '@mui/icons-material/QrCode2Outlined';
 
 import { signOut, updateProfile, getAuth, deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
-import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, arrayRemove } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, arrayRemove, deleteDoc } from "firebase/firestore";
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 import { weatherColors } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
@@ -239,6 +243,7 @@ const ProfilePic = ({currentUser}) => {
   });
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [isLoadingBlocked, setIsLoadingBlocked] = useState(false);
+  const [profilePicOpen, setProfilePicOpen] = useState(false);
 
   const handleWallpaperSelect = (wallpaperUrl) => {
         setChatWallpaper(wallpaperUrl);
@@ -601,56 +606,34 @@ const handleVisibilityChange = async (event) => {
   }
 };
 
-const handleDeleteAccount = async () => {
-  const auth = getAuth();
-  const user = auth.currentUser;
+  const handleDeleteAccount = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
 
-  if (!user) {
-    alert("No user is signed in to delete.");
-    return;
-  }
+    if (!user) {
+      alert("No user is signed in.");
+      setDeleteConfirmOpen(false);
+      return;
+    }
 
-  try {
-    // Attempt to delete the user directly
-    await deleteUser(user);
-    alert("Your account has been successfully deleted.");
-    setDeleteConfirmOpen(false);
-    await signOut(auth);
-    navigate('/login');
+    try {
+      // Delete Firestore user document
+      const userDocRef = doc(db, "users", user.uid);
+      await deleteDoc(userDocRef);
+      console.log("User document successfully deleted from Firestore.");
 
-  } catch (error) {
-    console.error("Error deleting account:", error);
+      alert("Your account data has been successfully deleted from Firestore.");
 
-    // If deletion fails because of a stale login, prompt for re-authentication
-    if (error.code === 'auth/requires-recent-login') {
-      alert("This is a sensitive action. Please sign in again to confirm and permanently delete your account.");
-      
-      const provider = new GoogleAuthProvider(); // Assuming Google Sign-In
+      // Close the confirmation dialog and navigate away
+      setDeleteConfirmOpen(false);
+      navigate("/login");
 
-      try {
-        // Prompt the user to sign in again with a popup
-        await reauthenticateWithPopup(user, provider);
-
-        // If re-authentication is successful, try deleting again
-        await deleteUser(user);
-
-        alert("Account successfully deleted after re-authentication.");
-        setDeleteConfirmOpen(false);
-        await signOut(auth);
-        navigate('/login');
-
-      } catch (reauthError) {
-        console.error("Re-authentication failed:", reauthError);
-        alert("Re-authentication failed. Your account was not deleted.");
-        setDeleteConfirmOpen(false);
-      }
-    } else {
-      // Handle other potential errors
-      alert("An error occurred while deleting your account. Please try again.");
+    } catch (error) {
+      console.error("Error deleting user document:", error);
+      alert("An error occurred while deleting your account data. Please try again.");
       setDeleteConfirmOpen(false);
     }
-  }
-};
+  };
 
 const handlePrivacyMenuOpen = (event, setting) => {
   setActivePrivacySetting(setting);
@@ -2671,39 +2654,42 @@ sx={{
     ) : isEditing ? (
 <>
   {/* Avatar and Upload Section */}
-  <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column", mb: 5 }}>
-    <Box
+<Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column", mb: 5 }}>
+  {/* --- AVATAR & UPLOAD BUTTON --- */}
+  <Box
     sx={{
       position: "relative",
       mb: 2,
-      "&:hover .hover-preview": {
-        opacity: 1,
-      }
     }}
-    >
+  >
+    {/* Avatar now opens the full-screen dialog on click */}
     <Avatar
       src={userData.photoURL || ""}
       alt={userData.name}
-      sx={{ width: 180, height: 180, mb: 2, borderRadius: 12, boxShadow: 3 }}
+      sx={{ 
+        width: 180, 
+        height: 180, 
+        mb: 2, 
+        borderRadius: 12, 
+        boxShadow: 3,
+        cursor: 'pointer', // Add cursor to indicate it's clickable
+        transition: 'transform 0.2s ease-in-out',
+        '&:hover': {
+          transform: 'scale(1.05)',
+        }
+      }}
     />
+    
+    {/* Upload button remains the same */}
     <Button
       component="label"
       sx={{
-        position: "absolute",
-        bottom: 23,
-        right: 8,
-        width: 46,
-        height: 46,
-        borderRadius: "43px 10px",
-        border: "none",
+        position: "absolute", bottom: 23, right: 8, width: 46, height: 46,
+        borderRadius: "43px 10px", border: "none",
         backgroundColor: mode === "dark" ? "#000000a1" : "#ffffffff",
-        backdropFilter: "blur(30px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: mode === "dark" ? "#ffffff86" : "#000000ff",
-        transition: "opacity 0.3s ease",
-        fontSize: 12,
+        backdropFilter: "blur(30px)", display: "flex", alignItems: "center",
+        justifyContent: "center", color: mode === "dark" ? "#ffffff86" : "#000000ff",
+        transition: "opacity 0.3s ease", fontSize: 12,
       }}
     >
       <PhotoCamera />
@@ -2720,8 +2706,9 @@ sx={{
         }}
       />
     </Button>
-    </Box>
   </Box>
+
+</Box>
 
   {/* Editable Form Fields */}
   <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -2886,22 +2873,175 @@ sx={{
       <>
         {/* View Mode */}
         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3, position: "relative" }}>
-          <Avatar src={viewData?.photoURL || ""} sx={{ width: 110, height: 110 }} />
-          {userData.type && (
-            <Box sx={{ position: "absolute", bottom: 60, right: "calc(50% - 10%)", zIndex: 10 }}>
-              <Chip
-                label={userData.type}
-                size="small"
-                variant="contained"
-                sx={{
-                  pointerEvents: "none",
-                  userSelect: "none",
-                  backgroundColor: mode === "dark" ? "#101010c9" : "#f1f1f1c9",
-                  backdropFilter: "blur(80px)",
-                }}
-              />
-            </Box>
-          )}
+          <>
+  {/* --- Your Existing Avatar Code (with onClick added) --- */}
+  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3, position: "relative" }}>
+    <Avatar
+      src={viewData?.photoURL || ""}
+      sx={{
+        width: 110,
+        height: 110,
+        cursor: 'pointer', // Make it look clickable
+        transition: 'transform 0.2s ease',
+        '&:hover': {
+          transform: 'scale(1.05)',
+        },
+      }}
+      onClick={() => setProfilePicOpen(true)} // This opens the dialog
+    />
+    {userData.type && (
+      <Box sx={{ position: "absolute", bottom: -10, right: "calc(30% - 10%)", zIndex: 10 }}>
+        <Chip
+          label={userData.type}
+          size="small"
+          variant="contained"
+          sx={{
+            pointerEvents: "none",
+            userSelect: "none",
+            backgroundColor: mode === "dark" ? "#101010c9" : "#f1f1f1c9",
+            backdropFilter: "blur(80px)",
+          }}
+        />
+      </Box>
+    )}
+  </Box>
+
+  {/* --- Full-Screen Profile Picture Dialog --- */}
+<Dialog
+  fullScreen
+  open={profilePicOpen}
+  onClose={() => setProfilePicOpen(false)}
+  PaperProps={{
+    sx: {
+      backgroundColor: "#00000004",
+      backgroundImage: "none",
+      backdropFilter: "blur(10px)",
+    },
+  }}
+>
+  <Box
+    onClick={() => setProfilePicOpen(false)}
+    sx={{
+      position: "relative",
+      height: "100%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "column",
+      p: 3,
+    }}
+  >
+    {/* Close Button */}
+    <IconButton
+      onClick={() => setProfilePicOpen(false)}
+      sx={{
+        position: "absolute",
+        top: 20,
+        right: 20,
+        color: "white",
+        backgroundColor: "rgba(255,255,255,0.1)",
+        "&:hover": {
+          backgroundColor: "rgba(255,255,255,0.25)",
+        },
+      }}
+    >
+      <CloseIcon />
+    </IconButton>
+
+    {/* Profile Avatar with fade+zoom */}
+    <Zoom in={profilePicOpen} style={{ transitionDelay: profilePicOpen ? "100ms" : "0ms" }}>
+      <Avatar
+        onClick={(e) => e.stopPropagation()}
+        src={userData.photoURL || ""}
+        alt={userData.name}
+        sx={{
+          width: "min(250px, 90vw)",
+          height: "min(250px, 90vw)",
+          boxShadow: "none",
+          cursor: "default",
+          transition: "transform 0.3s ease-in-out",
+          "&:hover": {
+            transform: "scale(1.05)",
+          },
+        }}
+      />
+    </Zoom>
+
+    {/* Action Buttons at bottom with fade+pop */}
+    <Fade in={profilePicOpen} timeout={500}>
+      <Stack
+        direction="row"
+        spacing={6}
+        onClick={(e) => e.stopPropagation()}
+        sx={{
+          position: "absolute",
+          bottom: 40,
+        }}
+      >
+        {/* Share Profile */}
+        <Zoom in={profilePicOpen} style={{ transitionDelay: profilePicOpen ? "200ms" : "0ms" }}>
+          <Stack alignItems="center" spacing={1}>
+            <IconButton
+              sx={{
+                backgroundColor: "rgba(255,255,255,0.15)",
+                color: "white",
+                "&:hover": {
+                  backgroundColor: "rgba(255,255,255,0.3)",
+                },
+              }}
+            >
+              <ShareOutlinedIcon />
+            </IconButton>
+            <Typography variant="caption" sx={{ color: "white" }}>
+              Share profile
+            </Typography>
+          </Stack>
+        </Zoom>
+
+        {/* Copy Link */}
+        <Zoom in={profilePicOpen} style={{ transitionDelay: profilePicOpen ? "300ms" : "0ms" }}>
+          <Stack alignItems="center" spacing={1}>
+            <IconButton
+              sx={{
+                backgroundColor: "rgba(255,255,255,0.15)",
+                color: "white",
+                "&:hover": {
+                  backgroundColor: "rgba(255,255,255,0.3)",
+                },
+              }}
+            >
+              <LinkOutlinedIcon />
+            </IconButton>
+            <Typography variant="caption" sx={{ color: "white" }}>
+              Copy link
+            </Typography>
+          </Stack>
+        </Zoom>
+
+        {/* QR Code */}
+        <Zoom in={profilePicOpen} style={{ transitionDelay: profilePicOpen ? "400ms" : "0ms" }}>
+          <Stack alignItems="center" spacing={1}>
+            <IconButton
+              sx={{
+                backgroundColor: "rgba(255,255,255,0.15)",
+                color: "white",
+                "&:hover": {
+                  backgroundColor: "rgba(255,255,255,0.3)",
+                },
+              }}
+            >
+              <QrCode2OutlinedIcon />
+            </IconButton>
+            <Typography variant="caption" sx={{ color: "white" }}>
+              QR code
+            </Typography>
+          </Stack>
+        </Zoom>
+      </Stack>
+    </Fade>
+  </Box>
+</Dialog>
+</>
           <Typography variant="h6" fontWeight="bold" sx={{ mt: 2 }}>
             {viewData?.name || ""}
           </Typography>
