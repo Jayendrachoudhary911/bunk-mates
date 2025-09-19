@@ -2,26 +2,16 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Box,
-  Button,
-  TextField,
-  Typography,
-  Container,
-  Stack,
-  Checkbox,
-  FormControlLabel,
-  Link,
-  Fade,
-  Drawer,
-  Card,
-  Avatar,
+  Box, Button, TextField, Typography, Container, Stack, Checkbox,
+  FormControlLabel, Link, Fade, Drawer, Card, Avatar, CircularProgress,
 } from "@mui/material";
 import GoogleIcon from "@mui/icons-material/Google";
 import { auth, googleProvider, db } from "../firebase";
 import {
   signInWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
   onAuthStateChanged,
+  getRedirectResult,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
@@ -64,23 +54,48 @@ function getGreeting() {
 const Login = () => {
   const navigate = useNavigate();
 
-  // Component state
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errorMessage, setErrorMessage] = useState("");
-  const [user, setUser] = useState(null); // Firebase Auth user
-  const [userData, setUserData] = useState(null); // Firestore user data (includes photoURL)
+  const [user, setUser] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [rememberMe, setRememberMe] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start true to handle redirect
   const [showDrawer, setShowDrawer] = useState(false);
   const [fadeIn, setFadeIn] = useState(false);
 
-  // Listen for auth state changes and subscribe to Firestore user doc in real-time
   useEffect(() => {
+    // --- NEW: Check for redirect result on component load ---
+    const checkRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          // User has just signed in via redirect.
+          const googleUser = result.user;
+          const userRef = doc(db, "users", googleUser.uid);
+          const userDoc = await getDoc(userRef);
+          if (!userDoc.exists()) {
+            await setDoc(userRef, {
+              uid: googleUser.uid,
+              email: googleUser.email,
+              displayName: googleUser.displayName,
+              photoURL: googleUser.photoURL || "",
+              type: "Regular",
+              createdAt: serverTimestamp(),
+            });
+          }
+          saveUserData(googleUser);
+        }
+      } catch (err) {
+        setErrorMessage(err.message);
+      }
+      // Finished checking for redirect, now let onAuthStateChanged take over.
+      setLoading(false); 
+    };
+    checkRedirect();
+    
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const userRef = doc(db, "users", firebaseUser.uid);
-
-        // Subscribe to Firestore user doc in real-time
         const unsubscribeUserDoc = onSnapshot(
           userRef,
           (docSnap) => {
@@ -89,7 +104,6 @@ const Login = () => {
               setUser(firebaseUser);
               setShowDrawer(true);
             } else {
-              // If user doc doesn't exist, sign out for safety
               setUser(null);
               setUserData(null);
               setShowDrawer(false);
@@ -98,14 +112,9 @@ const Login = () => {
           },
           (error) => {
             console.error("Error fetching user doc:", error);
-            setUser(null);
-            setUserData(null);
-            setShowDrawer(false);
             auth.signOut();
           }
         );
-
-        // Cleanup subscription on unmount or user change
         return unsubscribeUserDoc;
       } else {
         setUser(null);
@@ -115,10 +124,9 @@ const Login = () => {
     });
 
     setFadeIn(true);
-    return unsubscribeAuth; // Cleanup auth listener on unmount
+    return unsubscribeAuth;
   }, []);
 
-  // Save user to localStorage if Remember Me is checked
   const saveUserData = (user) => {
     const userStorageData = {
       uid: user.uid,
@@ -130,33 +138,19 @@ const Login = () => {
     }
   };
 
-  // Form input change handler
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  // Email/password login handler
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrorMessage("");
     try {
       const credential = await signInWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
+        auth, formData.email, formData.password
       );
-      const userRef = doc(db, "users", credential.user.uid);
-      const userDoc = await getDoc(userRef);
-      if (userDoc.exists()) {
-        const userType = userDoc.data().type || "";
-        setCookie("bunkmate_usertype", userType, 30);
-        saveUserData(credential.user);
-        // userData will get updated via onSnapshot listener
-      } else {
-        setErrorMessage("User not found, please sign up.");
-        await auth.signOut();
-      }
+      saveUserData(credential.user);
     } catch (err) {
       setErrorMessage(err.message);
     } finally {
@@ -164,73 +158,52 @@ const Login = () => {
     }
   };
 
-  // Google login handler
+  // --- FIXED: Google login handler now uses redirect ---
   const handleGoogleLogin = async () => {
     setLoading(true);
     setErrorMessage("");
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const googleUser = result.user;
-      const userRef = doc(db, "users", googleUser.uid);
-      const userDoc = await getDoc(userRef);
-
-      if (!userDoc.exists()) {
-        // User does not exist in Firestore, create it once
-        await setDoc(userRef, {
-          uid: googleUser.uid,
-          email: googleUser.email,
-          displayName: googleUser.displayName,
-          photoURL: googleUser.photoURL || "",
-          type: "Regular",
-          createdAt: serverTimestamp(),
-        });
-      }
-      // userData will be updated by onSnapshot listener
-      saveUserData(googleUser);
+      // This navigates the user to the Google sign-in page
+      await signInWithRedirect(auth, googleProvider);
+      // The useEffect will handle the result when they return to the app
     } catch (err) {
       setErrorMessage(err.message);
-    } finally {
       setLoading(false);
     }
   };
 
-  // Continue button after successful login drawer
   const handleContinue = () => {
     setShowDrawer(false);
     navigate("/");
   };
 
-  // Logout handler
   const handleLogout = () => {
     auth.signOut();
-    localStorage.removeItem("bunkmateuser");
-    setUser(null);
-    setUserData(null);
-    setShowDrawer(false);
-    navigate("/login");
   };
+
+  // Display a loading indicator while checking for redirect result
+  if (loading && !user) {
+    return (
+      <ThemeProvider theme={darkTheme}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <CircularProgress color="primary" />
+        </Box>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={darkTheme}>
       <Box
         sx={{
-          background: "transparent",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 2,
-          minHeight: "90vh",
+          background: "transparent", display: "flex", alignItems: "center",
+          justifyContent: "center", padding: 2, minHeight: "90vh",
         }}
       >
-        <Fade in={fadeIn} timeout={100}>
+        <Fade in={fadeIn} timeout={1000}>
           <Container maxWidth="xs">
             <Stack spacing={4} sx={{ mt: "35vh" }}>
-              <Typography
-                variant="h4"
-                fontWeight="bold"
-                color="primary"
-                align="left"
-              >
+              <Typography variant="h4" fontWeight="bold" color="primary" align="left">
                 Login
               </Typography>
 
@@ -238,23 +211,8 @@ const Login = () => {
                 <>
                   <form onSubmit={handleLogin} style={{ width: "100%" }}>
                     <Stack spacing={2}>
-                      <TextField
-                        name="email"
-                        label="Email"
-                        type="email"
-                        fullWidth
-                        required
-                        onChange={handleChange}
-                        sx={{ borderRadius: 3 }}
-                      />
-                      <TextField
-                        name="password"
-                        label="Password"
-                        type="password"
-                        fullWidth
-                        required
-                        onChange={handleChange}
-                      />
+                      <TextField name="email" label="Email" type="email" fullWidth required onChange={handleChange} sx={{ borderRadius: 3 }}/>
+                      <TextField name="password" label="Password" type="password" fullWidth required onChange={handleChange}/>
                       <Box display={"flex"} justifyContent="space-between" alignItems="center">
                         <FormControlLabel
                           control={
@@ -265,47 +223,22 @@ const Login = () => {
                             />
                           }
                           label="Remember Me"
-                          sx={{
-                            color: "#B0BEC5",
-                            letterSpacing: "0.05em",
-                          }}
+                          sx={{ color: "#B0BEC5", letterSpacing: "0.05em" }}
                         />
                         <Link href="/forgot-password" underline="hover" color="#ffffff">
                           Forgot password?
                         </Link>
                       </Box>
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        fullWidth
-                        sx={{
-                          backgroundColor: "#ffffffba",
-                          py: 1,
-                          fontSize: "1.2rem",
-                          borderRadius: 14,
-                        }}
-                        disabled={loading}
-                      >
+                      <Button type="submit" variant="contained" fullWidth sx={{ backgroundColor: "#ffffffba", py: 1, fontSize: "1.2rem", borderRadius: 14 }} disabled={loading}>
                         {loading ? "Logging in..." : "Login"}
                       </Button>
-                      <Button
-                        variant="outlined"
-                        startIcon={<GoogleIcon />}
-                        onClick={handleGoogleLogin}
-                        fullWidth
-                        sx={{ py: 1, fontSize: "1.2rem", borderRadius: 14 }}
-                        disabled={loading}
-                      >
+                      <Button variant="outlined" startIcon={<GoogleIcon />} onClick={handleGoogleLogin} fullWidth sx={{ py: 1, fontSize: "1.2rem", borderRadius: 14 }} disabled={loading}>
                         Login with Google
                       </Button>
                     </Stack>
                   </form>
 
-                  <Stack
-                    direction="row"
-                    justifyContent="center"
-                    width="100%"
-                  >
+                  <Stack direction="row" justifyContent="center" width="100%">
                     <Link href="/signup" underline="hover" color="primary">
                       Don’t have an account? Sign Up
                     </Link>
@@ -324,79 +257,31 @@ const Login = () => {
       </Box>
 
       {/* Fullscreen Drawer after successful login */}
-      <Drawer
-        anchor="bottom"
-        open={showDrawer}
-        onClose={() => {}}
-        hideBackdrop
-        sx={{
-          boxShadow: "none",
-        }}
-      >
-        <Box
-          sx={{
-            background: "url('/assets/images/bg.png') center/cover no-repeat",
-            height: "100vh",
-          }}
-        >
+      <Drawer anchor="bottom" open={showDrawer} onClose={() => {}} hideBackdrop sx={{ boxShadow: "none" }}>
+        <Box sx={{ background: "url('/assets/images/bg.png') center/cover no-repeat", height: "100vh" }}>
           <Card
-          fullWidth
             sx={{
-              position: "absolute",
-              bottom: "0",
-              color: "#fff",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              textAlign: "center",
-              boxShadow: "none",
-              px: 3,
-              py: 4,
-              borderRadius: "16px 16px 0 0",
-              backdropFilter: "blur(40px)",
+              position: "absolute", bottom: "0", color: "#fff", display: "flex",
+              flexDirection: "column", justifyContent: "center", alignItems: "center",
+              textAlign: "center", boxShadow: "none", px: 3, py: 4,
+              borderRadius: "16px 16px 0 0", backdropFilter: "blur(40px)",
               backgroundColor: "#0c0c0c95",
             }}
           >
-            <Box
-              sx={{
-                height: 100,
-                mb: 2,
-                p: 0.3,
-                borderRadius: "50%",
-                border: "4px solid #303030ff",
-              }}
-            >
+            <Box sx={{ height: 100, mb: 2, p: 0.3, borderRadius: "50%", border: "4px solid #303030ff" }}>
               <Avatar
                 src={userData?.photoURL || ""}
-                sx={{
-                  width: 100,
-                  height: 100,
-                  mb: 2,
-                }}
+                sx={{ width: 100, height: 100, mb: 2 }}
                 alt={userData?.displayName || "User"}
               />
             </Box>
-
             <Typography variant="h4" fontWeight="bold" gutterBottom>
               {getGreeting()}, {userData?.displayName?.split(" ")[0] || "Explorer"}!
             </Typography>
-
             <Typography variant="body1" color="text.secondary" gutterBottom>
               You've successfully logged into <b>BunkMate</b>
             </Typography>
-
-            <Box
-              sx={{
-                my: 3,
-                textAlign: "center",
-                backgroundColor: "#f1f1f111",
-                p: 1,
-                maxWidth: 400,
-                width: "100%",
-                borderRadius: 2,
-              }}
-            >
+            <Box sx={{ my: 3, textAlign: "center", backgroundColor: "#f1f1f111", p: 1, maxWidth: 400, width: "100%", borderRadius: 2 }}>
               <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
                 <strong>Email:</strong> {userData?.email || user?.email}
               </Typography>
@@ -408,21 +293,11 @@ const Login = () => {
                 })}
               </Typography>
             </Box>
-
-            <Button
-              variant="contained"
-              size="large"
-              fullWidth
-              onClick={handleContinue}
-              sx={{
-                borderRadius: 50,
-                px: 5,
-                py: 1.5,
-                fontSize: "1rem",
-                boxShadow: "none",
-              }}
-            >
+            <Button variant="contained" size="large" fullWidth onClick={handleContinue} sx={{ borderRadius: 50, px: 5, py: 1.5, fontSize: "1rem", boxShadow: "none" }}>
               Continue
+            </Button>
+            <Button size="small" onClick={handleLogout} sx={{ mt: 2, color: 'text.secondary' }}>
+              Switch Account
             </Button>
           </Card>
         </Box>

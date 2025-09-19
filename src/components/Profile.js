@@ -611,32 +611,32 @@ const handleDeleteAccount = async () => {
   }
 
   try {
-    // 1. First, try to delete the user directly.
+    // Attempt to delete the user directly
     await deleteUser(user);
     alert("Your account has been successfully deleted.");
     setDeleteConfirmOpen(false);
+    await signOut(auth);
     navigate('/login');
 
   } catch (error) {
     console.error("Error deleting account:", error);
 
-    // 2. If the error is 'auth/requires-recent-login', handle re-authentication.
+    // If deletion fails because of a stale login, prompt for re-authentication
     if (error.code === 'auth/requires-recent-login') {
-      alert("This is a sensitive action. Please sign in again to confirm you want to permanently delete your account.");
-
-      // This example uses GoogleAuthProvider. If you have other sign-in methods,
-      // you will need logic to select the correct provider.
-      const provider = new GoogleAuthProvider();
+      alert("This is a sensitive action. Please sign in again to confirm and permanently delete your account.");
+      
+      const provider = new GoogleAuthProvider(); // Assuming Google Sign-In
 
       try {
-        // 3. Prompt the user to re-authenticate with a popup.
+        // Prompt the user to sign in again with a popup
         await reauthenticateWithPopup(user, provider);
 
-        // 4. If re-authentication is successful, try deleting the user again.
+        // If re-authentication is successful, try deleting again
         await deleteUser(user);
 
         alert("Account successfully deleted after re-authentication.");
         setDeleteConfirmOpen(false);
+        await signOut(auth);
         navigate('/login');
 
       } catch (reauthError) {
@@ -645,7 +645,7 @@ const handleDeleteAccount = async () => {
         setDeleteConfirmOpen(false);
       }
     } else {
-      // 5. Handle other potential errors (network issues, etc.)
+      // Handle other potential errors
       alert("An error occurred while deleting your account. Please try again.");
       setDeleteConfirmOpen(false);
     }
