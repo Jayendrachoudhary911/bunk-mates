@@ -244,6 +244,9 @@ const ProfilePic = ({currentUser}) => {
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [isLoadingBlocked, setIsLoadingBlocked] = useState(false);
   const [profilePicOpen, setProfilePicOpen] = useState(false);
+  const [shareDrawer, setShareDrawer] = useState(false);
+  const [linkDrawer, setLinkDrawer] = useState(false);
+  const [qrDrawer, setQrDrawer] = useState(false);
 
   const handleWallpaperSelect = (wallpaperUrl) => {
         setChatWallpaper(wallpaperUrl);
@@ -2678,6 +2681,7 @@ sx={{
           transform: 'scale(1.05)',
         }
       }}
+      onClick={() => setProfilePicOpen(true)}
     />
     
     {/* Upload button remains the same */}
@@ -2875,7 +2879,7 @@ sx={{
         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3, position: "relative" }}>
           <>
   {/* --- Your Existing Avatar Code (with onClick added) --- */}
-  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3, position: "relative" }}>
+  <Box sx={{ display: "flex", opacity: profilePicOpen ? 0 : 1, flexDirection: "column", alignItems: "center", mb: 3, position: "relative" }}>
     <Avatar
       src={viewData?.photoURL || ""}
       sx={{
@@ -2905,142 +2909,6 @@ sx={{
       </Box>
     )}
   </Box>
-
-  {/* --- Full-Screen Profile Picture Dialog --- */}
-<Dialog
-  fullScreen
-  open={profilePicOpen}
-  onClose={() => setProfilePicOpen(false)}
-  PaperProps={{
-    sx: {
-      backgroundColor: "#00000004",
-      backgroundImage: "none",
-      backdropFilter: "blur(10px)",
-    },
-  }}
->
-  <Box
-    onClick={() => setProfilePicOpen(false)}
-    sx={{
-      position: "relative",
-      height: "100%",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "column",
-      p: 3,
-    }}
-  >
-    {/* Close Button */}
-    <IconButton
-      onClick={() => setProfilePicOpen(false)}
-      sx={{
-        position: "absolute",
-        top: 20,
-        right: 20,
-        color: "white",
-        backgroundColor: "rgba(255,255,255,0.1)",
-        "&:hover": {
-          backgroundColor: "rgba(255,255,255,0.25)",
-        },
-      }}
-    >
-      <CloseIcon />
-    </IconButton>
-
-    {/* Profile Avatar with fade+zoom */}
-    <Zoom in={profilePicOpen} style={{ transitionDelay: profilePicOpen ? "100ms" : "0ms" }}>
-      <Avatar
-        onClick={(e) => e.stopPropagation()}
-        src={userData.photoURL || ""}
-        alt={userData.name}
-        sx={{
-          width: "min(250px, 90vw)",
-          height: "min(250px, 90vw)",
-          boxShadow: "none",
-          cursor: "default",
-          transition: "transform 0.3s ease-in-out",
-          "&:hover": {
-            transform: "scale(1.05)",
-          },
-        }}
-      />
-    </Zoom>
-
-    {/* Action Buttons at bottom with fade+pop */}
-    <Fade in={profilePicOpen} timeout={500}>
-      <Stack
-        direction="row"
-        spacing={6}
-        onClick={(e) => e.stopPropagation()}
-        sx={{
-          position: "absolute",
-          bottom: 40,
-        }}
-      >
-        {/* Share Profile */}
-        <Zoom in={profilePicOpen} style={{ transitionDelay: profilePicOpen ? "200ms" : "0ms" }}>
-          <Stack alignItems="center" spacing={1}>
-            <IconButton
-              sx={{
-                backgroundColor: "rgba(255,255,255,0.15)",
-                color: "white",
-                "&:hover": {
-                  backgroundColor: "rgba(255,255,255,0.3)",
-                },
-              }}
-            >
-              <ShareOutlinedIcon />
-            </IconButton>
-            <Typography variant="caption" sx={{ color: "white" }}>
-              Share profile
-            </Typography>
-          </Stack>
-        </Zoom>
-
-        {/* Copy Link */}
-        <Zoom in={profilePicOpen} style={{ transitionDelay: profilePicOpen ? "300ms" : "0ms" }}>
-          <Stack alignItems="center" spacing={1}>
-            <IconButton
-              sx={{
-                backgroundColor: "rgba(255,255,255,0.15)",
-                color: "white",
-                "&:hover": {
-                  backgroundColor: "rgba(255,255,255,0.3)",
-                },
-              }}
-            >
-              <LinkOutlinedIcon />
-            </IconButton>
-            <Typography variant="caption" sx={{ color: "white" }}>
-              Copy link
-            </Typography>
-          </Stack>
-        </Zoom>
-
-        {/* QR Code */}
-        <Zoom in={profilePicOpen} style={{ transitionDelay: profilePicOpen ? "400ms" : "0ms" }}>
-          <Stack alignItems="center" spacing={1}>
-            <IconButton
-              sx={{
-                backgroundColor: "rgba(255,255,255,0.15)",
-                color: "white",
-                "&:hover": {
-                  backgroundColor: "rgba(255,255,255,0.3)",
-                },
-              }}
-            >
-              <QrCode2OutlinedIcon />
-            </IconButton>
-            <Typography variant="caption" sx={{ color: "white" }}>
-              QR code
-            </Typography>
-          </Stack>
-        </Zoom>
-      </Stack>
-    </Fade>
-  </Box>
-</Dialog>
 </>
           <Typography variant="h6" fontWeight="bold" sx={{ mt: 2 }}>
             {viewData?.name || ""}
@@ -3249,6 +3117,112 @@ sx={{
         </Button>
       </Box>
     </Drawer>
+
+      {/* --- Full-Screen Profile Picture Dialog --- */}
+    <Dialog
+      fullScreen
+      open={profilePicOpen}
+      onClose={() => setProfilePicOpen(false)}
+      PaperProps={{
+        sx: {
+          backgroundColor: "#00000004",
+          backgroundImage: "none",
+          backdropFilter: "blur(10px)",
+        },
+      }}
+    >
+      <Box
+        onClick={() => setProfilePicOpen(false)}
+        sx={{
+          position: "relative",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          p: 3,
+        }}
+      >
+        {/* Close Button */}
+        <IconButton
+          onClick={() => setProfilePicOpen(false)}
+          sx={{
+            position: "absolute",
+            top: 20,
+            right: 20,
+            color: "white",
+            backgroundColor: "rgba(255,255,255,0.1)",
+            "&:hover": {
+              backgroundColor: "rgba(255,255,255,0.25)",
+            },
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+
+        {/* Profile Avatar with fade+zoom */}
+<Zoom
+  in={profilePicOpen}
+  style={{ transitionDelay: profilePicOpen ? "100ms" : "0ms" }}
+>
+  <Box sx={{ position: "relative", display: "inline-flex" }}>
+    {/* Profile Avatar */}
+    <Avatar
+      onClick={(e) => e.stopPropagation()}
+      src={userData.photoURL || ""}
+      alt={userData.name}
+      sx={{
+        width: "min(250px, 90vw)",
+        height: "min(250px, 90vw)",
+        boxShadow: "none",
+        cursor: "default",
+        transition: "transform 0.3s ease-in-out",
+        "&:hover": {
+          transform: "scale(1.05)",
+        },
+      }}
+    />
+
+    {/* Edit Button overlay */}
+    <IconButton
+      size="small"
+      component="label"
+      sx={{
+        position: "absolute",
+        bottom: 18,
+        right: 18,
+        backgroundColor: "#f1f1f111",
+        backdropFilter: "blur(180px)",
+        border: "1px solid #888",
+        color: "white",
+        "&:hover": {
+          backgroundColor: "rgba(0,0,0,0.8)",
+        },
+      }}
+    >
+      <EditOutlinedIcon fontSize="small" />
+      <input
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            const file = e.target.files[0];
+            setSelectedImage(URL.createObjectURL(file));
+            setCropDrawerOpen(true);
+          }
+        }}
+      />
+    </IconButton>
+  </Box>
+</Zoom>
+
+
+        {/* TODO: Action Buttons at bottom with fade+pop */}
+
+      </Box>
+    </Dialog>
+
   </Container>
 )}
 
