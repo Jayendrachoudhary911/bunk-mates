@@ -97,7 +97,7 @@ import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 import BlockIcon from "@mui/icons-material/Block";
 
-import { signOut, updateProfile } from "firebase/auth";
+import { signOut, updateProfile, getAuth, deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
 import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, arrayRemove } from "firebase/firestore";
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 import { weatherColors } from "../elements/weatherTheme";
@@ -601,14 +601,55 @@ const handleVisibilityChange = async (event) => {
   }
 };
 
-const handleDeleteAccount = () => {
-  // TODO: Add your Firebase account deletion logic here
-  // This is a destructive action and should be handled with care.
-  // It typically involves re-authenticating the user and then calling deleteUser.
-  console.log("Deleting user account from Firebase...");
-  setDeleteConfirmOpen(false);
-  // Navigate away after deletion
-  navigate('/login'); 
+const handleDeleteAccount = async () => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  if (!user) {
+    alert("No user is signed in to delete.");
+    return;
+  }
+
+  try {
+    // 1. First, try to delete the user directly.
+    await deleteUser(user);
+    alert("Your account has been successfully deleted.");
+    setDeleteConfirmOpen(false);
+    navigate('/login');
+
+  } catch (error) {
+    console.error("Error deleting account:", error);
+
+    // 2. If the error is 'auth/requires-recent-login', handle re-authentication.
+    if (error.code === 'auth/requires-recent-login') {
+      alert("This is a sensitive action. Please sign in again to confirm you want to permanently delete your account.");
+
+      // This example uses GoogleAuthProvider. If you have other sign-in methods,
+      // you will need logic to select the correct provider.
+      const provider = new GoogleAuthProvider();
+
+      try {
+        // 3. Prompt the user to re-authenticate with a popup.
+        await reauthenticateWithPopup(user, provider);
+
+        // 4. If re-authentication is successful, try deleting the user again.
+        await deleteUser(user);
+
+        alert("Account successfully deleted after re-authentication.");
+        setDeleteConfirmOpen(false);
+        navigate('/login');
+
+      } catch (reauthError) {
+        console.error("Re-authentication failed:", reauthError);
+        alert("Re-authentication failed. Your account was not deleted.");
+        setDeleteConfirmOpen(false);
+      }
+    } else {
+      // 5. Handle other potential errors (network issues, etc.)
+      alert("An error occurred while deleting your account. Please try again.");
+      setDeleteConfirmOpen(false);
+    }
+  }
 };
 
 const handlePrivacyMenuOpen = (event, setting) => {
