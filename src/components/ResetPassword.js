@@ -42,6 +42,7 @@ const ResetPassword = () => {
   const [searchParams] = useSearchParams();
   const oobCode = searchParams.get("oobCode");
   const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);    
@@ -54,6 +55,7 @@ const ResetPassword = () => {
       if (!oobCode) return;
       try {
         const email = await verifyPasswordResetCode(auth, oobCode);
+        setUserEmail(email);
         // Find user by email in Firestore
         const userQuery = await getDoc(doc(db, "users", email));
         if (userQuery.exists()) {
@@ -106,7 +108,8 @@ const ResetPassword = () => {
               Reset your password
             </Typography>
             <Typography variant="subtitle1" align="left" sx={{ mb: 2 }}>
-              for <b>{userName}</b>
+              for <b>{userName}</b><br />
+              <span style={{ fontSize: "0.95em", color: "#aaa" }}>{userEmail}</span>
             </Typography>
             <form onSubmit={handleSubmit} style={{ width: "100%" }}>
               <Stack spacing={2}>
