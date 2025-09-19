@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { auth, db } from "../firebase";
 import { confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
@@ -56,10 +56,17 @@ const ResetPassword = () => {
       try {
         const email = await verifyPasswordResetCode(auth, oobCode);
         setUserEmail(email);
-        // Find user by email in Firestore
-        const userQuery = await getDoc(doc(db, "users", email));
-        if (userQuery.exists()) {
-          setUserName(userQuery.data().name || userQuery.data().displayName || email);
+        // Query all users to find matching email
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        let foundUser = null;
+        usersSnapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          if (data.email === email) {
+            foundUser = { uid: docSnap.id, ...data };
+          }
+        });
+        if (foundUser) {
+          setUserName(foundUser.name || foundUser.displayName || email);
         } else {
           setUserName(email);
         }
