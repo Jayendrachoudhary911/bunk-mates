@@ -38,7 +38,9 @@ import {
   MenuItem,
   DialogContent,
   DialogContentText,
-  Grid
+  Grid,
+  Menu,
+  ListItemAvatar
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -75,11 +77,28 @@ import ShareIcon from '@mui/icons-material/Share';
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import CloseIcon from "@mui/icons-material/Close";
-
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import WbSunnyOutlinedIcon from '@mui/icons-material/WbSunnyOutlined';
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
+import MyLocationOutlinedIcon from '@mui/icons-material/MyLocationOutlined';
+import EditLocationOutlinedIcon from '@mui/icons-material/EditLocationOutlined';
+import FormatSizeIcon from '@mui/icons-material/FormatSize';
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
+import CardTravelOutlinedIcon from '@mui/icons-material/CardTravelOutlined';
+import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
+import PublicIcon from '@mui/icons-material/Public';
+import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
+import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
+import BlockIcon from "@mui/icons-material/Block";
 
 import { signOut, updateProfile } from "firebase/auth";
-import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, arrayRemove } from "firebase/firestore";
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 import { weatherColors } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
@@ -205,6 +224,21 @@ const ProfilePic = ({currentUser}) => {
   const handleQrDrawerClose = () => setQrDrawerOpen(false);
   const [isScannerOpen, setScannerOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [themeAnchorEl, setThemeAnchorEl] = useState(null);
+  const [accentDrawerOpen, setAccentDrawerOpen] = useState(false);
+  const [locationAnchorEl, setLocationAnchorEl] = useState(null);
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const [systemPrefersDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [privacyMenuAnchor, setPrivacyMenuAnchor] = useState(null);
+  const [activePrivacySetting, setActivePrivacySetting] = useState(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [privacySettings, setPrivacySettings] = useState({
+    profileVisibility: 'public', // 'public' or 'private'
+    canBeAddedToGroups: 'everyone', // 'everyone' or 'friends'
+    canBeAddedToTrips: 'everyone', // 'everyone' or 'friends'
+  });
+  const [blockedUsers, setBlockedUsers] = useState([]);
+  const [isLoadingBlocked, setIsLoadingBlocked] = useState(false);
 
   const handleWallpaperSelect = (wallpaperUrl) => {
         setChatWallpaper(wallpaperUrl);
@@ -216,6 +250,9 @@ const ProfilePic = ({currentUser}) => {
     ? weatherColors[weather.main]
     : weatherColors.Default;
     
+const toggleDropdown = (key) => {
+  setActiveDropdown(activeDropdown === key ? null : key);
+};
 
 const handleScanCode = () => {
   handleQrDrawerClose(); // Close the previous drawer
@@ -240,14 +277,14 @@ const handleDecode = async (result) => {
     return;
   }
 
-  if (friendUid === currentUser.uid) {
+  if (friendUid === auth.currentUser.uid) {
     alert("You can't add yourself as a friend!");
     setIsProcessing(false); // Reset state and exit
     return;
   }
 
   try {
-    const currentUserRef = doc(db, "users", currentUser.uid);
+    const currentUserRef = doc(db, "users", auth.currentUser.uid);
     const userDocSnap = await getDoc(currentUserRef);
 
     if (userDocSnap.data()?.friends?.includes(friendUid)) {
@@ -261,7 +298,7 @@ const handleDecode = async (result) => {
 
     const friendRef = doc(db, "users", friendUid);
     await updateDoc(friendRef, {
-      friends: arrayUnion(currentUser.uid),
+      friends: arrayUnion(auth.currentUser.uid),
     });
 
     alert("Friend added successfully! 🎉");
@@ -491,6 +528,155 @@ const [features] = useState([
     }
   };
 
+
+  useEffect(() => {
+  // Function to fetch settings from Firestore
+  const fetchPrivacySettings = async () => {
+    if (auth.currentUser) {
+      try {
+        const userDocRef = doc(db, "users", auth.currentUser.uid);
+        const docSnap = await getDoc(userDocRef);
+
+        if (docSnap.exists()) {
+          const userData = docSnap.data();
+          const userPrivacy = userData.privacy || {}; // Get privacy object, or empty if it doesn't exist
+
+          // Set state with fetched data, providing defaults for any missing fields
+          setPrivacySettings({
+            profileVisibility: userPrivacy.profileVisibility || 'public',
+            canBeAddedToGroups: userPrivacy.canBeAddedToGroups || 'everyone',
+            canBeAddedToTrips: userPrivacy.canBeAddedToTrips || 'everyone',
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching privacy settings:", error);
+      }
+    }
+  };
+
+  fetchPrivacySettings();
+}, []); // This effect runs when the currentUser is identified
+
+const handlePrivacyChange = async (setting, newValue) => {
+  // Check for the setting name passed directly as an argument
+  if (!auth.currentUser || !setting) {
+    setPrivacyMenuAnchor(null); // Still close the menu
+    return;
+  }
+
+  const userDocRef = doc(db, "users", auth.currentUser.uid);
+  const settingKey = `privacy.${setting}`; // Creates the path e.g., "privacy.canBeAddedToGroups"
+
+  try {
+    // Update Firestore
+    await updateDoc(userDocRef, { [settingKey]: newValue });
+
+    // Update local state
+    setPrivacySettings(prevSettings => ({ ...prevSettings, [setting]: newValue }));
+    
+  } catch (error) {
+    console.error("Error updating privacy setting:", error);
+  } finally {
+    setPrivacyMenuAnchor(null); // Close the menu
+  }
+};
+
+// New handler function for the switch
+const handleVisibilityChange = async (event) => {
+  if (!auth.currentUser) return;
+
+  const isPrivate = event.target.checked;
+  const newVisibility = isPrivate ? 'private' : 'public';
+  const userDocRef = doc(db, "users", auth.currentUser.uid);
+
+  try {
+    // 1. Update Firestore
+    await updateDoc(userDocRef, { "privacy.profileVisibility": newVisibility });
+    
+    // 2. Update local state
+    setPrivacySettings(s => ({ ...s, profileVisibility: newVisibility }));
+
+  } catch (error) {
+    console.error("Error updating profile visibility:", error);
+  }
+};
+
+const handleDeleteAccount = () => {
+  // TODO: Add your Firebase account deletion logic here
+  // This is a destructive action and should be handled with care.
+  // It typically involves re-authenticating the user and then calling deleteUser.
+  console.log("Deleting user account from Firebase...");
+  setDeleteConfirmOpen(false);
+  // Navigate away after deletion
+  navigate('/login'); 
+};
+
+const handlePrivacyMenuOpen = (event, setting) => {
+  setActivePrivacySetting(setting);
+  setPrivacyMenuAnchor(event.currentTarget);
+};
+
+useEffect(() => {
+  const fetchBlockedUsers = async () => {
+    // Check if the correct page is open and the user is logged in
+    if (drawerPage === "blockedContacts" && auth.currentUser) {
+      setIsLoadingBlocked(true);
+      try {
+        const userDocRef = doc(db, "users", auth.currentUser.uid);
+        const docSnap = await getDoc(userDocRef);
+
+        // 1. FIXED: Use 'blockedUids' to match your Firestore field name
+        const blockedUids = docSnap.data()?.blockedUids || [];
+
+        if (blockedUids.length === 0) {
+          setBlockedUsers([]); // No one is blocked
+          setIsLoadingBlocked(false);
+          return;
+        }
+
+        // Fetch user profiles for all blocked UIDs
+        const usersQuery = query(
+          collection(db, "users"),
+          where('__name__', 'in', blockedUids)
+        );
+        const querySnapshot = await getDocs(usersQuery);
+        const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        setBlockedUsers(usersData);
+
+      } catch (error) {
+        console.error("Error fetching blocked users:", error);
+      } finally {
+        setIsLoadingBlocked(false);
+      }
+    }
+  };
+
+  // 2. FIXED: Call the function inside the effect
+  fetchBlockedUsers();
+
+// 3. FIXED: Add dependencies to re-run when the page opens
+}, [drawerPage, auth.currentUser]);
+
+const handleUnblockUser = async (userIdToUnblock) => {
+  if (!auth.currentUser) return;
+  try {
+    const userDocRef = doc(db, "users", auth.currentUser.uid);
+    
+    // FIXED: Use 'blockedUids' to match your Firestore field name
+    await updateDoc(userDocRef, {
+      blockedUids: arrayRemove(userIdToUnblock)
+    });
+
+    // Update the local state to remove the user from the list instantly
+    setBlockedUsers(prevUsers => prevUsers.filter(user => user.id !== userIdToUnblock));
+
+  } catch (error) {
+    console.error("Error unblocking user:", error);
+    alert("Failed to unblock user. Please try again.");
+  }
+};
+
   // Handle file change for cropping
   const onFileChange = (e) => {
     const file = e.target.files[0];
@@ -565,7 +751,7 @@ const [features] = useState([
       // A list of valid pages to prevent opening the drawer for arbitrary URL params
       const validPages = [
         "main", "profile", "accounts", "chats", "generalSettings", 
-        "support", "feedback", "inviteFriend", "about", "featuresChangelog", "adduser"
+        "support", "feedback", "inviteFriend", "about", "featuresChangelog", "adduser", "blockedContacts"
       ];
 
       if (validPages.includes(settingsPage)) {
@@ -779,20 +965,395 @@ sx={{
   )}
 
   {/* ⭐️ NEW: Accounts Page */}
-  {drawerPage === "accounts" && (
-    <Container sx={{ mt: 5, mb: 2 }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2, borderRadius: 8, color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", '&:hover': { backgroundColor: "#f1f1f121" } }}>
-        Back
-      </Button>
-      <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>
-        Account Settings
+{drawerPage === "accounts" && (
+  <Container sx={{ mt: 5, mb: 2 }}>
+    {/* Header */}
+    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <IconButton
+            onClick={() => navigate(-1)}
+            sx={{
+                mr: 2, borderRadius: 8, color: theme.palette.text.primary,
+                backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+                '&:hover': { backgroundColor: "#f1f1f121" },
+            }}
+        >
+            <ArrowBackIcon />
+        </IconButton>
+        <Typography variant="h5" fontWeight="bold">
+            Account Settings
+        </Typography>
+    </Box>
+
+    {/* --- Privacy Section --- */}
+    <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mt: 3, pl: 2 }}>Privacy</Typography>
+    <List>
+      <ListItem sx={{ pb: 0 }}>
+      <ListItemIcon sx={{ minWidth: 40 }}><LockOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+        <ListItemText primary="Private Profile" secondary="Makes your profile visible only to friends." primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
+<Switch
+  edge="end"
+  checked={privacySettings.profileVisibility === "private"}
+  onChange={handleVisibilityChange}
+  sx={{
+    width: 50,
+    height: 28,
+    padding: 0,
+    "& .MuiSwitch-switchBase": {
+      padding: 0.35,
+      transition: "all 0.3s ease",
+      "&.Mui-checked": {
+        transform: "translateX(22px)",
+        color: "#fff",
+        "& .MuiSwitch-thumb": {
+          backgroundColor: theme.palette.mode === "dark" ? "#121212" : "#fff", // Thumb ON color
+        },
+        "& + .MuiSwitch-track": {
+          backgroundColor: theme.palette.primary.main,
+          opacity: 1,
+          border: 0,
+        },
+      },
+    },
+    "&:not(.Mui-checked)": {
+        "& .MuiSwitch-thumb": {
+          backgroundColor:
+            theme.palette.mode === "dark" ? "#757575" : "#8d8d8dff", // Thumb OFF color
+        },
+      },
+
+    "& .MuiSwitch-thumb": {
+      boxShadow: "none",
+      width: 22,
+      height: 22,
+      borderRadius: "50%",
+      transition: "slide 0.3s ease-in-out",
+    },
+    "& .MuiSwitch-track": {
+      borderRadius: 8,
+      backgroundColor:  theme.palette.mode === "dark" ? "#f1f1f121" : "#01010115",
+      opacity: 1,
+      transition: "background-color 0.3s",
+    },
+  }}
+/>
+
+      </ListItem>
+
+  <ListItem sx={{ pb: 0 }}>
+    <ListItemButton onClick={(e) => handlePrivacyMenuOpen(e, 'canBeAddedToGroups')} sx={{ borderRadius: 3, py: 1.5, px: 0, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+      <ListItemIcon sx={{ minWidth: 40 }}><GroupAddOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+      <ListItemText primary="Who can add you to groups" secondary={privacySettings.canBeAddedToGroups} primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
+    </ListItemButton>
+  </ListItem>
+
+  <ListItem sx={{ pb: 0 }}>
+    <ListItemButton onClick={(e) => handlePrivacyMenuOpen(e, 'canBeAddedToTrips')} sx={{ borderRadius: 3, py: 1.5, px: 0, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+      <ListItemIcon sx={{ minWidth: 40 }}><CardTravelOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+      <ListItemText primary="Who can add you to trips" secondary={privacySettings.canBeAddedToTrips} primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
+    </ListItemButton>
+  </ListItem>
+    </List>
+
+    {/* --- Security Section --- */}
+    <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mt: 3, pl: 2 }}>Security</Typography>
+    <List>
+      <ListItemButton onClick={() => handleSetDrawerPage("blockedContacts")}>
+        <ListItemIcon><BlockOutlinedIcon /></ListItemIcon>
+        <ListItemText primary="Blocked Contacts" secondary="Manage users you've blocked" />
+      </ListItemButton>
+    </List>
+
+    {/* --- Account Actions Section --- */}
+    <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mt: 3, pl: 2 }}>Account Actions</Typography>
+    <List>
+      <ListItemButton onClick={() => setDeleteConfirmOpen(true)} sx={{ color: 'error.main' }}>
+        <ListItemIcon><DeleteForeverOutlinedIcon color="error" /></ListItemIcon>
+        <ListItemText primary="Delete Account" secondary="This action is permanent and cannot be undone" />
+      </ListItemButton>
+    </List>
+
+    {/* --- Privacy Options Menu --- */}
+<Menu
+  anchorEl={privacyMenuAnchor}
+  open={Boolean(privacyMenuAnchor)}
+  onClose={() => setPrivacyMenuAnchor(null)}
+  PaperProps={{
+    elevation: 6,
+    sx: {
+      borderRadius: "16px",
+      mt: 1,
+      minWidth: "72%",
+      backdropFilter: "blur(30px)",
+      px: 1,
+      bgcolor: mode === "dark" ? "#12121250" : "#ffffff80",
+      boxShadow: "none",
+      "& .MuiMenuItem-root": {
+        borderRadius: "12px",
+        mx: 0.5,
+        my: 0.5,
+        transition: "all 0.2s ease",
+      },
+    },
+  }}
+>
+  <MenuItem
+    onClick={() => handlePrivacyChange(activePrivacySetting, "everyone")}
+    // ✅ FIX: Check the value within the privacySettings object
+    selected={privacySettings[activePrivacySetting] === "everyone"}
+  >
+    <ListItemIcon>
+      <PublicIcon fontSize="small" />
+    </ListItemIcon>
+    <ListItemText primary="Everyone" />
+    {/* ✅ FIX: Use the same corrected condition here */}
+    {privacySettings[activePrivacySetting] === "everyone" && (
+      <CheckIcon fontSize="small" color="primary" />
+    )}
+  </MenuItem>
+
+  <MenuItem
+    onClick={() => handlePrivacyChange(activePrivacySetting, "friends")}
+    // ✅ FIX: Check the value within the privacySettings object
+    selected={privacySettings[activePrivacySetting] === "friends"}
+  >
+    <ListItemIcon>
+      <PeopleOutlineIcon fontSize="small" />
+    </ListItemIcon>
+    <ListItemText primary="Friends" />
+    {/* ✅ FIX: Use the same corrected condition here */}
+    {privacySettings[activePrivacySetting] === "friends" && (
+      <CheckIcon fontSize="small" color="primary" />
+    )}
+  </MenuItem>
+
+  <MenuItem
+    onClick={() => handlePrivacyChange(activePrivacySetting, "nobody")}
+    // ✅ FIX: Check the value within the privacySettings object
+    selected={privacySettings[activePrivacySetting] === "nobody"}
+  >
+    <ListItemIcon>
+      <PersonOffOutlinedIcon fontSize="small" />
+    </ListItemIcon>
+    <ListItemText primary="Nobody" />
+    {/* ✅ FIX: Use the same corrected condition here */}
+    {privacySettings[activePrivacySetting] === "nobody" && (
+      <CheckIcon fontSize="small" color="primary" />
+    )}
+  </MenuItem>
+</Menu>
+
+    {/* --- Delete Account Confirmation Dialog --- */}
+    <Dialog
+      open={deleteConfirmOpen} 
+      onClose={() => setDeleteConfirmOpen(false)}      
+  PaperProps={{
+    sx: {
+      borderRadius: 3,
+      p: 2,
+      minWidth: 320,
+      backgroundColor: mode === "dark" ? "#00000000" : "#ffffff00",
+      backgroundImage: "none",
+      boxShadow: "none",
+    },
+  }}
+  BackdropProps={{
+    sx: {
+      backdropFilter: "blur(8px)",
+      backgroundColor: mode === "dark" ? "rgba(43, 43, 43, 0.5)" : "rgba(199, 199, 199, 0.2)",
+    },
+  }}
+  transitionDuration={300}
+  >
+  <Box sx={{ textAlign: 'center', mb: 2, opacity: 0.7 }}>
+    <Avatar sx={{ bgcolor: "#ff000044", mx: 'auto', width: 66, height: 66, p: 2 }}>
+      <ChatIcon fontSize="large" sx={{ color: theme.palette.text.primary }} />
+    </Avatar>
+  </Box>
+
+<DialogTitle
+  sx={{
+    textAlign: "center",
+    fontWeight: "bold",
+    pb: 1,
+  }}
+>
+  Are you absolutely sure?
+</DialogTitle>
+
+<DialogContent
+  sx={{
+    textAlign: "center",
+    px: 4,
+    py: 2,
+  }}
+>
+  <DialogContentText
+    sx={{
+      fontSize: "1rem",
+      lineHeight: 1.6,
+      color: "text.secondary",
+    }}
+  >
+    This will permanently delete your account and all of your data, including
+    trips, chats, and budgets.{" "}
+    <strong style={{ color: "#c03f3fff" }}>This action cannot be undone.</strong>
+  </DialogContentText>
+</DialogContent>
+
+  <DialogActions sx={{ justifyContent: 'center', gap: 2, pb: 2 }}>
+    <Button
+      variant="outlined"
+      onClick={() => setDeleteConfirmOpen(false)}
+      sx={{
+        px: 3,
+        textTransform: "none",
+        borderColor: mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
+        color: theme.palette.text.primary,
+        backdropFilter: "blur(4px)",
+        borderRadius: 8,
+        '&:hover': {
+          backgroundColor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+        },
+      }}
+    >
+      Cancel
+    </Button>
+    <Button
+      variant="contained"
+      onClick={handleDeleteAccount}
+      sx={{
+        px: 3,
+        textTransform: "none",
+        backdropFilter: "blur(4px)",
+        borderRadius: 8,
+        backgroundColor: "#ff000044",
+        boxShadow: "none",
+        color: theme.palette.text.primary,
+        '&:hover': {
+          backgroundColor: "#ff000064",
+        },
+      }}
+      autoFocus
+    >
+      Delete My Account
+    </Button>
+  </DialogActions>
+    </Dialog>
+
+  </Container>
+)}
+
+{/* --- NEW Blocked Contacts Page --- */}
+{drawerPage === "blockedContacts" && (
+  <Container sx={{ mt: 5, mb: 2 }}>
+    {/* Header */}
+    <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+      <IconButton
+        onClick={() => navigate(-1)}
+        sx={{
+          mr: 2,
+          borderRadius: 8,
+          color: theme.palette.text.primary,
+          backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e091",
+          "&:hover": { backgroundColor: "#f1f1f121" },
+        }}
+      >
+        <ArrowBackIcon />
+      </IconButton>
+      <Typography variant="h5" fontWeight="bold">
+        Blocked Contacts
       </Typography>
-      <Typography>
-        Privacy, security, and account management options will go here.
-      </Typography>
-      {/* Add your account settings components here */}
-    </Container>
-  )}
+    </Box>
+
+    {/* Content */}
+    {isLoadingBlocked ? (
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
+        <CircularProgress />
+      </Box>
+    ) : blockedUsers.length === 0 ? (
+      <Box
+        sx={{
+          mt: 6,
+          textAlign: "center",
+          color: "text.secondary",
+          boxShadow: "none"
+        }}
+      >
+        <Avatar
+          sx={{
+            width: 64,
+            height: 64,
+            mx: "auto",
+            mb: 2,
+            bgcolor: mode === "dark" ? "#444" : "#eee",
+          }}
+        >
+          <BlockIcon color="disabled" />
+        </Avatar>
+        <Typography variant="body1">
+          You haven’t blocked anyone yet.
+        </Typography>
+      </Box>
+    ) : (
+      <List sx={{ mt: 2 }}>
+        {blockedUsers.map((user) => (
+          <ListItem
+            key={user.id}
+            sx={{
+              mb: 1.5,
+              px: 2,
+              py: 1.5,
+              borderRadius: 3,
+              backgroundColor: "transparent",
+              boxShadow: "none",
+            }}
+            secondaryAction={
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => handleUnblockUser(user.id)}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  px: 1,
+                  py: 0.5,
+                  boxShadow: "none",
+                  color: mode === "dark" ? "#ffb1b1c6" : "#dd0000ff",
+                  backgroundColor: mode === "dark" ? "#c100008a" : "#ff8383c6",
+                  "&:hover": { opacity: 0.9 },
+                }}
+              >
+                UNBLOCK
+              </Button>
+            }
+          >
+            <ListItemAvatar>
+              <Avatar
+                src={user.photoURL}
+                alt={user.name}
+                sx={{ width: 44, height: 44 }}
+              />
+            </ListItemAvatar>
+            <ListItemText
+              primary={
+                <Typography fontWeight={600} color="text.primary">
+                  {user.name}
+                </Typography>
+              }
+              secondary={
+                <Typography variant="body2" color="text.secondary">
+                  @{user.username}
+                </Typography>
+              }
+            />
+          </ListItem>
+        ))}
+      </List>
+    )}
+  </Container>
+)}
+
 
 {drawerPage === "chats" && (
 <Container sx={{ mt: 5, mb: 2 }}>
@@ -1289,6 +1850,7 @@ sx={{
         backdropFilter: "blur(4px)",
         borderRadius: 8,
         backgroundColor: "#ff000044",
+        boxShadow: "none",
         color: theme.palette.text.primary,
         '&:hover': {
           backgroundColor: "#ff000064",
@@ -1497,274 +2059,281 @@ sx={{
 
 {drawerPage === "generalSettings" && (
   <Container sx={{ mt: 5, mb: 2 }}>
-
-        {/* Header */}
-<Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-  <IconButton
-    onClick={() => navigate(-1)}
-    sx={{
-      mr: 2,
-      borderRadius: 8,
-      color: theme.palette.text.primary,
-      backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
-      '&:hover': { backgroundColor: "#f1f1f121" },
-    }}
-  >
-    <ArrowBackIcon />
-  </IconButton>
-  <Typography variant="h5" fontWeight="bold">
-    General Settings
-  </Typography>
-</Box>
-
-
-    {/* THEME MODE: "Dark" / "Light" pill toggle group */}
-    <Box sx={{ mb: 3 }}>
-      <Typography variant="subtitle1" sx={{ mb: 1 }}>Who can use dark mode?</Typography>
-      {/* Really, it's just the theme mode selector */}
-      <Box sx={{ display: 'flex', gap: 2 }}>
-        <Button
-          onClick={() => { setMode("dark"); }}
-          variant={mode === "dark" ? "contained" : "outlined"}
-          sx={{
-            borderRadius: 999,
-            px: 3, py: 0.5,
-            fontWeight: 600,
-            fontSize: "1rem",
-            backgroundColor: mode === "dark" ? "#121212ff" : "transparent",
-            color: mode === "dark" ? "#fff" : theme.palette.text.primary,
-            borderColor: "#aaa",
-            boxShadow: "none",
-          }}
-        >Dark</Button>
-
-        <Button
-          onClick={() => { setMode("light"); }}
-          variant={mode === "light" ? "contained" : "outlined"}
-          sx={{
-            borderRadius: 999,
-            px: 3, py: 0.5,
-            fontWeight: 600,
-            fontSize: "1rem",
-            backgroundColor: mode === "light" ? "#fff" : "transparent",
-            color: mode === "light" ? "#222" : theme.palette.text.primary,
-            borderColor: "#aaa",
-            boxShadow: "none",
-            '&:hover': { backgroundColor: "#f7f7f7", color: "#222" },
-          }}
-        >Light</Button>
-      </Box>
+    {/* Header */}
+    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+      <IconButton
+        onClick={() => navigate(-1)}
+        sx={{
+          mr: 2,
+          borderRadius: 8,
+          color: theme.palette.text.primary,
+          backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+          '&:hover': { backgroundColor: "#f1f1f121" },
+        }}
+      >
+        <ArrowBackIcon />
+      </IconButton>
+      <Typography variant="h5" fontWeight="bold">
+        General Settings
+      </Typography>
     </Box>
 
-    {/* ACCENT COLOR: group of pill/toggle buttons, like image */}
-    <Box sx={{ mb: 3 }}>
-      <Typography variant="subtitle1" sx={{ mb: 1 }}>Accent Color</Typography>
-      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-        {[
-          { opt: "default", label: "", bg: theme.palette.primary.bg , color: theme.palette.text.primary },
-        ].map(({ opt, label, bg, color }) => (
-          <Button
-            key={opt}
-            onClick={() => setAccent(opt)}
+    {/* Settings List */}
+    <List sx={{ mt: 2 }}>
+
+  <ListItem sx={{ pb: 0 }}>
+      <ListItemIcon sx={{ minWidth: 40 }}><Brightness4Icon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+      <ListItemText primary="Theme" primaryTypographyProps={{ fontWeight: 'medium' }} />
+      <FormControl size="small" sx={{ minWidth: 120 }}>
+<Select
+  value={mode} // Assumes 'mode' is your state variable ('light', 'dark', or 'system')
+  onChange={(e) => {
+    const newTheme = e.target.value;
+    setMode(newTheme); // Your state setter
+    // This part is crucial: if the user selects "system", you might need another effect
+    // elsewhere to apply the correct theme based on their OS preference.
+    // For now, we'll just set the mode to the selected value.
+  }}
+  sx={{
+    bgcolor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+    borderRadius: 2,
+    border: mode === "dark" ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)",
+    boxShadow: mode === "dark" ? "0 4px 12px rgba(0,0,0,0.3)" : "0 4px 12px rgba(0,0,0,0.1)",
+    transition: "all 0.3s ease",
+    '&:hover': {
+      bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+      boxShadow: mode === "dark" ? "0 4px 16px rgba(255,255,255,0.1)" : "0 4px 16px rgba(0,0,0,0.2)",
+    },
+    '& .MuiSelect-select': {
+      p: 1.5,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1, // Adds space between icon and text
+    },
+    '& .MuiSvgIcon-root': {
+      color: theme.palette.text.secondary,
+    },
+  }}
+  MenuProps={{
+    PaperProps: {
+      sx: {
+        bgcolor: mode === "dark" ? "rgba(26, 26, 26, 0.8)" : "rgba(255, 255, 255, 0.8)",
+        backdropFilter: "blur(10px)",
+        borderRadius: 2,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+        p: 1,
+      },
+    },
+  }}
+>
+  <MenuItem
+    value="system"
+    sx={{
+      borderRadius: 1.5,
+      transition: "background-color 0.2s ease, transform 0.2s ease",
+      '&:hover': {
+        bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+        transform: "scale(1.02)",
+      },
+    }}
+  >
+    <ListItemIcon><SettingsOutlinedIcon fontSize="small" /></ListItemIcon>
+    System
+  </MenuItem>
+
+  <MenuItem
+    value="light"
+    sx={{
+      borderRadius: 1.5,
+      transition: "background-color 0.2s ease, transform 0.2s ease",
+      '&:hover': {
+        bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+        transform: "scale(1.02)",
+      },
+    }}
+  >
+    <ListItemIcon><WbSunnyOutlinedIcon fontSize="small" /></ListItemIcon>
+    Light
+  </MenuItem>
+
+  <MenuItem
+    value="dark"
+    sx={{
+      borderRadius: 1.5,
+      transition: "background-color 0.2s ease, transform 0.2s ease",
+      '&:hover': {
+        bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+        transform: "scale(1.02)",
+      },
+    }}
+  >
+    <ListItemIcon><DarkModeOutlinedIcon fontSize="small" /></ListItemIcon>
+    Dark
+  </MenuItem>
+</Select>
+      </FormControl>
+  </ListItem>
+
+  <ListItem sx={{ pb: 0 }}>
+    <ListItemButton onClick={() => setAccentDrawerOpen(true)} sx={{ borderRadius: 3, py: 1.5, px: 0, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+      <ListItemIcon sx={{ minWidth: 40 }}><PaletteOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+      <ListItemText primary="Accent Color" secondary={accent.charAt(0).toUpperCase() + accent.slice(1)} primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
+    </ListItemButton>
+  </ListItem>
+
+  <ListItem sx={{ pb: 0 }}>
+    <ListItemButton onClick={(e) => setLocationAnchorEl(e.currentTarget)} sx={{ borderRadius: 3, py: 1.5, px: 0, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+      <ListItemIcon sx={{ minWidth: 40 }}><LocationOnOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+      <ListItemText primary="Location" secondary={settings.locationMode === 'auto'  ? weather?.name || 'Auto'  :  settings.manualLocation || 'Manual'} primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
+    </ListItemButton>
+    <FormControl size="small" sx={{ minWidth: 120 }}>
+<Select
+  value={settings.locationMode}
+  onChange={(e) => {
+    const newMode = e.target.value;
+    handleLocationModeChange({ target: { checked: newMode === 'auto' } });
+  }}
+  sx={{
+    bgcolor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+    borderRadius: 2,
+    border: mode === "dark" ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)",
+    boxShadow: mode === "dark" ? "0 4px 12px rgba(0,0,0,0.3)" : "0 4px 12px rgba(0,0,0,0.1)",
+    transition: "all 0.3s ease",
+    '&:hover': {
+      bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+      boxShadow: mode === "dark" ? "0 4px 16px rgba(255,255,255,0.1)" : "0 4px 16px rgba(0,0,0,0.2)",
+    },
+    '& .MuiSelect-select': {
+      p: 1.5,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1, // Adds space between icon and text
+    },
+    '& .MuiSvgIcon-root': {
+      color: theme.palette.text.secondary,
+    },
+  }}
+  MenuProps={{
+    PaperProps: {
+      sx: {
+        bgcolor: mode === "dark" ? "rgba(26, 26, 26, 0.8)" : "rgba(255, 255, 255, 0.8)",
+        backdropFilter: "blur(10px)",
+        borderRadius: 2,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+        p: 1,
+      },
+    },
+  }}
+>
+  <MenuItem
+    value="auto"
+    sx={{
+      borderRadius: 1.5,
+      transition: "background-color 0.2s ease, transform 0.2s ease",
+      '&:hover': {
+        bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+        transform: "scale(1.02)",
+      },
+    }}
+  >
+    <MyLocationOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
+    Auto
+  </MenuItem>
+
+  <MenuItem
+    value="manual"
+    sx={{
+      borderRadius: 1.5,
+      transition: "background-color 0.2s ease, transform 0.2s ease",
+      '&:hover': {
+        bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+        transform: "scale(1.02)",
+      },
+    }}
+  >
+    <EditLocationOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
+    Manual
+  </MenuItem>
+</Select>
+    </FormControl>
+  </ListItem>
+
+    </List>
+
+    {/* Manual Location Input Field (shown only if manual mode is active) */}
+    {settings.locationMode === "manual" && (
+      <Box sx={{ px: 2, mt: 3 }}> {/* Added some top margin for spacing */}
+        <TextField
+          label="Set Location Manually"
+          value={settings.manualLocation}
+          onChange={handleManualLocationChange}
+          fullWidth
+          variant="outlined"
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 3,
+            },
+          }}
+        />
+      </Box>
+    )}
+
+
+    {/* Accent Color Selection Drawer */}
+    <SwipeableDrawer
+      anchor="bottom"
+      open={accentDrawerOpen}
+      onClose={() => setAccentDrawerOpen(false)}
+      onOpen={() => setAccentDrawerOpen(true)}
+      PaperProps={{ sx: { borderTopLeftRadius: 16, borderTopRightRadius: 16 } }}
+    >
+      <Box sx={{ p: 2 }}>
+        <Box sx={{ width: 40, height: 5, bgcolor: 'grey.400', borderRadius: 3, mx: 'auto', mb: 2 }}/>
+        <Typography variant="h6" fontWeight="bold" textAlign="center" sx={{ mb: 2 }}>
+          Accent Color
+        </Typography>
+
+        {/* Accent Preview Button */}
+        <Button
             variant={"contained"}
             fullWidth
             sx={{
-              borderRadius: 4,
-              px: 3, py: 1.2,
-              fontWeight: 600,
-              fontSize: "1rem",
-              height: 50,
-              backgroundColor: bg,
-              boxShadow: "none",
-              mb: 3,
-              color: accent === opt ? color : theme.palette.primary.maintxt,
-              '&:hover': {
-                backgroundColor: bg,
-                color: color
-              }
+                borderRadius: 4, px: 3, py: 1.2, fontWeight: 600, fontSize: "1rem",
+                height: 50, backgroundColor: theme.palette.primary.bg, boxShadow: "none",
+                mb: 3, color: theme.palette.primary.maintxt,
+                '&:hover': { backgroundColor: theme.palette.primary.bg }
             }}
-          >This is the Accent Preview</Button>
-        ))}
-      </Box>
-
-<Box sx={{ display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap", width: 340, mx: "auto", }}>
-  {[
-    { opt: "blue", label: "Blue", bg: "#bbdefb", color: "#fff" },
-    { opt: "green", label: "Green", bg: "#c8e6c9", color: "#fff" },
-    { opt: "orange", label: "Orange", bg: "#FFCC80", color: "#fff" },
-    { opt: "turquoise", label: "Turquoise", bg: "#b6f6ffff", color: "#fff" },
-    { opt: "skyblue", label: "Sky Blue", bg: "#81D4FA", color: "#fff" },
-    { opt: "gray", label: "Gray", bg: "#808080", color: "#fff" },
-  ].map(({ opt, label, bg, color }) => (
-    <Button
-      key={opt}
-      onClick={() => setAccent(opt)}
-      variant={"contained"}
-      sx={{
-        borderRadius: 999,
-        fontWeight: 600,
-        fontSize: "0.875rem",
-        minWidth: 35,
-        minHeight: 35,
-        backgroundColor: bg,
-        color: accent === opt ? color : theme.palette.text.primary,
-        border: accent === opt ? "2px solid" : "2px solid",
-        borderColor: accent === opt ? theme.palette.text.primary : "#aaa",
-        textTransform: "none",
-        boxShadow: "none",
-        '&:hover': {
-          backgroundColor: bg,
-          color: color
-        }
-      }}
-    />
-  ))}
-</Box>
-
-    </Box>
-
-            {/* <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle1" sx={{ mb: 1 }}>
-            Language
-          </Typography>
-          <Button
-            fullWidth
-            onClick={() => setLanguageDrawerOpen(true)}
-            startIcon={<LanguageIcon />}
-            sx={{
-              justifyContent: 'flex-start',
-              py: 1.5,
-              px: 2,
-              borderRadius: 2,
-              color: theme.palette.text.primary,
-              backgroundColor: mode === 'dark' ? '#f1f1f111' : '#e0e0e071',
-              textTransform: 'none',
-              '&:hover': { backgroundColor: '#f1f1f121' },
-            }}
-          >
-            {availableLanguages.find((l) => l.code === language)?.name || 'Select Language'}
-          </Button>
-        </Box> */}
-
-    {/* LOCATION: Allow pill-style toggle for auto/manual */}
-<Box sx={{ mb: 4 }}>
-  <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
-    Location
-  </Typography>
-
-  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-    <Button
-      variant={settings.locationMode === "auto" ? "contained" : "outlined"}
-      onClick={() => handleLocationModeChange({ target: { checked: true } })}
-      sx={{
-        borderRadius: 50,
-        px: 4,
-        py: 1.5,
-        fontWeight: 600,
-        textTransform: "none",
-        filter: settings.locationMode === "auto" && mode === "dark" ? "none" : "invert(1)",
-        backgroundColor: settings.locationMode === "auto" ? theme.palette.primary.bg : "transparent",
-        color: settings.locationMode === "auto" ? theme.palette.primary.maintxt : theme.palette.primary.main,
-        borderColor: settings.locationMode === "auto" ? theme.palette.primary.main : "#ccc",
-        boxShadow: "none",
-        minWidth: 100,
-      }}
-    >
-      Auto
-    </Button>
-
-    <Button
-      variant={settings.locationMode === "manual" ? "contained" : "outlined"}
-      onClick={() => handleLocationModeChange({ target: { checked: false } })}
-      sx={{
-        borderRadius: 50,
-        px: 4,
-        py: 1.5,
-        fontWeight: 600,
-        textTransform: "none",
-        filter: settings.locationMode === "auto" && mode === "dark" ? "none" : "invert(1)",
-        backgroundColor: settings.locationMode !== "auto" ? theme.palette.primary.bg : "transparent",
-        color: theme.palette.primary.maintxt,
-        borderColor: settings.locationMode !== "auto" ? theme.palette.primary.main : "#ccc",
-        boxShadow: "none",
-        minWidth: 100,
-      }}
-    >
-      Manual
-    </Button>
-  </Box>
-
-  {settings.locationMode !== "auto" && (
-    <TextField
-      label="Set Location Manually"
-      value={settings.manualLocation}
-      onChange={handleManualLocationChange}
-      fullWidth
-      variant="outlined"
-      sx={{
-        mt: 3,
-        '& .MuiOutlinedInput-root': {
-          borderRadius: 3,
-        },
-      }}
-    />
-  )}
-</Box>
-
-
-          {/* <Drawer
-        anchor="bottom"
-        open={languageDrawerOpen}
-        onClose={() => setLanguageDrawerOpen(false)}
-        PaperProps={{
-          sx: {
-            height: '80vh',
-            maxHeight: '600px',
-            mx: 'auto',
-            maxWidth: 450,
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            backgroundColor: theme.palette.background.paper,
-          },
-        }}
-      >
-        <Box sx={{ p: 2 }}>
-          <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-            Select Language
-          </Typography>
-          <TextField
-            fullWidth
-            variant="outlined"
-            placeholder="Search language"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-              sx: { borderRadius: 999 },
-            }}
-          />
+        >
+            This is the Accent Preview
+        </Button>
+        
+        {/* Color Palette */}
+        <Box sx={{ display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap", width: 340, mx: "auto" }}>
+            {[
+                { opt: "blue", bg: "#bbdefb" }, { opt: "green", bg: "#c8e6c9" },
+                { opt: "orange", bg: "#FFCC80" }, { opt: "turquoise", bg: "#b6f6ff" },
+                { opt: "skyblue", bg: "#81D4FA" }, { opt: "gray", bg: "#808080" },
+                { opt: "yellow", bg: "#FFF59D" }, { opt: "coral", bg: "#FFAB91" },
+                { opt: "aqua", bg: "#80CBC4" }, { opt: "red", bg: "#E57373" },
+            ].map(({ opt, bg }) => (
+                <Button
+                    key={opt}
+                    onClick={() => setAccent(opt)}
+                    variant={"contained"}
+                    sx={{
+                        borderRadius: 999, minWidth: 35, minHeight: 35, backgroundColor: bg,
+                        border: accent === opt ? "2px solid" : "2px solid",
+                        borderColor: accent === opt ? theme.palette.text.primary : "transparent",
+                        boxShadow: "none",
+                        '&:hover': { backgroundColor: bg }
+                    }}
+                />
+            ))}
         </Box>
-        <List sx={{ overflowY: 'auto', px: 1 }}>
-          {filteredLanguages.map((lang) => (
-            <ListItemButton
-              key={lang.code}
-              selected={language === lang.code}
-              onClick={() => handleLanguageChange(lang.code)}
-              sx={{ borderRadius: 2, my: 0.5 }}
-            >
-              <ListItemText primary={lang.name} />
-              {language === lang.code && <CheckIcon color="primary" />}
-            </ListItemButton>
-          ))}
-        </List>
-      </Drawer> */}
+      </Box>
+    </SwipeableDrawer>
   </Container>
 )}
-
 
 {drawerPage === "about" && (
   <Container sx={{ mt: 5, mb: 4 }}>
