@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, userRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db, firestore } from "../firebase";
 import packageJson from '../../package.json'; 
@@ -114,6 +114,7 @@ import Cropper from "react-easy-crop";
 import { availableLanguages } from '../utils/languages';
 import { QRCodeSVG } from "qrcode.react";
 import { Scanner } from '@yudiel/react-qr-scanner';
+import QrScanner from "./QrScanner";
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -244,9 +245,8 @@ const ProfilePic = ({currentUser}) => {
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [isLoadingBlocked, setIsLoadingBlocked] = useState(false);
   const [profilePicOpen, setProfilePicOpen] = useState(false);
-  const [shareDrawer, setShareDrawer] = useState(false);
-  const [linkDrawer, setLinkDrawer] = useState(false);
-  const [qrDrawer, setQrDrawer] = useState(false);
+  const [scannedUserData, setScannedUserData] = useState(null);
+  const [showScannedUserDrawer, setShowScannedUserDrawer] = useState(false);
 
   const handleWallpaperSelect = (wallpaperUrl) => {
         setChatWallpaper(wallpaperUrl);
@@ -267,39 +267,57 @@ const handleScanCode = () => {
   setScannerOpen(true);   // Open the scanner modal
 };
 
-const handleDecode = async (result) => {
-  // 1. Prevent multiple scans while one is being processed
+
+// This handler receives the decoded text directly
+const handleScanSuccess = async (decodedText) => {
   if (isProcessing) return;
   setIsProcessing(true);
+  setScannerOpen(false); // Close scanner on success
 
-  const friendUid = result?.text;
+  // ... The rest of your existing logic for fetching and displaying the user profile
+  // is exactly the same and does not need to be changed.
+  const friendUid = decodedText;
 
-  // 2. Introduce a small delay BEFORE closing the scanner
-  setTimeout(() => {
-    setScannerOpen(false);
-  }, 500); // A 500ms delay is usually sufficient
-
-  if (!friendUid) {
-    alert("Invalid or empty QR Code.");
-    setIsProcessing(false); // Reset state and exit
-    return;
-  }
-
-  if (friendUid === auth.currentUser.uid) {
-    alert("You can't add yourself as a friend!");
-    setIsProcessing(false); // Reset state and exit
+  if (!friendUid || friendUid === auth.currentUser.uid) {
+    alert(friendUid ? "You can't add yourself!" : "Invalid QR Code.");
+    setIsProcessing(false);
     return;
   }
 
   try {
-    const currentUserRef = doc(db, "users", auth.currentUser.uid);
-    const userDocSnap = await getDoc(currentUserRef);
+    const userDocRef = doc(db, "users", friendUid);
+    const docSnap = await getDoc(userDocRef);
 
-    if (userDocSnap.data()?.friends?.includes(friendUid)) {
-      alert("This person is already your friend.");
-      return; // No need to reset state here, as we will in the finally block
+    if (docSnap.exists()) {
+      setScannedUserData({ id: docSnap.id, ...docSnap.data() });
+      setShowScannedUserDrawer(true);
+    } else {
+      alert("User not found.");
     }
+  } catch (error) {
+    console.error("Error fetching user by UID:", error);
+    alert("Could not find user.");
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
+// This handler receives the error message
+const handleScanError = (errorMessage) => {
+  // We can ignore common errors, but log others
+  if (!errorMessage.includes("QR code parse error")) {
+      console.error("QR Scanner Error:", errorMessage);
+  }
+};
+
+// This new function handles the logic for adding the friend
+const handleAddFriend = async () => {
+  if (!scannedUserData) return;
+
+  const friendUid = scannedUserData.id;
+
+  try {
+    const currentUserRef = doc(db, "users", auth.currentUser.uid);
     await updateDoc(currentUserRef, {
       friends: arrayUnion(friendUid),
     });
@@ -310,19 +328,18 @@ const handleDecode = async (result) => {
     });
 
     alert("Friend added successfully! 🎉");
+    // Close the drawer and clear the state after adding
+    setShowScannedUserDrawer(false);
+    setScannedUserData(null);
+
   } catch (error) {
     console.error("Error adding friend:", error);
-    alert(
-      "Could not add friend. The user may not exist or there was a database error."
-    );
-  } finally {
-    // 3. IMPORTANT: Reset the processing state after everything is done
-    setIsProcessing(false);
+    alert("An error occurred while adding the friend.");
   }
 };
 
+// No changes needed for handleError
 const handleError = (error) => {
-  // Only log if it's not a "not found" error, which happens frequently
   if (!error.message.includes("NotFoundException")) {
     console.error("QR Scanner Error:", error?.message);
   }
@@ -898,7 +915,7 @@ sx={{
         <Typography sx={{ fontSize: '1.5rem' }}><h2>Settings</h2></Typography>
       </Box>
 
-    <Box sx={{ display: "flex", alignItems: "center" }}>
+    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 2, my: 0, mx: 2, py: 2, borderRadius: 5, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788'} }} onClick={() => handleSetDrawerPage("profile")}>
         <Avatar src={userData.photoURL || ""} sx={{ width: 50, height: 50 }} />
         <Box>
@@ -916,9 +933,9 @@ sx={{
           sx={{
             ml: 1,
             color: theme.palette.text.primary,
-            backgroundColor: "#101010",
+            backgroundColor: mode === "dark" ? "#f1f1f111" : "#01010111",
             "&:hover": {
-              backgroundColor: "#2c2c2c",
+              backgroundColor: "#f1f1f111",
             },
           }}
         >
@@ -3326,12 +3343,11 @@ sx={{
       p: 3,
     }}
   >
+
+  <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center", mb: 3, gap: 2 }}>
     <IconButton
-      onClick={handleQrDrawerClose}
+      onClick={() => {navigate(-1)}}
       sx={{
-        position: "absolute",
-        top: 16,
-        right: 16,
         color: "text.primary",
         bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
         '&:hover': {
@@ -3339,13 +3355,13 @@ sx={{
         },
       }}
     >
-      <CloseIcon />
+      <ArrowBackIcon />
     </IconButton>
 
-    <Typography variant="h5" component="div" sx={{ fontWeight: "bold", mb: 3, textAlign: "center" }}>
+    <Typography variant="h5" component="div" sx={{ fontWeight: "bold" }}>
       Add Friend
     </Typography>
-
+  </Box>
     <Box
       sx={{
         display: "flex",
@@ -3357,7 +3373,7 @@ sx={{
       }}
     >
       <QRCodeSVG
-        value={JSON.parse(localStorage.getItem('bunkmateuser'))?.uid || "default-user-id"}
+        value={auth.currentUser.uid || "default-user-id"}
         size={220}
         level={"H"}
         includeMargin={true}
@@ -3427,14 +3443,53 @@ sx={{
           overflow: "hidden",
           bgcolor: mode === "dark" ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.3)",
         }}>
-          <Scanner
-            onDecode={handleDecode}
-            onError={handleError}
-            constraints={{ facingMode: 'environment' }}
-          />
+          {isScannerOpen && (
+         <QrScanner onScanSuccess={handleScanSuccess} />
+      )}
         </Box>
       </Box>
     </Drawer>
+
+        <SwipeableDrawer
+      anchor="bottom"
+      open={showScannedUserDrawer}
+      onClose={() => setShowScannedUserDrawer(false)}
+      onOpen={() => setShowScannedUserDrawer(true)}
+      PaperProps={{
+        sx: {
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          p: 2,
+          bgcolor: mode === "dark" ? "#1E1E1E" : "#FFFFFF",
+        },
+      }}
+    >
+      {scannedUserData && (
+        <Box sx={{ textAlign: 'center', p: 2 }}>
+          <Avatar
+            src={scannedUserData.photoURL}
+            alt={scannedUserData.name}
+            sx={{ width: 80, height: 80, mx: 'auto', mb: 2, border: `2px solid ${theme.palette.divider}` }}
+          />
+          <Typography variant="h6" fontWeight="bold">{scannedUserData.name}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>{scannedUserData.email}</Typography>
+          
+          {/* Conditionally render "Add Friend" button or "Already Friends" chip */}
+          {userData?.friends?.includes(scannedUserData.id) ? (
+            <Chip label="Already Friends" color="success" />
+          ) : (
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleAddFriend}
+              sx={{ py: 1.5, textTransform: 'none', fontSize: '1rem', borderRadius: 2 }}
+            >
+              Add Friend
+            </Button>
+          )}
+        </Box>
+      )}
+    </SwipeableDrawer>
   </Container>
 )}
 
