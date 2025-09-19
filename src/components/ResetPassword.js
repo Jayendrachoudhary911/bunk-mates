@@ -11,6 +11,7 @@ import {
   Alert,
   IconButton,
   InputAdornment,
+  Avatar,
 } from "@mui/material";
 import { auth, db } from "../firebase";
 import { confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";
@@ -42,6 +43,8 @@ const ResetPassword = () => {
   const [searchParams] = useSearchParams();
   const oobCode = searchParams.get("oobCode");
   const [userName, setUserName] = useState("");
+  const [userUserName, setUserUserName] = useState("");
+  const [userProfilePic, setUserProfilePic] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -67,6 +70,8 @@ const ResetPassword = () => {
         });
         if (foundUser) {
           setUserName(foundUser.name || foundUser.displayName || email);
+          setUserProfilePic(foundUser.photoURL || "");
+          setUserUserName(foundUser.username || foundUser.displayName || email);
         } else {
           setUserName(email);
         }
@@ -114,8 +119,13 @@ const ResetPassword = () => {
             <Typography variant="h5" fontWeight="bold" color="primary" align="left">
               Reset your password
             </Typography>
-            <Typography variant="subtitle1" align="left" sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" align="left" sx={{ mb: 2, color: "#fff" }}>
+              <Avatar
+                src={userProfilePic} alt={userName} 
+                sx={{ width: 40, height: 40, display: 'inline-block', verticalAlign: 'middle', mr: 1 }}
+              ></Avatar>
               for <b>{userName}</b><br />
+              <b>{userUserName}</b><br />
               <span style={{ fontSize: "0.95em", color: "#aaa" }}>{userEmail}</span>
             </Typography>
             <form onSubmit={handleSubmit} style={{ width: "100%" }}>
