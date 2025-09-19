@@ -92,7 +92,7 @@ function App() {
             <Route path="/community" element={<CommunityPage />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password/:oobCode" element={<ResetPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={
           // <ProtectedRoute>
             <Home />
