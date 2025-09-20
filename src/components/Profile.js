@@ -120,6 +120,7 @@ import { availableLanguages } from '../utils/languages';
 import { QRCodeSVG } from "qrcode.react";
 import { Scanner } from '@yudiel/react-qr-scanner';
 import QrScanner from "./QrScanner";
+import { useSwipeable } from 'react-swipeable';
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -253,6 +254,22 @@ const ProfilePic = ({currentUser}) => {
   const [scannedUserData, setScannedUserData] = useState(null);
   const [showScannedUserDrawer, setShowScannedUserDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState('myCode');
+
+  // Place this at the top level of your component, with your other hooks
+
+const handleSwiped = (eventData) => {
+  if (eventData.dir === 'Left' && activeTab === 'myCode') {
+    setActiveTab('scanCode');
+  }
+  if (eventData.dir === 'Right' && activeTab === 'scanCode') {
+    setActiveTab('myCode');
+  }
+};
+
+const swipeHandlers = useSwipeable({
+  onSwiped: handleSwiped,
+  trackMouse: true, // Allows swiping with a mouse for testing
+});
 
   const handleWallpaperSelect = (wallpaperUrl) => {
         setChatWallpaper(wallpaperUrl);
@@ -3353,199 +3370,209 @@ sx={{
   <>
     <Box sx={{ p: 2, mt: 3 }}>
       {/* --- Header --- */}
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        flexDirection: "row",
-        mb: 2
-      }}
-    >
-      <IconButton
-        onClick={() => navigate(-1)}
-        sx={{
-          mr: 2,
-          borderRadius: 8,
-          color: theme.palette.text.primary,
-          backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
-          '&:hover': { backgroundColor: "#f1f1f121" },
-        }}
-      >
-        <ArrowBackIcon />
-      </IconButton>
-  <Typography variant="h5" fontWeight="bold">
-    QR Code
-  </Typography>
-  </Box>
+      <Box sx={{ display: "flex", alignItems: "center", flexDirection: "row", mb: 2 }}>
+        <IconButton
+          onClick={() => navigate(-1)}
+          sx={{
+            mr: 2, borderRadius: 8, color: theme.palette.text.primary,
+            backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+            '&:hover': { backgroundColor: "#f1f1f121" },
+          }}
+        >
+          <ArrowBackIcon />
+        </IconButton>
+        <Typography variant="h5" fontWeight="bold">QR Code</Typography>
+      </Box>
 
       {/* --- Tab Selector --- */}
       <Tabs
-        value={activeTab} // You need to add this state: const [activeTab, setActiveTab] = useState('myCode');
+        value={activeTab}
         onChange={(e, newValue) => setActiveTab(newValue)}
         variant="fullWidth"
         textColor="inherit"
-        TabIndicatorProps={{ style: { backgroundColor: '#25D366' } }} // WhatsApp green for the indicator
+        TabIndicatorProps={{ style: { backgroundColor: "transparent", height: "0px" } }}
+        sx={{
+            bgcolor: mode === "dark" ? "#ffffff0d" : "rgba(0,0,0,0.04)",
+            borderRadius: 3, minHeight: "20px", mt: 4,
+            "& .MuiTab-root": {
+                fontWeight: 600, textTransform: "none", fontSize: "1rem", minHeight: "20px",
+                color: mode === "dark" ? "#bbb" : "#555",
+                transition: "all 0.2s ease-in-out",
+                "&.Mui-selected": {
+                    color: theme.palette.text.primary,
+                    backgroundColor: mode === "dark" ? "#f1f1f133" : "#00000022",
+                    borderRadius: 3,
+                },
+            },
+        }}
       >
         <Tab label="My Code" value="myCode" />
         <Tab label="Scan Code" value="scanCode" />
       </Tabs>
-
-      {/* --- My Code View --- */}
-      {activeTab === 'myCode' && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 8 }}>
-          <Avatar
-            src={userData.photoURL}
-            sx={{ width: 80, height: 80, mb: -5, zIndex: 2, border: mode === "dark" ? '4px solid #1F1F1F11' : '4px solid #ffffff71' }}
-          />
-          <Card
-            sx={{
-              width: '100%',
-              maxWidth: 300,
-              bgcolor: mode === "dark" ? '#1F1F1F11' : '#ffffff71',
-              borderRadius: 6,
-              p: 3,
-              pt: 7, // Extra top padding for the overlapping avatar
-              textAlign: 'center',
-              boxShadow: "none"
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: 'column'
-              }}
-            >
-            <Typography variant="h5" fontWeight="bold" sx={{ color: theme.palette.text.primary }}>
-              {userData.name}
-            </Typography>
-            <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-              @{userData.username}
-            </Typography></Box>
-            <Box
-              sx={{
-                bgcolor: 'white',
-                p: 2,
-                borderRadius: 3,
-                display: 'inline-block',
-                mb: 2,
-                mt: 3
-              }}
-            >
-              <QRCodeSVG
-                value={auth.currentUser?.uid || "default-user-id"}
-                size={180}
-                level={"H"}
-                bgColor={"#FFFFFF"}
-                fgColor={"#000000"}
-              />
-            </Box>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 2 }}>
-              Your QR code is private. If you share it with someone, they can scan it to add you as a friend.
-            </Typography>
-          </Card>
-        </Box>
-      )}
-
-      {/* --- Scan Code View --- */}
-{activeTab === 'scanCode' && (
-  <Box sx={{ position: 'relative', height: 'calc(100vh - 212px)', width: '100%', overflow: 'hidden', mt: 2, borderRadius: 4 }}>
-    {/* Layer 1: The Camera Feed (background) */}
-    <Box sx={{ position: 'absolute', top: "22%", left: 0, width: '100%', height: '400px' }}>
-      <QrScanner onScanSuccess={handleScanSuccess} />
     </Box>
 
-    {/* Layer 2: The UI Overlay (viewfinder, text, buttons) */}
+    {/* --- Swipeable Content Area --- */}
+    <Box {...swipeHandlers} sx={{ position: 'relative', overflow: 'hidden', minHeight: '60vh' }}>
+      
+      {/* --- My Code View (with Slide animation) --- */}
+      <Slide direction="right" in={activeTab === 'myCode'} mountOnEnter unmountOnExit>
+        <Box sx={{ position: 'absolute', px: 2, mt: 4 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Avatar src={userData.photoURL} sx={{ width: 80, height: 80, mb: -5, zIndex: 2, border: mode === "dark" ? '4px solid #0c0c0c21' : '4px solid #FFFFFF71' }} />
+            <Card sx={{ width: '100%', maxWidth: 320, bgcolor: mode === "dark" ? '#0c0c0c21' : '#FFFFFF71', borderRadius: 6, p: 3, pt: 7, textAlign: 'center', boxShadow: "none" }}>
+              <Box sx={{ display: "flex", flexDirection: 'column' }}>
+                <Typography variant="h5" fontWeight="bold" sx={{ color: theme.palette.text.primary }}>{userData.name}</Typography>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>@{userData.username}</Typography>
+              </Box>
+              <Box sx={{ bgcolor: 'white', p: 2, borderRadius: 3, display: 'inline-block', mb: 2, mt: 3 }}>
+                <QRCodeSVG value={auth.currentUser?.uid || "default-user-id"} size={180} level={"H"} bgColor={"#FFFFFF"} fgColor={"#000000"} />
+              </Box>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 2 }}>
+                Your QR code is private. If you share it, they can add you as a friend.
+              </Typography>
+            </Card>
+          </Box>
+        </Box>
+      </Slide>
+
+      {/* --- Scan Code View (with Slide animation) --- */}
+      <Slide direction="left" in={activeTab === 'scanCode'} mountOnEnter unmountOnExit>
+        <Box sx={{ position: 'absolute', width: 350, px: 2, mt: 4 }}>
+          <Box sx={{ position: 'relative', height: '60vh', width: '100%', overflow: 'hidden', borderRadius: 4, bgcolor: 'black' }}>
+            <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+              <QrScanner onScanSuccess={handleScanSuccess} />
+            </Box>
+            <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <Box sx={{ width: 240, height: 240, border: '2px solid rgba(255, 255, 255, 0.8)', borderRadius: 6, boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)' }} />
+            </Box>
+          </Box>
+        </Box>
+      </Slide>
+    </Box>
+
+    {/* --- Scanned User Profile Dialog --- */}
+<Dialog
+  open={showScannedUserDrawer}
+  onClose={() => setShowScannedUserDrawer(false)}
+  PaperProps={{
+    sx: {
+      borderRadius: 4,
+      maxWidth: 320,
+      mx: "auto",
+      bgcolor: "transparent",
+      p: 0,
+      overflow: "visible",
+      boxShadow: "none",
+    },
+  }}
+  BackdropProps={{
+    sx: {
+      backgroundColor: "rgba(0,0,0,0.3)",
+      backdropFilter: "blur(50px)",
+    },
+  }}
+>
+  {scannedUserData && (
     <Box
       sx={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        p: 3,
+        position: "relative",
       }}
     >
-      {/* This empty Box is just for spacing from the top */}
-      <Box />
+      {/* Avatar with floating effect */}
+      <Avatar
+        src={scannedUserData.photoURL}
+        alt={scannedUserData.name}
+        sx={{
+          width: 90,
+          height: 90,
+          mb: -5,
+          zIndex: 2,
+          border: mode === "dark" ? "4px solid #1F1F1Fcc" : "4px solid #ffffffcc",
+          boxShadow: "none",
+        }}
+      />
 
-      {/* Viewfinder and Prompt Text */}
-      <Stack alignItems="center" spacing={3}>
-        <Box
-          sx={{
-            width: 220,
-            height: 220,
-            border: '2px solid rgba(255, 255, 255, 0.8)',
-            borderRadius: 6,
-            boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
-          }}
-        />
-        <Typography sx={{ color: 'white', fontWeight: 'medium' }}>
-          Scan a QR code
-        </Typography>
-      </Stack>
-
-      {/* Footer Icons */}
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ width: '100%', p: 3 }}
+      {/* Card */}
+      <Card
+        sx={{
+          width: "100%",
+          maxWidth: 300,
+          bgcolor: mode === "dark" ? "#1F1F1Fbb" : "#ffffffbb",
+          borderRadius: 6,
+          p: 3,
+          pt: 7, // push content for avatar overlap
+          textAlign: "center",
+          boxShadow: "none",
+          backdropFilter: "blur(14px)",
+        }}
       >
-        <IconButton sx={{ color: 'white' }}>
-          <PhotoLibraryOutlinedIcon />
-        </IconButton>
-        <IconButton sx={{ color: 'white' }}>
-          <FlashlightOnOutlinedIcon />
-        </IconButton>
-      </Stack>
-    </Box>
-  </Box>
-)}
-    </Box>
+        {/* Name + username */}
+        <Typography
+          variant="h6"
+          fontWeight="bold"
+          sx={{ color: theme.palette.text.primary }}
+        >
+          {scannedUserData.name}
+        </Typography>
+        <Typography
+          variant="caption"
+          sx={{ color: theme.palette.text.secondary }}
+        >
+          @{scannedUserData.username}
+        </Typography>
 
-    {/* --- Scanned User Profile Drawer (no changes needed here) --- */}
-    <SwipeableDrawer
-      anchor="bottom"
-      open={showScannedUserDrawer}
-      onClose={() => setShowScannedUserDrawer(false)}
-      onOpen={() => setShowScannedUserDrawer(true)}
-      PaperProps={{
-        sx: {
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          p: 2,
-          bgcolor: mode === "dark" ? "#1E1E1E" : "#FFFFFF",
-        },
-      }}
-    >
-      {scannedUserData && (
-        <Box sx={{ textAlign: 'center', p: 2 }}>
-          <Avatar
-            src={scannedUserData.photoURL}
-            alt={scannedUserData.name}
-            sx={{ width: 80, height: 80, mx: 'auto', mb: 2, border: `2px solid ${theme.palette.divider}` }}
+        {/* Bio */}
+        <Typography
+          variant="body2"
+          sx={{ color: "text.secondary", my: 2 }}
+        >
+          {scannedUserData.bio || "This user hasn’t added a bio yet."}
+        </Typography>
+
+        {/* Action */}
+        {userData?.friends?.includes(scannedUserData.id) ? (
+          <Chip
+            label="Already Friends"
+            color="success"
+            sx={{
+              px: 2,
+              py: 0.5,
+              fontWeight: 600,
+              borderRadius: 2,
+              mt: 2,
+            }}
           />
-          <Typography variant="h6" fontWeight="bold">{scannedUserData.name}</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>{scannedUserData.email}</Typography>
-          
-          {userData?.friends?.includes(scannedUserData.id) ? (
-            <Chip label="Already Friends" color="success" />
-          ) : (
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={handleAddFriend}
-              sx={{ py: 1.5, textTransform: 'none', fontSize: '1rem', borderRadius: 2 }}
-            >
-              Add Friend
-            </Button>
-          )}
-        </Box>
-      )}
-    </SwipeableDrawer>
+        ) : (
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={handleAddFriend}
+            sx={{
+              py: 1.3,
+              textTransform: "none",
+              fontSize: "1rem",
+              borderRadius: 3,
+              fontWeight: 600,
+              boxShadow: "none",
+              mt: 2,
+              background: theme.palette.primary.main,
+              "&:hover": {
+              boxShadow: "none",
+              },
+            }}
+          >
+            Add Friend
+          </Button>
+        )}
+      </Card>
+    </Box>
+  )}
+</Dialog>
+
   </>
 )}
 

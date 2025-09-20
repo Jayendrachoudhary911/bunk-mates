@@ -50,7 +50,7 @@ const QrScanner = ({ onScanSuccess, onScanError }) => {
         ref={webcamRef}
         audio={false}
         screenshotFormat="image/jpeg"
-        style={{ width: '100%', height: 'auto' }}
+        style={{ width: '100%', height: '100%' }}
         videoConstraints={{ facingMode: 'environment' }}
       />
     </Box>
