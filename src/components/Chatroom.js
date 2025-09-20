@@ -1524,7 +1524,6 @@ const removeUserReaction = async (msg, emoji) => {
   <input
     type="file"
     accept="image/*"
-    capture="environment"
     hidden
     onChange={handleImageUpload}
   />
