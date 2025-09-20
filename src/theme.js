@@ -13,6 +13,7 @@ const accents = {
     main: "#9fcfff",
     maintxt: "#1976d2",
     mainbg: "#1976d260",
+    select: "#1976d230",
     bg: "#bbdefb",
     bgr: "#bbdefb",
     card: "#e3f2fd",
@@ -22,6 +23,7 @@ const accents = {
     main: "#6ac16e",
     maintxt: "#43a047",
     mainbg: "#43a04760",
+    select: "#43a04730",
     bg: "#c8e6c9ff",
     bgr: "#c8e6c9",
     card: "#f1f8e9",
@@ -31,6 +33,7 @@ const accents = {
     main: "#f4cc9aff",
     maintxt: "#f9971f",
     mainbg: "#f9971f60",
+    select: "#f9971f30",
     bg: "#ffdeb6ff",
     bgr: "#ffeed9ff",
     card: "#d7c7b4ff",
@@ -40,6 +43,7 @@ const accents = {
     main: "#00bcd6",
     maintxt: "#0098adff",
     mainbg: "#00cfea56",
+    select: "#00cfea30",
     bg: "#b6f6ffff",
     bgr: "#c0f7ffec",
     card: "#E0F7FA",
@@ -49,6 +53,7 @@ const accents = {
     main: "#24baff",
     maintxt: "#009de6ff",
     mainbg: "#81D4FA70",
+    select: "#81D4FA30",
     bg: "#ace5ffff",
     bgr: "#caeeffff",
     card: "#E1F5FE",
@@ -58,6 +63,7 @@ const accents = {
     main: "#818181ff",
     maintxt: "#4e4e4eff",
     mainbg: "#8080800b",
+    select: "#f1f1f121",
     bg: "#d4d4d4ff",
     bgr: "#d4d4d4ff",
     card: "#E8F5E9",
@@ -69,6 +75,7 @@ const accents = {
     main: "#ffe501ff",
     maintxt: "#fbc02d",
     mainbg: "#ffeb3b60",
+    select: "#ffeb3b30",
     bg: "#fff9c4",
     bgr: "#fffde7",
     card: "#fffde7",
@@ -78,6 +85,7 @@ const accents = {
     main: "#ff7043",
     maintxt: "#e64a19",
     mainbg: "#ff704360",
+    select: "#ff704330",
     bg: "#ffccbc",
     bgr: "#ffe0b2",
     card: "#fbe9e7",
@@ -87,6 +95,7 @@ const accents = {
     main: "#cddc39",
     maintxt: "#afb42b",
     mainbg: "#cddc3960",
+    select: "#cddc3930",
     bg: "#f0f4c3",
     bgr: "#f9fbe7",
     card: "#f9fbe7",
@@ -96,6 +105,7 @@ const accents = {
     main: "#40e0d0",
     maintxt: "#00897b",
     mainbg: "#40e0d060",
+    select: "#40e0d030",
     bg: "#b2fef7",
     bgr: "#e0f7fa",
     card: "#e0f2f1",
@@ -105,6 +115,7 @@ const accents = {
     main: "#ff5252",
     maintxt: "#d32f2f",
     mainbg: "#ff525260",
+    select: "#ff525230",
     bg: "#ffcdd2",
     bgr: "#ffebee",
     card: "#ffebee",
@@ -129,6 +140,7 @@ const accents = {
       background: {
         default: "#02020200", // almost transparent black for main background
         paper: "#0c0c0c", // deep black for dialogs/paper
+        card: "#0c0c0c",
       },
       primary: {
         main: "#ffffffff", // bright green solid for buttons and accents
@@ -183,9 +195,10 @@ const accents = {
       MuiCard: {
         styleOverrides: {
           root: {
-            backgroundColor: "#2c2c2c00", // dark grey card background
+            backgroundColor: "#2c2c2c00",
             color: "#FFFFFF",
             boxShadow: "none",
+            backgroundImage: "none",
             borderRadius: 16,
             transition: "box-shadow 0.3s ease, transform 0.3s ease",
             cursor: "pointer",

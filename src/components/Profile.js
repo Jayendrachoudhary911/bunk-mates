@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, userRef } from "react";
+import React, { createContext, useContext, useState, useEffect, userRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db, firestore } from "../firebase";
 import packageJson from '../../package.json'; 
@@ -44,6 +44,8 @@ import {
   Fade,
   Tab,
   Tabs,
+  Snackbar,
+  Badge
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -105,6 +107,9 @@ import QrCode2OutlinedIcon from '@mui/icons-material/QrCode2Outlined';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined';
 import FlashlightOnOutlinedIcon from '@mui/icons-material/FlashlightOnOutlined';
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
+import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
 
 import { signOut, updateProfile, getAuth, deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
 import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, arrayRemove, deleteDoc } from "firebase/firestore";
@@ -121,6 +126,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Scanner } from '@yudiel/react-qr-scanner';
 import QrScanner from "./QrScanner";
 import { useSwipeable } from 'react-swipeable';
+import { toPng } from "html-to-image";
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -148,6 +154,17 @@ const buttonStyle = (mode, theme) => ({
   px: 7,
 });
 
+const wallpapers = [
+  { id: 'none', name: 'Solid Color', url: 'none', theme: 'both' },
+  // Dark Themes
+  { id: 'default', name: 'Default Dark', url: '/assets/images/chatbg/dark.png', theme: 'dark' },
+  // { id: 'dark_pattern', name: 'Dark Pattern', url: '/assets/images/chatbg/dark_pattern.png', theme: 'dark' },
+  // { id: 'dark_abstract', name: 'Dark Abstract', url: '/assets/images/chatbg/dark_abstract.jpg', theme: 'dark' },
+  // Light Themes
+  { id: 'default', name: 'Default Light', url: '/assets/images/chatbg/light.png', theme: 'light' },
+  // { id: 'light_pattern', name: 'Light Pattern', url: '/assets/images/chatbg/light_pattern.png', theme: 'light' },
+  // { id: 'light_subtle', name: 'Light Subtle', url: '/assets/images/chatbg/light_subtle.jpg', theme: 'light' },
+];
 
 const ProfilePic = ({currentUser}) => {
   const navigate = useNavigate();
@@ -226,7 +243,6 @@ const ProfilePic = ({currentUser}) => {
   const [fontSize, setFontSize] = useState(parseInt(localStorage.getItem('bunkmate_fontSize'), 10) || 14);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [chatWallpaper, setChatWallpaper] = useState(localStorage.getItem('bunkmate_chatWallpaper') || '/assets/images/chatbg/dark.png');
   const [wallpaperDrawerOpen, setWallpaperDrawerOpen] = useState(false); // ⭐️ State for the drawer
   const [fontDrawerOpen, setFontDrawerOpen] = useState(false); // ⭐️ State for the drawer
 
@@ -254,6 +270,9 @@ const ProfilePic = ({currentUser}) => {
   const [scannedUserData, setScannedUserData] = useState(null);
   const [showScannedUserDrawer, setShowScannedUserDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState('myCode');
+  const [viewMode, setViewMode] = useState('avatar'); // 'avatar' or 'qr'
+  const [snackbar, setSnackbar] = useState({ open: false, message: '' });
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Place this at the top level of your component, with your other hooks
 
@@ -271,10 +290,41 @@ const swipeHandlers = useSwipeable({
   trackMouse: true, // Allows swiping with a mouse for testing
 });
 
-  const handleWallpaperSelect = (wallpaperUrl) => {
-        setChatWallpaper(wallpaperUrl);
-        localStorage.setItem('bunkmate_chatWallpaper', wallpaperUrl);
-    };
+const [chatWallpaper, setChatWallpaper] = useState(() => {
+  // On initial load, try to get the wallpaper from localStorage
+  const savedWallpaper = localStorage.getItem('bunkmate_chatWallpaper');
+  
+  // If a wallpaper was saved, use it. Otherwise, use a default value.
+  return savedWallpaper || 'none'; 
+});
+
+// Your existing handler function works perfectly with this setup
+const handleWallpaperSelect = (wallpaperUrl) => {
+    setChatWallpaper(wallpaperUrl);
+    localStorage.setItem('bunkmate_chatWallpaper', wallpaperUrl);
+};
+  const themeWallpapers = useMemo(() => {
+    return wallpapers.filter(w => w.theme === mode || w.theme === 'both');
+  }, [wallpapers, mode]);
+
+  useEffect(() => {
+  let defaultWallpaperUrl;
+
+  // Check the current theme mode
+  if (mode === 'dark') {
+    // Find the default dark wallpaper by its unique ID
+    defaultWallpaperUrl = wallpapers.find(w => w.id === 'default-dark')?.url;
+  } else {
+    // Find the default light wallpaper by its unique ID
+    defaultWallpaperUrl = wallpapers.find(w => w.id === 'default-light')?.url;
+  }
+
+  // If a default wallpaper was found, select it
+  // (This assumes you have a function like 'handleWallpaperSelect' that sets the state)
+  if (defaultWallpaperUrl) {
+    handleWallpaperSelect(defaultWallpaperUrl);
+  }
+}, [mode]); // This dependency array ensures the hook only runs when 'mode' changes
 
   const buttonWeatherBg =
   weather && weatherColors[weather.main]
@@ -289,7 +339,6 @@ const handleScanCode = () => {
   handleQrDrawerClose(); // Close the previous drawer
   setScannerOpen(true);   // Open the scanner modal
 };
-
 
 // This handler receives the decoded text directly
 const handleScanSuccess = async (decodedText) => {
@@ -368,18 +417,40 @@ const handleError = (error) => {
   }
 };
 
-// Place this array inside your ProfilePic component or import it
-const wallpapers = [
-  { id: 'none', name: 'Solid Color', url: 'none', theme: 'both' },
-  // Dark Themes
-  { id: 'dark_default', name: 'Default Dark', url: '/assets/images/chatbg/dark.png', theme: 'dark' },
-  // { id: 'dark_pattern', name: 'Dark Pattern', url: '/assets/images/chatbg/dark_pattern.png', theme: 'dark' },
-  // { id: 'dark_abstract', name: 'Dark Abstract', url: '/assets/images/chatbg/dark_abstract.jpg', theme: 'dark' },
-  // Light Themes
-  { id: 'light_default', name: 'Default Light', url: '/assets/images/chatbg/light.png', theme: 'light' },
-  // { id: 'light_pattern', name: 'Light Pattern', url: '/assets/images/chatbg/light_pattern.png', theme: 'light' },
-  // { id: 'light_subtle', name: 'Light Subtle', url: '/assets/images/chatbg/light_subtle.jpg', theme: 'light' },
-];
+const handleShare = async () => {
+  const shareData = {
+    title: `Check out ${userData.name}'s profile`,
+    text: `Here's a link to ${userData.name}'s profile on BunkMate.`,
+    url: `${window.location.origin}/profile/${userData.uid}`, // Assumes you have a profile route
+  };
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+    } else {
+      // Fallback for browsers that don't support navigator.share
+      await navigator.clipboard.writeText(shareData.url);
+      setSnackbar({ open: true, message: 'Share not supported, link copied instead!' });
+    }
+  } catch (error) {
+    console.error('Error sharing:', error);
+  }
+};
+
+const handleCopyLink = async () => {
+  const profileLink = `${window.location.origin}/profile/${auth.currentUser.uid}`;
+  try {
+    await navigator.clipboard.writeText(profileLink);
+    setSnackbar({ open: true, message: 'Profile link copied to clipboard!' });
+  } catch (error) {
+    console.error('Error copying link:', error);
+    setSnackbar({ open: true, message: 'Failed to copy link.' });
+  }
+};
+
+// Handles closing the snackbar
+const handleSnackbarClose = () => {
+  setSnackbar({ ...snackbar, open: false });
+};
 
 const [features] = useState([
   {
@@ -842,7 +913,6 @@ const handleUnblockUser = async (userIdToUnblock) => {
     setIsEditing(false);
   };
 
-
     const handleSetDrawerPage = (page) => {
     navigate(`?settings=${page}`);
   };
@@ -869,6 +939,24 @@ const handleUnblockUser = async (userIdToUnblock) => {
 <>
 {userData.type === "Dev Beta" ? (
 <>
+
+  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+    <Badge
+        color="error"
+        variant="dot"
+        invisible={unreadCount === 0}
+        sx={{
+            '& .MuiBadge-badge': {
+                right: 8,
+                top: 6,
+            },
+        }}
+    >
+      <NotificationsNoneOutlinedIcon
+        sx={{ fontSize: 28, color: mode === "dark" ? "#fff" : "#333", cursor: "pointer" }}
+        onClick={() => navigate("/notifications")}
+      />
+    </Badge>
 
   <Box
 sx={{
@@ -906,6 +994,7 @@ sx={{
       </>
     )}
   </Box>
+</Box>
 
   {/* Bottom Drawer */}
 <Drawer
@@ -927,7 +1016,6 @@ sx={{
   }}
 >
 
-  {/* Main Settings Page */}
   {drawerPage === "main" && (
     <>
       {/* User info */}
@@ -1031,7 +1119,6 @@ sx={{
     </>
   )}
 
-  {/* ⭐️ NEW: Accounts Page */}
 {drawerPage === "accounts" && (
   <Container sx={{ mt: 5, mb: 2 }}>
     {/* Header */}
@@ -1310,7 +1397,6 @@ sx={{
   </Container>
 )}
 
-{/* --- NEW Blocked Contacts Page --- */}
 {drawerPage === "blockedContacts" && (
   <Container sx={{ mt: 5, mb: 2 }}>
     {/* Header */}
@@ -1420,7 +1506,6 @@ sx={{
     )}
   </Container>
 )}
-
 
 {drawerPage === "chats" && (
 <Container sx={{ mt: 5, mb: 2 }}>
@@ -1734,115 +1819,56 @@ sx={{
     open={wallpaperDrawerOpen}
     onClose={() => setWallpaperDrawerOpen(false)}
     onOpen={() => setWallpaperDrawerOpen(true)}
-        ModalProps={{
-          BackdropProps: {
-            sx: {
-              p: 3,
-              backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-              backdropFilter: "blur(5px)",
-            },
-          },
-        }}
-        PaperProps={{
-          sx: {
-            p: 1,
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            maxHeight: "70vh",
-            overflowY: "auto",
+    PaperProps={{
+        sx: {
+            p: 1, borderTopLeftRadius: 16, borderTopRightRadius: 16,
+            maxHeight: "70vh", overflowY: "auto",
             backdropFilter: "blur(50px)",
             backgroundColor: mode === "dark" ? "#00000038" : "#ffffff9c",
             boxShadow: "none"
-          },
-        }}
+        },
+    }}
 >
     <Box sx={{ p: 2, overflowY: 'auto' }}>
-        <Box
-            sx={{
-                width: 40,
-                height: 5,
-                backgroundColor: "grey.400",
-                borderRadius: 3,
-                mx: 'auto',
-                mb: 2,
-            }}
-        />
+        <Box sx={{ width: 40, height: 5, backgroundColor: "grey.400", borderRadius: 3, mx: 'auto', mb: 2 }} />
         <Typography variant="h6" fontWeight="bold" textAlign="center" sx={{ mb: 2 }}>
             Chat Wallpaper
         </Typography>
 
-        {/* --- Dark Theme Wallpapers --- */}
-        <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, pl: 1 }}>Dark Theme</Typography>
-            <Grid container spacing={1}>
-                {wallpapers.filter(w => w.theme === 'dark' || w.theme === 'both').map(wallpaper => (
-                    <Grid item xs={4} key={wallpaper.id}>
-                        <Box
-                            onClick={() => handleWallpaperSelect(wallpaper.url)}
-                            sx={{
-                                position: 'relative',
-                                height: 160,
-                                width: 100,
-                                borderRadius: 2,
-                                cursor: 'pointer',
-                                backgroundSize: 'cover',
-                                backgroundPosition: 'center',
-                                backgroundImage: wallpaper.url === 'none' ? 'none' : `url(${wallpaper.url})`,
-                                backgroundColor: wallpaper.url === 'none' ? '#121212' : 'transparent',
-                                border: chatWallpaper === wallpaper.url ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
-                                transition: 'border 0.2s ease-in-out',
-                                '&:hover': {
-                                    opacity: 0.8
-                                }
-                            }}
-                        >
-                            {chatWallpaper === wallpaper.url && (
-                                <CheckCircleIcon sx={{ position: 'absolute', top: 8, right: 8, color: 'primary.main', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '50%' }} />
-                            )}
-                            <Typography sx={{ position: 'absolute', bottom: 8, left: 8, color: '#fff', backgroundColor: 'rgba(0,0,0,0.5)', px: 1, borderRadius: 1, fontSize: '0.75rem' }}>
-                                {wallpaper.name}
-                            </Typography>
-                        </Box>
-                    </Grid>
-                ))}
-            </Grid>
-        </Box>
-
-        {/* --- Light Theme Wallpapers --- */}
-        <Box>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, pl: 1 }}>Light Theme</Typography>
-            <Grid container spacing={1}>
-                {wallpapers.filter(w => w.theme === 'light').map(wallpaper => (
-                    <Grid item xs={4} key={wallpaper.id}>
-                         <Box
-                            onClick={() => handleWallpaperSelect(wallpaper.url)}
-                            sx={{
-                                position: 'relative',
-                                height: 160,
-                                width: 100,
-                                borderRadius: 2,
-                                cursor: 'pointer',
-                                backgroundSize: 'cover',
-                                backgroundPosition: 'center',
-                                backgroundImage: `url(${wallpaper.url})`,
-                                border: chatWallpaper === wallpaper.url ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
-                                transition: 'border 0.2s ease-in-out',
-                                '&:hover': {
-                                    opacity: 0.8
-                                }
-                            }}
-                        >
-                            {chatWallpaper === wallpaper.url && (
-                                <CheckCircleIcon sx={{ position: 'absolute', top: 8, right: 8, color: 'primary.main', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '50%' }} />
-                            )}
-                            <Typography sx={{ position: 'absolute', bottom: 8, left: 8, color: '#000', backgroundColor: 'rgba(255,255,255,0.6)', px: 1, borderRadius: 1, fontSize: '0.75rem' }}>
-                                {wallpaper.name}
-                            </Typography>
-                        </Box>
-                    </Grid>
-                ))}
-            </Grid>
-        </Box>
+        {/* --- DYNAMIC WALLPAPER GRID --- */}
+        <Grid container spacing={1}>
+            {/* Map over the new, pre-filtered list */}
+            {themeWallpapers.map(wallpaper => (
+                <Grid item xs={4} sm={3} md={2} key={wallpaper.id}>
+                    <Box
+                      onClick={() => handleWallpaperSelect(wallpaper.url)}
+                      sx={{
+                          position: 'relative',
+                          height: 160,
+                          width: 100,
+                          borderRadius: 2,
+                          cursor: 'pointer',
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          backgroundImage: wallpaper.url === 'none' ? 'none' : `url(${wallpaper.url})`,
+                          backgroundColor: wallpaper.url === 'none' ? mode === "dark" ? '#121212' : "#f1f1f1" : 'transparent',
+                          border: chatWallpaper === wallpaper.url ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
+                          transition: 'border 0.2s ease-in-out',
+                          '&:hover': {
+                              opacity: 0.8
+                          }
+                        }}
+                    >
+                        {chatWallpaper === wallpaper.url && (
+                            <CheckCircleIcon sx={{ position: 'absolute', top: 8, right: 8, color: 'primary.main', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '50%' }} />
+                        )}
+                        <Typography sx={{ position: 'absolute', bottom: 8, left: 8, color: '#fff', backgroundColor: 'rgba(0,0,0,0.5)', px: 1, borderRadius: 1, fontSize: '0.75rem' }}>
+                            {wallpaper.name}
+                        </Typography>
+                    </Box>
+                </Grid>
+            ))}
+        </Grid>
     </Box>
 </SwipeableDrawer>
 
@@ -2021,7 +2047,6 @@ sx={{
     </Container>
 )}
 
-  {/* ⭐️ NEW: Invite a Friend Page */}
 {drawerPage === "inviteFriend" && (
   <Container sx={{ mt: 5, mb: 2 }}>
 
@@ -2527,7 +2552,6 @@ sx={{
     </Box>
   </Container>
 )}
-
 
   {drawerPage === "featuresChangelog" && (
     <Container sx={{ mt: 5, mb: 2 }}>
@@ -3168,109 +3192,234 @@ sx={{
     </Drawer>
 
       {/* --- Full-Screen Profile Picture Dialog --- */}
-    <Dialog
-      fullScreen
-      open={profilePicOpen}
-      onClose={() => setProfilePicOpen(false)}
-      PaperProps={{
-        sx: {
-          backgroundColor: "#00000004",
-          backgroundImage: "none",
-          backdropFilter: "blur(10px)",
-        },
-      }}
-    >
-      <Box
-        onClick={() => setProfilePicOpen(false)}
-        sx={{
-          position: "relative",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexDirection: "column",
-          p: 3,
-        }}
-      >
-        {/* Close Button */}
-        <IconButton
-          onClick={() => setProfilePicOpen(false)}
-          sx={{
-            position: "absolute",
-            top: 20,
-            right: 20,
-            color: "white",
-            backgroundColor: "rgba(255,255,255,0.1)",
-            "&:hover": {
-              backgroundColor: "rgba(255,255,255,0.25)",
-            },
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
-
-        {/* Profile Avatar with fade+zoom */}
-<Zoom
-  in={profilePicOpen}
-  style={{ transitionDelay: profilePicOpen ? "100ms" : "0ms" }}
+<Dialog
+  fullScreen
+  open={profilePicOpen}
+  onClose={() => {
+    setProfilePicOpen(false);
+  }}
+  PaperProps={{
+    sx: {
+      backgroundColor: "rgba(0,0,0,0.05)",
+      backdropFilter: "blur(12px)",
+      overflow: "hidden",
+      backgroundImage: "none",
+    },
+  }}
 >
-  <Box sx={{ position: "relative", display: "inline-flex" }}>
-    {/* Profile Avatar */}
-    <Avatar
-      onClick={(e) => e.stopPropagation()}
-      src={userData.photoURL || ""}
-      alt={userData.name}
+  <Box
+    sx={{
+      position: "relative",
+      height: "100%",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+      p: 3,
+    }}
+    onClick={() => setProfilePicOpen(false)}
+  >
+    {/* Avatar / QR Container */}
+    <Box
       sx={{
-        width: "min(250px, 90vw)",
-        height: "min(250px, 90vw)",
-        boxShadow: "none",
-        cursor: "default",
-        transition: "transform 0.3s ease-in-out",
-        "&:hover": {
-          transform: "scale(1.05)",
-        },
-      }}
-    />
-
-    {/* Edit Button overlay */}
-    <IconButton
-      size="small"
-      component="label"
-      sx={{
-        position: "absolute",
-        bottom: 18,
-        right: 18,
-        backgroundColor: "#f1f1f111",
-        backdropFilter: "blur(180px)",
-        border: "1px solid #888",
-        color: "white",
-        "&:hover": {
-          backgroundColor: "rgba(0,0,0,0.8)",
-        },
+        flexGrow: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "100%",
       }}
     >
-      <EditOutlinedIcon fontSize="small" />
-      <input
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(e) => {
-          if (e.target.files && e.target.files.length > 0) {
-            const file = e.target.files[0];
-            setSelectedImage(URL.createObjectURL(file));
-            setCropDrawerOpen(true);
-          }
-        }}
-      />
-    </IconButton>
+      {viewMode === "avatar" && (
+        <Zoom in={profilePicOpen} style={{ transitionDelay: "100ms" }}>
+          <Box sx={{ position: "relative", display: "inline-flex" }}>
+            {/* Avatar + Edit Button */}
+            <Avatar
+              src={userData.photoURL || ""}
+              alt={userData.name}
+              onClick={(e) => e.stopPropagation()}
+              sx={{
+                width: "min(250px, 90vw)",
+                height: "min(250px, 90vw)",
+                borderRadius: 56,
+                cursor: "default",
+                boxShadow: "none",
+                transition: "transform 0.4s ease, box-shadow 0.4s ease",
+                "&:hover": {
+                  transform: "scale(1.05)",
+                  boxShadow: "none",
+                },
+              }}
+            />
+            <IconButton
+              size="small"
+              component="label"
+              sx={{
+                position: "absolute",
+                bottom: 18,
+                right: 18,
+                backgroundColor: "rgba(255,255,255,0.1)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                color: "white",
+                "&:hover": { backgroundColor: "rgba(255,255,255,0.25)" },
+              }}
+            >
+              <EditOutlinedIcon fontSize="small" />
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  if (e.target.files?.length) {
+                    const file = e.target.files[0];
+                    setSelectedImage(URL.createObjectURL(file));
+                    setCropDrawerOpen(true);
+                  }
+                }}
+              />
+            </IconButton>
+          </Box>
+        </Zoom>
+      )}
+
+      {viewMode === "qr" && (
+        <Zoom in={profilePicOpen}>
+          <Card
+            id="profile-card"
+            onClick={(e) => e.stopPropagation()}
+            sx={{
+              width: "100%",
+              maxWidth: 300,
+              bgcolor:"transparent",
+              borderRadius: 6,
+              p: 3,
+              textAlign: "center",
+              boxShadow: "none",
+              backgroundImage: "none",
+            }}
+          >
+        <Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Avatar src={userData.photoURL} sx={{ width: 80, height: 80, mb: -5, zIndex: 2, border: mode === "dark" ? '4px solid #0c0c0c21' : '4px solid #FFFFFF71' }} />
+            <Card sx={{ width: '100%', backdropFilter: "blur(50px)", bgcolor: mode === "dark" ? '#0c0c0cae' : '#FFFFFF71', borderRadius: 6, p: 3, pt: 7, textAlign: 'center', boxShadow: "none" }}>
+              <Box sx={{ display: "flex", flexDirection: 'column' }}>
+                <Typography variant="h5" fontWeight="bold" sx={{ color: theme.palette.text.primary }}>{userData.name}</Typography>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>@{userData.username}</Typography>
+              </Box>
+              <Box sx={{ bgcolor: 'white', p: 2, borderRadius: 3, display: 'inline-block', mb: 2, mt: 3 }}>
+                <QRCodeSVG value={auth.currentUser?.uid || "default-user-id"} size={200} level={"H"} bgColor={"#FFFFFF"} fgColor={"#000000"} />
+              </Box>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 2 }}>
+                Your QR code is private. If you share it, they can add you as a friend.
+              </Typography>
+            </Card>
+          </Box>
+        </Box>
+          </Card>
+        </Zoom>
+      )}
+    </Box>
+
+    {/* Bottom Action Buttons */}
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-evenly",
+        alignItems: "center",
+        width: "100%",
+        pb: 4,
+        mt: 4,
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {viewMode === "avatar" &&
+        [
+          { icon: <ShareOutlinedIcon />, label: "Share profile", delay: 400, handler: handleShare },
+          { icon: <ContentCopyOutlinedIcon />, label: "Copy link", delay: 500, handler: handleCopyLink },
+          { icon: <QrCode2OutlinedIcon />, label: "QR code", delay: 600, handler: () => setViewMode("qr") },
+        ].map(({ icon, label, delay, handler }) => (
+          <Zoom in={profilePicOpen} style={{ transitionDelay: `${delay}ms` }} key={label}>
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mx: 1.5 }}>
+              <IconButton
+                onClick={handler}
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  bgcolor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0, 0, 0, 0.15)",
+                  color: "white",
+                  mb: 1,
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    transform: "scale(1.15)",
+                    bgcolor: mode === "dark" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)",
+                  },
+                }}
+              >
+                {icon}
+              </IconButton>
+              <Typography variant="caption" sx={{ color: "white", fontWeight: 500 }}>
+                {label}
+              </Typography>
+            </Box>
+          </Zoom>
+        ))}
+
+      {viewMode === "qr" && (
+        <>
+          {/* Back Button */}
+          <IconButton
+            onClick={() => setViewMode("avatar")}
+            sx={{
+              width: 64,
+              height: 64,
+              borderRadius: "50%",
+              bgcolor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.15)",
+              color: "white",
+              "&:hover": { transform: "scale(1.15)" },
+            }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
+
+          {/* Download Button */}
+          <IconButton
+            onClick={() => {
+              const node = document.getElementById("profile-card");
+              if (node) {
+                toPng(node).then((dataUrl) => {
+                  const link = document.createElement("a");
+                  link.download = `${userData.username}-profile.png`;
+                  link.href = dataUrl;
+                  link.click();
+                });
+              }
+            }}
+            sx={{
+              width: 64,
+              height: 64,
+              borderRadius: "50%",
+              bgcolor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.15)",
+              color: "white",
+              "&:hover": { transform: "scale(1.15)" },
+            }}
+          >
+            <DownloadOutlinedIcon />
+          </IconButton>
+        </>
+      )}
+    </Box>
+
+    {/* Snackbar */}
+    <Snackbar
+      open={snackbar.open}
+      autoHideDuration={3000}
+      onClose={handleSnackbarClose}
+      message={snackbar.message}
+      anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+    />
   </Box>
-</Zoom>
-
-
-        {/* TODO: Action Buttons at bottom with fade+pop */}
-
-      </Box>
-    </Dialog>
+</Dialog>
 
   </Container>
 )}

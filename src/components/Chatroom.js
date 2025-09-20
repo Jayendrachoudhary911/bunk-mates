@@ -2,13 +2,17 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
   Box, Button, Avatar, Typography, TextField, IconButton, CircularProgress,
   AppBar, Toolbar, Paper, Menu, MenuItem, Slide, Dialog, Divider, SwipeableDrawer, Stack, Chip, useTheme, keyframes, createTheme,
-  ThemeProvider, Card, CardActionArea, CardContent, Grid, List, ListItemText, ListItemAvatar, LinearProgress, InputAdornment, Drawer
+  ThemeProvider,
+  Card,
+  CardActionArea,
+  CardContent,
+  Grid, List, ListItemText, ListItemAvatar, LinearProgress, InputAdornment, Drawer, CardMedia,
+  Zoom
 } from '@mui/material';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { X, Phone, Video, MoreVertical, ArrowDownToDotIcon } from 'lucide-react';
 import SendIcon from '@mui/icons-material/Send';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
-import { useSwipeable } from 'react-swipeable';
 import CloseIcon from '@mui/icons-material/Close';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
@@ -19,7 +23,12 @@ import Popover from '@mui/material/Popover';
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import ReplyIcon from '@mui/icons-material/Reply';
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
+
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSwipeable } from "react-swipeable";
 import {
   collection, addDoc, query, orderBy, onSnapshot,
   serverTimestamp, doc, updateDoc, getDoc, getDocs, where, deleteDoc
@@ -33,6 +42,8 @@ import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import EditIcon from '@mui/icons-material/Edit';
+import AddAPhoto from '@mui/icons-material/AddAPhoto';
+import DownloadIcon from '@mui/icons-material/Download';
 
 import {
   LocationOn, AccessTime,
@@ -67,134 +78,6 @@ function showLocalNotification(title, options) {
       transform: translateY(0);
     }
   `;
-
-  const theme = createTheme({
-    palette: {
-      effectiveChatTheme: "dark",
-      background: {
-        default: "#02020200", // almost transparent black for main background
-        paper: "#0c0c0c", // deep black for dialogs/paper
-      },
-      primary: {
-        main: "#ffffffff", // bright green solid for buttons and accents
-        contrastText: "#000000", // black text on bright green buttons
-      },
-      secondary: {
-        main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
-      },
-      text: {
-        primary: "#FFFFFF", // pure white for main text
-        secondary: "#BDBDBD", // light grey for secondary text
-        disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
-      },
-      action: {
-        hover: "#b6b6b6ff", // bright green hover for interactive elements
-        selected: "#131313", // dark black for selected states
-        disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
-        disabled: "#BDBDBD",
-      },
-      divider: "rgb(24, 24, 24)", // very dark grey for borders
-    },
-    typography: {
-      fontFamily: "Roboto, Arial, sans-serif",
-      h6: {
-        fontWeight: "bold",
-        color: "#FFFFFF",
-      },
-      body1: {
-        fontSize: "1rem",
-        lineHeight: "1.5",
-        color: "#FFFFFF",
-      },
-      body2: {
-        fontSize: "0.875rem",
-        color: "#BDBDBD",
-      },
-    },
-    shape: {
-      borderRadius: 12,
-    },
-    components: {
-      MuiAppBar: {
-        styleOverrides: {
-          root: {
-            backgroundColor: "#0c0c0c40",
-            backdropFilter: "blur(40px)", // dark grey/black for app bar background
-            boxShadow: "none",
-            borderBottom: "1px solid rgb(24, 24, 24, 0.5)",
-          },
-        },
-      },
-      MuiCard: {
-        styleOverrides: {
-          root: {
-            backgroundColor: "#2c2c2c00", // dark grey card background
-            color: "#FFFFFF",
-            boxShadow: "none",
-            borderRadius: 16,
-            transition: "box-shadow 0.3s ease, transform 0.3s ease",
-            cursor: "pointer",
-            "&:hover": {
-              transform: "translateY(-4px)",
-              backgroundColor: "#131313",
-            },
-            animation: `${fadeIn} 0.6s ease forwards`,
-          },
-        },
-      },
-      MuiButton: {
-        styleOverrides: {
-          root: {
-            textTransform: "none",
-            fontWeight: 600,
-            borderRadius: "12px",
-            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-            color: "#000",
-            backgroundColor: "#fff",
-            "&:hover": {
-              backgroundColor: "#000",
-              color: "#fff",
-            },
-          },
-        },
-      },
-      MuiAvatar: {
-        styleOverrides: {
-          root: {
-            backgroundColor: "#f0f0f0", // off-white avatar background
-            color: "#000",
-          },
-        },
-      },
-      MuiMenu: {
-        styleOverrides: {
-          paper: {
-            backgroundColor: "#0c0c0c40", // deep black menu background
-            color: "#FFFFFF",
-            backdropFilter: "blur(40px)",
-            borderRadius: 10,
-            border: "1px solid rgb(24, 24, 24)",
-          },
-        },
-      },
-      MuiMenuItem: {
-        styleOverrides: {
-          root: {
-            "&:hover": {
-              backgroundColor: "#2c2c2c", // translucent dark green hover
-            },
-          },
-        },
-      },
-      MuiBox: {
-        styleOverrides: {
-          root: {
-            // General box overrides if needed
-          },
-        },
-      },
-    },
-  }); 
 
 function ChatRoom() {
   const { friendId } = useParams();
@@ -249,7 +132,13 @@ function ChatRoom() {
   const [chatFontSize, setChatFontSize] = useState(parseInt(localStorage.getItem('bunkmate_fontSize'), 10) || 16);
   const [chatWallpaper, setChatWallpaper] = useState(localStorage.getItem('bunkmate_chatWallpaper') || 'default');
   const [effectiveChatTheme, setEffectiveChatTheme] = useState('dark'); // 'light' or 'dark'
-
+  const [imageDrawer, setImageDrawer] = useState(false);
+  const [imageDataUri, setImageDataUri] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [openViewer, setOpenViewer] = useState(false);
+  const images = messages.filter(msg => msg.type === "image").map(msg => msg.dataUri);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const messageVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -489,6 +378,84 @@ useEffect(() => {
     });
   };
 
+  function handleImageUpload(e) {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    setImageDataUri(reader.result);
+    setImageDrawer(true);
+  };
+  reader.readAsDataURL(file);
+}
+
+  function handleSendImage() {
+  if (imageDataUri) {
+    // Save as a message in Firestore:
+    addDoc(collection(db, 'chats', chatId, 'messages'), {
+      senderId: currentUser.uid,
+      type: 'image',
+      dataUri: imageDataUri,
+      timestamp: serverTimestamp(),
+      // ... any additional fields
+    });
+    setImageDrawer(false);
+    setImageDataUri("");
+  }
+}
+
+function downloadImage(dataUri, id) {
+  const link = document.createElement('a');
+  link.href = dataUri;
+  link.download = `chat-image-${id}.jpg`; // or .png, etc.
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  // Optionally move/save in specific folder for PWA/native
+  // Optionally notify, "Saved to gallery"/"Saved to downloads"
+}
+
+  async function handleSendMessage(e) {
+    e.preventDefault();
+    setIsSending(true);
+    if (imageDataUri) {
+      await addDoc(collection(db, "chats", chatId, "messages"), {
+        senderId: currentUser.uid,
+        type: "image",
+        dataUri: imageDataUri,
+        timestamp: serverTimestamp(),
+      });
+      setImageDrawer(false);
+      setImageDataUri("");
+      setImageFile(null);
+    } else if (input.trim()) {
+      await addDoc(collection(db, "chats", chatId, "messages"), {
+        senderId: currentUser.uid,
+        type: "text",
+        text: input.trim(),
+        timestamp: serverTimestamp(),
+      });
+      setInput("");
+    }
+    setIsSending(false);
+  }
+
+  const handlePrev = () => {
+    setSelectedIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const handleNext = () => {
+    setSelectedIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: handleNext,
+    onSwipedRight: handlePrev,
+    preventDefaultTouchmoveEvent: true,
+    trackMouse: true,
+  });
+
+  const imageSrc = images[selectedIndex] || images[0];
+
   // --- Budget card click handler ---
   const handleBudgetClick = (budgetId) => {
     history(`/budgets/${budgetId}`);
@@ -710,46 +677,59 @@ useEffect(() => {
   }, [chatId, currentUser]);
   
 
-  const sendMessage = async (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-    setIsSending(true);
-    if (editMessageId) {
-      await updateDoc(doc(db, "chats", chatId, "messages", editMessageId), {
-        text: input.trim(),
-        edited: true,
-        timestamp: serverTimestamp()
-      });
-      setEditMessageId(null);
-    } else {
-      // Save chat message
-      await addDoc(collection(db, "chats", chatId, "messages"), {
-        text: input.trim(),
-        senderId: currentUser.uid,
-        timestamp: serverTimestamp(),
-        isRead: false,
-        replyTo: replyingTo ? {
-          id: replyingTo.id,
-          text: replyingTo.text,
-          senderId: replyingTo.senderId
-        } : null
-      });
+const sendMessage = async (e) => {
+  e.preventDefault();
+  if (!input.trim() && !selectedImage) return; // ensure there's text or image
+  setIsSending(true);
 
-      // Save notification in Firestore for the receiver
-      await addDoc(collection(db, "notifications"), {
-        uid: friendId, // receiver's uid
-        type: "chat",
-        title: (currentUser.displayName || "A user") + " sent a new message"  ,
-        pic: currentUser.photoURL || "",
-        content: input.trim(),
-        timestamp: serverTimestamp(),
-        seen: false,
-        senderId: currentUser.uid
-      });
-    }
-    setInput('');
-    setIsSending(false);
+  const messageData = {
+    senderId: currentUser.uid,
+    timestamp: serverTimestamp(),
+    isRead: false,
+    replyTo: replyingTo
+      ? {
+          id: replyingTo.id,
+          text: replyingTo.text || replyingTo.imageUrl || "",
+          senderId: replyingTo.senderId,
+          imageUrl: replyingTo.imageUrl || null,
+        }
+      : null,
   };
+
+  if (editMessageId) {
+    await updateDoc(doc(db, "chats", chatId, "messages", editMessageId), {
+      ...messageData,
+      text: input.trim() || "",
+      imageUrl: selectedImage || null,
+      edited: true,
+    });
+    setEditMessageId(null);
+  } else {
+    // Add new message
+    await addDoc(collection(db, "chats", chatId, "messages"), {
+      ...messageData,
+      text: input.trim() || "",
+      imageUrl: selectedImage || null,
+    });
+
+    // Save notification for the receiver
+    await addDoc(collection(db, "notifications"), {
+      uid: friendId,
+      type: "chat",
+      title: (currentUser.displayName || "A user") + " sent a new message",
+      pic: currentUser.photoURL || "",
+      content: input.trim() || (selectedImage ? "📷 Image" : ""),
+      timestamp: serverTimestamp(),
+      seen: false,
+      senderId: currentUser.uid,
+    });
+  }
+
+  // Reset input & image
+  setInput("");
+  setSelectedImage(null);
+  setIsSending(false);
+};
 
   const handleEdit = (msg) => {
     setInput(msg.text || "");
@@ -1046,31 +1026,176 @@ const removeUserReaction = async (msg, emoji) => {
         }}
       >
         {msg.replyTo.senderId === currentUser.uid
-          ? (msg.senderId === currentUser.uid
-              ? "You (self)"
-              : "You")
+          ? (msg.senderId === currentUser.uid ? "You (self)" : "You")
           : friendDetails.name}
       </Typography>
     </Box>
-    <Typography
-      variant="body2"
-      sx={{
-        color: effectiveChatTheme === "dark" ? "#919191ff" : "#7c7c7cff",
-        fontStyle: 'italic',
-        fontSize: "0.97em",
-        wordBreak: "break-word",
-      }}
-    >
-      {msg.replyTo.text.length > 60
-        ? msg.replyTo.text.slice(0, 30) + '...'
-        : msg.replyTo.text}
-    </Typography>
+
+    {/* Show text if available, otherwise show image preview */}
+    {msg.replyTo.text ? (
+      <Typography
+        variant="body2"
+        sx={{
+          color: effectiveChatTheme === "dark" ? "#919191ff" : "#7c7c7cff",
+          fontStyle: 'italic',
+          fontSize: "0.97em",
+          wordBreak: "break-word",
+        }}
+      >
+        {msg.replyTo.text.length > 60
+          ? msg.replyTo.text.slice(0, 30) + "..."
+          : msg.replyTo.text}
+      </Typography>
+    ) : msg.replyTo.imageUrl ? (
+      <Box
+        component="img"
+        src={msg.replyTo.imageUrl}
+        alt="reply preview"
+        sx={{
+          maxWidth: 120,
+          maxHeight: 120,
+          borderRadius: 1,
+          mt: 0.5,
+        }}
+      />
+    ) : null}
   </Box>
 )}
+
+<Dialog
+  open={openViewer}
+  onClose={() => setOpenViewer(false)}
+  fullScreen
+  PaperProps={{
+    sx: {
+      backgroundColor: mode === "dark" ? "#00000000" : "#ffffffb2",
+      overflow: "hidden",
+      backgroundImage: "none"
+    },
+  }}
+>
+  <Box
+    sx={{
+      position: "relative",
+      height: "100%",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+      backdropFilter: "blur(5px)",
+      p: 3,
+    }}
+  >
+    {/* Close Button */}
+    <IconButton
+      onClick={() => setOpenViewer(false)}
+      sx={{
+        position: "absolute",
+        top: 20,
+        right: 20,
+        bgcolor: "rgba(0,0,0,0.4)",
+        color: "white",
+        border: "1px solid rgba(255,255,255,0.2)",
+        backdropFilter: "blur(6px)",
+        "&:hover": { bgcolor: "rgba(255,255,255,0.15)" },
+      }}
+    >
+      <CloseIcon />
+    </IconButton>
+
+    {/* Left Arrow */}
+    <IconButton
+      onClick={handlePrev}
+      sx={{
+        position: "absolute",
+        left: 20,
+        color: "white",
+        bgcolor: "rgba(0,0,0,0.4)",
+        "&:hover": { bgcolor: "rgba(0,0,0,0.6)" },
+      }}
+    >
+      <ArrowBackIosNewIcon />
+    </IconButton>
+
+    {/* Right Arrow */}
+    <IconButton
+      onClick={handleNext}
+      sx={{
+        position: "absolute",
+        right: 20,
+        color: "white",
+        bgcolor: "rgba(0,0,0,0.4)",
+        "&:hover": { bgcolor: "rgba(0,0,0,0.6)" },
+      }}
+    >
+      <ArrowForwardIosIcon />
+    </IconButton>
+
+    {/* Full Image */}
+    <Zoom in={openViewer} style={{ transitionDelay: "100ms" }}>
+      <Box
+        {...swipeHandlers}
+        component="img"
+        src={images[selectedIndex]}
+        alt="full-view"
+        sx={{
+          maxWidth: "90%",
+          maxHeight: "75%",
+          borderRadius: 4,
+          boxShadow: "none",
+          objectFit: "contain",
+          transition: "transform 0.4s ease, box-shadow 0.4s ease",
+          "&:hover": {
+            transform: "scale(1.02)",
+            boxShadow: "none",
+          },
+        }}
+      />
+    </Zoom>
+
+    {/* Bottom Thumbnail Navigator */}
+    <Box
+      sx={{
+        mt: 4,
+        display: "flex",
+        overflowX: "auto",
+        gap: 1.5,
+        p: 1,
+        px: 2,
+        bgcolor: "rgba(0,0,0,0.4)",
+        borderRadius: 4,
+        backdropFilter: "blur(10px)",
+        boxShadow: "none",
+      }}
+    >
+      {images.map((img, i) => (
+        <Box
+          key={i}
+          component="img"
+          src={img}
+          alt={`thumb-${i}`}
+          onClick={() => setSelectedIndex(i)}
+          sx={{
+            width: 70,
+            height: 70,
+            borderRadius: 2,
+            cursor: "pointer",
+            objectFit: "cover",
+            border: selectedIndex === i ? "2px solid white" : "2px solid transparent",
+            opacity: selectedIndex === i ? 1 : 0.6,
+            transition: "all 0.3s ease",
+            "&:hover": { opacity: 1 },
+          }}
+        />
+      ))}
+    </Box>
+  </Box>
+</Dialog>
+
                   <Paper
                     elevation={1}
                     sx={{
-                      px: 2,
+                      px: 0.5,
                       py: 0.5,
                       maxWidth: '70%',
                       minWidth: "100px",
@@ -1081,8 +1206,67 @@ const removeUserReaction = async (msg, emoji) => {
                       boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)',
                     }}
                   >
-                    <Typography variant="body1" sx={{ fontSize: `${chatFontSize}px` }}>{msg.text}</Typography>
 
+      {msg.type === "image" ? (
+        <Card
+          sx={{
+            borderRadius: "16px",
+            position: "relative",
+            overflow: "hidden",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+            cursor: "pointer",
+            "&:hover .overlay": { opacity: 1 },
+          }}
+        >
+          {/* Image */}
+          <CardMedia
+            component="img"
+            image={msg.dataUri}
+            alt="chat-img"
+            sx={{
+              width: "100%",
+              height: "auto",
+              borderRadius: "16px",
+              transition: "transform 0.3s ease",
+              "&:hover": {
+                transform: "scale(1.02)",
+              },
+            }}
+            onClick={() => setOpenViewer(true)}
+          />
+
+          {/* Hover Overlay (Download Button) */}
+          <Box
+            className="overlay"
+            sx={{
+              position: "absolute",
+              bottom: 8,
+              right: 8,
+              opacity: 0,
+              transition: "opacity 0.3s ease",
+            }}
+          >
+            <IconButton
+              onClick={() => downloadImage(msg.dataUri, msg.id)}
+              sx={{
+                bgcolor: "rgba(0,0,0,0.6)",
+                color: "white",
+                "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
+              }}
+            >
+              <DownloadIcon />
+            </IconButton>
+          </Box>
+        </Card>
+      ) : (
+        <Typography
+          variant="body1"
+          sx={{ fontSize: `${chatFontSize}px`, px: 2 }}
+        >
+          {msg.text}
+        </Typography>
+      )}
+      
                     {msg.reactions && msg.reactions.length > 0 && (
                       <Box
                         sx={{
@@ -1210,25 +1394,91 @@ const removeUserReaction = async (msg, emoji) => {
         <div ref={messagesEndRef} />
       </Box>
 
-      {replyingTo && (
-        <Paper sx={{ p: 1, position: 'relative', bottom: '55px', width: '90vw', mx: "auto", bgcolor: effectiveChatTheme === "dark" ? '#2b2b2bc0' : "#dadadac0", boxShadow: "none", mb: 1, borderLeft: effectiveChatTheme === "dark" ? "4px solid #00f721" : "4px solid #057c15ff", backdropFilter: 'blur(80px)', borderRadius: '11px', zIndex: 1000 }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Box>
-              <Typography variant="caption" color={effectiveChatTheme === "dark" ? "#00f721" : "#057c15ff"}>
-                Replying to {replyingTo.senderId === currentUser.uid ? 'Self' : friendDetails.name}
-              </Typography>
-              <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#e7e7e7ff" : "#242424ff" }}>
-                {replyingTo.text.length > 60
-                  ? replyingTo.text.slice(0, 60) + '...'
-                  : replyingTo.text}
-              </Typography>
-            </Box>
-            <IconButton onClick={() => setReplyingTo(null)}>
-              <CloseIcon fontSize="small" sx={{ color: {color: effectiveChatTheme === "dark" ? "#fff" : "#000"} }} />
-            </IconButton>
-          </Box>
-        </Paper>
-      )}
+{replyingTo && (
+  <Paper
+    sx={{
+      p: 1,
+      position: "relative",
+      bottom: "55px",
+      width: "90vw",
+      mx: "auto",
+      bgcolor:
+        effectiveChatTheme === "dark" ? "#2b2b2bc0" : "#dadadac0",
+      boxShadow: "none",
+      mb: 1,
+      borderLeft:
+        effectiveChatTheme === "dark"
+          ? "4px solid #00f721"
+          : "4px solid #057c15ff",
+      backdropFilter: "blur(80px)",
+      borderRadius: "11px",
+      zIndex: 1000,
+    }}
+  >
+    <Box display="flex" justifyContent="space-between" alignItems="center">
+      <Box>
+        <Typography
+          variant="caption"
+          color={
+            effectiveChatTheme === "dark" ? "#00f721" : "#057c15ff"
+          }
+        >
+          Replying to{" "}
+          {replyingTo.senderId === currentUser.uid
+            ? "Self"
+            : friendDetails.name}
+        </Typography>
+
+        {/* If text exists → show text */}
+        {replyingTo.text ? (
+          <Typography
+            variant="body2"
+            sx={{
+              color:
+                effectiveChatTheme === "dark"
+                  ? "#e7e7e7ff"
+                  : "#242424ff",
+            }}
+          >
+            {replyingTo.text.length > 60
+              ? replyingTo.text.slice(0, 60) + "..."
+              : replyingTo.text}
+          </Typography>
+        ) : replyingTo.imageUrl ? (
+          /* If image → show thumbnail */
+          <Box
+            component="img"
+            src={replyingTo?.imageUrl}
+            alt="reply preview"
+            sx={{
+              maxWidth: 100,
+              maxHeight: 100,
+              borderRadius: 1,
+              mt: 0.5,
+              cursor: "pointer",
+            }}
+            onClick={() => {
+              // Optional: open your fullscreen image viewer here
+              setSelectedImage(replyingTo?.imageUrl);
+              setOpenViewer(true);
+            }}
+          />
+        ) : null}
+      </Box>
+
+      {/* Close button */}
+      <IconButton onClick={() => setReplyingTo(null)}>
+        <CloseIcon
+          fontSize="small"
+          sx={{
+            color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+          }}
+        />
+      </IconButton>
+    </Box>
+  </Paper>
+)}
+
 
           <div ref={bottomRef} />
       {/* Input Field */}
@@ -1249,6 +1499,38 @@ const removeUserReaction = async (msg, emoji) => {
           background: effectiveChatTheme === "dark" ? 'linear-gradient(to top, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to top, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
         }}
       >
+<Button
+  component="label"
+  size="large"
+  sx={{
+    minWidth: 0,
+    borderRadius: "50%",
+    bgcolor: "rgba(255,255,255,0.08)",
+    backdropFilter: "blur(8px)",
+    color: "white",
+    boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+    transition: "all 0.3s ease",
+    "&:hover": {
+      bgcolor: "rgba(255,255,255,0.15)",
+      transform: "scale(1.1)",
+      boxShadow: "0 6px 25px rgba(0,0,0,0.35)",
+    },
+    "&:active": {
+      transform: "scale(0.95)",
+    },
+  }}
+>
+  <CameraAltOutlinedIcon sx={{ fontSize: 24 }} />
+  <input
+    type="file"
+    accept="image/*"
+    capture="environment"
+    hidden
+    onChange={handleImageUpload}
+  />
+</Button>
+
+
         <TextField
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -1492,6 +1774,26 @@ const removeUserReaction = async (msg, emoji) => {
     </MenuItem>
   )}
 </Menu>
+
+      <SwipeableDrawer
+        anchor="bottom"
+        open={imageDrawer}
+        onClose={() => setImageDrawer(false)}
+        disableSwipeToOpen={true}
+      >
+        <Box sx={{ p: 2, textAlign: "center" }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>Edit & Send Image</Typography>
+          {imageDataUri && (
+            <img src={imageDataUri} alt="Preview" style={{ maxWidth: "90%", borderRadius: 10, boxShadow: "0 2px 8px #0004" }} />
+          )}
+          {/* Hidden TextField for DataURI */}
+          <TextField value={imageDataUri} style={{ display: "none" }} />
+          <Box sx={{ mt: 2, display: "flex", justifyContent: "center", gap: 2 }}>
+            <Button variant="contained" color="primary" onClick={handleSendMessage}>Send</Button>
+            <Button startIcon={<CloseIcon />} onClick={() => setImageDrawer(false)}>Cancel</Button>
+          </Box>
+        </Box>
+      </SwipeableDrawer>
 
 <SwipeableDrawer
   anchor="bottom"

@@ -694,26 +694,7 @@ useEffect(() => {
                     </Typography>
                   )}
                 </Typography>
-                {/* Notification icon before profile icon */}
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <Badge
-                      color="error"
-                      variant="dot"
-                      invisible={unreadCount === 0}
-                      sx={{
-                          '& .MuiBadge-badge': {
-                              right: 8,
-                              top: 6,
-                          },
-                      }}
-                  >
-                    <NotificationsNoneOutlinedIcon
-                      sx={{ fontSize: 28, color: mode === "dark" ? "#fff" : "#333", cursor: "pointer" }}
-                      onClick={() => navigate("/notifications")}
-                    />
-                  </Badge>
                   <ProfilePic />
-                </Box>
               </Toolbar>
             </AppBar>
             <Box sx={{ height: { xs: 0, sm: 77 } }} />
@@ -879,7 +860,7 @@ useEffect(() => {
                           }}
                           onClick={tile.onClick}
                         >
-                          <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 6, backgroundColor: theme.palette.primary.bgr, color: theme.palette.primary.main }}>
+                          <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 6, backgroundColor: theme.palette.primary.bgr, color: theme.palette.primary.maintxt }}>
                             {tile.icon}
                           </Box>
                           <Typography
@@ -924,7 +905,7 @@ useEffect(() => {
                                   sx={{
                                     background: tripGroupsMap[tripInfo.id]?.iconURL
                                       ? `url(${tripGroupsMap[tripInfo.id].iconURL})`
-                                      : theme.palette.background.card,
+                                      : mode === "dark" ? "#1717175d" : "#fff",
                                     backgroundSize: "cover",
                                     backgroundPosition: "center",
                                     backgroundRepeat: "no-repeat",
@@ -1011,7 +992,7 @@ useEffect(() => {
                     </Grid>
                     {/* Budgets Display Card */}
                     <Grid item xs={12} md={6} lg={4}>
-                      <Box sx={{ minWidth: "90vw" }} >
+                      <Box sx={{ minWidth: "90vw", mt: 3 }} >
                         <CardContent>
                           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
                             <Typography variant="h6" sx={{ color: "text.primary" }}>
@@ -1314,7 +1295,7 @@ useEffect(() => {
                       width: '70px',
                       height: '70px',
                       background: theme.palette.primary.bg,
-                      color: theme.palette.primary.main,
+                      color: theme.palette.primary.maintxt,
                       boxShadow: "none",
                       borderRadius: 5,
                       "&:hover": {

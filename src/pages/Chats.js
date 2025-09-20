@@ -19,8 +19,33 @@ import {
 } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import BetaAccessGuard from "../components/BetaAccessGuard";
-import { Avatar, useTheme, IconButton, Dialog, createTheme, keyframes, Slide, Box, Tabs, Tab, InputAdornment, Typography, TextField, Button, ThemeProvider, CircularProgress, Drawer, Divider, SwipeableDrawer } from '@mui/material';
+import {
+  Avatar,
+  useTheme,
+  IconButton,
+  Dialog,
+  createTheme,
+  keyframes,
+  Slide,
+  Box,
+  Tabs,
+  Tab,
+  InputAdornment,
+  Typography,
+  TextField,
+  Button,
+  ThemeProvider,
+  CircularProgress,
+  Drawer,
+  Divider,
+  SwipeableDrawer,
+  Zoom,
+  Fade,
+  Card,
+  ButtonGroup
+} from '@mui/material';
 import { format, isToday, isYesterday } from 'date-fns';
+
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import AddIcon from '@mui/icons-material/Add';
@@ -30,6 +55,12 @@ import SearchIcon from "@mui/icons-material/Search";
 import ProfilePic from '../components/Profile';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
+import QrCode2OutlinedIcon from '@mui/icons-material/QrCode2Outlined';
+import MessageOutlinedIcon from '@mui/icons-material/MessageOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
 import { Theme } from 'emoji-picker-react';
@@ -41,6 +72,7 @@ import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+import { QRCodeSVG } from "qrcode.react";
 
 // Fade-in animation keyframes
 const fadeIn = keyframes`
@@ -112,11 +144,48 @@ function Chats({ onlyList }) {
     severity: "success", // can be "success", "error", "info", etc.
   });
 
+  const [profilePicOpen, setProfilePicOpen] = useState(false);
+  const [selectedProfileData, setSelectedProfileData] = useState(null); // To hold the data of the clicked user
+  const [viewMode, setViewMode] = useState('avatar');
+
   const handleCloseSnackbar = (_, reason) => {
     if (reason === "clickaway") return;
     setSnackbar({ ...snackbar, open: false });
   };
 
+  const handleAvatarClick = (e, chatData) => {
+  e.stopPropagation(); // Prevents navigating to the chat screen
+  setSelectedProfileData(chatData);
+  setProfilePicOpen(true);
+};
+
+// --- Copy these handlers from your previous implementation ---
+const handleShare = async () => {
+  if (!selectedProfileData) return;
+  const shareData = {
+    title: `Check out ${selectedProfileData.name}'s profile`,
+    text: `Here's a link to their profile.`,
+    url: `${window.location.origin}/profile/${selectedProfileData.id}`,
+  };
+  try {
+    await navigator.share(shareData);
+  } catch (error) { console.error('Error sharing:', error); }
+};
+
+const handleCopyLink = async () => {
+    if (!selectedProfileData) return;
+    const profileLink = `${window.location.origin}/profile/${selectedProfileData.id}`;
+    try {
+        await navigator.clipboard.writeText(profileLink);
+        setSnackbar({ open: true, message: 'Profile link copied!' });
+    } catch (error) {
+        console.error('Error copying link:', error);
+    }
+};
+
+const handleSnackbarClose = () => {
+  setSnackbar({ ...snackbar, open: false });
+};
 
   useEffect(() => {
   // Request notification permission and FCM token
@@ -593,7 +662,7 @@ useEffect(() => {
     if (!(date instanceof Date) || isNaN(date)) return '';
     if (isToday(date)) return format(date, 'h:mm a');
     if (isYesterday(date)) return 'Yesterday';
-    return format(date, 'MMM dd, yyyy');
+    return format(date, 'dd/MM/yy');
   };
 
   const handleContextMenu = (event, chat) => {
@@ -844,7 +913,6 @@ const combinedChats = [
       <IconButton onClick={goBack} sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 8, height: '50px', color: mode === "dark" ? "#fff" : "#000", backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", }}>
         <ArrowBackIcon />
       </IconButton>
-     
            <ProfilePic />
       </div>
 
@@ -859,7 +927,7 @@ const combinedChats = [
         py: 2,
       }}
     >
-            <TextField
+      <TextField
         fullWidth
         type="text"
         placeholder="Search users or groups..."
@@ -909,11 +977,8 @@ const combinedChats = [
       <div>
         
         {combinedChats.map((chat) => (
-          
           <div
             key={chat.id}
-            onClick={() => chat.type === 'user' ? handleSelect(chat.id) : handleGroupClick(chat.id)}
-            onContextMenu={(e) => handleContextMenu(e, chat)}
             style={{
               padding: '12px',
               marginBottom: '10px',
@@ -928,6 +993,7 @@ const combinedChats = [
             {chat.type === 'group' ? (
               <Avatar
                 src={chat.iconURL ? chat.iconURL : ""}
+                onClick={(e) => handleAvatarClick(e, chat)}
                 sx={{
                   bgcolor: theme.palette.primary.bg,
                   color: theme.palette.primary.main,
@@ -943,6 +1009,7 @@ const combinedChats = [
               <Avatar
                 src={chat.photoURL || 'https://via.placeholder.com/50'}
                 alt={chat.name}
+                onClick={(e) => handleAvatarClick(e, chat)}
                 style={{
                   width: '40px',
                   height: '40px',
@@ -952,7 +1019,11 @@ const combinedChats = [
               />
             )}
 
-            <div style={{ flex: 1 }}>
+            <div
+              onClick={() => chat.type === 'user' ? handleSelect(chat.id) : handleGroupClick(chat.id)}
+              onContextMenu={(e) => handleContextMenu(e, chat)}
+              style={{ flex: 1 }}
+            >
               <p style={{ margin: 0, fontWeight: 'bold', color: theme.palette.text.primary }}>
                 {chat.name}
                   {["BM - Beta members", "BM - Dev Beta"].includes(chat.name) && (
@@ -971,6 +1042,7 @@ const combinedChats = [
               <p
                 style={{
                   margin: 0,
+                  marginTop: 6,
                   color: theme.palette.text.secondary,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -982,13 +1054,9 @@ const combinedChats = [
                   ? chat.lastMessage.slice(0, 21) + '...'
                   : chat.lastMessage) || 'No messages yet'}
               </p>
-
-              <span style={{ fontSize: '12px', color: '#919191ff' }}>
-                {formatTimestamp(chat.timestamp)}
-              </span>
             </div>
 
-            {chat.unreadCount > 0 && (
+            {chat.unreadCount > 0 ? (
               <span
                 style={{
                   backgroundColor: theme.palette.primary.bg,
@@ -998,11 +1066,137 @@ const combinedChats = [
                 }}
               >
               </span>
+            ):(
+              <span style={{ fontSize: '12px', color: '#919191ff' }}>
+                {formatTimestamp(chat.timestamp)}
+              </span>
             )}
           </div>
         ))}
 
-        <Box>
+<Dialog
+  fullScreen
+  open={profilePicOpen}
+  onClose={() => {
+    setProfilePicOpen(false);
+    setTimeout(() => setViewMode('avatar'), 300); // Reset view on close
+  }}
+  PaperProps={{
+    sx: {
+      backgroundColor: "rgba(0,0,0,0.05)",
+      backgroundImage: "none",
+      backdropFilter: "blur(12px)",
+      overflow: "hidden",
+    },
+  }}
+>
+  <Box
+    onClick={() => {
+        setProfilePicOpen(false);
+        setTimeout(() => setViewMode('avatar'), 300);
+    }}
+    sx={{
+      position: "relative",
+      height: "100%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "column",
+      p: 3,
+    }}
+  >
+    {/* Content Area: Switches between Avatar and QR Code */}
+    <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+      {/* View 1: Profile Avatar */}
+      <Zoom in={profilePicOpen && viewMode === 'avatar'}>
+        <Box onClick={(e) => e.stopPropagation()} sx={{ position: "relative", display: "flex", flexDirection: "column", alignContent: 'center', justifyContent: 'center' }}>
+          <Avatar
+            src={selectedProfileData?.photoURL || selectedProfileData?.iconURL || selectedProfileData?.emoji || ""}
+            alt={selectedProfileData?.name}
+              sx={{
+                width: "min(370px, 90vw)",
+                height: "min(370px, 90vw)",
+                borderRadius: 10,
+                backgroundColor: theme.palette.primary.bg,
+                cursor: "default",
+                boxShadow: "none",
+                transition: "transform 0.4s ease, box-shadow 0.4s ease",
+                "&:hover": {
+                  transform: "scale(1.05)",
+                  boxShadow: "none",
+                },
+              }}
+          />
+          <Typography sx={{ color: "white", fontSize: 18, fontWeight: "bolder", backgroundColor: mode === "dark" ? "#f1f1f111" : "#0c0c0c31", px: 2, py: 0.5, mt: 1, borderRadius: 4 }}>
+            {selectedProfileData?.name}
+          </Typography>
+          
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.5,
+          mt: 2,
+          width: "250px",
+        }}
+      >
+        {[{
+          label: "Message",
+          icon: <MessageOutlinedIcon />,
+          onClick: () =>
+            selectedProfileData?.type === "user"
+              ? handleSelect(selectedProfileData?.id)
+              : handleGroupClick(selectedProfileData?.id),
+        }, {
+          label: "Info",
+          icon: <InfoOutlinedIcon />,
+          onClick: handleCopyLink,
+        }].map(({ label, icon, onClick }, index) => (
+          <Zoom key={label} in={profilePicOpen} style={{ transitionDelay: `${index * 200}ms` }}>
+            <Button
+              variant="contained"
+              startIcon={icon}
+              onClick={onClick}
+              sx={{
+                textTransform: "none",
+                fontWeight: 500,
+                bgcolor: mode === "dark" ? "#f1f1f111" : "#0c0c0c31",
+                color: "white",
+                boxShadow: "none",
+                py: 1.5,
+                borderRadius: index === 0 ? "16px 16px 6px 6px" : "6px 6px 16px 16px",
+                justifyContent: "flex-start",
+                "& .MuiButton-startIcon": { marginRight: 1.5 },
+                "&:hover": {
+                  bgcolor: mode === "dark" ? "#f1f1f121" : "#0c0c0c21",
+                  color: "#fff",
+                  boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
+                  transform: "scale(1.03)",
+                },
+                transition: "all 0.3s ease",
+              }}
+            >
+              {label}
+            </Button>
+          </Zoom>
+        ))}
+      </Box>
+
+        </Box>
+      </Zoom>
+    </Box>    
+  </Box>
+
+  {/* Snackbar for feedback */}
+  <Snackbar
+    open={snackbar.open}
+    autoHideDuration={3000}
+    onClose={handleSnackbarClose}
+    message={snackbar.message}
+  />
+</Dialog>
+
+<Box>
           {/* Floating Add Button */}
 <IconButton
   onClick={() => setAddUserDialog(true)}
@@ -1015,32 +1209,39 @@ const combinedChats = [
     background: theme.palette.primary.bg,
     borderRadius: '20px',
     fontSize: '38px',
-    color: theme.palette.primary.main,
+    color: theme.palette.primary.maintxt,
     boxShadow: "none",
   }}
 >
   +
 </IconButton>
 
-        </Box>
+</Box>
       </div>
-<SwipeableDrawer
+<Drawer
   anchor="bottom"
   open={membDialogOpen}
   onClose={() => setMembDialogOpen(false)}
   PaperProps={{
     sx: {
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
       p: 3,
       backgroundColor: mode === "dark" ? "#00000000" : "#f1f1f156",
-      backdropFilter: "blur(40px)",
-      height: "75vh",
-      zIndex: 999,
+      backdropFilter: "blur(140px)",
+      height: "95vh",
+      backgroundImage: "none"
     },
   }}
 >
       <>
+    <Box display="flex" gap={1.5} alignItems="center" mb={2}>
+      <IconButton onClick={() => setMembDialogOpen(false)} sx={{ bgcolor: mode === "dark" ? "#f1f1f111" : "#1F1F1F11" }}>
+        <ArrowBackIcon sx={{ color: mode === "dark" ? "#fff" : "#000" }} />
+      </IconButton>
+      <Typography variant="h5" fontWeight="bold" color={theme.palette.text.primary}>
+        New Contact
+      </Typography>
+    </Box>
+
         <TextField
           fullWidth
           placeholder="Search by username"
@@ -1100,7 +1301,7 @@ const combinedChats = [
           ))}
         </Box>
       </>
-</SwipeableDrawer>
+</Drawer>
 
 <Drawer
   anchor="bottom"
@@ -1207,22 +1408,23 @@ const combinedChats = [
   PaperProps={{
     sx: {
       bgcolor: mode === "dark" ? "#00000000" : "#f1f1f1b4",
-      backdropFilter: "blur(40px)",
+      backdropFilter: "blur(140px)",
       borderTopLeftRadius: 0,
       borderTopRightRadius: 0,
       height: "100vh",
+      backgroundImage: "none"
     },
   }}
 >
   <Box sx={{ p: 3, height: "100%", display: "flex", flexDirection: "column" }}>
     {/* Header */}
-    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+    <Box display="flex" gap={1.5} alignItems="center" mb={2}>
+      <IconButton onClick={() => setAddUserDialog(false)} sx={{ bgcolor: mode === "dark" ? "#f1f1f111" : "#1F1F1F11" }}>
+        <ArrowBackIcon sx={{ color: mode === "dark" ? "#fff" : "#000" }} />
+      </IconButton>
       <Typography variant="h5" fontWeight="bold" color={theme.palette.text.primary}>
         New Chat
       </Typography>
-      <IconButton onClick={() => setAddUserDialog(false)} sx={{ bgcolor: "#1F1F1F" }}>
-        <CloseIcon sx={{ color: "#fff" }} />
-      </IconButton>
     </Box>
 
 <Box mt={3}>
@@ -1317,7 +1519,7 @@ const combinedChats = [
         py: 1,
         mb: 1,
         borderRadius: 5,
-        backgroundColor: isSelected ? theme.palette.primary.bgr : "#24242401",
+        backgroundColor: isSelected ? theme.palette.primary.select : "#24242401",
         color: isSelected ? "#000" : "#fff",
         cursor: creatingGroup ? "pointer" : "default",
       }}
