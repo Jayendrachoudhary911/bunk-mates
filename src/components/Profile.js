@@ -3390,18 +3390,30 @@ sx={{
         onChange={(e, newValue) => setActiveTab(newValue)}
         variant="fullWidth"
         textColor="inherit"
-        TabIndicatorProps={{ style: { backgroundColor: "transparent", height: "0px" } }}
+        TabIndicatorProps={{
+          style: {
+            backgroundColor: "transparent",
+            height: "0px"
+          }
+        }}
         sx={{
-            bgcolor: mode === "dark" ? "#ffffff0d" : "rgba(0,0,0,0.04)",
-            borderRadius: 3, minHeight: "20px", mt: 4,
+            bgcolor: mode === "dark" ? "#ffffff0d" : "#0000000a",
+            border: mode === "dark" ? "4px solid #ffffff00" : "4px solid #00000000",
+            borderRadius: 8,
+            minHeight: "10px",
+            mt: 4,
+            mb: 2,
             "& .MuiTab-root": {
-                fontWeight: 600, textTransform: "none", fontSize: "1rem", minHeight: "20px",
+                fontWeight: 600,
+                textTransform: "none",
+                fontSize: "1rem",
+                minHeight: "10px",
                 color: mode === "dark" ? "#bbb" : "#555",
                 transition: "all 0.2s ease-in-out",
                 "&.Mui-selected": {
                     color: theme.palette.text.primary,
                     backgroundColor: mode === "dark" ? "#f1f1f133" : "#00000022",
-                    borderRadius: 3,
+                    borderRadius: 8,
                 },
             },
         }}
@@ -3444,6 +3456,7 @@ sx={{
             </Box>
             <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               <Box sx={{ width: 240, height: 240, border: '2px solid rgba(255, 255, 255, 0.8)', borderRadius: 6, boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)' }} />
+              <Typography sx={{ color: "white", mt: 1 }}>Scan your QR code</Typography>
             </Box>
           </Box>
         </Box>
