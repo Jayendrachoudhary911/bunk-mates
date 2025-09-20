@@ -3412,20 +3412,20 @@ sx={{
     </Box>
 
     {/* --- Swipeable Content Area --- */}
-    <Box {...swipeHandlers} sx={{ position: 'relative', overflow: 'hidden', minHeight: '60vh' }}>
+    <Box {...swipeHandlers} sx={{ position: 'relative', overflow: 'hidden', minHeight: '80vh' }}>
       
       {/* --- My Code View (with Slide animation) --- */}
-      <Slide direction="right" in={activeTab === 'myCode'} mountOnEnter unmountOnExit>
-        <Box sx={{ position: 'absolute', px: 2, mt: 4 }}>
+      <Slide direction="right" in={activeTab === 'myCode'} sx={{ mx: "auto" }} mountOnEnter unmountOnExit>
+        <Box sx={{ position: 'absolute', width: 280, px: 1, mt: 4, mx: "auto" }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <Avatar src={userData.photoURL} sx={{ width: 80, height: 80, mb: -5, zIndex: 2, border: mode === "dark" ? '4px solid #0c0c0c21' : '4px solid #FFFFFF71' }} />
-            <Card sx={{ width: '100%', maxWidth: 320, bgcolor: mode === "dark" ? '#0c0c0c21' : '#FFFFFF71', borderRadius: 6, p: 3, pt: 7, textAlign: 'center', boxShadow: "none" }}>
+            <Card sx={{ width: '80%', bgcolor: mode === "dark" ? '#0c0c0c21' : '#FFFFFF71', borderRadius: 6, p: 3, pt: 7, textAlign: 'center', boxShadow: "none" }}>
               <Box sx={{ display: "flex", flexDirection: 'column' }}>
                 <Typography variant="h5" fontWeight="bold" sx={{ color: theme.palette.text.primary }}>{userData.name}</Typography>
                 <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>@{userData.username}</Typography>
               </Box>
               <Box sx={{ bgcolor: 'white', p: 2, borderRadius: 3, display: 'inline-block', mb: 2, mt: 3 }}>
-                <QRCodeSVG value={auth.currentUser?.uid || "default-user-id"} size={180} level={"H"} bgColor={"#FFFFFF"} fgColor={"#000000"} />
+                <QRCodeSVG value={auth.currentUser?.uid || "default-user-id"} size={200} level={"H"} bgColor={"#FFFFFF"} fgColor={"#000000"} />
               </Box>
               <Typography variant="body2" sx={{ color: 'text.secondary', mt: 2 }}>
                 Your QR code is private. If you share it, they can add you as a friend.
@@ -3436,8 +3436,8 @@ sx={{
       </Slide>
 
       {/* --- Scan Code View (with Slide animation) --- */}
-      <Slide direction="left" in={activeTab === 'scanCode'} mountOnEnter unmountOnExit>
-        <Box sx={{ position: 'absolute', width: 350, px: 2, mt: 4 }}>
+      <Slide direction="left" in={activeTab === 'scanCode'} sx={{ mx: "auto" }} mountOnEnter unmountOnExit>
+        <Box sx={{ position: 'absolute', width: 280, px: 2, mt: 4 }}>
           <Box sx={{ position: 'relative', height: '60vh', width: '100%', overflow: 'hidden', borderRadius: 4, bgcolor: 'black' }}>
             <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
               <QrScanner onScanSuccess={handleScanSuccess} />
