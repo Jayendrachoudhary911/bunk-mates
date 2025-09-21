@@ -418,21 +418,40 @@ const handleError = (error) => {
 };
 
 const handleShare = async () => {
+  // 1. Prepare the data to be shared.
   const shareData = {
     title: `Check out ${userData.name}'s profile`,
-    text: `Here's a link to ${userData.name}'s profile on BunkMate.`,
-    url: `${window.location.origin}/profile/${userData.uid}`, // Assumes you have a profile route
+    message: `Here's a link to ${userData.name}'s profile on BunkMate.`, // Used for both native and web
+    url: `${window.location.origin}/profile/${userData.uid}`,
   };
+
   try {
-    if (navigator.share) {
-      await navigator.share(shareData);
-    } else {
-      // Fallback for browsers that don't support navigator.share
+    // 2. Check for the native app bridge first.
+    // This 'nativeBridge' is the custom object we defined for the WebView.
+    if (window.nativeBridge && typeof window.nativeBridge.share === 'function') {
+      window.nativeBridge.share({
+        title: shareData.title,
+        message: shareData.message,
+        url: shareData.url,
+      });
+    }
+    // 3. If no native bridge, check for the browser's Web Share API.
+    else if (navigator.share) {
+      await navigator.share({
+        title: shareData.title,
+        text: shareData.message, // Note: Web Share API uses 'text' instead of 'message'
+        url: shareData.url,
+      });
+    }
+    // 4. If all else fails, fall back to copying the link to the clipboard.
+    else {
       await navigator.clipboard.writeText(shareData.url);
       setSnackbar({ open: true, message: 'Share not supported, link copied instead!' });
     }
   } catch (error) {
     console.error('Error sharing:', error);
+    // Optionally, show an error message to the user
+    setSnackbar({ open: true, message: 'Could not complete the action.' });
   }
 };
 
@@ -646,7 +665,6 @@ const [features] = useState([
       alert("Failed to update profile");
     }
   };
-
 
   useEffect(() => {
   // Function to fetch settings from Firestore
@@ -3382,17 +3400,36 @@ sx={{
 
           {/* Download Button */}
           <IconButton
-            onClick={() => {
-              const node = document.getElementById("profile-card");
-              if (node) {
-                toPng(node).then((dataUrl) => {
-                  const link = document.createElement("a");
-                  link.download = `${userData.username}-profile.png`;
-                  link.href = dataUrl;
-                  link.click();
-                });
-              }
-            }}
+            onClick={async () => {
+  const node = document.getElementById("profile-card");
+  if (!node) {
+    console.error("Profile card element not found!");
+    return;
+  }
+
+  try {
+    // Generate the image as a data URL
+    const dataUrl = await toPng(node);
+    const filename = `${userData.username}-profile.png`;
+
+    // Check if the app is running in the native WebView and has our new function
+    if (window.nativeBridge && typeof window.nativeBridge.downloadBase64 === 'function') {
+      // Extract the base64 part of the data URL
+      const base64Data = dataUrl.split(',')[1];
+      // Call the native function to handle the download
+      window.nativeBridge.downloadBase64(base64Data, filename);
+    } else {
+      // Fallback for regular web browsers
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = dataUrl;
+      link.click();
+    }
+  } catch (error) {
+    console.error('Error generating or downloading image:', error);
+    // Optionally, show a snackbar or alert for the error
+  }
+}}
             sx={{
               width: 64,
               height: 64,
