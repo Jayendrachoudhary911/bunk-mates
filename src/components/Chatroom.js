@@ -31,7 +31,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSwipeable } from "react-swipeable";
 import {
  collection, addDoc, query, orderBy, onSnapshot,
- serverTimestamp, doc, updateDoc, getDoc, getDocs, where, deleteDoc, setDoc
+ serverTimestamp, doc, updateDoc, getDoc, getDocs, where, deleteDoc, setDoc, arrayUnion, arrayRemove
 } from "firebase/firestore";
 import { db, auth } from '../firebase';
 import { onAuthStateChanged } from "firebase/auth";
@@ -44,6 +44,11 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import EditIcon from '@mui/icons-material/Edit';
 import AddAPhoto from '@mui/icons-material/AddAPhoto';
 import DownloadIcon from '@mui/icons-material/Download';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import CropIcon from "@mui/icons-material/Crop";
+import RotateRightIcon from "@mui/icons-material/RotateRight";
+import BlockIcon from '@mui/icons-material/Block';
+import PersonOffIcon from '@mui/icons-material/PersonOff'; 
 
 import {
  LocationOn, AccessTime,
@@ -53,6 +58,8 @@ import { messaging } from "../firebase";
 import { getToken, onMessage } from "firebase/messaging";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+import { getDynamicBorderRadius } from "../utils/uiHelpers";
+import Cropper from 'react-easy-crop';
 
 function showLocalNotification(title, options) {
  if (Notification.permission === "granted") {
@@ -209,6 +216,14 @@ function ChatRoom() {
 
  const [selectedIndex, setSelectedIndex] = useState(0);
  const [selectedImage, setSelectedImage] = useState(null);
+ const [text, setText] = useState(""); // Store overlay text
+ const [cropMode, setCropMode] = useState(false); // Track crop mode active
+ const [crop, setCrop] = useState({ x: 0, y: 0 });
+ const [zoom, setZoom] = useState(1);
+ const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+ const [showCropper, setShowCropper] = useState(false);
+
+ const [blockedUids, setBlockedUids] = useState([]);
 
  const messageVariants = {
    hidden: { opacity: 0, y: 20 },
@@ -216,10 +231,48 @@ function ChatRoom() {
    exit: { opacity: 0, y: 20, transition: { duration: 0.2 } },
  };
 
+ useEffect(() => {
+  const fetchBlocked = async () => {
+    if (!auth.currentUser) return;
+    const userRef = doc(db, "users", auth.currentUser.uid);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      setBlockedUids(userSnap.data().blockedUids || []);
+    }
+  };
+  fetchBlocked();
+}, []);
+
+const isBlocked = blockedUids.includes(friendId);
+
+const toggleBlockFriend = async () => {
+  if (!auth.currentUser) return;
+
+  const userRef = doc(db, "users", auth.currentUser.uid);
+  try {
+    if (isBlocked) {
+      await updateDoc(userRef, {
+        blockedUids: arrayRemove(friendId),
+      });
+      setBlockedUids(prev => prev.filter(uid => uid !== friendId));
+    } else {
+      await updateDoc(userRef, {
+        blockedUids: arrayUnion(friendId),
+      });
+      setBlockedUids(prev => [...prev, friendId]);
+    }
+  } catch (error) {
+    console.error("Error updating block status: ", error);
+    alert("Failed to update block status.");
+  }
+};
+
    const getWallpaperUrl = () => {
      const selectedWallpaper = localStorage.getItem('bunkmate_chatWallpaper') || 'default';
      if (selectedWallpaper === 'none') {
-         return 'none'; // No background image
+         return effectiveChatTheme === 'dark'
+           ? 'url(/assets/images/chatbg/dark.png)'
+           : 'url(/assets/images/chatbg/light.png)';
      }
      if (selectedWallpaper === 'default') {
          // Use default light/dark wallpaper based on the effective theme
@@ -364,10 +417,8 @@ useEffect(() => {
      });
    }
  });
-
  return () => unsubscribe();
 }, [chatId, currentUser]);
-
 
  useEffect(() => {
     if (!chatId || !friendId) return;
@@ -604,6 +655,72 @@ function downloadImage(dataUri, id) {
    }
  }, [messages]);
 
+const handleAddText = () => {
+  const canvas = document.createElement("canvas");
+  const img = new window.Image();
+  img.src = imageDataUri;
+  img.onload = () => {
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    ctx.font = "40px sans-serif";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillText(text, 40, 60); // Optional: let user choose position
+    setImageDataUri(canvas.toDataURL());
+  };
+};
+
+const handleCropImage = () => setCropMode(true);
+
+const onCropComplete = (_, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels);
+
+async function getCroppedImg(imageSrc, crop) {
+  return new Promise((resolve) => {
+    const image = new window.Image();
+    image.src = imageSrc;
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = crop.width;
+      canvas.height = crop.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(
+        image,
+        crop.x,
+        crop.y,
+        crop.width,
+        crop.height,
+        0,
+        0,
+        crop.width,
+        crop.height
+      );
+      resolve(canvas.toDataURL("image/jpeg"));
+    };
+  });
+}
+
+const applyCrop = async () => {
+  const croppedImage = await getCroppedImg(imageDataUri, croppedAreaPixels);
+  setImageDataUri(croppedImage);
+  setCropMode(false);
+};
+
+const handleRotateImage = () => {
+  const canvas = document.createElement('canvas');
+  const img = new window.Image();
+  img.src = imageDataUri;
+  img.onload = () => {
+    canvas.width = img.height;
+    canvas.height = img.width;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    setImageDataUri(canvas.toDataURL());
+  };
+};
 
  const bottomRef = useRef(null);
 
@@ -787,27 +904,34 @@ useEffect(() => {
    return () => unsubscribe();
  }, [chatId, currentUser]);
  
- const sendMessage = async (e) => {
-    e.preventDefault();
-    if (!input.trim() && !selectedImage) return;
-    setIsSending(true);
-  
-    if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-    }
+const sendMessage = async (e) => {
+  e.preventDefault();
+  if (!input.trim() && !selectedImage) return;
+  setIsSending(true);
 
-    if (chatId) {
-      const chatDocRef = doc(db, "chats", chatId);
-      await updateDoc(chatDocRef, {
-        [`drafts.${currentUser.uid}`]: "",
-      });
-    }
-  
-    const messageData = {
+  if (typingTimeoutRef.current) {
+    clearTimeout(typingTimeoutRef.current);
+  }
+
+  if (chatId) {
+    const chatDocRef = doc(db, "chats", chatId);
+    await updateDoc(chatDocRef, {
+      [`drafts.${currentUser.uid}`]: "",
+    });
+  }
+
+  // Check if user is blocked
+  const blockedUids = friendDetails?.blockedUids || [];
+  if (blockedUids.includes(currentUser.uid)) {
+    // Save to localStorage and add to local chat state
+    const localMessages = JSON.parse(localStorage.getItem(`blockedMessages_${friendId}`)) || [];
+    const blockedMessage = {
+      id: Date.now(), // temporary ID for rendering
       senderId: currentUser.uid,
-      timestamp: serverTimestamp(),
-      isRead: false,
-      // ✅ FIX 2: Correctly save image URI when creating a reply object
+      text: input.trim() || (selectedImage ? "📷 Image" : ""),
+      dataUri: selectedImage || null,
+      timestamp: new Date().toISOString(),
+      blocked: true,
       replyTo: replyingTo
         ? {
             id: replyingTo.id,
@@ -817,40 +941,66 @@ useEffect(() => {
           }
         : null,
     };
-  
-    if (editMessageId) {
-      await updateDoc(doc(db, "chats", chatId, "messages", editMessageId), {
-        ...messageData,
-        text: input.trim() || "",
-        imageUrl: selectedImage || null,
-        edited: true,
-      });
-      setEditMessageId(null);
-    } else {
-      await addDoc(collection(db, "chats", chatId, "messages"), {
-        ...messageData,
-        text: input.trim() || "",
-        dataUri: selectedImage || null, // Use dataUri for new images
-        type: selectedImage ? "image" : "text",
-      });
-  
-      await addDoc(collection(db, "notifications"), {
-        uid: friendId,
-        type: "chat",
-        title: (currentUser.displayName || "A user") + " sent a new message",
-        pic: currentUser.photoURL || "",
-        content: input.trim() || (selectedImage ? "📷 Image" : ""),
-        timestamp: serverTimestamp(),
-        seen: false,
-        senderId: currentUser.uid,
-      });
-    }
-  
+    localMessages.push(blockedMessage);
+    localStorage.setItem(`blockedMessages_${friendId}`, JSON.stringify(localMessages));
+
+    // Optionally, update local chat state to display immediately
+    setMessages((prev) => [...prev, blockedMessage]);
+
     setInput("");
     setSelectedImage(null);
-    setReplyingTo(null); // Clear reply state after sending
+    setReplyingTo(null);
     setIsSending(false);
+    return;
+  }
+
+  const messageData = {
+    senderId: currentUser.uid,
+    timestamp: serverTimestamp(),
+    isRead: false,
+    replyTo: replyingTo
+      ? {
+          id: replyingTo.id,
+          text: replyingTo.text || "",
+          senderId: replyingTo.senderId,
+          imageUrl: replyingTo.imageUrl || replyingTo.dataUri || null,
+        }
+      : null,
   };
+
+  if (editMessageId) {
+    await updateDoc(doc(db, "chats", chatId, "messages", editMessageId), {
+      ...messageData,
+      text: input.trim() || "",
+      imageUrl: selectedImage || null,
+      edited: true,
+    });
+    setEditMessageId(null);
+  } else {
+    await addDoc(collection(db, "chats", chatId, "messages"), {
+      ...messageData,
+      text: input.trim() || "",
+      dataUri: selectedImage || null,
+      type: selectedImage ? "image" : "text",
+    });
+
+    await addDoc(collection(db, "notifications"), {
+      uid: friendId,
+      type: "chat",
+      title: (currentUser.displayName || "A user") + " sent a new message",
+      pic: currentUser.photoURL || "",
+      content: input.trim() || (selectedImage ? "📷 Image" : ""),
+      timestamp: serverTimestamp(),
+      seen: false,
+      senderId: currentUser.uid,
+    });
+  }
+
+  setInput("");
+  setSelectedImage(null);
+  setReplyingTo(null);
+  setIsSending(false);
+};
 
  const handleEdit = (msg) => {
    setInput(msg.text || "");
@@ -904,11 +1054,119 @@ const removeUserReaction = async (msg, emoji) => {
  });
 };
 
+ const stackItems = [
+  friendDetails.bio && (
+    <Box key="bio" sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", color: effectiveChatTheme === "dark" ? "#aaa" : "#333", py: 1.4, px: 2, display: 'flex', justifyContent: 'left', gap: 1.5, mt: 1 }}>
+      <Typography variant="body2" textAlign="justify">
+        <strong>Bio:</strong> {friendDetails.bio}
+      </Typography>
+    </Box>
+  ),
+  friendDetails.mobile && (
+    <IconButton key="mobile" onClick={() => window.open(`tel:${friendDetails.mobile}`, '_blank')} sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", color: effectiveChatTheme === "dark" ? "#fff" : "#000", py: 1.4, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'left', gap: 1.5 }}>
+      <PhoneOutlinedIcon />
+      <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
+        {friendDetails.mobile}
+      </Typography>
+    </IconButton>
+  ),
+  <IconButton key="message" onClick={() => setOpenProfile(false)} sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", color: effectiveChatTheme === "dark" ? "#fff" : "#000", py: 1.4, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'left', gap: 1.5 }}>
+    <PersonOutlineIcon />
+    <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
+      Profile
+    </Typography>
+  </IconButton>,
+  <IconButton key="nickname" onClick={() => { setAddNicknameDrawerOpen(true); setEditNickname(true); }} sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", color: effectiveChatTheme === "dark" ? "#fff" : "#000", py: 1.4, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'left', gap: 1.5 }}>
+    <TextFieldsIcon />
+    <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
+      Add a Nickname
+    </Typography>
+  </IconButton>
+];
+const actionButtons = [
+  handleClearChat && (
+    <IconButton
+      key="clearChat"
+      onClick={handleClearChat}
+      sx={{
+        bgcolor: effectiveChatTheme === "dark" ? "#ff676711" : "#ff676726",
+        color: '#ff6767',
+        py: 1.4,
+        px: 2,
+        borderRadius: getDynamicBorderRadius(0, 3), // first visible item
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'left',
+        gap: 1.5,
+        mt: 2
+      }}
+    >
+      <DeleteOutlineIcon />
+      <Typography variant="body1" sx={{ fontSize: 16, color: '#ff6767' }}>
+        Delete Chat
+      </Typography>
+    </IconButton>
+  ),
 
- const getMessageDate = (timestamp) => {
-   const date = new Date(timestamp?.toDate());
-   return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
- };
+    // New Block Friend button
+  (
+    <IconButton
+      key="blockFriend"
+      onClick={toggleBlockFriend}
+      sx={{
+        bgcolor: effectiveChatTheme === "dark" ? "#ff676711" : "#ff676726",
+        color: '#ff6767',
+        py: 1.4,
+        px: 2,
+        borderRadius: getDynamicBorderRadius(2, 3), // third visible item
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        gap: 1.5,
+      }}
+    >
+      {isBlocked ? <PersonOffIcon sx={{ color: '#ff6767' }} /> : <BlockIcon sx={{ color: '#ff6767' }} />}
+      <Typography variant="body1" sx={{ fontSize: 16, color: '#ff6767' }}>
+        {isBlocked ? "Unblock Friend" : "Block Friend"}
+      </Typography>
+    </IconButton>
+  ),
+
+  handleRemoveFriend && (
+    <IconButton
+      key="removeFriend"
+      onClick={handleRemoveFriend}
+      sx={{
+        bgcolor: effectiveChatTheme === "dark" ? "#ff676711" : "#ff676726",
+        color: '#ff6767',
+        py: 1.4,
+        px: 2,
+        borderRadius: getDynamicBorderRadius(1, 3), // second visible item
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        gap: 1.5,
+      }}
+    >
+      <RemoveCircleOutlineIcon sx={{ color: '#ff6767' }} />
+      <Typography variant="body1" sx={{ fontSize: 16, color: '#ff6767' }}>
+        Remove from Friend
+      </Typography>
+    </IconButton>
+  ),
+];
+
+const visibleStackItems = stackItems.filter(Boolean);
+
+const getMessageDate = (timestamp) => {
+  if (!timestamp) return "";
+
+  // Convert Firestore Timestamp to Date or parse string
+  const date = typeof timestamp.toDate === "function" ? timestamp.toDate() : new Date(timestamp);
+
+  return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+};
+
 
  const goBack = () => {
    history(-1);
@@ -930,7 +1188,7 @@ const removeUserReaction = async (msg, emoji) => {
  
  return (
    <ThemeProvider theme={theme}>
-         <Box sx={{ backgroundColor: '#21212100', height: '98vh', display: 'flex', flexDirection: 'column', color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
+         <Box sx={{ backgroundImage: effectiveChatTheme === "dark" ? "/assets/images/chatbg/dark.png" : "/assets/images/chatbg/light.png", height: '98vh', display: 'flex', flexDirection: 'column', color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
      
 <AppBar
   position="fixed"
@@ -942,7 +1200,7 @@ const removeUserReaction = async (msg, emoji) => {
     WebkitBackdropFilter: "blur(12px)", // Safari fix
     padding: "16px 14px 12px",
     zIndex: 1100,
-    boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+    boxShadow: "none",
     borderRadius: "0 0 20px 20px", // curved bottom
     transition: "all 0.3s ease-in-out",
   }}
@@ -977,7 +1235,7 @@ const removeUserReaction = async (msg, emoji) => {
      <Box
        ref={scrollContainerRef}
        sx={{
-         backgroundImage: getWallpaperUrl(),
+         backgroundImage: getWallpaperUrl() === 'none' ? effectiveChatTheme === 'dark' ? '/assets/images/chatbg/dark.png' : '/assets/images/chatbg/light.png' : getWallpaperUrl(),
          backgroundColor: getWallpaperUrl() === 'none'
            ? (effectiveChatTheme === 'dark' ? '#0c0c0c' : '#f0f2f5')
            : 'transparent',
@@ -1490,10 +1748,13 @@ const removeUserReaction = async (msg, emoji) => {
       alignItems: "center"
     }}
   >
-    {msg.timestamp?.toDate().toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    })}
+    {(() => {
+      if (!msg.timestamp) return "";
+      const date = typeof msg.timestamp.toDate === "function"
+        ? msg.timestamp.toDate()
+        : new Date(msg.timestamp);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    })()}
 
     {isOwn && (
       <Box sx={{ textAlign: 'right', display: "flex", alignItems: "center", gap: 1 }}>
@@ -1685,96 +1946,144 @@ const removeUserReaction = async (msg, emoji) => {
 
 
          <div ref={bottomRef} />
-     <Box
-       component="form"
-       onSubmit={sendMessage}
-       sx={{
-         p: 1,
-         mx: 'auto',
-         display: 'flex',
-         position: 'fixed',
-         bottom: 0,
-         left: 0,
-         width: '95vw',
-         alignItems: 'center',
-         zIndex: '1200',
-         borderTop: '0px solid #5E5E5E',
-       }}
-     >
-<Button
- component="label"
- size="large"
- sx={{
-   minWidth: 0,
-   borderRadius: "50%",
-   bgcolor: "rgba(255,255,255,0.08)",
-   backdropFilter: "blur(8px)",
-   color: mode === "dark" ? "#fff" : "#000",
-   boxShadow: "none",
-   mr: 1,
-   transition: "all 0.3s ease",
-   "&:hover": {
-     bgcolor: "rgba(255,255,255,0.15)",
-     transform: "scale(1.1)",
-     boxShadow: "0 6px 25px rgba(0,0,0,0.35)",
-   },
-   "&:active": {
-     transform: "scale(0.95)",
-   },
- }}
+<Box
+  component="form"
+  onSubmit={sendMessage}
+  sx={{
+    p: 1,
+    mx: 'auto',
+    display: 'flex',
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    width: '95vw',
+    alignItems: 'center',
+    zIndex: '1200',
+    borderTop: '0px solid #5E5E5E',
+  }}
 >
- <CameraAltOutlinedIcon sx={{ fontSize: 24 }} />
- <input
-   type="file"
-   accept="image/*"
-   hidden
-   onChange={handleImageUpload}
- />
-</Button>
+  {isBlocked ? (
+    // Show unblock and delete chat options when blocked
+    <>
+      <Button
+        onClick={toggleBlockFriend}
+        sx={{
+          flex: 1,
+          bgcolor: mode === "dark" ? "#ffffff22" : "#00000022",
+          color: "#ff0000b0",
+          backdropFilter: "blur(30px)",
+          borderRadius: 2,
+          py: 1.4,
+          px: 1.2,
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 0.5,
+        }}
+      >
+        <PersonOffIcon />
+      <Typography variant="body1" sx={{ fontSize: 16, }}>
+        Unblock Friend
+      </Typography>
+      </Button>
+      <Button
+        onClick={handleClearChat}
+        sx={{
+          bgcolor: mode === "dark" ? "#ffffff22" : "#00000022",
+          color: mode === "dark" ? "#fff" : "#000",
+          backdropFilter: "blur(30px)",
+          borderRadius: 2,
+          py: 1.4,
+          px: 2,
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1.5,
+          ml: 1,
+        }}
+      >
+        <DeleteOutlineIcon />
+      <Typography variant="body1" sx={{ fontSize: 16, }}>
+        Delete Chat
+      </Typography>
+      </Button>
+    </>
+  ) : (
+    <>
+      <Button
+        component="label"
+        size="large"
+        sx={{
+          minWidth: 0,
+          borderRadius: "50%",
+          bgcolor: "rgba(255,255,255,0.08)",
+          backdropFilter: "blur(8px)",
+          color: mode === "dark" ? "#fff" : "#000",
+          boxShadow: "none",
+          mr: 1,
+          transition: "all 0.3s ease",
+          "&:hover": {
+            bgcolor: "rgba(255,255,255,0.15)",
+            transform: "scale(1.1)",
+            boxShadow: "0 6px 25px rgba(0,0,0,0.35)",
+          },
+          "&:active": { transform: "scale(0.95)" },
+        }}
+      >
+        <CameraAltOutlinedIcon sx={{ fontSize: 24 }} />
+        <input type="file" accept="image/*" hidden onChange={handleImageUpload} />
+      </Button>
 
+      <TextField
+        value={input}
+        onChange={handleInputChange}
+        placeholder={editMessageId ? "Editing message..." : "Type your message..."}
+        fullWidth
+        variant="outlined"
+        size="small"
+        sx={{
+          zIndex: '1500',
+          mr: 1,
+          borderRadius: '40px',
+          input: {
+            color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+            height: '28px',
+            borderRadius: '40px',
+            backdropFilter: "blur(30px)",
+          },
+          '& .MuiOutlinedInput-root': {
+            '& fieldset': { borderColor: '#5E5E5E', borderRadius: '40px' },
+            '&:hover fieldset': { borderColor: '#393939ff', borderRadius: '40px' },
+            '&.Mui-focused fieldset': { borderColor: '#757575', borderRadius: '40px' },
+          },
+          '& .MuiInputBase-input::placeholder': {
+            color: effectiveChatTheme === "dark" ? "#cccccc" : "#343434ff"
+          }
+        }}
+      />
+      <Button
+        type="submit"
+        sx={{
+          backgroundColor: effectiveChatTheme === "dark" ? "#ffffffd2" : "#000000a8",
+          height: '45px',
+          width: '0px',
+          borderRadius: 8,
+          backdropFilter: "blur(30px)"
+        }}
+        disabled={isSending}
+      >
+        {isSending ? (
+          <CircularProgress size={21} sx={{ color: effectiveChatTheme === "dark" ? "#000" : "#fff" }} />
+        ) : (
+          <SendIcon sx={{ fontSize: 21, p: 0, color: effectiveChatTheme === "dark" ? "#000" : "#fff" }} />
+        )}
+      </Button>
+    </>
+  )}
+</Box>
 
-       <TextField
-         value={input}
-         onChange={handleInputChange}
-         placeholder={editMessageId ? "Editing message..." : "Type your message..."}
-         fullWidth
-         variant="outlined"
-         size="small"
-         position="fixed"
-         elevation={1}
-         sx={{
-           zIndex: '1500',
-           mr: 1,
-           borderRadius: '40px',
-           input: {
-             color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-             height: '28px',
-             borderRadius: '40px',
-             backdropFilter: "blur(30px)",
-           },
-           '& .MuiOutlinedInput-root': {
-             '& fieldset': {
-               borderColor: '#5E5E5E',
-               borderRadius: '40px'
-             },
-             '&:hover fieldset': {
-               borderColor: '#393939ff',
-               borderRadius: '40px'
-             },
-             '&.Mui-focused fieldset': {
-               borderColor: '#757575',
-               borderRadius: '40px'
-             },
-           },
-           '& .MuiInputBase-input::placeholder': {
-             color: effectiveChatTheme === "dark" ? "#cccccc" : "#343434ff"
-           }
-         }}
-       />
-       <Button type="submit" sx={{ backgroundColor: effectiveChatTheme === "dark" ? "#ffffffd2" : "#000000a8", height: '45px', width: '0px', borderRadius: 8, backdropFilter: "blur(30px)" }} disabled={isSending}>
-         {isSending ? <CircularProgress size={21} sx={{ color: effectiveChatTheme === "dark" ? "#000" : "#fff" }} /> : <SendIcon sx={{ fontSize: 21, p: 0, color: effectiveChatTheme === "dark" ? "#000" : "#fff" }} />}
-       </Button>
-     </Box>
 
      <Menu
       anchorEl={anchorEl}
@@ -1976,24 +2285,109 @@ const removeUserReaction = async (msg, emoji) => {
       )}
      </Menu>
      
-          <SwipeableDrawer
-            anchor="bottom"
-            open={imageDrawer}
-            onClose={() => setImageDrawer(false)}
-            disableSwipeToOpen={true}
+<Dialog
+  open={imageDrawer}
+  onClose={() => setImageDrawer(false)}
+  fullScreen
+  PaperProps={{
+    sx: {
+      backgroundColor: "rgba(0,0,0,0.9)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+  }}
+>
+  <Box sx={{ position: "absolute", top: 20, right: 20 }}>
+    <IconButton onClick={() => setImageDrawer(false)} sx={{ color: "#fff" }}>
+      <CloseIcon />
+    </IconButton>
+  </Box>
+  <Box sx={{ p: 3, textAlign: "center", width: "100%", maxWidth: 600 }}>
+    <Typography variant="h5" sx={{ mb: 2, color: "#fff" }}>
+      Edit & Send Image
+    </Typography>
+
+    {/* Cropper UI */}
+    {cropMode ? (
+      <>
+        <Box sx={{ position: "relative", width: "100%", height: 400 }}>
+          <Cropper
+            image={imageDataUri}
+            crop={crop}
+            zoom={zoom}
+            aspect={4 / 3}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onCropComplete={onCropComplete}
+          />
+        </Box>
+        <Box sx={{ mt: 2, display: "flex", justifyContent: "center", gap: 2 }}>
+          <Button variant="contained" color="primary" onClick={applyCrop}>
+            Apply Crop
+          </Button>
+          <Button onClick={() => setCropMode(false)} color="secondary">
+            Cancel
+          </Button>
+        </Box>
+      </>
+    ) : (
+      <>
+        {/* Image Preview */}
+        {imageDataUri && (
+          <img
+            src={imageDataUri}
+            alt="Preview"
+            style={{
+              maxWidth: "100%",
+              maxHeight: "55vh",
+              borderRadius: 10,
+              boxShadow: "0 2px 8px #0008",
+              marginBottom: 20,
+            }}
+          />
+        )}
+        <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mb: 3 }}>
+          <IconButton aria-label="Add Text" color="primary" onClick={handleAddText}>
+            <TextFieldsIcon />
+          </IconButton>
+          <IconButton aria-label="Crop" color="primary" onClick={handleCropImage}>
+            <CropIcon />
+          </IconButton>
+          <IconButton aria-label="Rotate" color="primary" onClick={handleRotateImage}>
+            <RotateRightIcon />
+          </IconButton>
+        </Box>
+        {/* Add Text input */}
+        <TextField
+          placeholder="Enter text to add"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          sx={{
+            mb: 2,
+            input: { color: "#fff", backgroundColor: "#222" },
+          }}
+          fullWidth
+          variant="outlined"
+        />
+        <Box sx={{ display: "flex", justifyContent: "center", gap: 2 }}>
+          <Button variant="contained" color="primary" onClick={handleSendMessage}>
+            Send
+          </Button>
+          <Button
+            startIcon={<CloseIcon />}
+            onClick={() => setImageDrawer(false)}
+            sx={{ color: "#fff", borderColor: "#fff" }}
           >
-            <Box sx={{ p: 2, textAlign: "center" }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>Edit & Send Image</Typography>
-              {imageDataUri && (
-                <img src={imageDataUri} alt="Preview" style={{ maxWidth: "90%", borderRadius: 10, boxShadow: "0 2px 8px #0004" }} />
-              )}
-              <TextField value={imageDataUri} style={{ display: "none" }} />
-              <Box sx={{ mt: 2, display: "flex", justifyContent: "center", gap: 2 }}>
-                <Button variant="contained" color="primary" onClick={handleSendMessage}>Send</Button>
-                <Button startIcon={<CloseIcon />} onClick={() => setImageDrawer(false)}>Cancel</Button>
-              </Box>
-            </Box>
-          </SwipeableDrawer>
+            Cancel
+          </Button>
+        </Box>
+      </>
+    )}
+  </Box>
+</Dialog>
+
      
      <SwipeableDrawer
       anchor="bottom"
@@ -2233,10 +2627,11 @@ const removeUserReaction = async (msg, emoji) => {
  PaperProps={{
    sx: {
      border: 'transparent',
-     backgroundColor: effectiveChatTheme === "dark" ? '#0c0c0c00' : '#f1f1f1b5',
+     backgroundColor: effectiveChatTheme === "dark" ? '#0c0c0c00' : '#ffffffad',
      backdropFilter: 'blur(70px)',
      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
      maxWidth: 470,
+     height: '100vh',
      mx: 'auto',
      backgroundImage: "none",
    },
@@ -2260,7 +2655,7 @@ const removeUserReaction = async (msg, emoji) => {
 
    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 2 }}>
      <Avatar src={friendDetails.photoURL} sx={{ width: 90, height: 90, mb: 2 }} />
-     <Typography variant="h6" fontWeight="bold" color={effectiveChatTheme === "dark" ? "#fff" : "#000"}>{friendDetails.name}</Typography>
+     <Typography variant="h6" fontWeight="bold" color={effectiveChatTheme === "dark" ? "#fff" : "#000"}>{nickname || friendDetails.name}</Typography>
      <Typography variant="subtitle1" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>@{friendDetails.username}</Typography>
 
      <Typography
@@ -2273,260 +2668,213 @@ const removeUserReaction = async (msg, emoji) => {
          color: effectiveChatTheme === "dark" ? "#aaa" : "#333",
        }}
      >
-       {nickname || friendDetails.name}
+       {friendDetails.name}
      </Typography>
-
-     {friendDetails.bio && (
-       <Box
-         sx={{
-           bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
-           color: effectiveChatTheme === "dark" ? "#aaa" : "#333",
-           borderRadius: 1.2,
-           py: 1.4,
-           px: 2,
-           display: 'flex',
-           justifyContent: 'left',
-           gap: 1.5,
-           mt: 1,
-         }}
-       >
-         <Typography variant="body2" textAlign="justify">
-           <strong>Bio:</strong> {friendDetails.bio}
-         </Typography>
-       </Box>
-     )}
    </Box>
 
-   
    <Stack spacing={0.5} mt={3} mb={2} sx={{ backgroundColor: "#f1f1f100", borderRadius: 1, p: 1 }}>
-
-     {friendDetails.mobile && (
-       <IconButton
-         onClick={() => window.open(`tel:${friendDetails.mobile}`, '_blank')}
-         sx={{
-           bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
-           color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-           py: 1.4,
-           px: 2,
-           borderRadius: "20px 20px 7px 7px",
-           display: 'flex',
-           alignItems: 'center',
-           justifyContent: 'left',
-           gap: 1.5,
-         }}
-       >
-         <PhoneOutlinedIcon />
-         <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
-           {friendDetails.mobile}
-         </Typography>
-       </IconButton>
-     )}
-
-     <IconButton
-       onClick={() => setOpenProfile(false)}
-       sx={{
-         bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
-         color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-         py: 1.4,
-         px: 2,
-         borderRadius: "7px",
-         display: 'flex',
-         alignItems: 'center',
-         justifyContent: 'left',
-         gap: 1.5,
-       }}
-     >
-       <ChatOutlinedIcon />
-       <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
-         Send a Message
-       </Typography>
-     </IconButton>
-
-     <IconButton
-       onClick={() => {
-         setAddNicknameDrawerOpen(true);
-         setEditNickname(true);
-       }}
-       sx={{
-         bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
-         color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-         py: 1.4,
-         px: 2,
-         borderRadius: "7px 7px 20px 20px",
-         display: 'flex',
-         alignItems: 'center',
-         justifyContent: 'left',
-         gap: 1.5,
-       }}
-     >
-       <TextFieldsIcon />
-       <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
-         Add a Nickname
-       </Typography>
-     </IconButton>
-
+  {visibleStackItems.map((item, index) =>
+    React.cloneElement(item, {
+      sx: {
+        ...item.props.sx,
+        borderRadius: getDynamicBorderRadius(index, visibleStackItems.length)
+      }
+    })
+  )}
 
 <Box>
- <Typography variant="subtitle1" fontWeight="bold" mt={3} mb={0.5}>Common Groups</Typography>
- <Grid container spacing={0.5} mb={2}>
-   {(commonGroups.slice(0,3)).map(group => (
-     <Grid item xs={12} sm={6} md={4} key={group.id}>
-       <Card sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f106" : "#0c0c0c06", color: effectiveChatTheme === "dark" ? "#fff" : "#000", borderRadius: "10px", overflow: 'hidden', boxShadow: "none"}}>
-         <CardActionArea onClick={() => history(`/group/${group.id}`)}>
-           <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-             <Avatar
-               src={group.iconURL}
-               sx={{ bgcolor: effectiveChatTheme === "dark" ? "#fff" : "#000", color: '#111' }}
-             >
-               {group.emoji || group.name?.charAt(0)}
-             </Avatar>
-             <Box sx={{ minWidth: 0 }}>
-               <Typography variant="body1" color={effectiveChatTheme === "dark" ? "#fff" : "#000"} fontWeight={"bolder"} noWrap>
-                 {group.name}
-               </Typography>
-               <Box
-                 sx={{
-                   width: '100%',
-                   overflow: 'hidden',
-                   whiteSpace: 'nowrap',
-                   textOverflow: 'ellipsis',
-                   fontSize: 13,
-                   color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
-                 }}
-               >
-                 {(group.members ?? [])
-                   .map(uid => groupMembersInfo[uid]?.name)
-                   .filter(Boolean)
-                   .join(", ") ||
-                   <Typography variant="caption" sx={{ color: "#ccc" }}>Loading...</Typography>
-                 }
-               </Box>
-             </Box>
-           </CardContent>
-         </CardActionArea>
-       </Card>
-     </Grid>
-   ))}
-   {(commonGroups.length > 3) && (
-       <Button
-         variant="contained"
-         fullWidth
-         sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f121" : "#0c0c0c11", borderRadius: 3, fontWeight: 600, boxShadow: "none" }}
-         onClick={() => setAllCommonGroupsDrawerOpen(true)}
-       >
-         {commonGroups.length - 3} more group{commonGroups.length - 3 > 1 ? "s" : ""}
-       </Button>
-   )}
- </Grid>
+  {commonGroups.length > 0 && (
+  <Typography variant="subtitle1" fontWeight="bold" mt={3} mb={0.5}>
+    Common Groups
+  </Typography>
+  )}
+<Grid container spacing={0.5} mb={2}>
+  {commonGroups.length > 0 && (
+    <>
+      {commonGroups.slice(0, 3).map((group, index, arr) => (
+        <Grid item xs={12} sm={6} md={4} key={group.id}>
+          <Card
+            sx={{
+              bgcolor: effectiveChatTheme === "dark" ? "#f1f1f106" : "#ffffff2d",
+              color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+              borderRadius: getDynamicBorderRadius(index, arr.length + (commonGroups.length > 3 ? 1 : 0)),
+              overflow: "hidden",
+              boxShadow: "none"
+            }}
+          >
+            <CardActionArea onClick={() => history(`/group/${group.id}`)}>
+              <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Avatar
+                  src={group.iconURL}
+                  sx={{ bgcolor: effectiveChatTheme === "dark" ? "#fff" : "#000", color: "#111" }}
+                >
+                  {group.emoji || group.name?.charAt(0)}
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    variant="body1"
+                    color={effectiveChatTheme === "dark" ? "#fff" : "#000"}
+                    fontWeight="bolder"
+                    noWrap
+                  >
+                    {group.name}
+                  </Typography>
+                  <Box
+                    sx={{
+                      width: "100%",
+                      overflow: "hidden",
+                      whiteSpace: "nowrap",
+                      textOverflow: "ellipsis",
+                      fontSize: 13,
+                      color: effectiveChatTheme === "dark" ? "#ccc" : "#555"
+                    }}
+                  >
+                    {(group.members ?? [])
+                      .map(uid => groupMembersInfo[uid]?.name)
+                      .filter(Boolean)
+                      .join(", ") || (
+                        <Typography variant="caption" sx={{ color: "#ccc" }}>
+                          Loading...
+                        </Typography>
+                      )}
+                  </Box>
+                </Box>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        </Grid>
+      ))}
+
+      {commonGroups.length > 3 && (
+          <Button
+            variant="contained"
+            fullWidth
+            sx={{
+              color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+              backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f121" : "#ffffff2d",
+              borderRadius: getDynamicBorderRadius(
+                Math.min(commonGroups.length, 3), // last item index in the visible stack
+                Math.min(commonGroups.length, 3) + 1 // total visible items including the button
+              ),
+              fontWeight: 600,
+              boxShadow: "none",
+            }}
+            onClick={() => setAllCommonGroupsDrawerOpen(true)}
+          >
+            {commonGroups.length - 3} more group{commonGroups.length - 3 > 1 ? "s" : ""}
+          </Button>
+      )}
+    </>
+  )}
+</Grid>
 </Box>
 
 <Box mb={4}>
- <Typography variant="subtitle1" fontWeight="bold" mb={1}>Common Trips</Typography>
- <List>
-   {visibleTrips.map(trip => (
-     <Card key={trip.id}
-       sx={{
-         background: `url(${trip?.iconURL})`,
-         backgroundSize: "cover",
-         backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c01",
-         backgroundPosition: "center",
-         color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-         borderRadius: "20px 20px 7px 7px",
-         boxShadow: "none",
-         mb: 0.5,
-       }}
-     >
-       <CardContent sx={{ backdropFilter: "blur(20px)", backgroundColor: "#0c0c0c21" }}>
-         <Box display="flex" alignItems="start" gap={2} py="0">
-           <Box py="0">
-             <Box sx={{
-               display: "flex", width: "75vw", flexDirection: "row",
-               alignItems: "center", justifyContent: "space-between", gap: 1
-             }}>
-               <Typography variant="h6"
-                 sx={{
-                   width: '100%', fontWeight: 800, mb: 1,
-                   overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis'
-                 }}>
-                 {trip.name}
-               </Typography>
-               {timelineStatsMap?.[trip.id] && (
-                 <Box mb={1} minWidth={110}>
-                   <Typography variant="caption" sx={{
-                     color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
-                   }}>
-                     {timelineStatsMap[trip.id].messages} messages
-                   </Typography>
-                 </Box>
-               )}
-             <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333", display: "flex", alignItems: "center" }}>
-               <AccessTime sx={{ fontSize: 16, mr: 1 }} /> {trip.startDate} → {trip.endDate}
-             </Typography>
-           </Box>
-         </Box>
-         </Box>
-       </CardContent>
-     </Card>
-   ))}
+  {visibleTrips.length > 0 && (
+  <Typography variant="subtitle1" fontWeight="bold" mb={1}>
+    Common Trips
+  </Typography>
+  )}
+  <List>
+    {visibleTrips.map((trip, index, arr) => {
+      const borderRadius = getDynamicBorderRadius(index, arr.length + (moreCount > 0 ? 1 : 0)); // include "more" button
 
-   {moreCount > 0 && (
-     <Button
-       variant="contained"
-       fullWidth
-       sx={{
-         color: effectiveChatTheme === "dark" ? "#fff" : "#000", backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11", borderRadius: "7px 7px 20px 20px", fontWeight: 600, boxShadow: "none",
-         fontWeight: 600, py: 1, px: 2,
-       }}
-       onClick={() => setShowAllTripsDrawer(true)}
-     >
-       {moreCount} more trip{moreCount > 1 ? "s" : ""}
-     </Button>
-   )}
- </List>
+      return (
+        <Card
+          key={trip.id}
+          sx={{
+            background: `url(${trip?.iconURL})`,
+            backgroundSize: "cover",
+            backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d",
+            backgroundPosition: "center",
+            color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+            borderRadius,
+            boxShadow: "none",
+            mb: 0.5
+          }}
+        >
+          <CardContent>
+            <Box display="flex" alignItems="start" gap={2} py="0">
+              <Box py="0">
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 1
+                  }}
+                >
+                  {timelineStatsMap?.[trip.id] && (
+                  <Box>
+           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: '75vw' }}>
+             <Typography variant="h6" noWrap>{trip.name}</Typography>
+             {timelineStatsMap?.[trip.id] && (
+               <Box minWidth={110}>
+                 <Typography variant="caption" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
+                   {timelineStatsMap[trip.id]?.completed} / {timelineStatsMap[trip.id]?.total} complete
+                 </Typography>
+                 <LinearProgress
+                   value={timelineStatsMap[trip.id]?.percent}
+                   variant="determinate"
+                   sx={{
+                     mt: 0.5, borderRadius: 20, height: 7, bgcolor: effectiveChatTheme === "dark" ? "#ffffff36" : "#00000018",
+                     "& .MuiLinearProgress-bar": { bgcolor: effectiveChatTheme === "dark" ? "#ffffff" : "#1e1e1eff" }
+                   }}
+                 />
+               </Box>
+             )}
+           </Box>
+           <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333", display: "flex", flexDirection: "row", alignItems: "center" }}>
+             <LocationOn sx={{ fontSize: 14, mr: 1 }} />
+             {trip.from} → {trip.location}
+           </Typography>
+           <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#ccc" : "#555", display: "flex", flexDirection: "row", alignItems: "center" }}>
+             <AccessTime sx={{ fontSize: 14, mr: 1 }} />
+             {trip.startDate} → {trip.endDate}
+           </Typography>
+                  </Box>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      );
+    })}
+
+    {moreCount > 0 && (
+      <Button
+        variant="contained"
+        fullWidth
+        sx={{
+          color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+          backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff3c",
+          borderRadius: getDynamicBorderRadius(visibleTrips.length, visibleTrips.length + 1), // last item
+          fontWeight: 600,
+          boxShadow: "none",
+          py: 1,
+          px: 2
+        }}
+        onClick={() => setShowAllTripsDrawer(true)}
+      >
+        {moreCount} more trip{moreCount > 1 ? "s" : ""}
+      </Button>
+    )}
+  </List>
 </Box>
 
    <Box></Box>
 
-     <IconButton
-       onClick={handleClearChat}
-       sx={{
-         bgcolor: effectiveChatTheme === "dark" ? "#ff676711" : "#ff676726",
-         color: '#ff6767',
-         py: 1.4,
-         px: 2,
-         borderRadius: "20px 20px 7px 7px",
-         display: 'flex',
-         alignItems: 'center',
-         justifyContent: 'left',
-         gap: 1.5,
-         mt: 2
-       }}
-     >
-       <DeleteOutlineIcon />
-       <Typography variant="body1" sx={{ fontSize: 16, color: '#ff6767' }}>
-         Delete Chat
-       </Typography>
-     </IconButton>
-     <IconButton
-       onClick={handleRemoveFriend}
-       sx={{
-         bgcolor: effectiveChatTheme === "dark" ? "#ff676711" : "#ff676726",
-         color: '#ff6767',
-         py: 1.4,
-         px: 2,
-         display: 'flex',
-         alignItems: 'center',
-         justifyContent: 'flex-start',
-         gap: 1.5,
-         borderRadius: "7px 7px 20px 20px",
-       }}
-     >
-       <RemoveCircleOutlineIcon sx={{ color: '#ff6767' }} />
-       <Typography variant="body1" sx={{ fontSize: 16, color: '#ff6767' }}>
-         Remove from Friend
-       </Typography>
-     </IconButton>
+<Stack spacing={0.5}>
+  {actionButtons.filter(Boolean).map((btn, index, arr) =>
+    React.cloneElement(btn, {
+      sx: { ...btn.props.sx, borderRadius: getDynamicBorderRadius(index, arr.length) }
+    })
+  )}
+</Stack>
    </Stack>
+
  </Box>
 
  <SwipeableDrawer
