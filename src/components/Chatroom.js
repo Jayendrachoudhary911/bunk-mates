@@ -1188,20 +1188,19 @@ const getMessageDate = (timestamp) => {
  
  return (
    <ThemeProvider theme={theme}>
-         <Box sx={{ backgroundImage: effectiveChatTheme === "dark" ? "/assets/images/chatbg/dark.png" : "/assets/images/chatbg/light.png", height: '98vh', display: 'flex', flexDirection: 'column', color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
+         <Box sx={{ backgroundImage: effectiveChatTheme === "dark" ? "/assets/images/chatbg/dark.png" : "/assets/images/chatbg/light.png", height: '100vh', display: 'flex', flexDirection: 'column', color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
      
 <AppBar
   position="fixed"
   sx={{
-    background: effectiveChatTheme === "dark"
-      ? "linear-gradient(to bottom, rgba(0, 0, 0, 0.97), rgba(0, 0, 0, 0.82), rgba(0,0,0,0.6), rgba(0,0,0,0.3), transparent)"
-      : "linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0.8), rgba(255,255,255,0.6), rgba(255,255,255,0.3), transparent)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)", // Safari fix
+    background: mode ===  "dark" ? "rgba(0, 0, 0, 0)" : "#ffffffcc",
+    backdropFilter: "blur(40px)",
+    backgroundImage: "none",
+    WebkitBackdropFilter: "blur(0px)",// Safari fix
     padding: "16px 14px 12px",
     zIndex: 1100,
     boxShadow: "none",
-    borderRadius: "0 0 20px 20px", // curved bottom
+    borderRadius: "0px 0px 0px 0px", // curved bottom
     transition: "all 0.3s ease-in-out",
   }}
   elevation={0}
@@ -1232,9 +1231,8 @@ const getMessageDate = (timestamp) => {
        </Box>
      </AppBar>
 
-     <Box
-       ref={scrollContainerRef}
-       sx={{
+    <Box
+      sx={{
          backgroundImage: getWallpaperUrl() === 'none' ? effectiveChatTheme === 'dark' ? '/assets/images/chatbg/dark.png' : '/assets/images/chatbg/light.png' : getWallpaperUrl(),
          backgroundColor: getWallpaperUrl() === 'none'
            ? (effectiveChatTheme === 'dark' ? '#0c0c0c' : '#f0f2f5')
@@ -1242,13 +1240,19 @@ const getMessageDate = (timestamp) => {
          backgroundSize: 'cover',
          backgroundPosition: 'center',
          backgroundRepeat: 'no-repeat',
-         flex: 1,
          overflowY: 'auto',
+      }}
+    >
+     <Box
+       ref={scrollContainerRef}
+       sx={{
+         flex: 1,
          px: 2,
          pt: '80px',
          pb: '80px',
          display: 'flex',
          flexDirection: 'column',
+         mt: 2
        }}
      >
        <AnimatePresence initial={false}>
@@ -1269,7 +1273,7 @@ const getMessageDate = (timestamp) => {
                  style={{
                    display: 'flex',
                    justifyContent: 'center',
-                   margin: '10px 0'
+                   margin: '10px 0' 
                  }}
                >
                  <Paper
@@ -1837,6 +1841,7 @@ const getMessageDate = (timestamp) => {
 
        <div ref={messagesEndRef} />
      </Box>
+    </Box>
 
 {replyingTo && (
   <Paper

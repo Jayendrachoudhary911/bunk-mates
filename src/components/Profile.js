@@ -127,6 +127,7 @@ import { Scanner } from '@yudiel/react-qr-scanner';
 import QrScanner from "./QrScanner";
 import { useSwipeable } from 'react-swipeable';
 import { toPng } from "html-to-image";
+import { color } from "framer-motion";
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -155,15 +156,20 @@ const buttonStyle = (mode, theme) => ({
 });
 
 const wallpapers = [
-  { id: 'none', name: 'Solid Color', url: 'none', theme: 'both' },
-  // Dark Themes
-  { id: 'default', name: 'Default Dark', url: '/assets/images/chatbg/dark.png', theme: 'dark' },
-  // { id: 'dark_pattern', name: 'Dark Pattern', url: '/assets/images/chatbg/dark_pattern.png', theme: 'dark' },
-  // { id: 'dark_abstract', name: 'Dark Abstract', url: '/assets/images/chatbg/dark_abstract.jpg', theme: 'dark' },
-  // Light Themes
-  { id: 'default', name: 'Default Light', url: '/assets/images/chatbg/light.png', theme: 'light' },
-  // { id: 'light_pattern', name: 'Light Pattern', url: '/assets/images/chatbg/light_pattern.png', theme: 'light' },
-  // { id: 'light_subtle', name: 'Light Subtle', url: '/assets/images/chatbg/light_subtle.jpg', theme: 'light' },
+  { id: 'none', name: 'Default', url: 'none', theme: 'both' },
+  { id: 'dark1', name: '', url: '/assets/images/chatbg/1.jpeg', theme: 'both', color: '#ffffffff', bgcolor: '#000' },
+  { id: 'dark2', name: '', url: '/assets/images/chatbg/2.jpeg', theme: 'both' },
+  { id: 'both1', name: '', url: '/assets/images/chatbg/3.jpeg', theme: 'both' },
+  { id: 'dark3', name: '', url: '/assets/images/chatbg/4.jpeg', theme: 'both' },
+  { id: 'dark4', name: '', url: '/assets/images/chatbg/5.jpeg', theme: 'both' },
+  { id: 'dark5', name: '', url: '/assets/images/chatbg/6.jpeg', theme: 'both' },
+  { id: 'dark6', name: '', url: '/assets/images/chatbg/7.jpeg', theme: 'both' },
+  { id: 'dark7', name: '', url: '/assets/images/chatbg/8.jpeg', theme: 'both' },
+  { id: 'dark8', name: '', url: '/assets/images/chatbg/9.jpeg', theme: 'both' },
+  { id: 'dark9', name: '', url: '/assets/images/chatbg/10.jpeg', theme: 'both' },
+  { id: 'dark10', name: '', url: '/assets/images/chatbg/11.jpeg', theme: 'both' },
+  { id: 'light1', name: '', url: '/assets/images/chatbg/12.jpeg', theme: 'both' },
+  { id: 'light2', name: '', url: '/assets/images/chatbg/13.jpeg', theme: 'both' },
 ];
 
 const ProfilePic = ({currentUser}) => {
