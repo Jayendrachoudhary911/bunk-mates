@@ -157,7 +157,7 @@ const buttonStyle = (mode, theme) => ({
 
 const wallpapers = [
   { id: 'none', name: 'Default', url: 'none', theme: 'both' },
-  { id: 'dark1', name: '', url: '/assets/images/chatbg/1.jpeg', theme: 'both', color: '#ffffffff', bgcolor: '#000' },
+  { id: 'dark1', name: '', url: '/assets/images/chatbg/1.jpeg', theme: 'both' },
   { id: 'dark2', name: '', url: '/assets/images/chatbg/2.jpeg', theme: 'both' },
   { id: 'both1', name: '', url: '/assets/images/chatbg/3.jpeg', theme: 'both' },
   { id: 'dark3', name: '', url: '/assets/images/chatbg/4.jpeg', theme: 'both' },

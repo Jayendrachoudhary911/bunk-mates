@@ -60,6 +60,8 @@ import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { getDynamicBorderRadius } from "../utils/uiHelpers";
 import Cropper from 'react-easy-crop';
+import ColorThief from 'colorthief';
+import { FastAverageColor } from "fast-average-color";
 
 function showLocalNotification(title, options) {
  if (Notification.permission === "granted") {
@@ -222,6 +224,10 @@ function ChatRoom() {
  const [zoom, setZoom] = useState(1);
  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
  const [showCropper, setShowCropper] = useState(false);
+ const [headerColor, setHeaderColor] = useState(mode === "dark" ? "linear-gradient(to bottom, #00000000, #00000030, #000000a0, #000000f9)" : "linear-gradient(to bottom, #ffffff00, #ffffff30, #ffffffa0, #fffffff9");
+ const [headerBg, setHeaderBg] = useState(mode === "dark" ? "linear-gradient(to top, #00000000, #00000030, #000000a0, #000000f9)" : "linear-gradient(to top, #ffffff00, #ffffff30, #ffffffa0, #fffffff9)");
+ const [headerTextColor, setHeaderTextColor] = useState(mode === "dark" ? "#fff" : "#000");
+ const rgbaFromArray = (arr, alpha = 0.85) => `rgba(${arr[0]}, ${arr[1]}, ${arr[2]}, ${alpha})`;
 
  const [blockedUids, setBlockedUids] = useState([]);
 
@@ -283,6 +289,25 @@ const toggleBlockFriend = async () => {
      // If it's not 'default' or 'none', it's a custom URL
      return `url(${selectedWallpaper})`;
    };
+
+     useEffect(() => {
+    const fac = new FastAverageColor();
+    const wallpaperUrl = getWallpaperUrl().replace(/^url\(["']?/, "").replace(/["']?\)$/, ""); // clean url()
+
+    if (!wallpaperUrl || wallpaperUrl === "none") {
+      setHeaderTextColor(effectiveChatTheme === "dark" ? "#fff" : "#000");
+      return;
+    }
+
+    fac.getColorAsync(wallpaperUrl)
+      .then((color) => {
+        const isLight = color.isLight;
+        setHeaderTextColor(isLight ? "#000" : "#fff");
+      })
+      .catch(() => {
+        setHeaderTextColor(effectiveChatTheme === "dark" ? "#fff" : "#000");
+      });
+  }, [getWallpaperUrl, effectiveChatTheme]);
 
    useEffect(() => {
        const savedThemeSetting = localStorage.getItem('bunkmate_chatTheme') || 'system';
@@ -1190,46 +1215,69 @@ const getMessageDate = (timestamp) => {
    <ThemeProvider theme={theme}>
          <Box sx={{ backgroundImage: effectiveChatTheme === "dark" ? "/assets/images/chatbg/dark.png" : "/assets/images/chatbg/light.png", height: '100vh', display: 'flex', flexDirection: 'column', color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
      
-<AppBar
-  position="fixed"
-  sx={{
-    background: mode ===  "dark" ? "rgba(0, 0, 0, 0)" : "#ffffffcc",
-    backdropFilter: "blur(40px)",
-    backgroundImage: "none",
-    WebkitBackdropFilter: "blur(0px)",// Safari fix
-    padding: "16px 14px 12px",
-    zIndex: 1100,
-    boxShadow: "none",
-    borderRadius: "0px 0px 0px 0px", // curved bottom
-    transition: "all 0.3s ease-in-out",
-  }}
-  elevation={0}
->
-       <Box display={"flex"} justifyContent={"space-between"} alignItems={"center"}>
-         <Box display={"flex"} alignItems={"center"}>
-         <IconButton onClick={goBack} sx={{ mr: 1, color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
-           <ArrowBackIcon />
-         </IconButton>
-         <Avatar src={friendDetails.photoURL} alt={friendDetails.name} sx={{ mr: 2, height: '35px', width: '35px' }} />
-         <Box onClick={() => setOpenProfile(true)}>
-           <Typography variant="h6" color={effectiveChatTheme === "dark" ? "#fff" : "#000"} fontSize="16px">
-             {nickname ? nickname : friendDetails.name}
-           </Typography>
-           <Typography variant="h6" color={effectiveChatTheme === "dark" ? "#aaa" : "#333"} fontSize="12px">@{friendDetails.username}</Typography>
-           <Typography variant="body2" sx={{ color: friendDetails.status === 'online' ? '#AEEA00' : '#BDBDBD' }}>
-             {friendDetails.status}
-           </Typography>
-         </Box>
-         </Box>
-                   <IconButton
-                     sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", backgroundColor: effectiveChatTheme === "dark" ? "#181818" : "#d6d6d6ff", backdropFilter: "blur(80px)", borderRadius: 8, py: 1, px: 1, display: "flex", alignItems: "center", mr: 2 }}
-                     onClick={() => window.open(`tel:${friendDetails.mobile}`, '_blank')}
-                     disabled={!friendDetails.mobile}
-                   >
-                     <PhoneOutlinedIcon />
-                   </IconButton>
-       </Box>
-     </AppBar>
+    <AppBar
+      position="fixed"
+      sx={{
+        backgroundImage: getWallpaperUrl(),
+        backgroundColor: getWallpaperUrl() === "none"
+          ? (effectiveChatTheme === "dark" ? "#0c0c0c" : "#f0f2f5")
+          : "transparent",
+        backgroundRepeat: "no-repeat",
+        backdropFilter: "blur(0px)",
+        WebkitBackdropFilter: "blur(0px)",
+        padding: "16px 14px 12px",
+        zIndex: 1100,
+        boxShadow: "none",
+        borderRadius: "0px 0px 0px 0px",
+        transition: "all 0.3s ease-in-out",
+        color: headerTextColor,
+      }}
+      elevation={0}
+    >
+      <Box display={"flex"} justifyContent={"space-between"} alignItems={"center"}>
+        <Box display={"flex"} alignItems={"center"}>
+          <IconButton onClick={goBack} sx={{ mr: 1, color: headerTextColor }}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Avatar
+            src={friendDetails.photoURL}
+            alt={friendDetails.name}
+            sx={{ mr: 2, height: "35px", width: "35px" }}
+          />
+          <Box onClick={() => setOpenProfile(true)}>
+            <Typography variant="h6" color={headerTextColor} fontSize="16px">
+              {nickname ? nickname : friendDetails.name}
+            </Typography>
+            <Typography variant="h6" color={headerTextColor} fontSize="12px">
+              @{friendDetails.username}
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ color: friendDetails.status === "online" ? "#AEEA00" : "#BDBDBD" }}
+            >
+              {friendDetails.status}
+            </Typography>
+          </Box>
+        </Box>
+        <IconButton
+          sx={{
+            color: headerTextColor,
+            backgroundColor: effectiveChatTheme === "dark" ? "#1818182d" : "#d6d6d62f",
+            backdropFilter: "blur(80px)",
+            borderRadius: 8,
+            py: 1,
+            px: 1,
+            display: "flex",
+            alignItems: "center",
+            mr: 2,
+          }}
+          onClick={() => window.open(`tel:${friendDetails.mobile}`, "_blank")}
+          disabled={!friendDetails.mobile}
+        >
+          <PhoneOutlinedIcon />
+        </IconButton>
+      </Box>
+    </AppBar>
 
     <Box
       sx={{
@@ -1974,9 +2022,9 @@ const getMessageDate = (timestamp) => {
         onClick={toggleBlockFriend}
         sx={{
           flex: 1,
-          bgcolor: mode === "dark" ? "#ffffff22" : "#00000022",
+          bgcolor: mode === "dark" ? "#000" : "#fff",
           color: "#ff0000b0",
-          backdropFilter: "blur(30px)",
+          backdropFilter: "blur(170px)",
           borderRadius: 2,
           py: 1.4,
           px: 1.2,
@@ -1995,9 +2043,9 @@ const getMessageDate = (timestamp) => {
       <Button
         onClick={handleClearChat}
         sx={{
-          bgcolor: mode === "dark" ? "#ffffff22" : "#00000022",
+          bgcolor: mode === "dark" ? "#000000ff" : "#fff",
           color: mode === "dark" ? "#fff" : "#000",
-          backdropFilter: "blur(30px)",
+          backdropFilter: "blur(170px)",
           borderRadius: 2,
           py: 1.4,
           px: 2,
@@ -2025,7 +2073,7 @@ const getMessageDate = (timestamp) => {
           borderRadius: "50%",
           bgcolor: "rgba(255,255,255,0.08)",
           backdropFilter: "blur(8px)",
-          color: mode === "dark" ? "#fff" : "#000",
+          color: headerTextColor,
           boxShadow: "none",
           mr: 1,
           transition: "all 0.3s ease",
@@ -2053,10 +2101,10 @@ const getMessageDate = (timestamp) => {
           mr: 1,
           borderRadius: '40px',
           input: {
-            color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+            color: headerTextColor,
             height: '28px',
             borderRadius: '40px',
-            backdropFilter: "blur(30px)",
+            backdropFilter: "blur(70px)",
           },
           '& .MuiOutlinedInput-root': {
             '& fieldset': { borderColor: '#5E5E5E', borderRadius: '40px' },
@@ -2064,7 +2112,7 @@ const getMessageDate = (timestamp) => {
             '&.Mui-focused fieldset': { borderColor: '#757575', borderRadius: '40px' },
           },
           '& .MuiInputBase-input::placeholder': {
-            color: effectiveChatTheme === "dark" ? "#cccccc" : "#343434ff"
+            color: headerTextColor
           }
         }}
       />
