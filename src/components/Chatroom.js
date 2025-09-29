@@ -291,7 +291,7 @@ const toggleBlockFriend = async () => {
      return `url(${selectedWallpaper})`;
    };
 
-     useEffect(() => {
+  useEffect(() => {
     const fac = new FastAverageColor();
     const wallpaperUrl = getWallpaperUrl().replace(/^url\(["']?/, "").replace(/["']?\)$/, ""); // clean url()
 
@@ -1214,7 +1214,21 @@ const getMessageDate = (timestamp) => {
  
  return (
    <ThemeProvider theme={theme}>
-         <Box sx={{ backgroundImage: effectiveChatTheme === "dark" ? "/assets/images/chatbg/dark.png" : "/assets/images/chatbg/light.png", height: '100vh', display: 'flex', flexDirection: 'column', color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
+         <Box
+          sx={{
+            backgroundImage: getWallpaperUrl() === 'none' ? effectiveChatTheme === 'dark' ? '/assets/images/chatbg/dark.png' : '/assets/images/chatbg/light.png' : getWallpaperUrl(),
+            backgroundColor: getWallpaperUrl() === 'none'
+               ? (effectiveChatTheme === 'dark' ? '#0c0c0c' : '#f0f2f5')
+               : 'transparent',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            color: effectiveChatTheme === "dark" ? "#fff" : "#000"
+          }}
+        >
      
     <AppBar
       position="fixed"
@@ -1282,13 +1296,6 @@ const getMessageDate = (timestamp) => {
 
     <Box
       sx={{
-         backgroundImage: getWallpaperUrl() === 'none' ? effectiveChatTheme === 'dark' ? '/assets/images/chatbg/dark.png' : '/assets/images/chatbg/light.png' : getWallpaperUrl(),
-         backgroundColor: getWallpaperUrl() === 'none'
-           ? (effectiveChatTheme === 'dark' ? '#0c0c0c' : '#f0f2f5')
-           : 'transparent',
-         backgroundSize: 'cover',
-         backgroundPosition: 'center',
-         backgroundRepeat: 'no-repeat',
          overflowY: 'auto',
       }}
     >
@@ -1322,15 +1329,15 @@ const getMessageDate = (timestamp) => {
                  style={{
                    display: 'flex',
                    justifyContent: 'center',
-                   margin: '10px 0' 
+                   margin: '10px 0' ,
                  }}
                >
-                 <Paper
+                 <Box
                    elevation={0}
                    sx={{
                      px: 1,
                      py: 1,
-                     bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#00000011",
+                     bgcolor: effectiveChatTheme === "dark" ? "#00000031" : "#00000011",
                      backdropFilter: "blur(80px)",
                      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
                      borderRadius: '12px',
@@ -1342,7 +1349,7 @@ const getMessageDate = (timestamp) => {
                    }}
                  >
                    {msg.text}
-                 </Paper>
+                 </Box>
                </motion.div>
              );
            }
@@ -1393,7 +1400,7 @@ const getMessageDate = (timestamp) => {
                  >
                    <Typography
                      variant="caption"
-                     sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333", backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#88888811", backdropFilter: "blur(120px)", px: 1, borderRadius: 8, textAlign: 'center' }}
+                     sx={{ color: effectiveChatTheme === "dark" ? "#dededeff" : "#333", backgroundColor: effectiveChatTheme === "dark" ? "#00000041" : "#88888811", backdropFilter: "blur(20px)", px: 1, borderRadius: 8, textAlign: 'center' }}
                    >
                      {getMessageDate(msg.timestamp)}
                    </Typography>
@@ -1424,7 +1431,7 @@ const getMessageDate = (timestamp) => {
       pr: 1,
       py: 0.6,
       mb: 0.6,
-      bgcolor: effectiveChatTheme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0, 0, 0, 0.04)",
+      bgcolor: effectiveChatTheme === "dark" ? "#0000005a" : "#0000000a",
       borderRadius: "10px",
       display: "flex",
       alignItems: "center",
@@ -1793,7 +1800,7 @@ const getMessageDate = (timestamp) => {
       fontSize: '0.7rem',
       width: '75%',
       minWidth: "100px",
-      color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
+      color: headerTextColor,
       mt: 0.5,
       mb: 1.5,
       display: "flex",
@@ -1830,19 +1837,8 @@ const getMessageDate = (timestamp) => {
 
                    </Box>
                  <div ref={messagesEndRef} />
-               </Box>
-             
-                 {!isAtBottom && newMessagesCount > 0 && (
-                   <button
-                     className="scroll-to-bottom-btn"
-                     onClick={() => {
-                       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-                       setNewMessagesCount(0);
-                     }}
-                   >
-                     ↓ {newMessagesCount} New Message{newMessagesCount > 1 ? 's' : ''}
-                   </button>
-                 )}
+               </Box> 
+
              </motion.div>
            );
          })}
@@ -1904,7 +1900,7 @@ const getMessageDate = (timestamp) => {
     left: "50%",
     transform: "translateX(-50%)",
     width: "95%",
-    borderRadius: "20px 20px 0 0",
+    borderRadius: "30px 30px 0 0",
     background: effectiveChatTheme === "dark" ? "#00000013" : "#ffffff39",
     display: "flex",
     flexDirection: "column", // stack reply preview + input area
@@ -1914,6 +1910,7 @@ const getMessageDate = (timestamp) => {
     py: 1.2,
     boxShadow: "none",
     zIndex: 1200,
+    transition: "all ease-in-out 0.3s"
   }}
 >
   {/* Reply preview collapse */}
@@ -2018,7 +2015,88 @@ const getMessageDate = (timestamp) => {
   )}
 </Collapse>
 
-  {/* Input area (always visible) */}
+  {isBlocked ? (
+    // Show unblock and delete chat options when blocked
+<Box
+  sx={{
+    display: "flex",
+    gap: 1.5,
+    mt: 2,
+    width: "100%",
+  }}
+>
+  {/* Unblock / Block Button */}
+  <Button
+    onClick={toggleBlockFriend}
+    fullWidth
+    sx={{
+      flex: 1,
+      bgcolor: mode === "dark" ? "#ffffff1f" : "rgba(0,0,0,0.05)",
+      color: "#ff4d4d",
+      backdropFilter: "blur(12px)",
+      borderRadius: "12px",
+      py: 1.4,
+      px: 1.6,
+      fontWeight: 600,
+      textTransform: "none",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 1,
+      transition: "all 0.25s ease",
+      "&:hover": {
+        bgcolor: mode === "dark"
+          ? "rgba(255,0,0,0.15)"
+          : "rgba(255,0,0,0.08)",
+        transform: "translateY(-2px)",
+        boxShadow: "0 4px 15px rgba(0,0,0,0.25)",
+      },
+      "&:active": { transform: "scale(0.97)" },
+    }}
+  >
+    <PersonOffIcon sx={{ fontSize: 20 }} />
+    <Typography variant="body1" sx={{ fontSize: 15, fontWeight: 600 }}>
+      Unblock Friend
+    </Typography>
+  </Button>
+
+  {/* Delete Chat Button */}
+  <Button
+    onClick={handleClearChat}
+    fullWidth
+    sx={{
+      flex: 1,
+      bgcolor: mode === "dark" ? "#ffffff1f" : "rgba(0,0,0,0.05)",
+      color: mode === "dark" ? "#fff" : "#000",
+      backdropFilter: "blur(12px)",
+      borderRadius: "12px",
+      py: 1.4,
+      px: 1.6,
+      fontWeight: 600,
+      textTransform: "none",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 1,
+      transition: "all 0.25s ease",
+      "&:hover": {
+        bgcolor: mode === "dark"
+          ? "rgba(255,255,255,0.12)"
+          : "rgba(0,0,0,0.08)",
+        transform: "translateY(-2px)",
+        boxShadow: "0 4px 15px rgba(0,0,0,0.25)",
+      },
+      "&:active": { transform: "scale(0.97)" },
+    }}
+  >
+    <DeleteOutlineIcon sx={{ fontSize: 20 }} />
+    <Typography variant="body1" sx={{ fontSize: 15, fontWeight: 600 }}>
+      Delete Chat
+    </Typography>
+  </Button>
+</Box>
+
+  ) : (
   <Box sx={{ display: "flex", alignItems: "center" }}>
 <Box
   sx={{
@@ -2091,8 +2169,6 @@ const getMessageDate = (timestamp) => {
     }}
   />
 </Box>
-
-
     <Button
       type="submit"
       sx={{
@@ -2111,6 +2187,7 @@ const getMessageDate = (timestamp) => {
       )}
     </Button>
   </Box>
+)}
 </Box>
 
      <Menu
@@ -2131,7 +2208,7 @@ const getMessageDate = (timestamp) => {
         },
       }}
      >
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, px: 1, py: 1, backgroundColor: effectiveChatTheme === "dark" ? '#1c1c1c70' : '#ffffffdd', backdropFilter: "blur(20px)", borderRadius: 8, boxShadow: "none" }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, px: 1, py: 1, backgroundColor: effectiveChatTheme === "dark" ? '#1c1c1c70' : '#ffffff76', backdropFilter: "blur(20px)", borderRadius: 8, boxShadow: "none" }}>
         {['❤️', '😂', '👍', '😁', '👌'].map((emoji) => (
           <IconButton
             key={emoji}
@@ -2185,7 +2262,7 @@ const getMessageDate = (timestamp) => {
       sx={{
         display: 'flex',
         flexDirection: 'column', 
-        backgroundColor: effectiveChatTheme === "dark" ? '#1c1c1c70' : '#ffffffdd',
+        backgroundColor: effectiveChatTheme === "dark" ? '#1c1c1c70' : '#ffffff76',
         backdropFilter: "blur(20px)",
         borderRadius: 7,
         boxShadow: "none",

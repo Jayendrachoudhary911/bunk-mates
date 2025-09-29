@@ -41,7 +41,9 @@ import {
   MenuItem,
   Tooltip,
   Menu,
-  Fab
+  Fab,
+  Collapse,
+  AppBar
 } from '@mui/material';
 import EmojiPicker from 'emoji-picker-react';
 import Popover from '@mui/material/Popover';
@@ -63,9 +65,10 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
 import GroupInfoDrawer from "./GroupChat/GroupInfoDrawer";
 
-import { motion, useAnimation } from 'framer-motion';
+import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+import { FastAverageColor } from "fast-average-color";
 
 const MessageContainer = styled(Box)({
     flex: 1,
@@ -94,6 +97,43 @@ const MessageContainer = styled(Box)({
     borderBottom: '1px solid rgba(66, 66, 66, 0.16)',
     color: '#FFFFFF',
   });
+
+  const getMessageShape = (messages, index, currentUserId) => {
+  const msg = messages[index];
+  const prevMsg = messages[index - 1];
+  const nextMsg = messages[index + 1];
+  const isOwn = msg.senderId === currentUserId;
+
+  const within1Min = (a, b) =>
+    Math.abs(a?.timestamp?.seconds - b?.timestamp?.seconds) < 60;
+
+  const samePrev = prevMsg && prevMsg.senderId === msg.senderId && within1Min(msg, prevMsg);
+  const sameNext = nextMsg && nextMsg.senderId === msg.senderId && within1Min(msg, nextMsg);
+
+  let borderRadius;
+  if (isOwn) {
+    if (samePrev && sameNext) borderRadius = "20px 10px 10px 20px";
+    else if (samePrev && !sameNext) borderRadius = "20px 10px 4px 20px";
+    else if (!samePrev && sameNext) borderRadius = "20px 20px 10px 20px";
+    else borderRadius = "20px 20px 4px 20px";
+  } else {
+    if (samePrev && sameNext) borderRadius = "10px 20px 20px 10px";
+    else if (samePrev && !sameNext) borderRadius = "10px 20px 20px 4px";
+    else if (!samePrev && sameNext) borderRadius = "20px 20px 20px 10px";
+    else borderRadius = "20px 20px 20px 4px";
+  }
+  return { borderRadius };
+};
+
+// Helper function to decide when to show the timestamp
+const shouldShowTimestamp = (messages, index) => {
+  const msg = messages[index];
+  const nextMsg = messages[index + 1];
+  if (!nextMsg) return true;
+  const sameSender = nextMsg.senderId === msg.senderId;
+  const sameMinute = Math.abs(msg.timestamp?.seconds - nextMsg.timestamp?.seconds) < 60;
+  return !(sameSender && sameMinute);
+};
   
 function GroupChat() {
   const { groupName } = useParams();
@@ -149,7 +189,10 @@ function GroupChat() {
   const [chatFontSize, setChatFontSize] = useState(parseInt(localStorage.getItem('bunkmate_fontSize'), 10) || 16);
   const [chatWallpaper, setChatWallpaper] = useState(localStorage.getItem('bunkmate_chatWallpaper') || 'default');
   const [effectiveChatTheme, setEffectiveChatTheme] = useState('dark'); // 'light' or 'dark'
-
+  const [typingMembers, setTypingMembers] = useState([]);
+  const typingTimeoutRef = useRef(null);
+  const [headerTextColor, setHeaderTextColor] = useState(mode === "dark" ? "#fff" : "#000");
+  const rgbaFromArray = (arr, alpha = 0.85) => `rgba(${arr[0]}, ${arr[1]}, ${arr[2]}, ${alpha})`;
 
 useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -214,6 +257,25 @@ const handleMentionSelect = (username) => {
         // If it's not 'default' or 'none', it's a custom URL
         return `url(${selectedWallpaper})`;
     };
+
+      useEffect(() => {
+        const fac = new FastAverageColor();
+        const wallpaperUrl = getWallpaperUrl().replace(/^url\(["']?/, "").replace(/["']?\)$/, ""); // clean url()
+    
+        if (!wallpaperUrl || wallpaperUrl === "none") {
+          setHeaderTextColor(effectiveChatTheme === "dark" ? "#fff" : "#000");
+          return;
+        }
+    
+        fac.getColorAsync(wallpaperUrl)
+          .then((color) => {
+            const isLight = color.isLight;
+            setHeaderTextColor(isLight ? "#000" : "#fff");
+          })
+          .catch(() => {
+            setHeaderTextColor(effectiveChatTheme === "dark" ? "#fff" : "#000");
+          });
+      }, [getWallpaperUrl, effectiveChatTheme]);
 
 
     useEffect(() => {
@@ -399,6 +461,36 @@ useEffect(() => {
   fetchMembers();
 }, [groupInfo?.members]);
 
+  useEffect(() => {
+    if (!groupName || !currentUser) return;
+    const groupDocRef = doc(db, "groupChats", groupName);
+    const unsubscribe = onSnapshot(groupDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setGroupInfo(data);
+        const drafts = data.drafts || {};
+        const typing = Object.entries(drafts)
+          .filter(([uid, text]) => uid !== currentUser.uid && text)
+          .map(([uid]) => memberInfo[uid]?.name || "Someone");
+        setTypingMembers(typing);
+      }
+    });
+    return () => unsubscribe();
+  }, [groupName, currentUser, memberInfo]);
+
+    const handleInputChange = (e) => {
+      const value = e.target.value;
+      editingMsg ? setEditText(value) : setNewMsg(value);
+  
+      if (!groupName || !currentUser) return;
+      const groupDocRef = doc(db, "groupChats", groupName);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+  
+      updateDoc(groupDocRef, { [`drafts.${currentUser.uid}`]: value });
+      typingTimeoutRef.current = setTimeout(() => {
+        updateDoc(groupDocRef, { [`drafts.${currentUser.uid}`]: "" });
+      }, 2000);
+    };
 
 const sendStructuredMessage = async (label, items) => {
   if (!groupInfo?.tripId || !items?.length) {
@@ -797,6 +889,12 @@ const getGroupedReactions = (msg, allUsers = {}) => {
   return grouped;
 };
 
+  const getMessageDate = (timestamp) => {
+    if (!timestamp) return "";
+    const date = typeof timestamp.toDate === "function" ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString();
+  };
+
 const renderMessageWithMentions = (text) => {
   if (!text) return null;
 
@@ -852,28 +950,40 @@ const renderMessageWithMentions = (text) => {
     <ThemeProvider theme={theme}>
       <BetaAccessGuard>
           <Box sx={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '98vh',
-      backgroundColor: '#F0F2F500',
-      overflow: 'hidden'
+            backgroundImage: getWallpaperUrl() === 'none' ? effectiveChatTheme === 'dark' ? '/assets/images/chatbg/dark.png' : '/assets/images/chatbg/light.png' : getWallpaperUrl(),
+            backgroundColor: getWallpaperUrl() === 'none'
+               ? (effectiveChatTheme === 'dark' ? '#0c0c0c' : '#f0f2f5')
+               : 'transparent',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            color: effectiveChatTheme === "dark" ? "#fff" : "#000"
     }}>
-<GroupHeader>
-  <Box
-    sx={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 1000,
-      padding: '10px 16px',
-      display: 'flex',
-      alignItems: 'center',
-      background: effectiveChatTheme === "dark" ? 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to bottom, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
-      height: '64px',
-    }}
-  >
-    <IconButton onClick={handleBackButton} sx={{ mr: 1 }} style={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
+
+    <AppBar
+      position="fixed"
+      sx={{
+        backgroundImage: getWallpaperUrl(),
+        backgroundColor: getWallpaperUrl() === "none"
+          ? (effectiveChatTheme === "dark" ? "#0c0c0c" : "#f0f2f5")
+          : "transparent",
+        backgroundRepeat: "no-repeat",
+        backdropFilter: "blur(0px)",
+        WebkitBackdropFilter: "blur(0px)",
+        padding: "16px 14px 12px",
+        zIndex: 1100,
+        boxShadow: "none",
+        borderRadius: "0px 0px 0px 0px",
+        transition: "all 0.3s ease-in-out",
+        color: headerTextColor,
+      }}
+      elevation={0}
+    >
+  <Box display={"flex"} alignItems={"center"}>
+    <IconButton onClick={handleBackButton} sx={{ mr: 1 }} style={{ color: headerTextColor }}>
       <ArrowBackIcon />
     </IconButton>
 
@@ -889,7 +999,7 @@ const renderMessageWithMentions = (text) => {
         src={groupInfo.iconURL || ""}
         sx={{
           bgcolor: effectiveChatTheme === "dark" ? "#aaa" : "#333",
-          color: effectiveChatTheme === "dark" ? '#000' : "#fff",
+          color: headerTextColor,
           fontSize: 24,
           width: 40,
           height: 40,
@@ -912,7 +1022,7 @@ const renderMessageWithMentions = (text) => {
             alignItems: 'center',
             gap: 1,
             fontSize: "14px",
-            color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+            color: headerTextColor,
           }}
         >
           {groupInfo.name || groupName}
@@ -957,7 +1067,7 @@ const renderMessageWithMentions = (text) => {
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
+            color: headerTextColor,
             mt: 0.1,
           }}
         >
@@ -973,28 +1083,27 @@ const renderMessageWithMentions = (text) => {
       </Box>
     </Box>
   </Box>
-</GroupHeader>
+</AppBar>
 
 
-
+    <Box
+      sx={{
+         overflowY: 'auto',
+      }}
+    >
       <Box
       ref={containerRef}
         sx={{
-        flexGrow: 1,
-        paddingTop: '60px',
-        overflowY: 'auto',
-        marginBottom: '0px',
-        backgroundImage: getWallpaperUrl(),
-        backgroundColor: getWallpaperUrl() === 'none'
-            ? (effectiveChatTheme === 'dark' ? '#0c0c0c' : '#f0f2f5')
-            : 'transparent',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        position: 'relative',
+         flex: 1,
+         px: 2,
+         pt: '80px',
+         pb: '80px',
+         display: 'flex',
+         flexDirection: 'column',
+         mt: 2
         }}
       >
-        <MessageContainer>
+
 
 
         <Box
@@ -1123,484 +1232,289 @@ const renderMessageWithMentions = (text) => {
 </Box>
 
 
-          {loading ? (
-            <Typography variant="body1" sx={{ textAlign: 'center', color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
-              Loading messages...
-            </Typography>
-          ) : (
-            Object.keys(groupedMessages).map((date) => (
-              <Box key={date} sx={{ marginBottom: '80px' }}>
-                <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333", bgcolor: effectiveChatTheme === "dark" ? '#2b2b2b54' : "#0c0c0c24", borderRadius: '0px', textAlign: 'center', marginBottom: '10px' }}>
-                  {date}
-                </Typography>
-                {(groupedMessages?.[date] || []).map((msg) => {
-if (msg.type === "system") {
-  return (
-    <Box
-      key={msg.id}
-      sx={{
-        display: "flex",
-        justifyContent: "center",
-        mb: 1,
-        mt: 1,
-      }}
-    >
-      <Box
+{loading ? (
+  <Typography
+    variant="body1"
+    sx={{
+      textAlign: "center",
+      color: effectiveChatTheme === "dark" ? "#aaa" : "#333",
+      py: 3,
+      fontStyle: "italic",
+    }}
+  >
+    Loading messages...
+  </Typography>
+) : (
+  <Box sx={{ mb: "0px" }}>
+  {Object.keys(groupedMessages).map((date) => (
+    <>
+    <Box key={date}>
+      {/* Date Divider */}
+      <Typography
+        variant="caption"
         sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 0.5,
-          backgroundColor: "#6c6c6c21",
-          backdropFilter: "blur(10px)",
-          borderRadius: 2,
+          display: "inline-block",
           px: 2,
           py: 0.5,
+          mb: 2,
+          borderRadius: "20px",
+          fontWeight: 600,
+          fontSize: "0.75rem",
+          bgcolor:
+            effectiveChatTheme === "dark"
+              ? "rgba(255,255,255,0.08)"
+              : "rgba(0,0,0,0.05)",
+          color: effectiveChatTheme === "dark" ? "#bbb" : "#444",
+          textAlign: "center",
+        }}
+      >
+        {date}
+      </Typography>
+
+      {/* Messages */}
+      {(groupedMessages?.[date] || []).map((msg) => {
+        if (msg.type === "system") {
+          return (
+            <Box key={msg.id} sx={{ display: "flex", justifyContent: "center", my: 1 }}>
+              <Paper
+                elevation={0}
+                sx={{
+                  px: 2,
+                  py: 0.5,
+                  borderRadius: 2,
+                  bgcolor:
+                    effectiveChatTheme === "dark"
+                      ? "rgba(255,255,255,0.06)"
+                      : "rgba(0,0,0,0.04)",
+                  backdropFilter: "blur(10px)",
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontStyle: "italic",
+                    fontSize: "0.8rem",
+                    color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
+                  }}
+                >
+                  {msg.content}
+                </Typography>
+              </Paper>
+            </Box>
+          );
+        }
+
+        return (
+          <Box
+            key={msg.id}
+            sx={{
+              display: "flex",
+              flexDirection:
+                msg.senderId === currentUser.uid ? "row-reverse" : "row",
+              alignItems: "flex-end",
+              mb: 2,
+              gap: 1,
+              px: 1,
+              maxWidth: "90%",
+              mx: "auto",
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setSelectedMsg(msg);
+              setAnchorEl(e.currentTarget);
+            }}
+            onTouchStart={(e) => handleTouchStart(e, msg)}
+            onTouchEnd={handleTouchEnd}
+          >
+            {/* Avatar */}
+            <Avatar
+              src={msg.photoURL || "https://via.placeholder.com/40"}
+              alt={msg.senderName}
+              sx={{ width: 32, height: 32 }}
+            />
+
+            {/* Message bubble */}
+            <motion.div
+              key={msg.id}
+              ref={(el) => {
+                messageRefs.current[msg.id] = el;
+              }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 100 }}
+              dragElastic={0.3}
+              onDragEnd={(_, info) => {
+                if (info.offset.x > 80) handleReply(msg);
+                controls.start({
+                  x: 0,
+                  transition: { type: "spring", stiffness: 300, damping: 30 },
+                });
+              }}
+              animate={controls}
+              whileDrag={{ scale: 1.02 }}
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection:
+                  msg.senderId === currentUser.uid ? "row-reverse" : "row",
+                alignItems: "flex-end",
+              }}
+            >
+              <Paper
+                elevation={1}
+                sx={{
+                  px: 2,
+                  py: 1,
+                  maxWidth: "65vw",
+                  borderRadius:
+                    msg.senderId === currentUser.uid
+                      ? "16px 16px 8px 16px"
+                      : "16px 16px 16px 8px",
+                  bgcolor:
+                    msg.senderId === currentUser.uid
+                      ? effectiveChatTheme === "dark"
+                        ? "#005c4b"
+                        : "#d9fdd3"
+                      : effectiveChatTheme === "dark"
+                      ? "#2f2f2f"
+                      : "#ffffff",
+                  color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+                  position: "relative",
+                  boxShadow: "0px 2px 6px rgba(0,0,0,0.15)",
+                }}
+              >
+                {/* Sender Name */}
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 600,
+                    mb: 0.5,
+                    color:
+                      effectiveChatTheme === "dark" ? "#a7a7a7" : "#666666",
+                  }}
+                >
+                  {msg.senderName}
+                </Typography>
+
+                {/* Message Content */}
+                {msg.type === "poll" && Array.isArray(msg.options) && msg.options.length > 0 ? (
+                  <Box> <Typography variant="subtitle1" sx={{ color: "#00f721", fontWeight: 600 }}> 📊 {msg.question || "Untitled Poll"} </Typography> <List> {msg.options.map((opt, i) => { const votes = Array.isArray(opt.votes) ? opt.votes : []; const hasVoted = votes.includes(currentUser.uid); const userHasVoted = msg.options.some(o => Array.isArray(o.votes) && o.votes.includes(currentUser.uid) ); return ( <ListItemButton key={i} disabled={userHasVoted} onClick={() => handleVote(msg.id, i)} sx={{ bgcolor: hasVoted ? "#00f72144" : "transparent", mb: 0.5, borderRadius: 2, }} > <ListItemText primary={opt.text || `Option ${i + 1}`} sx={{ color: hasVoted ? "#00f721" : "#fff", fontWeight: hasVoted ? 600 : 500, }} /> <Typography variant="body2" sx={{ color: "#b5ffca", minWidth: 35 }}> {votes.length} vote{votes.length !== 1 ? "s" : ""} </Typography> </ListItemButton> ); })} </List> <Typography variant="caption" sx={{ color: "#aaa", mt: 1, fontStyle: 'italic' }}> Total votes: {msg.options.reduce((sum, opt) => sum + (opt.votes?.length || 0), 0)} </Typography> </Box>
+                ) : msg.type === "timeline" && groupInfo?.tripId ? (
+                  <Box sx={{ maxWidth: 250, minWidth: 220 }}> <Typography variant="subtitle1" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: 700, mb: 1 }} > 📅 Group Timeline </Typography> <List dense> {sortedTimeline.length === 0 && ( <Typography sx={{ color: effectiveChatTheme === "dark" ? "#888888" : "#111111", mb: 1 }}> No timeline events yet. </Typography> )} {sortedTimeline.map((event, idx) => { const dateObj = event.timestamp?.seconds ? new Date(event.timestamp.seconds * 1000) : event.datetime ? new Date(event.datetime) : null; const isUpcoming = event.id === upcomingEventId; let timeStr = ""; if (dateObj && !isNaN(dateObj.getTime())) { timeStr = dateObj.toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", weekday: "short", }); } else if (event.time) { timeStr = event.time; } else { timeStr = "—"; } return ( <ListItem key={event.id || idx} disableGutters> <Box sx={{ bgcolor: isUpcoming ? "#f794002a" : event.completed ? "transparent" : "#8787873f", border: isUpcoming ? "2px solid #f79400aa" : undefined, px: 1.2, py: 0.5, borderRadius: 1, display: "flex", alignItems: "center", minHeight: 34, m: 0, width: "90%", boxShadow: isUpcoming ? "0 2px 12px #00f72100" : undefined, transition: "background 0.2s, border 0.2s", }} > <Typography variant="body2" sx={{ fontFamily: "monospace", color: event.completed ? effectiveChatTheme === "dark" ? "#c5c5c5ff" : "#313131ff" : isUpcoming ? effectiveChatTheme === "dark" ? "#ffffffff" : "#000000" : effectiveChatTheme === "dark" ? "#b6b6b6ff" : "#333333", fontWeight: 700, minWidth: 30, }} > {event.completed ? "✅" : isUpcoming ? "⏩" : "⏳"} </Typography> <Box ml={0}> <Typography variant="body2" sx={{ color: event.completed ? effectiveChatTheme === "dark" ? "#c5c5c5ff" : "#333333" : effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: 700, lineHeight: 1.1, }} > {event.title || event.text || isUpcoming || "Untitled"} </Typography> <Typography variant="caption" sx={{ color: event.completed ? effectiveChatTheme === "dark" ? "#c5c5c5ff" : "#333333" : effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: isUpcoming ? 700 : 400 }}> {timeStr} </Typography> </Box> </Box> </ListItem> ); })} </List> </Box>
+                ) : msg.type === "checklist" && groupInfo?.tripId ? (
+                  <Box sx={{ maxWidth: 250, minWidth: 220 }}> <Typography variant="subtitle1" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: 700 }}> 📝 Trip Checklist </Typography> <List dense> {checklist.map((item) => { const isChecked = item.checkedBy?.includes(currentUser.uid); return ( <ListItem key={item.id} disableGutters sx={{ borderRadius: 2 }}> <ListItemButton onClick={() => handleToggleChecklistItem(item.id, !isChecked)} sx={{ borderRadius: 2 }} > <Checkbox edge="start" checked={isChecked} tabIndex={-1} sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", '&.Mui-checked': { color: "#56cb66ff" }, }} /> <ListItemText primary={item.text || "Untitled"} sx={{ color: isChecked ? "#56cb66ff" : effectiveChatTheme === "dark" ? "#fff" : "#000", textDecoration: isChecked ? "line-through" : "none", }} /> </ListItemButton> </ListItem> ); })} </List> <Typography variant="caption" sx={{ color: "#818181ff", mt: 1, fontStyle: 'italic' }}> Only you see your own progress </Typography> </Box>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      fontSize: "0.95rem",
+                    }}
+                  >
+                    {renderMessageWithMentions(msg.text)}
+                  </Typography>
+                )}
+
+                {/* Reactions */}
+                {msg.reactions && (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1, flexWrap: "wrap", }} > {Object.entries(msg.reactions).map(([uid, emoji]) => { const user = allUsers[uid] || {}; return ( <Box key={uid} sx={{ display: "flex", alignItems: "center", bgcolor: effectiveChatTheme === "dark" ? "#2b2b2b" : "#efefefff", borderRadius: "20px", px: 0.5, py: 0.2, gap: 0.5, }} onClick={(e) => { setReactionMsg(msg); setReactionAnchorEl(e.currentTarget); }} > <Avatar src={user.photoURL || "https://via.placeholder.com/32"} sx={{ width: 15, height: 15 }} /> <Typography variant="body2" sx={{ fontSize: 14 }}> {emoji} </Typography> </Box> ); })} </Box>
+                )}
+
+                {/* Timestamp & Status */}
+                <Typography
+                  variant="caption"
+                  sx={{
+                    mt: 0.5,
+                    display: "block",
+                    textAlign: "right",
+                    fontSize: "0.7rem",
+                    color: "#999",
+                  }}
+                >
+                  {msg.timestamp?.seconds
+                    ? new Date(
+                        msg.timestamp.seconds * 1000
+                      ).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Just now"}{" "}
+                  • {msg.status}
+                  {msg.edited && " (edited)"}
+                </Typography>
+              </Paper>
+            </motion.div>
+          </Box>
+        );
+      })}
+    </Box>
+</>
+))}
+
+<AnimatePresence>
+  {typingMembers.length > 0 && (
+    <motion.div
+      key="typing-indicator"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      transition={{ duration: 0.2 }}
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "flex-end",
+        gap: "8px",
+        margin: "10px 0",
+        paddingLeft: "8px",
+      }}
+    >
+<Box sx={{ display: "flex" }}>
+  {typingMembers.map((uid) => {
+    const user = memberUsers[uid] || {};
+    return (
+      <Avatar
+        key={uid}
+        src={user.photoURL || "https://via.placeholder.com/40"}
+        alt={user.displayName || "User"}
+        sx={{
+          width: 26,
+          height: 26,
+          ml: "-6px", // overlap like group chat
+          border: "2px solid",
+          borderColor: effectiveChatTheme === "dark" ? "#1a1a1a" : "#fff",
+        }}
+      />
+    );
+  })}
+</Box>
+
+
+      {/* Bubble */}
+      <Paper
+        elevation={1}
+        sx={{
+          px: 2,
+          py: 0.8,
+          maxWidth: "60%",
+          borderRadius: "16px 16px 16px 4px",
+          bgcolor: effectiveChatTheme === "dark" ? "#353535" : "#f5f5f5",
         }}
       >
         <Typography
           variant="caption"
-          sx={{
-            color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
-            fontStyle: "italic",
-            fontSize: "13px",
-            textAlign: "center",
-          }}
+          sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}
         >
-          {msg.content}
+          {typingMembers.join(", ")}{" "}
+          {typingMembers.length > 1 ? "are typing..." : "is typing..."}
         </Typography>
-      </Box>
-    </Box>
-  );
-}
+      </Paper>
+    </motion.div>
+  )}
+</AnimatePresence>
 
-                    return(
-                      <Box
-  key={msg.id}
-  sx={{
-    display: 'flex',
-    flexDirection: msg.senderId === currentUser.uid ? 'row-reverse' : 'row',
-    marginBottom: '15px',
-    alignItems: 'flex-end',
-    gap: 1,
-    px: 1,
-    maxWidth: '90%',
-    mx: "auto"
-  }}
-  onContextMenu={(e) => {
-    e.preventDefault();
-    setSelectedMsg(msg);
-    setAnchorEl(e.currentTarget);
-  }}
-  onTouchStart={(e) => handleTouchStart(e, msg)}
-  onTouchEnd={(e) => handleTouchEnd(e)}
->
-
-
-                    <Box sx={{ marginRight: '0px', marginLeft: '4px' }}>
-                      <Avatar
-                        src={msg.photoURL || 'https://via.placeholder.com/50'}
-                        alt={msg.senderName}
-                        sx={{ width: 30, height: 30 }}
-                      >
-                        {msg.photoURL && <AccountCircleIcon sx={{ fontSize: 40, color: effectiveChatTheme === "dark" ? '#2f2f2fff' : "#fff" }} />}
-                      </Avatar>
-                    </Box>  
-
-                    <motion.div
-                key={msg.id}
-                ref={el => { messageRefs.current[msg.id] = el; }}
-            drag="x"
-      dragConstraints={{ left: 0, right: 100 }}
-      dragElastic={0.3}
-      onDragEnd={(_, info) => {
-        if (info.offset.x > 80) {
-          handleReply(msg);
-        }
-        controls.start({ x: 0, transition: { type: 'spring', stiffness: 300, damping: 30 } });
-      }}
-      animate={controls}
-      whileDrag={{ scale: 1.02 }}
-      style={{
-        display: 'flex',
-        flexDirection: msg.senderId === currentUser.uid ? 'row-reverse' : 'row',
-        marginBottom: '15px',
-        alignItems: 'flex-end',
-        gap: 1,
-        padding: '0',
-                ...(highlightedMsgId === msg.id && {
-                    boxShadow: "none",
-                    padding: 2,
-                    borderRadius: 12,
-                    background: theme.palette.primary.mainbg,
-                    transition: "background 1.5s ease-in-out",
-                  })
-      }}
-    >
-      <Box sx={{ display: "flex", flexDirection: 'column', m: 0 }}>
-                          {msg.replyTo?.text && (
-  <Box
-    sx={{
-      border: effectiveChatTheme === "dark" ? '1px solid #6565659d' : '1px solid #9f9f9fff',
-      borderLeft: effectiveChatTheme === "dark" ? '4px solid #00f72172' : '4px solid #057c1572',
-      px: 1.5,
-      py: 0.2,
-      mb: 0.3,
-      bgcolor: effectiveChatTheme === "dark" ? '#4a4a4a00' : "#ececec70",
-      backdropFilter: 'blur(24px)',
-      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-      borderRadius: 2,
-      boxShadow: effectiveChatTheme === "dark"
-        ? "0 2px 8px #0002"
-        : "0 2px 8px #8881",
-      display: "flex",
-      flexDirection: "column",
-      gap: 0.2,
-      maxWidth: "95%",
-    }}
-    onClick={() => {
-      const replyId = msg.replyTo.id;
-      const el = messageRefs.current[replyId];
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        setHighlightedMsgId(replyId);
-        setTimeout(() => setHighlightedMsgId(null), 1200);
-      }
-    }}
-  >
-    <Typography variant="caption" color={effectiveChatTheme === "dark" ? "#00f721ab" : "#057c1572"}>
-  {msg.senderId === currentUser.uid
-    ? 'You'
-    : (msg.replyTo?.senderName?.length > 60
-        ? msg.replyTo.senderName.slice(0, 60) + '...'
-        : msg.replyTo?.senderName || 'Unknown')}
-</Typography>
-
-    <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#919191ff" : "#7c7c7cff", fontStyle: 'italic', fontSize: "0.97em", wordBreak: "break-word" }}>
-      {msg.replyTo.text.length > 60
-        ? msg.replyTo.text.slice(0, 30) + '...'
-        : msg.replyTo.text}
-    </Typography>
-  </Box>
-)}
-                    <Paper
-                      isCurrentUser={msg.senderId === currentUser.uid} 
-                      status={msg.status}                    
-                      elevation={1}
-                      sx={{
-                        px: 2,
-                        py: 0.5,
-                        mx: 0,
-                        maxWidth: "65vw",
-                        minWidth: "100px",
-                        bgcolor: msg.senderId === currentUser.uid ? effectiveChatTheme === "dark" ? "#005c4b" : "#d9fdd3" : effectiveChatTheme === "dark" ? "#353535" : "#ffffff",
-                        borderRadius:msg.senderId === currentUser.uid ? '16px 16px 8px 16px' : '16px 16px 16px 8px',
-                        color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-                        position: 'relative',
-                        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)',
-                      }}
-                    >
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 'bold',
-                          fontSize: '13px',
-                          marginBottom: '5px',
-                          color: effectiveChatTheme === "dark" ? '#a7a7a7' : "#696969ff",
-                          maxWidth: 'auto',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                        title={msg.senderName}
-                      >
-                        {msg.senderName}
-                      </Typography>
-
-{msg.type === "poll" && Array.isArray(msg.options) && msg.options.length > 0 ? (
-  <Box>
-    <Typography variant="subtitle1" sx={{ color: "#00f721", fontWeight: 600 }}>
-      📊 {msg.question || "Untitled Poll"}
-    </Typography>
-
-    <List>
-      {msg.options.map((opt, i) => {
-        const votes = Array.isArray(opt.votes) ? opt.votes : [];
-        const hasVoted = votes.includes(currentUser.uid);
-        const userHasVoted = msg.options.some(o =>
-          Array.isArray(o.votes) && o.votes.includes(currentUser.uid)
-        );
-
-        return (
-          <ListItemButton
-            key={i}
-            disabled={userHasVoted}
-            onClick={() => handleVote(msg.id, i)}
-            sx={{
-              bgcolor: hasVoted ? "#00f72144" : "transparent",
-              mb: 0.5,
-              borderRadius: 2,
-            }}
-          >
-            <ListItemText
-              primary={opt.text || `Option ${i + 1}`}
-              sx={{
-                color: hasVoted ? "#00f721" : "#fff",
-                fontWeight: hasVoted ? 600 : 500,
-              }}
-            />
-            <Typography variant="body2" sx={{ color: "#b5ffca", minWidth: 35 }}>
-              {votes.length} vote{votes.length !== 1 ? "s" : ""}
-            </Typography>
-          </ListItemButton>
-        );
-      })}
-    </List>
-
-    <Typography variant="caption" sx={{ color: "#aaa", mt: 1, fontStyle: 'italic' }}>
-      Total votes: {msg.options.reduce((sum, opt) => sum + (opt.votes?.length || 0), 0)}
-    </Typography>
-  </Box>
-) : msg.type === "timeline" && groupInfo?.tripId ? (
-<Box sx={{ maxWidth: 250, minWidth: 220 }}>
-  <Typography
-    variant="subtitle1"
-    sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: 700, mb: 1 }}
-  >
-    📅 Group Timeline
-  </Typography>
-  <List dense>
-    {sortedTimeline.length === 0 && (
-      <Typography sx={{ color: effectiveChatTheme === "dark" ? "#888888" : "#111111", mb: 1 }}>
-        No timeline events yet.
-      </Typography>
-    )}
-{sortedTimeline.map((event, idx) => {
-  const dateObj = event.timestamp?.seconds
-    ? new Date(event.timestamp.seconds * 1000)
-    : event.datetime
-    ? new Date(event.datetime)
-    : null;
-  const isUpcoming = event.id === upcomingEventId;
-
-      let timeStr = "";
-      if (dateObj && !isNaN(dateObj.getTime())) {
-        timeStr = dateObj.toLocaleString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          weekday: "short",
-        });
-      } else if (event.time) {
-        timeStr = event.time;
-      } else {
-        timeStr = "—";
-      }
-      return (
-        <ListItem key={event.id || idx} disableGutters>
-          <Box
-            sx={{
-              bgcolor: isUpcoming
-                ? "#f794002a"
-                : event.completed
-                ? "transparent"
-                : "#8787873f",
-              border: isUpcoming ? "2px solid #f79400aa" : undefined,
-              px: 1.2,
-              py: 0.5,
-              borderRadius: 1,
-              display: "flex",
-              alignItems: "center",
-              minHeight: 34,
-              m: 0,
-              width: "90%",
-              boxShadow: isUpcoming ? "0 2px 12px #00f72100" : undefined,
-              transition: "background 0.2s, border 0.2s",
-            }}
-          >
-            <Typography
-              variant="body2"
-              sx={{
-                fontFamily: "monospace",
-                color: event.completed
-                  ? effectiveChatTheme === "dark" ? "#c5c5c5ff" : "#313131ff"
-                  : isUpcoming
-                  ? effectiveChatTheme === "dark" ? "#ffffffff" : "#000000"
-                  : effectiveChatTheme === "dark" ? "#b6b6b6ff" : "#333333",
-                fontWeight: 700,
-                minWidth: 30,
-              }}
-            >
-              {event.completed ? "✅" : isUpcoming ? "⏩" : "⏳"}
-            </Typography>
-            <Box ml={0}>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: event.completed ? effectiveChatTheme === "dark" ? "#c5c5c5ff" : "#333333" : effectiveChatTheme === "dark" ? "#fff" : "#000",
-                  fontWeight: 700,
-                  lineHeight: 1.1,
-                }}
-              >
-                {event.title || event.text || isUpcoming || "Untitled"}
-              </Typography>
-              <Typography variant="caption" sx={{ color: event.completed ? effectiveChatTheme === "dark" ? "#c5c5c5ff" : "#333333" : effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: isUpcoming ? 700 : 400 }}>
-                {timeStr}
-              </Typography>
-            </Box>
-          </Box>
-        </ListItem>
-      );
-    })}
-  </List>
+<div ref={bottomRef} />
 </Box>
-) : msg.type === "checklist" && groupInfo?.tripId ? (
-  <Box sx={{ maxWidth: 250, minWidth: 220 }}>
-    <Typography variant="subtitle1" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: 700 }}>
-      📝 Trip Checklist
-    </Typography>
-    <List dense>
-      {checklist.map((item) => {
-        const isChecked = item.checkedBy?.includes(currentUser.uid);
-        return (
-          <ListItem key={item.id} disableGutters sx={{ borderRadius: 2 }}>
-            <ListItemButton
-              onClick={() => handleToggleChecklistItem(item.id, !isChecked)}
-              sx={{ borderRadius: 2 }}
-            >
-              <Checkbox
-                edge="start"
-                checked={isChecked}
-                tabIndex={-1}
-                sx={{
-                  color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-                  '&.Mui-checked': { color: "#56cb66ff" },
-                }}
-              />
-              <ListItemText
-                primary={item.text || "Untitled"}
-                sx={{
-                  color: isChecked ? "#56cb66ff" : effectiveChatTheme === "dark" ? "#fff" : "#000",
-                  textDecoration: isChecked ? "line-through" : "none",
-                }}
-              />
-            </ListItemButton>
-          </ListItem>
-        );
-      })}
-    </List>
-    <Typography variant="caption" sx={{ color: "#818181ff", mt: 1, fontStyle: 'italic' }}>
-      Only you see your own progress
-    </Typography>
-  </Box>
-) : (
-  <Typography
-  variant="body2"
-  sx={{
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-    fontSize: '15px'
-  }}
->
-  {renderMessageWithMentions(msg.text)}
-</Typography>
-
 )}
-
-                      
-                      
-{msg.reactions && (
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      gap: 1,
-      mt: 1,
-      flexWrap: "wrap",
-    }}
-  >
-    {Object.entries(msg.reactions).map(([uid, emoji]) => {
-      const user = allUsers[uid] || {};
-      return (
-        <Box
-          key={uid}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            bgcolor: effectiveChatTheme ===  "dark" ? "#2b2b2b" : "#efefefff",
-            borderRadius: "20px",
-            px: 0.5,
-            py: 0.2,
-            gap: 0.5,
-          }}
-          onClick={(e) => {
-            setReactionMsg(msg);
-            setReactionAnchorEl(e.currentTarget);
-          }}
-        >
-          <Avatar
-            src={user.photoURL || "https://via.placeholder.com/32"}
-            sx={{ width: 15, height: 15 }}
-          />
-          <Typography variant="body2" sx={{ fontSize: 14 }}>
-            {emoji}
-          </Typography>
-        </Box>
-      );
-    })}
-  </Box>
-)}
-
-
-                      <MessageTime
-                        sx={{
-                          color: "#757575"
-                        }}
-                      >
-                        {msg.timestamp?.seconds
-                          ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : 'Just now'}
-                      </MessageTime>
-                      
-
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          bottom: '-18px',
-                          left: '5px',
-                          color: '#757575',
-                          fontSize: '10px',
-                        }}
-                      >
-                        {msg.status === 'sent'
-                          ? 'Sent'
-                          : msg.status === 'delivered'
-                          ? 'Delivered'
-                          : 'Read'} 
-                        {msg.edited && (
-                          <Typography
-                          variant="caption"
-                          sx={{ color: "#888", ml: 1, fontStyle: "italic" }}
-                          >
-                            edited
-                          </Typography>
-                        )}
-                        </Box>
-                    </Paper>
-      </Box>
-                    </motion.div>
-                  </Box>
-                    );
-                    })}
-              </Box>
-            ))
-          )}
 
 <Menu
   anchorEl={anchorEl}
@@ -1610,19 +1524,18 @@ if (msg.type === "system") {
     sx: {
       minWidth: 220,
       borderRadius: 4,
-      bgcolor: effectiveChatTheme === "dark" ? "#18181823" : "#ffffff43",
+          backgroundImage: "none",
+          backgroundColor: "transparent",
       color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-      boxShadow: effectiveChatTheme === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
+      boxShadow: "none",
       p: 1,
-      backdropFilter: effectiveChatTheme === "dark" ? 'blur(18px)' : 'blur(8px)',
-      border: effectiveChatTheme === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
       overflow: 'hidden',
       transition: "box-shadow 0.3s, background 0.3s",
     },
   }}
 >
   {/* 🔥 Row of Reactions */}
-  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, px: 1 }}>
+  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, px: 1, py: 1, backgroundColor: effectiveChatTheme === "dark" ? '#1c1c1c70' : '#ffffff76', backdropFilter: "blur(20px)", borderRadius: 8, boxShadow: "none" }}>
     {["❤️", "😂", "👍", "😁", "👌"].map((emoji) => (
       <IconButton
         key={emoji}
@@ -1631,21 +1544,19 @@ if (msg.type === "system") {
           setAnchorEl(null);
         }}
         sx={{
-          width: 38,
-          height: 38,
-          fontSize: 20,
-          bgcolor: effectiveChatTheme === "dark" ? 'rgba(41,41,41,0.85)' : '#f7f7f7',
-          borderRadius: 2,
-          color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-          backdropFilter: effectiveChatTheme === "dark" ? 'blur(10px)' : 'blur(2px)',
-          border: effectiveChatTheme === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
-          boxShadow: effectiveChatTheme === "dark" ? '0 2px 8px #0004' : '0 2px 8px #bbb2',
-          transition: 'all 0.18s cubic-bezier(0.4,0,0.2,1)',
-          '&:hover': {
-            bgcolor: effectiveChatTheme === "dark" ? '#333' : '#e0e0e0',
-            borderColor: effectiveChatTheme === "dark" ? '#444' : '#bdbdbd'
-          },
-        }}
+              width: 38,
+              height: 38,
+              fontSize: 24,
+              bgcolor: effectiveChatTheme === "dark" ? '#29292900' : '#f7f7f700',
+              borderRadius: 8,
+              color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+              boxShadow: "none",
+              transition: 'all 0.18s cubic-bezier(0.4,0,0.2,1)',
+              '&:hover': {
+                bgcolor: effectiveChatTheme === "dark" ? '#333' : '#e0e0e0',
+                borderColor: effectiveChatTheme === "dark" ? '#444' : '#bdbdbd'
+              },
+            }}
       >
         {emoji}
       </IconButton>
@@ -1655,28 +1566,38 @@ if (msg.type === "system") {
         setShowEmojiPicker(true);
         setAnchorEl(null);
       }}
-      sx={{
-        width: 38,
-        height: 38,
-        bgcolor: effectiveChatTheme === "dark" ? '#292929d9' : '#ffffffff',
-        borderRadius: 2,
-        color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-        border: effectiveChatTheme === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
-        boxShadow: effectiveChatTheme === "dark" ? '0 2px 8px #0004' : '0 2px 8px #bbb2',
-        backdropFilter: effectiveChatTheme === "dark" ? 'blur(10px)' : 'blur(2px)',
-        transition: 'all 0.18s cubic-bezier(0.4,0,0.2,1)',
-        '&:hover': {
-          bgcolor: effectiveChatTheme === "dark" ? '#333' : '#e0e0e0',
-          borderColor: effectiveChatTheme === "dark" ? '#444' : '#bdbdbd'
-        },
-      }}
+          sx={{
+            width: 38,
+            height: 38,
+            bgcolor: effectiveChatTheme === "dark" ? '#29292933' : '#ffffffff',
+            borderRadius: 8,
+            color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+            boxShadow: "none",
+            backdropFilter: effectiveChatTheme === "dark" ? 'blur(10px)' : 'blur(2px)',
+            transition: 'all 0.18s cubic-bezier(0.4,0,0.2,1)',
+            '&:hover': {
+              bgcolor: effectiveChatTheme === "dark" ? '#333' : '#e0e0e0',
+              borderColor: effectiveChatTheme === "dark" ? '#444' : '#bdbdbd'
+            },
+          }}
     >
       <AddIcon />
     </IconButton>
   </Box>
 
-  <Divider sx={{ my: 1, bgcolor: "#333" }} />
-
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column', 
+        backgroundColor: effectiveChatTheme === "dark" ? '#1c1c1c70' : '#ffffff76',
+        backdropFilter: "blur(20px)",
+        borderRadius: 7,
+        boxShadow: "none",
+        px: 0.2,
+        py: 0.5,
+        mt: 1
+      }}
+    >
   {/* 📄 Message Actions */}
   <MenuItem
     onClick={() => {
@@ -1686,12 +1607,12 @@ if (msg.type === "system") {
         sx={{
           fontWeight: 500,
           fontSize: 15,
-          borderRadius: 2,
+          borderRadius: "25px 25px 8px 8px",
           mx: 0.5,
           my: 0.2,
-          backdropFilter: effectiveChatTheme === "dark" ? 'blur(2px)' : 'blur(2px)',
+          backdropFilter: effectiveChatTheme === "dark" ? 'blur(1px)' : 'blur(2px)',
           color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-          '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
+          '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#23232358' : '#ffffffff' },
           transition: 'background 0.2s',
           display: 'flex',
           alignItems: 'center',
@@ -1710,17 +1631,17 @@ if (msg.type === "system") {
           setAnchorEl(null);
         }}
         sx={{
-          fontWeight: 500,
-          fontSize: 15,
-          borderRadius: 2,
-          mx: 0.5,
-          my: 0.2,
-          backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
-          color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-          '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
+              fontWeight: 500,
+              fontSize: 15,
+              borderRadius: 2,
+              mx: 0.5,
+              my: 0.2,
+              backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+              color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+              '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
         }}
       >
         <EditIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
@@ -1751,31 +1672,6 @@ if (msg.type === "system") {
     </>
   )}
 
-  <Divider sx={{ my: 0.5, bgcolor: "#333" }} />
-
-  <MenuItem
-    onClick={() => {
-      navigator.clipboard.writeText(selectedMsg?.text || "");
-      setNotification("Message copied!");
-      setAnchorEl(null);
-    }}
-    sx={{
-      fontSize: 15,
-      borderRadius: 2,
-      mx: 0.5,
-      my: 0.2,
-      backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
-      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-      '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
-      display: 'flex',
-      alignItems: 'center',
-      gap: 1,
-    }}
-  >
-    <ContentCopyIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
-    Copy Text
-  </MenuItem>
-
   {selectedMsg?.text?.length > 10 && (
     <MenuItem
       onClick={() => {
@@ -1786,22 +1682,47 @@ if (msg.type === "system") {
         setAnchorEl(null);
       }}
             sx={{
-              fontSize: 15,
-              borderRadius: 2,
-              mx: 0.5,
-              my: 0.2,
-              backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
-              color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-              '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
+            fontSize: 15,
+            borderRadius: 2,
+            mx: 0.5,
+            my: 0.2,
+            backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+            color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+            '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
             }}
           >
             <SearchIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
             Search on Google
     </MenuItem>
   )}
+
+  <MenuItem
+    onClick={() => {
+      navigator.clipboard.writeText(selectedMsg?.text || "");
+      setNotification("Message copied!");
+      setAnchorEl(null);
+    }}
+    sx={{
+          fontSize: 15,
+          borderRadius: "8px 8px 25px 25px",
+          mx: 0.5,
+          my: 0.2,
+          backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+          color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+          '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+    }}
+  >
+    <ContentCopyIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
+    Copy Text
+  </MenuItem>
+
+  </Box>
 </Menu>
 
 <SwipeableDrawer
@@ -2019,10 +1940,7 @@ if (msg.type === "system") {
 />
 </Popover>
 
-
-<div ref={bottomRef} />
-        </MessageContainer>          
-
+        </Box>          
           
     {showGoToBottom && (
         <Fab
@@ -2045,82 +1963,30 @@ if (msg.type === "system") {
       )}
 
       </Box>
-
-      {replyTo && (
-    <Paper sx={{ p: 1, position: 'relative', bottom: '55px', bgcolor: '#2b2b2bb0', mb: 1, borderLeft: '4px solid #00f721', backdropFilter: 'blur(30px)' }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Box>
-          <Typography variant="caption" color="primary">
-            Replying to {replyTo.senderName === currentUser.uid ? 'You' : replyTo.senderName}
-          </Typography>
-          <Typography variant="body2" sx={{ color: '#ccc' }}>
-            {replyTo.text.length > 60
-              ? replyTo.text.slice(0, 60) + '...'
-              : replyTo.text}
-          </Typography>
-        </Box>
-        <IconButton onClick={() => setReplyTo(null)}>
-          <CloseIcon fontSize="small" sx={{ color: 'white' }} />
-        </IconButton>
-      </Box>
-    </Paper>
-  )}
   
+  <div ref={bottomRef} />
+
 <Box
   sx={{
-    p: 1,
-    display: 'flex',
-    position: 'fixed',
-    bottom: 0,
-    left: 0,
-    width: '95vw',
-    zIndex: '1200',
-    alignItems: 'center',
-    borderTop: '0px solid #5E5E5E',
-    background: effectiveChatTheme === "dark" ? 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to bottom, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
+    position: "absolute",
+    bottom: "0",
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: "95%",
+    borderRadius: "30px 30px 0 0",
+    background: effectiveChatTheme === "dark" ? "#00000013" : "#ffffff39",
+    display: "flex",
+    flexDirection: "column", // stack reply preview + input area
+    backdropFilter: "blur(30px)",
+    WebkitBackdropFilter: "blur(30px)",
+    justifyContent: "space-between",
+    px: 1.2,
+    py: 1.2,
+    boxShadow: "none",
+    zIndex: 1200,
+    transition: "all ease-in-out 0.3s"
   }}
 >
-  <SwipeableDrawer
-  anchor="bottom"
-  open={mentionDrawerOpen}
-  onClose={() => setMentionDrawerOpen(false)}
-  PaperProps={{
-    sx: {
-      height: '50vh',
-      borderTopRightRadius: 24,
-      borderTopLeftRadius: 24,
-      backgroundColor: effectiveChatTheme === "dark" ? "#000000" : "#fff",
-      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-      p: 2,
-    },
-  }}
->
-  <Typography variant="h6" sx={{ mb: 2, textAlign: 'center' }}>
-    Mention a member
-  </Typography>
-  <List>
-    {memberUsers.length === 0 && (
-      <Typography sx={{ textAlign: 'center', mt: 4, color: effectiveChatTheme === "dark" ? "#aaa" : "#555" }}>
-        No members found
-      </Typography>
-    )}
-    {memberUsers.map((member) => (
-      <ListItemButton
-        key={member.uid || member.id} // uid or doc id
-        onClick={() => handleMentionSelect(member.username || member.name)}
-        sx={{ py: 1 }}
-      >
-        <Avatar src={member.photoURL || ''} sx={{ width: 36, height: 36, mr: 2 }} />
-        <ListItemText
-          primary={member.name || member.username || 'Unknown'}
-          secondary={member.username || ''}
-          primaryTypographyProps={{ noWrap: true }}
-          secondaryTypographyProps={{ noWrap: true, variant: 'caption', sx: {color: effectiveChatTheme === "dark" ? "#ccc" : "#666"} }}
-        />
-      </ListItemButton>
-    ))}
-  </List>
-</SwipeableDrawer>
 
   {(() => {
     const canSend =
@@ -2148,56 +2014,298 @@ if (msg.type === "system") {
     }
 
     return (
+  
+
+<>
+<Collapse in={mentionDrawerOpen} timeout={300} unmountOnExit>
+  <Paper
+    sx={{
+      borderTopRightRadius: 24,
+      borderTopLeftRadius: 24,
+      backgroundColor: effectiveChatTheme === "dark" ? "#1c1c1c20" : "#ffffff2c",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+      p: 2,
+      mt: 2,
+      boxShadow: "none",
+      maxHeight: "50vh",
+      overflowY: "auto",
+    }}
+  >
+    <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
+      Mention a member
+    </Typography>
+
+    <List>
+      {memberUsers.length === 0 && (
+        <Typography
+          sx={{
+            textAlign: "center",
+            mt: 4,
+            color: effectiveChatTheme === "dark" ? "#aaa" : "#555",
+          }}
+        >
+          No members found
+        </Typography>
+      )}
+
+      {memberUsers.map((member) => (
+        <ListItemButton
+          key={member.uid || member.id}
+          onClick={() => handleMentionSelect(member.username || member.name)}
+          sx={{
+            py: 1,
+            borderRadius: 2,
+            mb: 1,
+            "&:hover": {
+              backgroundColor:
+                effectiveChatTheme === "dark" ? "#1a1a1a" : "#f2f2f2",
+            },
+          }}
+        >
+          <Avatar
+            src={member.photoURL || ""}
+            sx={{ width: 36, height: 36, mr: 2 }}
+          />
+          <ListItemText
+            primary={member.name || member.username || "Unknown"}
+            secondary={member.username || ""}
+            primaryTypographyProps={{ noWrap: true }}
+            secondaryTypographyProps={{
+              noWrap: true,
+              variant: "caption",
+              sx: {
+                color:
+                  effectiveChatTheme === "dark" ? "#ccc" : "#666",
+              },
+            }}
+          />
+        </ListItemButton>
+      ))}
+    </List>
+  </Paper>
+</Collapse>
+
+<Collapse in={Boolean(replyTo)} timeout={300}>
+  {replyTo && (
+    <Paper
+      sx={{
+        mb: 1.2,
+        p: 1.2,
+        px: 1.6,
+        borderRadius: "14px",
+        background:
+          effectiveChatTheme === "dark"
+            ? "linear-gradient(145deg, #1c1c1c20, #10101030)"
+            : "linear-gradient(145deg, #ffffff2c, #f7f7f73c)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backdropFilter: "blur(12px)",
+        boxShadow: "none",
+      }}
+      >
+      <Box sx={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <Box>
+          <Typography variant="caption" color="primary">
+            {replyTo.senderName === currentUser.uid ? 'You' : replyTo.senderName}
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#ccc' }}>
+            {replyTo.text.length > 60
+              ? replyTo.text.slice(0, 60) + '...'
+              : replyTo.text}
+          </Typography>
+        </Box>
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <IconButton
+          size="small"
+          onClick={() => setReplyTo(null)}
+          sx={{
+            bgcolor: effectiveChatTheme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+            color: effectiveChatTheme === "dark" ? "#fff" : "#333",
+            width: 26,
+            height: 26,
+            transition: "all 0.2s ease",
+            "&:hover": {
+              bgcolor: effectiveChatTheme === "dark" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)",
+              transform: "scale(1.1)",
+            },
+          }}
+        >
+          <CloseIcon sx={{ fontSize: "16px" }} />
+        </IconButton>
+      </Box>
+    </Paper>
+  )}
+</Collapse>
+
+<Collapse in={Boolean(moreAnchorEl)} timeout={300} unmountOnExit>
+  <Paper
+    sx={{
+      bgcolor: effectiveChatTheme === "dark" ? "#1c1c1c20" : "#ffffff2c",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+      borderRadius: 3,
+      maxWidth: 370,
+      minWidth: 260,
+      backdropFilter: "blur(24px)",
+      boxShadow: "none",
+      p: 1,
+      mx: "auto",
+      my: 2,
+      border: "none",
+      transition: "box-shadow 0.3s, background 0.3s",
+    }}
+  >
+    {/* Send Timeline */}
+    <Box
+      onClick={async () => {
+        const items = await fetchTripTimeline();
+        await sendStructuredMessage("Timeline", items);
+        setMoreAnchorEl(null);
+      }}
+      sx={{
+        fontWeight: 600,
+        fontSize: 16,
+        borderRadius: 2,
+        mb: 1,
+        px: 2,
+        py: 1.5,
+        cursor: "pointer",
+        color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+        "&:hover": {
+          bgcolor: effectiveChatTheme === "dark" ? "#232323" : "#e0e0e0",
+        },
+        transition: "background 0.2s",
+      }}
+    >
+      📅 Send Timeline
+    </Box>
+
+    {/* Send Checklist */}
+    <Box
+      onClick={async () => {
+        const items = await fetchTripChecklist();
+        await sendStructuredMessage("Checklist", items);
+        setMoreAnchorEl(null);
+      }}
+      sx={{
+        fontWeight: 600,
+        fontSize: 16,
+        borderRadius: 2,
+        mb: 1,
+        px: 2,
+        py: 1.5,
+        cursor: "pointer",
+        color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+        "&:hover": {
+          bgcolor: effectiveChatTheme === "dark" ? "#232323" : "#e0e0e0",
+        },
+        transition: "background 0.2s",
+      }}
+    >
+      ✅ Send Checklist
+    </Box>
+
+    {/* Poll (optional) */}
+    {/* 
+    <Box
+      onClick={() => { setShowPollDialog(true); setMoreAnchorEl(null); }}
+      sx={{
+        fontWeight: 600,
+        fontSize: 16,
+        borderRadius: 2,
+        mb: 1,
+        px: 2,
+        py: 1.5,
+        cursor: "pointer",
+        color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+        "&:hover": {
+          bgcolor: effectiveChatTheme === "dark" ? "#232323" : "#e0e0e0",
+        },
+        transition: "background 0.2s",
+      }}
+    >
+      📊 Create Poll
+    </Box>
+    */}
+  </Paper>
+</Collapse>
+
+<Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, mr: 1 }}>
 <Box
   sx={{
-    mx: "auto",
-    p: 1,
-    display: 'flex',
-    justifyContent: "space-around",
-    position: 'fixed',
-    width: '97vw',
-    bottom: 0,
-    left: 0,
-    zIndex: '1200',
-    alignItems: 'center',
-    borderTop: '0px solid #5e5e5e81',
-    background: effectiveChatTheme === "dark" ? 'linear-gradient(to top, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to top, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
-  }}
->
-  
-<Box
-sx={{
     display: "flex",
     alignItems: "center",
-    px: 0.5,
-    backgroundColor: "rgba(0, 0, 0, 0.17)",
-    border: "1px solid #757575ff",
-    borderRadius: '40px',
-    backdropFilter: "blur(30px)",
-    mr: 0.7,
-    height: '40px',
-}}
+    px: 0.6,
+    py: 0.2,
+    mr: 1,
+    borderRadius: "30px",
+    bgcolor: effectiveChatTheme === "dark" ? "#14141439" : "#ffffff39",
+    backdropFilter: "blur(10px)",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+    width: "100%",
+  }}
 >
-    <Button
-    sx={{
-      display: editingMsg ? "none" : "flex",
-      backgroundColor: effectiveChatTheme === "dark" ? '#f1f1f11c' : "#ffffff1c",
-      backdropFilter: "blur(80px)",
-      height: '30px',
-      px: 0,
-      minWidth: '30px',
-      borderRadius: 40,
-    }}
-    onClick={(e) => setMoreAnchorEl(e.currentTarget)}
-  >
-    <AddIcon sx={{ color: effectiveChatTheme === "dark" ? '#ffffffff' : "#000000", fontSize: 24 }} />
-  </Button>
+<Button
+  sx={{
+    display: editingMsg ? "none" : "flex",
+      minWidth: 0,
+      borderRadius: "50%",
+      height: 38,
+      width: 42,
+      bgcolor: "#ffffff37",
+      backdropFilter: "blur(6px)",
+      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+      boxShadow: "none",
+      transition: "all 0.3s ease",
+      "&:hover": {
+        bgcolor: "rgba(255,255,255,0.15)",
+        transform: "scale(1.1)",
+        boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
+      },
+      "&:active": { transform: "scale(0.95)" },
+  }}
+  onClick={() => {
+    if (moreAnchorEl) {
+      // if already open, close it
+      setMoreAnchorEl(null);
+    } else {
+      // if closed, open it
+      setMoreAnchorEl(true);
+    }
+  }}
+>
+  {moreAnchorEl ? (
+    <AddIcon
+      sx={{
+        color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+        fontSize: 24,
+        transform: "rotate(45deg)",
+        transition: "transform 0.3s ease",
+      }}
+    />
+  ) : (
+    <AddIcon
+      sx={{
+        color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+        fontSize: 24,
+        transform: "rotate(0deg)",
+        transition: "transform 0.3s ease",
+      }}
+    />
+  )}
+</Button>
 
   <TextField
     value={editingMsg ? editText : newMsg}
-    onChange={(e) =>
-      editingMsg ? setEditText(e.target.value) : setNewMsg(e.target.value)
-    }
+    onChange={(e) => {
+      if (editingMsg) {
+        setEditText(e.target.value);
+      } else {
+        setNewMsg(e.target.value);
+      }
+      handleInputChange(e);
+    }}
     placeholder={editingMsg ? "Edit message..." : "Type a message..."}
     size="small"
     fullWidth
@@ -2272,7 +2380,7 @@ sx={{
   ) : (
     <>
     <Button
-      sx={{ backgroundColor: effectiveChatTheme === "dark" ? '#ffffffff' : "#000000", height: '45px', width: '54px', borderRadius: 40 }}
+      sx={{ backgroundColor: effectiveChatTheme === "dark" ? '#ffffffff' : "#000000", height: '48px', width: '48px', borderRadius: 40 }}
       onClick={sendMessage}
     >
       <SendIcon sx={{ color: effectiveChatTheme === "dark" ? '#000' : "#fff" }} />
@@ -2280,101 +2388,12 @@ sx={{
   </>
   )}
 
-  {/* --- More Options Menu --- */}
-<Menu
-  anchorEl={moreAnchorEl}
-  open={Boolean(moreAnchorEl)}
-  onClose={() => setMoreAnchorEl(null)}
-  PaperProps={{
-    sx: {
-      bgcolor: effectiveChatTheme === "dark" ? "#232323e6" : "#f7f7f7e6",
-      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-      borderRadius: 3,
-      maxWidth: 370,
-      minWidth: 260,
-      backdropFilter: "blur(24px)",
-      boxShadow: effectiveChatTheme === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
-      p: 1,
-      mx: "auto",
-      my: 2,
-      border: "none",
-      transition: "box-shadow 0.3s, background 0.3s",
-    }
-  }}
-  anchorOrigin={{
-    vertical: "bottom",
-    horizontal: "center"
-  }}
-  transformOrigin={{
-    vertical: "top",
-    horizontal: "center"
-  }}
->
-  <MenuItem
-    onClick={async () => {
-      const items = await fetchTripTimeline();
-      await sendStructuredMessage("Timeline", items);
-      setMoreAnchorEl(null);
-    }}
-    sx={{
-      fontWeight: 600,
-      fontSize: 16,
-      borderRadius: 2,
-      mb: 1,
-      px: 2,
-      py: 1.5,
-      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-      '&:hover': {
-        bgcolor: effectiveChatTheme === "dark" ? "#232323" : "#e0e0e0"
-      },
-      transition: "background 0.2s"
-    }}
-  >
-    📅 Send Timeline
-  </MenuItem>
-  <MenuItem
-    onClick={async () => {
-      const items = await fetchTripChecklist();
-      await sendStructuredMessage("Checklist", items);
-      setMoreAnchorEl(null);
-    }}
-    sx={{
-      fontWeight: 600,
-      fontSize: 16,
-      borderRadius: 2,
-      mb: 1,
-      px: 2,
-      py: 1.5,
-      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-      '&:hover': {
-        bgcolor: effectiveChatTheme === "dark" ? "#232323" : "#e0e0e0"
-      },
-      transition: "background 0.2s"
-    }}
-  >
-    ✅ Send Checklist
-  </MenuItem>
-  {/* 
-  <MenuItem
-    onClick={() => { setShowPollDialog(true); setMoreAnchorEl(null); }}
-    sx={{
-      fontWeight: 600,
-      fontSize: 16,
-      borderRadius: 2,
-      mb: 1,
-      px: 2,
-      py: 1.5,
-      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-      '&:hover': {
-        bgcolor: effectiveChatTheme === "dark" ? "#232323" : "#e0e0e0"
-      },
-      transition: "background 0.2s"
-    }}
-  >
-    📊 Create Poll
-  </MenuItem>
-  */}
-</Menu>
+</Box>
+
+</>
+    );
+  })()}
+</Box>
 
 <Dialog
   open={showPollDialog}
@@ -2444,11 +2463,6 @@ sx={{
   </DialogActions>
 </Dialog>
 
-</Box>
-
-    );
-  })()}
-</Box>
 
       <GroupInfoDrawer
         profileOpen={profileOpen}
