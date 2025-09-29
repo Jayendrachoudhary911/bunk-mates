@@ -47,7 +47,7 @@ import {
 } from '@mui/material';
 import EmojiPicker from 'emoji-picker-react';
 import Popover from '@mui/material/Popover';
-import { styled } from '@mui/system';
+import { fontSize, fontStyle, styled } from '@mui/system';
 import BetaAccessGuard from "../components/BetaAccessGuard";
 import SendIcon from '@mui/icons-material/Send';
 import CloseIcon from '@mui/icons-material/Close';
@@ -62,10 +62,11 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ReplyIcon from '@mui/icons-material/Reply';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import DoneAllIcon from '@mui/icons-material/DoneAll';
 
 import GroupInfoDrawer from "./GroupChat/GroupInfoDrawer";
 
-import { motion, useAnimation, AnimatePresence } from 'framer-motion';
+import { motion, useAnimation, AnimatePresence, color } from 'framer-motion';
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { FastAverageColor } from "fast-average-color";
@@ -98,11 +99,11 @@ const MessageContainer = styled(Box)({
     color: '#FFFFFF',
   });
 
-  const getMessageShape = (messages, index, currentUserId) => {
+  const getMessageShape = (messages, index, currentuser) => {
   const msg = messages[index];
   const prevMsg = messages[index - 1];
   const nextMsg = messages[index + 1];
-  const isOwn = msg.senderId === currentUserId;
+  const isOwn = msg.senderId === currentuser.uid;
 
   const within1Min = (a, b) =>
     Math.abs(a?.timestamp?.seconds - b?.timestamp?.seconds) < 60;
@@ -113,7 +114,7 @@ const MessageContainer = styled(Box)({
   let borderRadius;
   if (isOwn) {
     if (samePrev && sameNext) borderRadius = "20px 10px 10px 20px";
-    else if (samePrev && !sameNext) borderRadius = "20px 10px 4px 20px";
+    else if (samePrev && !sameNext) borderRadius = "20px 20px 4px 4px";
     else if (!samePrev && sameNext) borderRadius = "20px 20px 10px 20px";
     else borderRadius = "20px 20px 4px 20px";
   } else {
@@ -948,7 +949,6 @@ const renderMessageWithMentions = (text) => {
 
   return (
     <ThemeProvider theme={theme}>
-      <BetaAccessGuard>
           <Box sx={{
             backgroundImage: getWallpaperUrl() === 'none' ? effectiveChatTheme === 'dark' ? '/assets/images/chatbg/dark.png' : '/assets/images/chatbg/light.png' : getWallpaperUrl(),
             backgroundColor: getWallpaperUrl() === 'none'
@@ -1112,13 +1112,13 @@ const renderMessageWithMentions = (text) => {
             display: 'flex', 
             flexDirection: 'column',
             margin: '20px',
-            backgroundColor: '#009b5912',
+            backgroundColor: '#009b5800',
             borderRadius: '20px',
             alignItems: 'center',
             textAlign: 'center',
             padding: '25px',
-            border: '1.2px solid #009b59ad',
-            backdropFilter: 'blur(25px)',
+            border: '1.2px solid #82828251',
+            backdropFilter: 'blur(40px)',
             maxWidth: '100%'
           }}
         >
@@ -1144,7 +1144,7 @@ const renderMessageWithMentions = (text) => {
       whiteSpace: 'nowrap',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
-      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+      color: headerTextColor,
       mb: 0.5,
     }}
   >
@@ -1190,7 +1190,7 @@ const renderMessageWithMentions = (text) => {
       whiteSpace: 'pre-wrap',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
-      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+      color: headerTextColor,
       textAlign: "center",
       mb: 0.5,
       width: "80vw"
@@ -1200,24 +1200,24 @@ const renderMessageWithMentions = (text) => {
   </Typography>
 
   {createdByUser && (
-    <Typography variant="caption" sx={{ color: effectiveChatTheme === "dark" ? "#ccc" : "#555", mb: 0.5 }}>
-      <strong sx={{color: effectiveChatTheme === "dark" ? "#fff" : "#000"}}>Created by:</strong> {createdByUser.name}
+    <Typography variant="caption" sx={{ color: headerTextColor, mb: 0.5 }}>
+      <strong sx={{color: headerTextColor}}>Created by:</strong> {createdByUser.name}
     </Typography>
   )}
 
-  <Typography variant="caption" sx={{ color: effectiveChatTheme === "dark" ? "#ccc" : "#555" }}>
-  <br></br><strong sx={{color: effectiveChatTheme === "dark" ? "#fff" : "#000"}}>{groupInfo.members?.length || 0} Members</strong>
+  <Typography variant="caption" sx={{ color: headerTextColor }}>
+  <br></br><strong sx={{color: headerTextColor}}>{groupInfo.members?.length || 0} Members</strong>
   </Typography>
 
 <Typography
   variant="caption"
   sx={{
-    color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
+    color: headerTextColor,
     whiteSpace: 'pre-wrap',
     mt: 1,
   }}
 >
-  <strong style={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>Members Joined:</strong>
+  <strong style={{ color: headerTextColor }}>Members Joined:</strong>
   {'\n'}
   {memberUsers.length === 0 ? (
     'None'
@@ -1248,7 +1248,7 @@ const renderMessageWithMentions = (text) => {
   <Box sx={{ mb: "0px" }}>
   {Object.keys(groupedMessages).map((date) => (
     <>
-    <Box key={date}>
+    <Box key={date} sx={{ display: "flex", justifyContent: "center", my: 1 }}>
       {/* Date Divider */}
       <Typography
         variant="caption"
@@ -1257,22 +1257,28 @@ const renderMessageWithMentions = (text) => {
           px: 2,
           py: 0.5,
           mb: 2,
+          mx: "auto",
           borderRadius: "20px",
           fontWeight: 600,
           fontSize: "0.75rem",
+          backdropFilter: "blur(10px)",
           bgcolor:
             effectiveChatTheme === "dark"
-              ? "rgba(255,255,255,0.08)"
-              : "rgba(0,0,0,0.05)",
-          color: effectiveChatTheme === "dark" ? "#bbb" : "#444",
+              ? "rgba(0, 0, 0, 0.21)"
+              : "rgba(255, 255, 255, 0.28)",
+          color: effectiveChatTheme === "dark" ? "#f1f1f1ff" : "#1f1f1fff",
           textAlign: "center",
         }}
       >
         {date}
       </Typography>
+    </Box>
 
       {/* Messages */}
-      {(groupedMessages?.[date] || []).map((msg) => {
+      {(groupedMessages?.[date] || []).map((msg, index) => {
+        const { borderRadius, isGroupedWithNext, isGroupedWithPrev } =
+          getMessageShape(messages, index, currentUser.uid);
+
         if (msg.type === "system") {
           return (
             <Box key={msg.id} sx={{ display: "flex", justifyContent: "center", my: 1 }}>
@@ -1284,8 +1290,8 @@ const renderMessageWithMentions = (text) => {
                   borderRadius: 2,
                   bgcolor:
                     effectiveChatTheme === "dark"
-                      ? "rgba(255,255,255,0.06)"
-                      : "rgba(0,0,0,0.04)",
+                      ? "rgba(0, 0, 0, 0.41)"
+                      : "rgba(255, 255, 255, 0.35)",
                   backdropFilter: "blur(10px)",
                 }}
               >
@@ -1293,8 +1299,9 @@ const renderMessageWithMentions = (text) => {
                   variant="caption"
                   sx={{
                     fontStyle: "italic",
+                    textAlign: "center",
                     fontSize: "0.8rem",
-                    color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
+                    color: effectiveChatTheme === "dark" ? "#ccc" : "#373737ff",
                   }}
                 >
                   {msg.content}
@@ -1305,19 +1312,8 @@ const renderMessageWithMentions = (text) => {
         }
 
         return (
-          <Box
+          <motion.div
             key={msg.id}
-            sx={{
-              display: "flex",
-              flexDirection:
-                msg.senderId === currentUser.uid ? "row-reverse" : "row",
-              alignItems: "flex-end",
-              mb: 2,
-              gap: 1,
-              px: 1,
-              maxWidth: "90%",
-              mx: "auto",
-            }}
             onContextMenu={(e) => {
               e.preventDefault();
               setSelectedMsg(msg);
@@ -1325,13 +1321,44 @@ const renderMessageWithMentions = (text) => {
             }}
             onTouchStart={(e) => handleTouchStart(e, msg)}
             onTouchEnd={handleTouchEnd}
+               animate="visible"
+               initial="hidden"
+               exit="exit"
+               onDragEnd={(event, info) => {
+                   setReplyTo(msg);
+                 controls.start({ x: 0 });
+               }}
+               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+               style={{ touchAction: 'pan-y',
+               ...(highlightedMsgId === msg.id && {
+                   boxShadow: "none",
+                   paddingX: 2,
+                   borderRadius: 12,
+                   background: theme.palette.primary.mainbg,
+                   transition: "background 1.5s ease-in-out",
+                 })
+               }}
           >
-            {/* Avatar */}
+
+        <Box
+            sx={{
+              display: "flex",
+              flexDirection:
+                msg.senderId === currentUser.uid ? "row-reverse" : "row",
+              alignItems: "flex-end",
+              gap: 1,
+              px: 1,
+              maxWidth: "90%",
+              mx: "auto",
+            }}
+          >
+            {msg.senderId !== currentUser.uid && (
             <Avatar
               src={msg.photoURL || "https://via.placeholder.com/40"}
               alt={msg.senderName}
               sx={{ width: 32, height: 32 }}
             />
+            )}
 
             {/* Message bubble */}
             <motion.div
@@ -1359,16 +1386,83 @@ const renderMessageWithMentions = (text) => {
                 alignItems: "flex-end",
               }}
             >
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: msg.senderId === currentUser.uid ? "flex-end" : "flex-start",
+              }}
+            >
+              {/* Reply Preview */}
+              {msg.replyTo && msg.replyTo.text && msg.replyTo.senderName && (
+                <Box
+                  elevation={1}
+                  sx={{
+                    pl: 1.2,
+                    pr: 1,
+                    py: 0.6,
+                    mb: 0.6,
+                    mt: 1,
+                    bgcolor: effectiveChatTheme === "dark" ? "#0000005a" : "#ffffff88",
+                    borderRadius: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    cursor: "pointer",
+                    maxWidth: "95%",
+                    minWidth: "70%",
+                    overflow: "hidden",
+                    backdropFilter: "blur(40px)",
+                  }}
+                  onClick={() => {
+                    const replyId = msg.replyTo.id;
+                    const el = messageRefs.current[replyId];
+                    if (el) {
+                      el.scrollIntoView({ behavior: "smooth", block: "center" });
+                      setHighlightedMsgId(replyId);
+                      setTimeout(() => setHighlightedMsgId(null), 1200);
+                    }
+                  }}
+                >
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 700,
+                      color: theme.palette.primary.main,
+                      letterSpacing: 0.2,
+                      display: "block",
+                      mb: 0.2,
+                    }}
+                  >
+                    {msg.replyTo.senderName === currentUser.displayName ? "You" : msg.replyTo.senderName}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      maxWidth: "55vw",
+                      color: effectiveChatTheme === "dark" ? "#d1d1d1" : "#5e5e5eff",
+                      fontStyle: "italic",
+                      fontSize: "0.9rem",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {msg.replyTo.text}
+                  </Typography>
+                </Box>
+                </Box>
+              )} 
+
               <Paper
                 elevation={1}
                 sx={{
                   px: 2,
-                  py: 1,
+                  py: 0.5,
                   maxWidth: "65vw",
-                  borderRadius:
-                    msg.senderId === currentUser.uid
-                      ? "16px 16px 8px 16px"
-                      : "16px 16px 16px 8px",
+                  borderRadius: msg.senderId === currentUser.uid ? "20px 20px 10px 20px" : "20px 20px 20px 10px",
                   bgcolor:
                     msg.senderId === currentUser.uid
                       ? effectiveChatTheme === "dark"
@@ -1382,7 +1476,10 @@ const renderMessageWithMentions = (text) => {
                   boxShadow: "0px 2px 6px rgba(0,0,0,0.15)",
                 }}
               >
+
+<Box>
                 {/* Sender Name */}
+                {msg.senderId !== currentUser.uid && !isGroupedWithPrev &&
                 <Typography
                   variant="caption"
                   sx={{
@@ -1394,7 +1491,10 @@ const renderMessageWithMentions = (text) => {
                 >
                   {msg.senderName}
                 </Typography>
-
+                }
+              <Box
+                sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", gap: 0.3 }}
+              >
                 {/* Message Content */}
                 {msg.type === "poll" && Array.isArray(msg.options) && msg.options.length > 0 ? (
                   <Box> <Typography variant="subtitle1" sx={{ color: "#00f721", fontWeight: 600 }}> 📊 {msg.question || "Untitled Poll"} </Typography> <List> {msg.options.map((opt, i) => { const votes = Array.isArray(opt.votes) ? opt.votes : []; const hasVoted = votes.includes(currentUser.uid); const userHasVoted = msg.options.some(o => Array.isArray(o.votes) && o.votes.includes(currentUser.uid) ); return ( <ListItemButton key={i} disabled={userHasVoted} onClick={() => handleVote(msg.id, i)} sx={{ bgcolor: hasVoted ? "#00f72144" : "transparent", mb: 0.5, borderRadius: 2, }} > <ListItemText primary={opt.text || `Option ${i + 1}`} sx={{ color: hasVoted ? "#00f721" : "#fff", fontWeight: hasVoted ? 600 : 500, }} /> <Typography variant="body2" sx={{ color: "#b5ffca", minWidth: 35 }}> {votes.length} vote{votes.length !== 1 ? "s" : ""} </Typography> </ListItemButton> ); })} </List> <Typography variant="caption" sx={{ color: "#aaa", mt: 1, fontStyle: 'italic' }}> Total votes: {msg.options.reduce((sum, opt) => sum + (opt.votes?.length || 0), 0)} </Typography> </Box>
@@ -1414,21 +1514,20 @@ const renderMessageWithMentions = (text) => {
                     {renderMessageWithMentions(msg.text)}
                   </Typography>
                 )}
-
-                {/* Reactions */}
-                {msg.reactions && (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1, flexWrap: "wrap", }} > {Object.entries(msg.reactions).map(([uid, emoji]) => { const user = allUsers[uid] || {}; return ( <Box key={uid} sx={{ display: "flex", alignItems: "center", bgcolor: effectiveChatTheme === "dark" ? "#2b2b2b" : "#efefefff", borderRadius: "20px", px: 0.5, py: 0.2, gap: 0.5, }} onClick={(e) => { setReactionMsg(msg); setReactionAnchorEl(e.currentTarget); }} > <Avatar src={user.photoURL || "https://via.placeholder.com/32"} sx={{ width: 15, height: 15 }} /> <Typography variant="body2" sx={{ fontSize: 14 }}> {emoji} </Typography> </Box> ); })} </Box>
-                )}
-
-                {/* Timestamp & Status */}
+                              {/* Timestamp & Status */}
                 <Typography
                   variant="caption"
                   sx={{
-                    mt: 0.5,
+                    pl: 1,
+                    mt: 1,
                     display: "block",
                     textAlign: "right",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    justifyContent: "flex-end",
                     fontSize: "0.7rem",
-                    color: "#999",
+                    color: mode === "dark" ? "#b1b1b1ff" : "#5e5e5eff",
                   }}
                 >
                   {msg.timestamp?.seconds
@@ -1439,15 +1538,81 @@ const renderMessageWithMentions = (text) => {
                         minute: "2-digit",
                       })
                     : "Just now"}{" "}
-                  • {msg.status}
-                  {msg.edited && " (edited)"}
+                  <Typography
+                    variant="caption"
+                    sx={{ fontSize: "0.6rem" }}
+                  >
+                    {msg.edited ? "edited" : ""}
+                  </Typography>
+                   {msg.status === "sent" ? <CheckIcon sx={{ fontSize: "1rem", color: "#838383ff" }} /> : msg.status === "delivered" ? <DoneAllIcon sx={{ fontSize: "1rem", color: "#838383ff" }} /> : msg.status === "read" ? <DoneAllIcon sx={{ fontSize: "1 rem", color: "#00b7ffff" }} /> : "⏳"}
+                  
                 </Typography>
+              </Box>
+</Box>
+
               </Paper>
+                                {/* Reactions */}
+                {msg.reactions && (
+                  <Box
+                    sx={{
+                      position: "relative",
+                      bottom: 5,
+                      left: msg.senderId === currentUser.uid ? 2 : 0,
+                      right: msg.senderId === currentUser.uid ? 0 : 2,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mt: 0,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {Object.entries(msg.reactions).map(([uid, emoji]) => {
+                      const user = allUsers[uid] || {};
+                      return (
+                        <Box
+                          key={uid}
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            bgcolor: effectiveChatTheme === "dark" ? "#2b2b2b" : "#efefefff",
+                            borderRadius: "20px",
+                            px: 0.5,
+                            py: 0.2,
+                            gap: 0.5,
+                          }}
+                          onClick={(e) => {
+                            setReactionMsg(msg);
+                            setReactionAnchorEl(e.currentTarget);
+                          }}
+                        >
+                          <Avatar
+                            src={user.photoURL || "https://via.placeholder.com/32"}
+                            sx={{
+                              width: 15,
+                              height: 15
+                            }}
+                          />
+                          <Typography 
+                            variant="body2"
+                            sx={{
+                              fontSize: 14
+                            }}
+                          >
+                            {emoji}
+                          </Typography>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                )}
+
+<Box m={0.6}></Box>
+            </Box>
             </motion.div>
-          </Box>
+        </Box>
+          </motion.div>
         );
       })}
-    </Box>
 </>
 ))}
 
@@ -1962,9 +2127,9 @@ const renderMessageWithMentions = (text) => {
         </Fab>
       )}
 
+  <div ref={bottomRef} />
       </Box>
   
-  <div ref={bottomRef} />
 
 <Box
   sx={{
@@ -1999,13 +2164,11 @@ const renderMessageWithMentions = (text) => {
         <Typography
           variant="body2"
           sx={{
-            color: '#999',
+            color: headerTextColor,
             fontStyle: 'italic',
             p: 1,
             textAlign: 'center',
             width: '100%',
-            backgroundColor: effectiveChatTheme === "dark" ? "#000000ff" : "#ffffff",
-            borderTop: "1px solid #737373ff"
           }}
         >
           🔒 Only Admins can send messages in this group.
@@ -2508,7 +2671,6 @@ const renderMessageWithMentions = (text) => {
 
 </Box>
     </Box>
-    </BetaAccessGuard>
     </ThemeProvider>
   );
 }

@@ -1379,7 +1379,7 @@ const getMessageDate = (timestamp) => {
                style={{ touchAction: 'pan-y',
                ...(highlightedMsgId === msg.id && {
                    boxShadow: "none",
-                   padding: 2,
+                   paddingX: 2,
                    borderRadius: 12,
                    background: theme.palette.primary.mainbg,
                    transition: "background 1.5s ease-in-out",
@@ -1480,7 +1480,11 @@ const getMessageDate = (timestamp) => {
             fontStyle: "italic",
             fontSize: "0.9rem",
             lineHeight: 1.2,
+            textOverflow: "ellipsis",
+            overflow: "hidden",
             opacity: 0.95,
+            whiteSpace: "nowrap",
+            maxWidth: "55vw",
           }}
         >
           {msg.replyTo.text}
