@@ -135,6 +135,14 @@ const shouldShowTimestamp = (messages, index) => {
   const sameMinute = Math.abs(msg.timestamp?.seconds - nextMsg.timestamp?.seconds) < 60;
   return !(sameSender && sameMinute);
 };
+
+const isSingleEmoji = (text) => {
+  // Regex for a single emoji (unicode, covers most cases)
+  // This will match if the message is only one emoji and optional whitespace
+  return typeof text === "string" &&
+    text.trim().length > 0 &&
+    /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)$/u.test(text.trim());
+};
   
 function GroupChat() {
   const { groupName } = useParams();
@@ -707,6 +715,11 @@ useEffect(() => {
   return () => unsubscribe();
 }, [groupName]);
 
+const BLOCKED_EMOJIS = ["🖕", "🚫"];
+
+const containsBlockedEmoji = (text) => {
+  return BLOCKED_EMOJIS.some((emoji) => text.includes(emoji));
+};
       
 const sendMessage = async () => {
   if (!newMsg.trim()) return;
@@ -719,6 +732,11 @@ const sendMessage = async () => {
 
   if (!canSend) {
     alert("You don't have permission to send messages in this group.");
+    return;
+  }
+
+  if (containsBlockedEmoji(newMsg.trim())) {
+    setNotification("This emoji is not allowed.");
     return;
   }
 
@@ -1095,7 +1113,7 @@ const renderMessageWithMentions = (text) => {
       ref={containerRef}
         sx={{
          flex: 1,
-         px: 2,
+         px: 1.3,
          pt: '80px',
          pb: '80px',
          display: 'flex',
@@ -1285,7 +1303,7 @@ const renderMessageWithMentions = (text) => {
               <Paper
                 elevation={0}
                 sx={{
-                  px: 2,
+                  px: 1,
                   py: 0.5,
                   borderRadius: 2,
                   bgcolor:
@@ -1332,7 +1350,7 @@ const renderMessageWithMentions = (text) => {
                style={{ touchAction: 'pan-y',
                ...(highlightedMsgId === msg.id && {
                    boxShadow: "none",
-                   paddingX: 2,
+                   paddingX: 1,
                    borderRadius: 12,
                    background: theme.palette.primary.mainbg,
                    transition: "background 1.5s ease-in-out",
@@ -1347,9 +1365,9 @@ const renderMessageWithMentions = (text) => {
                 msg.senderId === currentUser.uid ? "row-reverse" : "row",
               alignItems: "flex-end",
               gap: 1,
-              px: 1,
-              maxWidth: "90%",
-              mx: "auto",
+              px: 0,
+              maxWidth: "100%",
+              mx: 0,
             }}
           >
             {msg.senderId !== currentUser.uid && (
@@ -1391,6 +1409,7 @@ const renderMessageWithMentions = (text) => {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: msg.senderId === currentUser.uid ? "flex-end" : "flex-start",
+                ml: msg.senderId === currentUser.uid ? "auto" : 0,
               }}
             >
               {/* Reply Preview */}
@@ -1456,6 +1475,81 @@ const renderMessageWithMentions = (text) => {
                 </Box>
               )} 
 
+{isSingleEmoji(msg.text) ? (
+  <Box
+    sx={{
+      px: 0,
+      py: 0,
+      background: "none",
+      boxShadow: "none",
+      borderRadius: 0,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: msg.senderId === currentUser.uid ? "flex-end" : "flex-start",
+      minHeight: 56,
+    }}
+  >
+    <Typography
+      variant="h1"
+      sx={{
+        fontSize: "3rem",
+        lineHeight: 1.1,
+        mx: 0,
+        my: 0.5,
+        background: "none",
+      }}
+    >
+      {msg.text.trim()}
+    </Typography>
+
+                <Typography
+                  variant="caption"
+                  sx={{
+                    pl: 1,
+                    mt: 0.5,
+                    display: "block",
+                    textAlign: "right",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    justifyContent: "flex-end",
+                    fontSize: "0.7rem",
+                    backgroundColor:
+                      msg.senderId === currentUser.uid
+                      ? effectiveChatTheme === "dark"
+                        ? "#005c4b"
+                        : "#d9fdd3"
+                      : effectiveChatTheme === "dark"
+                      ? "#2f2f2f"
+                      : "#ffffff",
+                    color: mode === "dark" ? "#e2e2e2ff" : "#5e5e5eff",
+                    borderRadius: 10,
+                    px: 1,
+                    py: 0.3,
+                    backdropFilter: "blur(40px)",
+                  }}
+                >
+                  {msg.timestamp?.seconds
+                    ? new Date(
+                        msg.timestamp.seconds * 1000
+                      ).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Just now"}{" "}
+                  <Typography
+                    variant="caption"
+                    sx={{ fontSize: "0.6rem" }}
+                  >
+                    {msg.edited ? "edited" : ""}
+                  </Typography>
+                   {msg.status === "sent" ? <CheckIcon sx={{ fontSize: "1rem", color: "#919191ff" }} /> : msg.status === "delivered" ? <DoneAllIcon sx={{ fontSize: "1rem", color: "#838383ff" }} /> : msg.status === "read" ? <DoneAllIcon sx={{ fontSize: "1 rem", color: "#00b7ffff" }} /> : "⏳"}
+                  
+                </Typography>
+  </Box>
+) : (
+
               <Paper
                 elevation={1}
                 sx={{
@@ -1493,7 +1587,7 @@ const renderMessageWithMentions = (text) => {
                 </Typography>
                 }
               <Box
-                sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", gap: 0.3 }}
+                sx={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 0.3 }}
               >
                 {/* Message Content */}
                 {msg.type === "poll" && Array.isArray(msg.options) && msg.options.length > 0 ? (
@@ -1551,6 +1645,7 @@ const renderMessageWithMentions = (text) => {
 </Box>
 
               </Paper>
+)}
                                 {/* Reactions */}
                 {msg.reactions && (
                   <Box
