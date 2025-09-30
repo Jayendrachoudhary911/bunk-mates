@@ -736,7 +736,7 @@ const sendMessage = async () => {
   }
 
   if (containsBlockedEmoji(newMsg.trim())) {
-    setNotification("This emoji is not allowed.");
+    alert("This emoji is not allowed.");
     return;
   }
 
