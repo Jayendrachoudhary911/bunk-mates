@@ -62,7 +62,8 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ReplyIcon from '@mui/icons-material/Reply';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import DoneAllIcon from '@mui/icons-material/DoneAll';
+import DoneAllIcon from '@mui/icons-material/Done';
+import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
 
 import GroupInfoDrawer from "./GroupChat/GroupInfoDrawer";
 
@@ -70,6 +71,7 @@ import { motion, useAnimation, AnimatePresence, color } from 'framer-motion';
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { FastAverageColor } from "fast-average-color";
+import axios from 'axios';
 
 const MessageContainer = styled(Box)({
     flex: 1,
@@ -143,6 +145,13 @@ const isSingleEmoji = (text) => {
     text.trim().length > 0 &&
     /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)$/u.test(text.trim());
 };
+
+const extractUrl = (text) => {
+  if (typeof text !== "string") return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const matches = text.match(urlRegex);
+  return matches ? matches[0] : null;
+};
   
 function GroupChat() {
   const { groupName } = useParams();
@@ -202,6 +211,9 @@ function GroupChat() {
   const typingTimeoutRef = useRef(null);
   const [headerTextColor, setHeaderTextColor] = useState(mode === "dark" ? "#fff" : "#000");
   const rgbaFromArray = (arr, alpha = 0.85) => `rgba(${arr[0]}, ${arr[1]}, ${arr[2]}, ${alpha})`;
+  const [imageDrawer, setImageDrawer] = useState(false);
+  const [imageDataUri, setImageDataUri] = useState("");
+  const [imageFile, setImageFile] = useState(null);
 
 useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -373,6 +385,30 @@ const handleToggleChecklistItem = async (itemId, checked) => {
       : arrayRemove(currentUser.uid),
   });
 };
+
+const [messagePreviews, setMessagePreviews] = useState({}); // { msgId: previewObj }
+
+useEffect(() => {
+  // For each message, extract URL and fetch preview if not already fetched
+  const fetchPreviews = async () => {
+    const previews = {};
+    await Promise.all(
+      messages.map(async (msg) => {
+        const url = extractUrl(msg.text);
+        if (url) {
+          try {
+            const res = await axios.get(`https://api.linkpreview.net/?key=3db616e201708f056ee4d32ddab9839a&q=${encodeURIComponent(url)}`);
+            previews[msg.id] = res.data;
+          } catch {
+            previews[msg.id] = null;
+          }
+        }
+      })
+    );
+    setMessagePreviews(previews);
+  };
+  fetchPreviews();
+}, [messages]);
 
 const handleOptionChange = (index, value) => {
   setPollOptions((options) => {
@@ -715,13 +751,12 @@ useEffect(() => {
   return () => unsubscribe();
 }, [groupName]);
 
-const BLOCKED_EMOJIS = ["🖕", "🚫"];
-
-const containsBlockedEmoji = (text) => {
-  return BLOCKED_EMOJIS.some((emoji) => text.includes(emoji));
-};
       
 const sendMessage = async () => {
+  if (imageDataUri) {
+    await handleSendImage();
+    return;
+  }
   if (!newMsg.trim()) return;
 
   // Permissions: check who is allowed to send messages
@@ -732,11 +767,6 @@ const sendMessage = async () => {
 
   if (!canSend) {
     alert("You don't have permission to send messages in this group.");
-    return;
-  }
-
-  if (containsBlockedEmoji(newMsg.trim())) {
-    alert("This emoji is not allowed.");
     return;
   }
 
@@ -964,6 +994,33 @@ const renderMessageWithMentions = (text) => {
 
   return parts;
 };
+
+
+  function handleImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImageDataUri(reader.result);
+      setImageDrawer(true);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleSendImage() {
+    if (!imageDataUri) return;
+    await addDoc(collection(db, 'groupChat', groupName, 'messages'), {
+      senderId: currentUser.uid,
+      type: 'image',
+      dataUri: imageDataUri,
+      timestamp: serverTimestamp(),
+      status: 'sent',
+      read: false,
+    });
+    setImageDrawer(false);
+    setImageDataUri("");
+    setImageFile(null);
+  }
 
   return (
     <ThemeProvider theme={theme}>
@@ -1296,6 +1353,9 @@ const renderMessageWithMentions = (text) => {
       {(groupedMessages?.[date] || []).map((msg, index) => {
         const { borderRadius, isGroupedWithNext, isGroupedWithPrev } =
           getMessageShape(messages, index, currentUser.uid);
+  // FIX: Use preview from state instead of hook
+  const url = extractUrl(msg.text);
+  const preview = messagePreviews[msg.id];
 
         if (msg.type === "system") {
           return (
@@ -1372,7 +1432,7 @@ const renderMessageWithMentions = (text) => {
           >
             {msg.senderId !== currentUser.uid && (
             <Avatar
-              src={msg.photoURL || "https://via.placeholder.com/40"}
+              src={user.photoURL || "https://via.placeholder.com/40"}
               alt={msg.senderName}
               sx={{ width: 32, height: 32 }}
             />
@@ -1597,16 +1657,76 @@ const renderMessageWithMentions = (text) => {
                 ) : msg.type === "checklist" && groupInfo?.tripId ? (
                   <Box sx={{ maxWidth: 250, minWidth: 220 }}> <Typography variant="subtitle1" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: 700 }}> 📝 Trip Checklist </Typography> <List dense> {checklist.map((item) => { const isChecked = item.checkedBy?.includes(currentUser.uid); return ( <ListItem key={item.id} disableGutters sx={{ borderRadius: 2 }}> <ListItemButton onClick={() => handleToggleChecklistItem(item.id, !isChecked)} sx={{ borderRadius: 2 }} > <Checkbox edge="start" checked={isChecked} tabIndex={-1} sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", '&.Mui-checked': { color: "#56cb66ff" }, }} /> <ListItemText primary={item.text || "Untitled"} sx={{ color: isChecked ? "#56cb66ff" : effectiveChatTheme === "dark" ? "#fff" : "#000", textDecoration: isChecked ? "line-through" : "none", }} /> </ListItemButton> </ListItem> ); })} </List> <Typography variant="caption" sx={{ color: "#818181ff", mt: 1, fontStyle: 'italic' }}> Only you see your own progress </Typography> </Box>
                 ) : (
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                      fontSize: "0.95rem",
-                    }}
-                  >
-                    {renderMessageWithMentions(msg.text)}
-                  </Typography>
+
+
+    <>
+      <Typography
+        variant="body2"
+        sx={{
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          fontSize: "0.95rem",
+        }}
+      >
+        {/* Render clickable links */}
+        {msg.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+          part.match(/https?:\/\/[^\s]+/) ? (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: "#2196f3",
+                textDecoration: "underline",
+                wordBreak: "break-all",
+                cursor: "pointer"
+              }}
+            >
+              {part}
+            </a>
+          ) : part
+        )}
+      </Typography>
+      {/* Always show link preview if available */}
+      {preview && (
+        <Box
+          sx={{
+            mt: 1,
+            p: 1,
+            borderRadius: 2,
+            bgcolor: effectiveChatTheme === "dark" ? "#222" : "#f5f5f5",
+            boxShadow: "0 2px 8px #0002",
+            maxWidth: 320,
+            cursor: "pointer"
+          }}
+          onClick={() => window.open(preview.url, "_blank")}
+        >
+          {preview.image && (
+            <img
+              src={preview.image}
+              alt={preview.title}
+              style={{
+                width: "100%",
+                maxHeight: 120,
+                objectFit: "cover",
+                borderRadius: 8,
+                marginBottom: 8
+              }}
+            />
+          )}
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            {preview.title}
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#888", fontSize: 13 }}>
+            {preview.description}
+          </Typography>
+          <Typography variant="caption" sx={{ color: "#2196f3" }}>
+            {preview.url}
+          </Typography>
+        </Box>
+      )}
+    </>
                 )}
                               {/* Timestamp & Status */}
                 <Typography
@@ -1849,6 +1969,7 @@ const renderMessageWithMentions = (text) => {
       sx={{
         display: 'flex',
         flexDirection: 'column', 
+        
         backgroundColor: effectiveChatTheme === "dark" ? '#1c1c1c70' : '#ffffff76',
         backdropFilter: "blur(20px)",
         borderRadius: 7,
@@ -1876,7 +1997,7 @@ const renderMessageWithMentions = (text) => {
           transition: 'background 0.2s',
           display: 'flex',
           alignItems: 'center',
-          gap: 1,
+                   gap: 1,
         }}
       >
         <ReplyIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
@@ -2365,7 +2486,7 @@ const renderMessageWithMentions = (text) => {
       <Box sx={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <Box>
           <Typography variant="caption" color="primary">
-            {replyTo.senderName === currentUser.uid ? 'You' : replyTo.senderName}
+            {replyTo.senderName === currentUser.displayName ? 'You' : replyTo.senderName}
           </Typography>
           <Typography variant="body2" sx={{ color: '#ccc' }}>
             {replyTo.text.length > 60
@@ -2596,6 +2717,36 @@ const renderMessageWithMentions = (text) => {
           }}
   />
 </Box>
+
+    <IconButton
+      component="label"
+      sx={{
+        minWidth: 0,
+        borderRadius: "50%",
+        height: 38,
+        width: 42,
+        bgcolor: "#ffffff37",
+        backdropFilter: "blur(6px)",
+        color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+        boxShadow: "none",
+        mr: 1,
+        transition: "all 0.3s ease",
+        "&:hover": {
+          bgcolor: "rgba(255,255,255,0.15)",
+          transform: "scale(1.1)",
+          boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
+        },
+        "&:active": { transform: "scale(0.95)" },
+      }}
+    >
+      <CameraAltOutlinedIcon />
+      <input
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={handleImageUpload}
+      />
+    </IconButton>
 
   {editingMsg ? (
     <>
