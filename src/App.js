@@ -42,9 +42,7 @@ import { SWIPEABLE_PATHS } from './components/navItems';
 const vapidKey = 'BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs'; // From Firebase console
 
 const isPathSwipeable = (pathname) => SWIPEABLE_PATHS.includes(pathname);
-// We'll also exclude specific non-main routes like login/signup, trip details, chatroom, etc.
-const isPathExcludedFromNavBar = (pathname) => 
-  ['/signup', '/login', '/chat/', '/group/', '/trips/', '/join', '/group-invite/', '/forgot-password', '/reset-password'].some(start => pathname.startsWith(start));
+// Removed the unused isPathExcludedFromNavBar function definition
 
 export const requestPermission = async () => {
   try {
@@ -78,49 +76,32 @@ function BodyBackgroundSetter() {
 
 function AppContent() {
   const location = useLocation();
-  const showBottomBar = !isPathExcludedFromNavBar(location.pathname);
+
+  // Define the exact paths where the BottomNavBar should be visible
+  const ALLOWED_BOTTOM_BAR_PATHS = ["/", "/search", "/notes", "/trips"];
+  
+  // showBottomBar is true only if the current path is exactly in the allowed list
+  const showBottomBar = ALLOWED_BOTTOM_BAR_PATHS.includes(location.pathname);
 
   return (
     <>
       {/* Wrap all routes in SwipeableRoutes. The component will only apply the swipe logic 
-        to the paths defined in SWIPEABLE_PATHS, but it must be an ancestor of all Routes.
+          to the paths defined in SWIPEABLE_PATHS, but it must be an ancestor of all Routes.
       */}
-      <Box sx={{ pb: 9 }}>
-      <SwipeableRoutes>
+      <Box>
         <Routes>
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/chats" element={<Chats />} />
-          <Route path="/chat/:friendId" element={<Chatroom />} />
-          <Route path="/group/:groupName" element={<GroupChat />}/>
           
           {/* Main swipeable pages */}
           <Route path="/budget-mngr" element={<Budgetmngr />}/>
-          <Route path="/reminders" element={<Reminders />} />
           <Route path="/notes" element={<Notes />} />
           <Route path="/trips" element={<Trips />} />
-          <Route path="/search" element={<SearchPage />} />
           <Route path="/" element={
             // <ProtectedRoute>
-              <Home />
+            <Home />
             // </ProtectedRoute>
           } />
-          {/* End of main swipeable pages */}
-
-          <Route path="/trips/:id" element={<TripDetails />} />
-          <Route path="/join" element={<JoinTrip />} />
-          <Route path="/group-invite/:inviteToken" element={<GroupInvitePage />} />
-          <Route path="/waitlist" element={<Waitlist />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<TermsAndConditions />} />
-          <Route path="/community" element={<CommunityPage />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          
+          {/* End of main swipeable pages */} 		
         </Routes>
-      </SwipeableRoutes>
       </Box>
       {/* Render the BottomNavBar conditionally */}
       {showBottomBar && <BottomNavBar />}
@@ -135,7 +116,29 @@ function App() {
     <SettingsProvider>
       <WeatherProvider>
         <Router>
-         <AppContent />
+          {/* AppContent contains the logic for the BottomNavBar visibility based on location.pathname */}
+          <AppContent /> 
+
+          <Routes>
+           <Route path="/search" element={<SearchPage />} />
+           <Route path="/reminders" element={<Reminders />} />
+           <Route path="/signup" element={<Signup />} />
+           <Route path="/login" element={<Login />} />
+           <Route path="/profile" element={<Profile />} />
+           <Route path="/chats" element={<Chats />} />
+           <Route path="/chat/:friendId" element={<Chatroom />} />
+           <Route path="/group/:groupName" element={<GroupChat />}/>
+           <Route path="/trips/:id" element={<TripDetails />} />
+           <Route path="/join" element={<JoinTrip />} />
+           <Route path="/group-invite/:inviteToken" element={<GroupInvitePage />} />
+           <Route path="/waitlist" element={<Waitlist />} />
+           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+           <Route path="/terms" element={<TermsAndConditions />} />
+           <Route path="/community" element={<CommunityPage />} />
+           <Route path="/notifications" element={<Notifications />} />
+           <Route path="/forgot-password" element={<ForgotPassword />} />
+           <Route path="/reset-password" element={<ResetPassword />} />
+          </Routes>
         </Router>
       </WeatherProvider>
     </SettingsProvider>
