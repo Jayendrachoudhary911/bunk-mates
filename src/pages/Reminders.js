@@ -1,78 +1,35 @@
-import React, { useState, useEffect, useImperativeHandle, forwardRef, useMemo, useRef } from "react";
+import React, { useState, useEffect, useImperativeHandle, forwardRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Typography,
-  Box,
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
-  Drawer,
-  Stack,
-  CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Menu,
-  MenuItem,
-  Tooltip,
-  ThemeProvider,
-  createTheme,
-  keyframes,
-  InputAdornment,
-  Container,
-  Collapse,
-  SwipeableDrawer,
-  ExpandMore as ExpandMoreIcon,
+  Typography, Box, Card, CardContent, TextField, Button,
+  List, ListItem, ListItemText, IconButton, Drawer, Stack,
+  CircularProgress, Dialog, DialogTitle, DialogContent,
+  DialogActions, Menu, MenuItem, Tooltip, ThemeProvider,
+  InputAdornment, Container, Collapse, SwipeableDrawer,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit";
-import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import SearchIcon from "@mui/icons-material/Search";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ExpandMore from "@mui/icons-material/ExpandMore";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import {
+  Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon,
+  NotificationsActive as NotificationsActiveIcon, MoreVert as MoreVertIcon,
+  ArrowBack as ArrowBackIcon, Search as SearchIcon, CheckCircle as CheckCircleIcon,
+  ExpandMore, DeleteOutline as DeleteOutlineIcon,
+} from "@mui/icons-material";
 
 import { useWeather } from "../contexts/WeatherContext";
-import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
+import { weatherGradients, weatherColors, weatherbgColors } from "../elements/weatherTheme";
 import { db, messaging } from "../firebase";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import {
-  collection,
-  addDoc,
-  query,
-  where,
-  getDocs,
-  deleteDoc,
-  doc,
-  orderBy,
-  updateDoc,
+  collection, addDoc, query, where, getDocs,
+  deleteDoc, doc, orderBy, updateDoc,
 } from "firebase/firestore";
 import { getToken, onMessage } from "firebase/messaging";
+// FIX APPLIED HERE: Revert to default import (no curly braces) as indicated by the error.
+import ProfilePic from "../components/Profile";
 
-// Fade-in animation keyframes
-const fadeIn = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-`;
+// --- Helper Functions (Moved out for clarity) ---
 
-// Custom dark theme (swap for light if needed)
-
+// Get User from Storage (Kept as is - robust)
 function getUserFromStorage() {
   try {
     const storedUser = localStorage.getItem("bunkmateuser");
@@ -92,7 +49,7 @@ function getUserFromStorage() {
   return null;
 }
 
-// Helper to request notification permission and get FCM token
+// Request Notification Permission and get FCM token
 async function requestNotificationPermission() {
   try {
     const permission = await Notification.requestPermission();
@@ -107,7 +64,7 @@ async function requestNotificationPermission() {
   return null;
 }
 
-// Helper to show a local notification
+// Show a local notification
 function showLocalNotification(title, options) {
   if (Notification.permission === "granted") {
     if (document.hasFocus()) {
@@ -122,50 +79,178 @@ function showLocalNotification(title, options) {
 
 function getTodayStr() {
   const now = new Date();
-  return now.toISOString().slice(0, 10);
+  // Using toLocaleDateString with specific options to ensure YYYY-MM-DD format consistency for comparison
+  return now.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
+
+// --- Reminder Item Component (Extracting the list item logic) ---
+
+const ReminderListItem = React.memo(({ rem, mode, theme, handleToggleComplete, handleMenuOpen }) => {
+  const isDark = mode === "dark";
+  const itemStyle = {
+    borderRadius: 4,
+    mb: 1,
+    background: isDark ? "#f1f1f111" : "#dbdbdbae",
+    color: isDark ? "#fff" : "#000",
+    opacity: rem.completed ? 0.5 : 1,
+    textDecoration: rem.completed ? "line-through" : "none",
+  };
+
+  return (
+    <ListItem
+      key={rem.id}
+      sx={itemStyle}
+      secondaryAction={
+        <IconButton
+          edge="end"
+          onClick={(e) => handleMenuOpen(e, rem)}
+          sx={{ color: isDark ? "#fff" : "#000" }}
+        >
+          <MoreVertIcon />
+        </IconButton>
+      }
+    >
+      <IconButton
+        onClick={() => handleToggleComplete(rem)}
+        sx={{
+          color: rem.completed ? "#00f721" : "#aaa",
+          mr: 1,
+          p: 0.5,
+        }}
+      >
+        {rem.completed ? (
+          <CheckCircleIcon sx={{ fontSize: 28, color: "#00f721" }} />
+        ) : (
+          <NotificationsActiveIcon sx={{ fontSize: 28, color: isDark ? "#fff" : "#000" }} />
+        )}
+      </IconButton>
+      <ListItemText
+        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.3 }}
+        primary={
+          <Typography
+            variant="body1"
+            sx={{
+              fontSize: 16,
+              fontWeight: rem.completed ? "normal" : "bold",
+              color: isDark ? "#fff" : "#000",
+              textDecoration: rem.completed ? "line-through" : "none",
+              opacity: rem.completed ? 0.9 : 1,
+            }}
+          >
+            {rem.text}
+          </Typography>
+        }
+        secondary={
+          rem.time ? (
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+              <Typography variant="caption" sx={{ color: "#646464ff" }}>
+                {rem.date} {rem.time}
+              </Typography>
+            </Box>
+          ) : null
+        }
+      />
+    </ListItem>
+  );
+});
+
+// --- Completed Reminder Item Component (Extracting the list item logic) ---
+
+const CompletedReminderListItem = React.memo(({ rem, mode, theme, handleToggleComplete, handleDeleteReminder }) => {
+  const isDark = mode === "dark";
+
+  return (
+    <ListItem
+      key={rem.id}
+      sx={{
+        borderRadius: 3,
+        mb: 1,
+        background: isDark ? "#88888822" : "#dcdcdcff",
+        color: isDark ? "#fff" : "#000",
+        opacity: 0.5,
+        boxShadow: "none",
+      }}
+    >
+      <IconButton
+        onClick={() => handleToggleComplete(rem)}
+        sx={{ color: "#00f721", mr: 1, p: 0.5 }}
+      >
+        <CheckCircleIcon sx={{ fontSize: 28, color: "#00f721" }} />
+      </IconButton>
+      <ListItemText
+        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.3 }}
+        primary={
+          <Typography
+            variant="body1"
+            sx={{
+              color: isDark ? "#fff" : "#000",
+              textDecoration: "line-through",
+              opacity: 0.7,
+            }}
+          >
+            {rem.text}
+          </Typography>
+        }
+        secondary={
+          rem.time ? (
+            <Box sx={{ display: "flex", flexDirection: "column", mr: 2, gap: 0.1 }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                {rem.time}
+              </Typography>
+            </Box>
+          ) : null
+        }
+      />
+      <IconButton
+        size="small"
+        onClick={() => handleDeleteReminder(rem.id)}
+        sx={{
+          color: "#cd0000ff",
+          backgroundColor: "#ff9090c4",
+          p: 1.2,
+        }}
+      >
+        <DeleteOutlineIcon />
+      </IconButton>
+    </ListItem>
+  );
+});
+
+// --- Main Reminders Component ---
 
 const Reminders = forwardRef(({ open, onClose }, ref) => {
   const navigate = useNavigate();
   const [reminders, setReminders] = useState([]);
-  const [reminderText, setReminderText] = useState("");
-  const [reminderTime, setReminderTime] = useState("");
-  const [remindersLoading, setRemindersLoading] = useState(true);
+  const [newReminderData, setNewReminderData] = useState({ text: "", time: "", date: "" });
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editReminder, setEditReminder] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
-  const [menuIndex, setMenuIndex] = useState(null);
+  const [menuReminder, setMenuReminder] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [user, setUser] = useState(null);
   const [notifAllowed, setNotifAllowed] = useState(Notification.permission === "granted");
-  const [reminderDate, setReminderDate] = useState("");
   const [notifiedIds, setNotifiedIds] = useState({});
   const [completedOpen, setCompletedOpen] = useState(false);
-  const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
-  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+
+  const { weather } = useWeather();
+  const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
 
-  // Drag-to-close
-  const dragStartY = useRef(null);
-  const dragDeltaY = useRef(0);
-  const [drawerTranslate, setDrawerTranslate] = useState(0);
-  const handleRef = useRef(null);
-  const [isDragging, setIsDragging] = useState(false);
-
-useImperativeHandle(ref, () => ({
-  openAddReminderDrawer: () => setDrawerOpen(true),
-  markReminderComplete: async (reminderId) => {
-    const reminder = reminders.find(r => r.id === reminderId);
-    if (reminder && !reminder.completed) {
-      await handleToggleComplete(reminder);
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    openAddReminderDrawer: () => setDrawerOpen(true),
+    markReminderComplete: async (reminderId) => {
+      const reminder = reminders.find(r => r.id === reminderId);
+      if (reminder && !reminder.completed) {
+        await handleToggleComplete(reminder);
+      }
     }
-  }
-}));
+  }));
 
+  // --- Data and State Handlers ---
 
   const handleToggleComplete = async (reminder) => {
     try {
@@ -180,76 +265,176 @@ useImperativeHandle(ref, () => ({
           r.id === reminder.id ? { ...r, completed, completedAt } : r
         )
       );
-    } catch (err) {}
+    } catch (err) {
+      console.error("Error toggling completion:", err);
+    }
   };
 
-  // Auto-delete completed reminders after 1 day
-  useEffect(() => {
-    const now = new Date();
-    reminders.forEach((rem) => {
-      if (
-        rem.completed &&
-        rem.completedAt &&
-        now - rem.completedAt.toDate?.() > 24 * 60 * 60 * 1000 // Firestore Timestamp
-      ) {
-        deleteDoc(doc(db, "reminders", rem.id));
-        setReminders((prev) => prev.filter((r) => r.id !== rem.id));
-      }
-      if (
-        rem.completed &&
-        rem.completedAt &&
-        typeof rem.completedAt === "string" &&
-        new Date(now) - new Date(rem.completedAt) > 24 * 60 * 60 * 1000 // string fallback
-      ) {
-        deleteDoc(doc(db, "reminders", rem.id));
-        setReminders((prev) => prev.filter((r) => r.id !== rem.id));
-      }
-    });
-    // eslint-disable-next-line
-  }, [reminders]);
+  const handleDeleteReminder = async (id) => {
+    try {
+      await deleteDoc(doc(db, "reminders", id));
+      setReminders(prev => prev.filter(rem => rem.id !== id));
+    } catch (error) {
+      console.error("Error deleting reminder:", error);
+    }
+  };
 
-  // Separate active and completed reminders
-  const filteredReminders = useMemo(() => {
-    return reminders.filter(
+  const handleAddReminder = async () => {
+    if (!newReminderData.text.trim() || !user) return;
+    setSaving(true);
+    try {
+      const newReminder = {
+        uid: user.uid,
+        text: newReminderData.text.trim(),
+        time: newReminderData.time || "",
+        date: newReminderData.date || "",
+        createdAt: new Date(),
+        completed: false,
+      };
+      const docRef = await addDoc(collection(db, "reminders"), newReminder);
+      setReminders(prev => [{ id: docRef.id, ...newReminder }, ...prev]);
+      setNewReminderData({ text: "", time: "", date: "" });
+      setDrawerOpen(false);
+    } catch (error) {
+      console.error("Error adding reminder:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditSave = async () => {
+    if (!editReminder?.text.trim()) return;
+    setSaving(true);
+    const reminderToUpdate = {
+        text: editReminder.text,
+        time: editReminder.time || "",
+        date: editReminder.date || "",
+    };
+    try {
+        await updateDoc(doc(db, "reminders", editReminder.id), reminderToUpdate);
+        setReminders(prev => prev.map(r => r.id === editReminder.id ? { ...r, ...reminderToUpdate } : r));
+        setEditDialogOpen(false);
+        setEditReminder(null);
+    } catch (error) {
+        console.error("Error updating reminder:", error);
+    } finally {
+        setSaving(false);
+    }
+  };
+
+  const handleMenuOpen = (event, reminder) => {
+    setMenuAnchorEl(event.currentTarget);
+    setMenuReminder(reminder);
+  };
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+    setMenuReminder(null);
+  };
+  const handleEditOpenFromMenu = () => {
+    handleMenuClose();
+    if (menuReminder) {
+      setEditReminder(menuReminder);
+      setEditDialogOpen(true);
+    }
+  };
+  const handleDeleteFromMenu = () => {
+    handleMenuClose();
+    if (menuReminder) {
+      handleDeleteReminder(menuReminder.id);
+    }
+  };
+
+  // --- Filtering and Memoization ---
+
+  const { filteredReminders, completedReminders } = useMemo(() => {
+    const lowerCaseSearch = searchTerm.toLowerCase();
+    const active = reminders.filter(
       (rem) =>
         !rem.completed &&
-        rem.text.toLowerCase().includes(searchTerm.toLowerCase())
+        rem.text.toLowerCase().includes(lowerCaseSearch)
     );
-  }, [reminders, searchTerm]);
-
-  const completedReminders = useMemo(() => {
-    return reminders.filter(
+    const completed = reminders.filter(
       (rem) =>
         rem.completed &&
-        rem.text.toLowerCase().includes(searchTerm.toLowerCase())
+        rem.text.toLowerCase().includes(lowerCaseSearch)
     );
+    return { filteredReminders: active, completedReminders: completed };
   }, [reminders, searchTerm]);
 
+  // --- Effects ---
+
+  // Load User on Mount
+  useEffect(() => {
+    setUser(getUserFromStorage());
+  }, []);
+
+  // Fetch Reminders
+  useEffect(() => {
+    const fetchReminders = async (currentUser) => {
+      if (!currentUser?.uid) {
+        setReminders([]);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const q = query(
+          collection(db, "reminders"),
+          where("uid", "==", currentUser.uid),
+          orderBy("createdAt", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setReminders(data);
+      } catch (err) {
+        console.error("Error fetching reminders:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user && user.uid) {
+      fetchReminders(user);
+    } else {
+      setReminders([]);
+      setLoading(false);
+    }
+  }, [user]);
+
+  // Notification setup and listener
   useEffect(() => {
     if (Notification.permission !== "granted") {
       requestNotificationPermission().then(() => {
         setNotifAllowed(Notification.permission === "granted");
       });
     }
+
     const unsubscribe = onMessage(messaging, (payload) => {
       showLocalNotification(payload.notification.title, {
         body: payload.notification.body,
         icon: "/logo192.png",
       });
     });
-    return () => {};
+
+    return () => unsubscribe();
   }, []);
 
+  // Local Notification Scheduler
   useEffect(() => {
     if (!notifAllowed) return;
+
     const interval = setInterval(() => {
       const now = new Date();
       reminders.forEach(rem => {
-        if (rem.time && rem.date) {
-          const [h, m] = rem.time.split(":").map(Number);
+        if (rem.time && rem.date && !rem.completed) {
+          // Note: Creating date object with date and time string ensures correct local time interpretation
           const reminderDateTime = new Date(rem.date + "T" + rem.time + ":00");
+          const minuteInMs = 60000;
+
+          // Check if the current time is within 1 minute of the reminder time
+          // and if we haven't notified for this reminder *today*
           if (
-            Math.abs(reminderDateTime - now) < 60000 &&
+            Math.abs(reminderDateTime - now) < minuteInMs &&
             (!notifiedIds[rem.id] || notifiedIds[rem.id] !== getTodayStr())
           ) {
             showLocalNotification("Reminder", {
@@ -260,662 +445,342 @@ useImperativeHandle(ref, () => ({
           }
         }
       });
-    }, 30000);
+    }, 30000); // Check every 30 seconds
+
     return () => clearInterval(interval);
   }, [reminders, notifAllowed, notifiedIds]);
 
+  // Auto-delete completed reminders after 1 day
   useEffect(() => {
-    const u = getUserFromStorage();
-    setUser(u);
-  }, []);
+    const now = new Date().getTime();
+    reminders.forEach((rem) => {
+      if (rem.completed && rem.completedAt) {
+        let completedTime;
+        // Handle Firestore Timestamp vs plain string/Date object
+        if (rem.completedAt.toDate) {
+          completedTime = rem.completedAt.toDate().getTime();
+        } else if (typeof rem.completedAt === "string" || rem.completedAt instanceof Date) {
+          completedTime = new Date(rem.completedAt).getTime();
+        }
 
-// In the fetchReminders function
-const fetchReminders = async (currentUser) => {
-  if (!currentUser?.uid) {
-    setReminders([]);
-    setLoading(false);
-    return;
-  }
-  setLoading(true);
-  try {
-    // ✅ FIXED: Query now filters by UID on the server
-    const q = query(
-      collection(db, "reminders"),
-      where("uid", "==", currentUser.uid), // Filter by user ID
-      orderBy("createdAt", "desc")
-    );
-    const querySnapshot = await getDocs(q);
-    const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setReminders(data);
-  } catch (err) {
-    setReminders([]);
-    console.error("Error fetching reminders:", err);
-  }
-  setLoading(false);
-};
-
-  useEffect(() => {
-    if (user && user.uid) {
-      fetchReminders(user);
-    } else {
-      setReminders([]);
-      setLoading(false);
-    }
+        const oneDayInMs = 24 * 60 * 60 * 1000;
+        if (completedTime && now - completedTime > oneDayInMs) {
+          deleteDoc(doc(db, "reminders", rem.id)).then(() => {
+            setReminders((prev) => prev.filter((r) => r.id !== rem.id));
+          }).catch(err => console.error("Auto-delete error:", err));
+        }
+      }
+    });
     // eslint-disable-next-line
-  }, [user]);
+  }, [reminders.length]); // Re-run only when the reminder count changes significantly
 
-const handleAddReminder = async () => {
-  if (!reminderText.trim() || !user) return;
-  setSaving(true);
-  try {
-    const newReminder = {
-      uid: user.uid,
-      text: reminderText,
-      time: reminderTime,
-      date: reminderDate,
-      createdAt: new Date(),
-      completed: false,
-    };
-    const docRef = await addDoc(collection(db, "reminders"), newReminder);
-    // ✅ FIXED: Update state locally instead of refetching
-    setReminders(prev => [{ id: docRef.id, ...newReminder }, ...prev]);
-    setReminderText("");
-    setReminderTime("");
-    setReminderDate("");
-    setDrawerOpen(false);
-  } catch (error) {
-    console.error("Error adding reminder:", error);
-  } finally {
-    setSaving(false);
-  }
-};
+  // --- Theme/Weather Styling Logic (Kept as is for compatibility with theme files) ---
 
-const handleDeleteReminder = async (id) => {
-  try {
-    await deleteDoc(doc(db, "reminders", id));
-    // ✅ FIXED: Update state locally
-    setReminders(prev => prev.filter(rem => rem.id !== id));
-  } catch (error) {
-    console.error("Error deleting reminder:", error);
-  }
-};
-
-const handleEditSave = async () => {
-    if (!editReminder?.text.trim()) return;
-    setSaving(true);
-    const reminderToUpdate = {
-        text: editReminder.text,
-        time: editReminder.time || "",
-        date: editReminder.date || "",
-    };
-    try {
-        await updateDoc(doc(db, "reminders", editReminder.id), reminderToUpdate);
-        // ✅ FIXED: Update state locally
-        setReminders(prev => prev.map(r => r.id === editReminder.id ? { ...r, ...reminderToUpdate } : r));
-        setEditDialogOpen(false);
-        setEditReminder(null);
-    } catch (error) {
-        console.error("Error updating reminder:", error);
-    } finally {
-        setSaving(false);
-    }
-};
+  const isDark = mode === "dark";
 
 
-  const handleEditOpen = (reminder) => {
-    setEditReminder(reminder);
-    setEditDialogOpen(true);
-  };
-
-  const handleMenuOpen = (event, index) => {
-    setMenuAnchorEl(event.currentTarget);
-    setMenuIndex(index);
-  };
-  const handleMenuClose = () => {
-    setMenuAnchorEl(null);
-    setMenuIndex(null);
-  };
-
-
-  // Drag-to-close handlers
-  const handleTouchStart = (e) => {
-    if (
-      e.touches &&
-      e.touches.length === 1 &&
-      handleRef.current &&
-      handleRef.current.contains(e.target)
-    ) {
-      dragStartY.current = e.touches[0].clientY;
-      dragDeltaY.current = 0;
-      setDrawerTranslate(0);
-      setIsDragging(true);
-    }
-  };
-
-  const handleTouchMove = (e) => {
-    if (
-      isDragging &&
-      dragStartY.current !== null &&
-      e.touches &&
-      e.touches.length === 1
-    ) {
-      const currentY = e.touches[0].clientY;
-      dragDeltaY.current = currentY - dragStartY.current;
-      if (dragDeltaY.current > 0) {
-        setDrawerTranslate(dragDeltaY.current);
-      }
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (isDragging) {
-      if (dragDeltaY.current > 80) {
-        setDrawerTranslate(0);
-        if (onClose) onClose();
-      } else {
-        setDrawerTranslate(0);
-      }
-      dragStartY.current = null;
-      dragDeltaY.current = 0;
-      setIsDragging(false);
-    }
-  };
-
-    // Pick gradient based on weather
-    const weatherBg =
-    weather && weatherGradients[weather.main]
-    ? weatherGradients[weather.main]
-    : weatherGradients.Default;
-    
-    const buttonWeatherBg =
-    weather && weatherColors[weather.main]
-      ? weatherColors[weather.main]
-      : weatherColors.Default;
-    
-      
-    const WeatherBgdrop =
-    weather && weatherbgColors[weather.main]
-      ? weatherbgColors[weather.main]
-      : weatherbgColors.Default;
 
   return (
     <ThemeProvider theme={theme}>
-      <Box>
-        <Box
-          sx={{ height: "100vh", overflowY: "auto" }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
+      <Box sx={{ px: 2 }}>
+        {/* Header */}
+        <Box sx={{ pt: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", p: 2, justifyContent: "space-between" }}>
+          <Button
+            onClick={() => navigate(-1)}
+            sx={{
+              mr: 2, width: 36, height: 36, minWidth: 0, borderRadius: 8, p: 2,
+              color: isDark ? "#fff" : "#000",
+              backgroundColor: isDark ? "#f1f1f111" : "#8a8a8a6f",
+            }}
+          >
+            <ArrowBackIcon />
+          </Button>
 
-          {/* Close button and Reminders content */}
-          <Box sx={{ display: "flex", alignItems: "center", p: 2 }}>
-            <Button
-              onClick={() => navigate(-1)}
-              sx={{
-                mr: 2,
-                width: 36,
-                height: 36,
-                minWidth: 0,
-                borderRadius: 8,
-                p: 2,
-                color: mode === "dark" ? "#fff" : "#000",
-                backgroundColor: mode === "dark" ? "#f1f1f111" : "#8a8a8a6f",
-              }}
-            >
-              <ArrowBackIcon />
-            </Button>
-            <Typography variant="h4" fontWeight="bold" sx={{ flex: 1, color: mode === "dark" ? "#fff" : "#000" }}>
+          <ProfilePic />
+          </Box>
+        </Box>
+
+        <Container maxWidth="sm" sx={{ pt: 2, pb: 8 }}>
+          {/* Notification Prompt */}
+          {!notifAllowed && (
+            <Box sx={{ mb: 2 }}>
+              <Button
+                variant="outlined"
+                onClick={async () => {
+                  await requestNotificationPermission();
+                  setNotifAllowed(Notification.permission === "granted");
+                }}
+              >
+                Enable Push Notifications
+              </Button>
+            </Box>
+          )}
+
+          {/* Action Header */}
+          <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+            <Typography variant="h6" fontWeight="bold" sx={{ flex: 1, color: isDark ? "#fff" : "#000" }}>
               Reminders
             </Typography>
+            <Tooltip title="Add Reminder">
+              <Button
+                size="medium"
+                sx={{ ml: 2, boxShadow: "none", background: theme.palette.primary.bg, color: "#000", borderRadius: 8, width: "40px" }}
+                onClick={() => setDrawerOpen(true)}
+              >
+                <AddIcon />
+              </Button>
+            </Tooltip>
           </Box>
-          <Container maxWidth="sm" sx={{ pt: 2, pb: 8 }}>
-            {!notifAllowed && (
-              <Box sx={{ mb: 2 }}>
-                <Button
-                  variant="outlined"
-                  onClick={async () => {
-                    await requestNotificationPermission();
-                    setNotifAllowed(Notification.permission === "granted");
-                  }}
-                >
-                  Enable Push Notifications
-                </Button>
-              </Box>
-            )}
 
-            <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-              <Typography variant="h6" fontWeight="bold" sx={{ flex: 1, color: mode === "dark" ? "#fff" : "#000" }}>
-                Your Reminders
+          {/* Search Field */}
+          <Box sx={{ mb: 2 }}>
+            <TextField
+              size="small"
+              placeholder="Search reminders..."
+              variant="outlined"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: isDark ? "#aaa" : "#333" }} />
+                  </InputAdornment>
+                ),
+                style: { color: isDark ? "#fff" : "#000", borderRadius: '15px' },
+              }}
+              sx={{ width: "100%", mb: 2, borderRadius: 2 }}
+            />
+          </Box>
+
+          {/* Active Reminders Card */}
+          <Card sx={{ mb: 2, backgroundColor: isDark ? "transparent" : "#ffffffaf", borderRadius: 4, boxShadow: "none" }}>
+            <CardContent sx={{ mb: 2, backgroundColor: "transparent" }}>
+              <Typography variant="h6" fontSize={16} sx={{ mb: 2 }}>
+                Active Reminders ({filteredReminders.length})
               </Typography>
-              <Tooltip title="Add Reminder">
-                <Button
-                  size="medium"
-                  sx={{ ml: 2, boxShadow: "none", background: theme.palette.primary.bg, color: "#000", borderRadius: 8, width: "40px" }}
-                  onClick={() => setDrawerOpen(true)}
-                >
-                  <AddIcon />
-                </Button>
-              </Tooltip>
-            </Box>
+              {loading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
+                  <CircularProgress color="inherit" />
+                </Box>
+              ) : filteredReminders.length === 0 ? (
+                <Typography color="text.secondary" display={"flex"} alignItems={"center"} justifyContent={"center"} fontSize={16}>
+                  No reminders yet.
+                </Typography>
+              ) : (
+                <List>
+                  {filteredReminders.map((rem) => (
+                    <ReminderListItem
+                      key={rem.id}
+                      rem={rem}
+                      mode={mode}
+                      theme={theme}
+                      handleToggleComplete={handleToggleComplete}
+                      handleMenuOpen={handleMenuOpen}
+                    />
+                  ))}
+                </List>
+              )}
+            </CardContent>
+          </Card>
 
-            <Box sx={{ mb: 2 }}>
-              <TextField
-                size="small"
-                placeholder="Search reminders..."
-                variant="outlined"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon sx={{ color: mode === "dark" ? "#aaa" : "#333" }} />
-                    </InputAdornment>
-                  ),
-                  style: { color: mode === "dark" ? "#fff" : "#000", borderRadius: '15px' },
-                }}
+          {/* Completed Reminders Card */}
+          <Card sx={{ mb: 2, backgroundColor: isDark ? "transparent" : "#ffffffaf", borderRadius: 4, boxShadow: "none" }}>
+            <Box
+              sx={{
+                display: "flex", alignItems: "center", cursor: "pointer", px: 2, py: 1, userSelect: "none",
+              }}
+              onClick={() => setCompletedOpen((prev) => !prev)}
+            >
+              <ExpandMore
                 sx={{
-                  width: "100%",
-                  mb: 2,
-                  borderRadius: 2,
-                  input: { color: mode === "dark" ? "#fff" : "#000" },
+                  transform: completedOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s",
                 }}
               />
+              <Typography variant="subtitle1" sx={{ ml: 1 }}>
+                Completed ({completedReminders.length})
+              </Typography>
             </Box>
-
-            <Card sx={{ mb: 2, backgroundColor: mode === "dark" ? "transparent" : "#ffffffaf", borderRadius: 4, boxShadow: "none" }}>
-              <CardContent sx={{ mb: 2, backgroundColor: "transparent" }}>
-                <Typography variant="h6" fontSize={16} sx={{ mb: 2 }}>
-                  Active Reminders ({filteredReminders.length})
-                </Typography>
-                {loading ? (
-                  <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
-                    <CircularProgress color="inherit" />
-                  </Box>
-                ) : filteredReminders.length === 0 ? (
-                  <Typography color="text.secondary" display={"flex"} alignItems={"center"} justifyContent={"center"} fontSize={16}>
-                    No reminders yet.
+            <Collapse in={completedOpen} timeout="auto" unmountOnExit>
+              <CardContent sx={{ background: "transparent", pt: 0 }}>
+                {completedReminders.length === 0 ? (
+                  <Typography color="text.secondary" fontSize={15}>
+                    No completed reminders.
                   </Typography>
                 ) : (
-<List>
-  {filteredReminders.map((rem, idx) => (
-    <ListItem
-      key={rem.id}
-      sx={{
-        borderRadius: 4,
-        mb: 1,
-        background: mode === "dark" ? "#f1f1f111" : "#dbdbdbae",
-        color: mode === "dark" ? "#fff" : "#000",
-        opacity: rem.completed ? 0.5 : 1,
-        textDecoration: rem.completed ? "line-through" : "none",
-      }}
-      secondaryAction={
-        <>
-          <IconButton
-            edge="end"
-            onClick={(e) => handleMenuOpen(e, idx)}
-            sx={{ color: mode === "dark" ? "#fff" : "#000" }}
-          >
-            <MoreVertIcon />
-          </IconButton>
-          <Menu
-            anchorEl={menuAnchorEl}
-            open={menuIndex === idx}
-            onClose={handleMenuClose}
-            anchorOrigin={{
-              vertical: "bottom",
-              horizontal: "right",
-            }}
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-          >
-            <MenuItem
-              onClick={() => {
-                handleEditOpen(rem);
-                handleMenuClose();
-              }}
-            >
-              <EditIcon fontSize="small" sx={{ mr: 1 }} />
-              Edit
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                handleDeleteReminder(rem.id);
-                handleMenuClose();
-              }}
-              sx={{ color: "#f44336" }}
-            >
-              <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-              Delete
-            </MenuItem>
-          </Menu>
-        </>
-      }
-    >
-      <IconButton
-        onClick={() => handleToggleComplete(rem)}
-        sx={{
-          color: rem.completed ? "#00f721" : "#aaa",
-          mr: 1,
-          p: 0.5,
-        }}
-      >
-        {rem.completed ? (
-          <CheckCircleIcon sx={{ fontSize: 28, color: "#00f721" }} />
-        ) : (
-          <NotificationsActiveIcon sx={{ fontSize: 28, color: mode === "dark" ? "#fff" : "#000" }} />
-        )}
-      </IconButton>
-      <ListItemText
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 1.3,
-          backgroundColor: "transparent",
-        }}
-        primary={
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: 16,
-                fontWeight: rem.completed ? "normal" : "bold",
-                color: mode === "dark" ? "#fff" : "#000",
-                textDecoration: rem.completed ? "line-through" : "none",
-                opacity: rem.completed ? 0.9 : 1,
-              }}
-            >
-              {rem.text}
-            </Typography>
-          </Box>
-        }
-        secondary={
-          rem.time ? (
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <Typography variant="caption" sx={{ color: "#646464ff" }}>
-                {rem.date} {rem.time}
-              </Typography>
-            </Box>
-          ) : null
-        }
-      />
-    </ListItem>
-  ))}
-</List>
+                  <List>
+                    {completedReminders.map((rem) => (
+                      <CompletedReminderListItem
+                        key={rem.id}
+                        rem={rem}
+                        mode={mode}
+                        theme={theme}
+                        handleToggleComplete={handleToggleComplete}
+                        handleDeleteReminder={handleDeleteReminder}
+                      />
+                    ))}
+                  </List>
                 )}
               </CardContent>
-            </Card>
+            </Collapse>
+          </Card>
+        </Container>
 
-                        <Card sx={{ mb: 2, backgroundColor: mode === "dark" ? "transparent" : "#ffffffaf", borderRadius: 4, boxShadow: "none" }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  cursor: "pointer",
-                  px: 2,
-                  py: 1,
-                  userSelect: "none",
-                }}
-                onClick={() => setCompletedOpen((prev) => !prev)}
-              >
-                <ExpandMore
-                  sx={{
-                    transform: completedOpen ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: "transform 0.2s",
-                  }}
-                />
-                <Typography variant="subtitle1" sx={{ ml: 1 }}>
-                  Completed ({completedReminders.length})
-                </Typography>
-              </Box>
-              <Collapse in={completedOpen} timeout="auto" unmountOnExit>
-                <CardContent sx={{ background: "transparent", pt: 0 }}>
-                  {completedReminders.length === 0 ? (
-                    <Typography color="text.secondary" fontSize={15}>
-                      No completed reminders.
-                    </Typography>
-                  ) : (
-<List>
-  {completedReminders.map((rem, idx) => (
-    <ListItem
-      key={rem.id}
-      sx={{
-        borderRadius: 3,
-        mb: 1,
-        background: mode === "dark" ? "#88888822" : "#dcdcdcff",
-        color: mode === "dark" ? "#fff" : "#000",
-        opacity: 0.5,
-        boxShadow: "none",
-      }}
-    >
-      <IconButton
-        onClick={() => handleToggleComplete(rem)}
-        sx={{
-          color: "#00f721",
-          mr: 1,
-          p: 0.5,
-        }}
-      >
-        <CheckCircleIcon sx={{ fontSize: 28, color: "#00f721" }} />
-      </IconButton>
-      <ListItemText
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 1.3,
-          backgroundColor: "transparent",
-        }}
-        primary={
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>  
-            <Typography
-              variant="body1"
+        {/* Action Menu (for active items) */}
+        <Menu
+          anchorEl={menuAnchorEl}
+          open={Boolean(menuAnchorEl)}
+          onClose={handleMenuClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+        >
+          <MenuItem onClick={handleEditOpenFromMenu}>
+            <EditIcon fontSize="small" sx={{ mr: 1 }} />
+            Edit
+          </MenuItem>
+          <MenuItem onClick={handleDeleteFromMenu} sx={{ color: "#f44336" }}>
+            <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+            Delete
+          </MenuItem>
+        </Menu>
+
+        {/* Add/Edit Drawer (Using SwipeableDrawer for better UX on mobile) */}
+        <SwipeableDrawer
+          anchor="bottom"
+          open={drawerOpen}
+          onClose={() => {
+            setDrawerOpen(false);
+            setNewReminderData({ text: "", time: "", date: "" });
+          }}
+          onOpen={() => setDrawerOpen(true)}
+          disableSwipeToOpen={true}
+          PaperProps={{
+            sx: {
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              backgroundColor: "#23252620", // Use existing semi-transparent background
+              backdropFilter: "blur(80px)",
+              p: 3,
+            },
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+            Add New Reminder
+          </Typography>
+          <Stack spacing={2}>
+            <TextField
+              label="Reminder"
+              value={newReminderData.text}
+              onChange={e => setNewReminderData(prev => ({ ...prev, text: e.target.value }))}
+              fullWidth
+              variant="outlined"
+              InputProps={{ style: { color: isDark ? "#fff" : "#000" } }}
+              InputLabelProps={{ style: { color: isDark ? "#aaa" : "#333" } }}
+            />
+            <TextField
+              label="Remind Date"
+              type="date"
+              value={newReminderData.date}
+              onChange={e => setNewReminderData(prev => ({ ...prev, date: e.target.value }))}
+              fullWidth
+              variant="outlined"
+              InputProps={{ style: { color: isDark ? "#fff" : "#000" } }}
+              InputLabelProps={{ style: { color: isDark ? "#aaa" : "#333" } }}
+            />
+            <TextField
+              label="Remind At"
+              type="time"
+              value={newReminderData.time}
+              onChange={e => setNewReminderData(prev => ({ ...prev, time: e.target.value }))}
+              fullWidth
+              variant="outlined"
+              InputProps={{ style: { color: isDark ? "#fff" : "#000" } }}
+              InputLabelProps={{ style: { color: isDark ? "#aaa" : "#333" } }}
+            />
+            <Button
+              variant="contained"
               sx={{
-                color: mode === "dark" ? "#fff" : "#000",
-                textDecoration: "line-through",
-                opacity: 0.7,
+                borderRadius: 4, px: 2, py: 1, color: "#000",
+                backgroundColor: theme.palette.primary.main, fontWeight: "bold",
               }}
+              onClick={handleAddReminder}
+              disabled={saving || !newReminderData.text.trim()}
             >
-              {rem.text}
-            </Typography>
-          </Box>
-        }
-        secondary={
-          rem.time ? (
-            <Box sx={{ display: "flex", flexDirection: "column", mr: 2, gap: 0.1 }}>
-              <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                {rem.time}
-              </Typography>
-            </Box>
-          ) : null
-        }
-      />
-              <IconButton
-                size="small"
-                onClick={() => handleDeleteReminder(rem.id)}
-                sx={{ 
-                  color: "#cd0000ff", 
-                  backgroundColor: "#ff9090c4", 
-                  p: 1.2,
-                }}
-              >
-                <DeleteOutlineIcon />
-              </IconButton>
-    </ListItem>
-  ))}
-</List>
-                  )}
-                </CardContent>
-              </Collapse>
-            </Card>
-          </Container>
+              {saving ? "Saving..." : "Add Reminder"}
+            </Button>
+          </Stack>
+        </SwipeableDrawer>
 
-          {/* Add/Edit Drawer */}
-          <Drawer
-            anchor="bottom"
-            open={drawerOpen}
-            onClose={() => {
-              setDrawerOpen(false);
-              setReminderText("");
-              setReminderTime("");
-              setReminderDate("");
-              setError("");
-            }}
-            PaperProps={{
-              sx: {
-                borderTopLeftRadius: 16,
-                borderTopRightRadius: 16,
-                backgroundColor: "#23252620",
-                backdropFilter: "blur(80px)",
-                p: 3,
-              },
-            }}
-          >
-            <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-              Add New Reminder
-            </Typography>
-            <Stack spacing={2}>
-              <TextField
-                label="Reminder"
-                value={reminderText}
-                onChange={e => setReminderText(e.target.value)}
-                fullWidth
-                variant="outlined"
-                InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
-                InputLabelProps={{ style: { color: mode === "dark" ? "#aaa" : "#333" } }}
-              />
-              <TextField
-                label="Remind Date"
-                type="date"
-                value={reminderDate}
-                onChange={e => setReminderDate(e.target.value)}
-                fullWidth
-                variant="outlined"
-                InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
-                InputLabelProps={{ style: { color: mode === "dark" ? "#aaa" : "#333" } }}
-              />
-              <TextField
-                label="Remind At"
-                type="time"
-                value={reminderTime}
-                onChange={e => setReminderTime(e.target.value)}
-                fullWidth
-                variant="outlined"
-                InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
-                InputLabelProps={{ style: { color: mode === "dark" ? "#aaa" : "#333" } }}
-              />
-              {error && (
-                <Typography color="error" sx={{ mt: 1 }}>
-                  {error}
-                </Typography>
-              )}
-              <Button
-                variant="contained"
-                sx={{
-                  borderRadius: 4,
-                  px: 2,
-                  py: 1,
-                  color: "#000",
-                  backgroundColor: buttonWeatherBg,
-                  fontWeight: "bold",
-                }}
-                onClick={handleAddReminder}
-                disabled={saving}
-              >
-                {saving ? "Saving..." : "Add Reminder"}
-              </Button>
-            </Stack>
-          </Drawer>
-
-          {/* Edit Dialog */}
-          <Dialog
-            open={editDialogOpen}
-            onClose={() => setEditDialogOpen(false)}
-            maxWidth="xs"
-            fullWidth
-            PaperProps={{
-              sx: {
-                borderRadius: 2,
-                backgroundColor: "#23252620",
-                backdropFilter: "blur(80px)",
-                p: 2,
-              },
-            }}
-          >
-            <DialogTitle>Edit Reminder</DialogTitle>
-            <DialogContent sx={{ pt: 1 }}>
-              <TextField
-                label="Reminder"
-                fullWidth
-                value={editReminder?.text || ""}
-                onChange={e =>
-                  setEditReminder({ ...editReminder, text: e.target.value })
-                }
-                sx={{ mb: 2 }}
-                variant="outlined"
-              />
-              <TextField
-                label="Remind Date"
-                type="date"
-                fullWidth
-                value={editReminder?.date || ""}
-                onChange={e =>
-                  setEditReminder({ ...editReminder, date: e.target.value })
-                }
-                sx={{ mb: 2 }}
-                variant="outlined"
-              />
-              <TextField
-                label="Remind At"
-                type="time"
-                fullWidth
-                value={editReminder?.time || ""}
-                onChange={e =>
-                  setEditReminder({ ...editReminder, time: e.target.value })
-                }
-                variant="outlined"
-              />
-            </DialogContent>
-            <DialogActions>
-              <Button sx={{ borderRadius: 4, px: 2, py: 1, color: buttonWeatherBg, backgroundColor: WeatherBgdrop, fontWeight: "bold" }} onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-              <Button
-                variant="contained"
-                sx={{
-                  borderRadius: 4,
-                  px: 2,
-                  py: 1,
-                  color: "#000",
-                  backgroundColor: buttonWeatherBg,
-                  fontWeight: "bold",
-                }}
-                onClick={handleEditSave}
-                disabled={saving}
-              >
-                {saving ? "Saving..." : "Save"}
-              </Button>
-            </DialogActions>
-          </Dialog>
-        </Box>
-        <style>
-          {`
-            @keyframes slideUpDrawer {
-              from {
-                transform: translateY(100%);
-                opacity: 0.7;
+        {/* Edit Dialog */}
+        <Dialog
+          open={editDialogOpen}
+          onClose={() => setEditDialogOpen(false)}
+          maxWidth="xs"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 2,
+              backgroundColor: "#23252620",
+              backdropFilter: "blur(80px)",
+              p: 2,
+            },
+          }}
+        >
+          <DialogTitle>Edit Reminder</DialogTitle>
+          <DialogContent sx={{ pt: 1 }}>
+            <TextField
+              label="Reminder"
+              fullWidth
+              value={editReminder?.text || ""}
+              onChange={e =>
+                setEditReminder({ ...editReminder, text: e.target.value })
               }
-              to {
-                transform: translateY(0);
-                opacity: 1;
+              sx={{ mb: 2 }}
+              variant="outlined"
+            />
+            <TextField
+              label="Remind Date"
+              type="date"
+              fullWidth
+              value={editReminder?.date || ""}
+              onChange={e =>
+                setEditReminder({ ...editReminder, date: e.target.value })
               }
-            }
-          `}
-        </style>
+              sx={{ mb: 2 }}
+              variant="outlined"
+            />
+            <TextField
+              label="Remind At"
+              type="time"
+              fullWidth
+              value={editReminder?.time || ""}
+              onChange={e =>
+                setEditReminder({ ...editReminder, time: e.target.value })
+              }
+              variant="outlined"
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button sx={{ borderRadius: 4, px: 2, py: 1, color: theme.palette.primary.maintxt, backgroundColor: theme.palette.primary.mainbg, fontWeight: "bold" }} onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              sx={{
+                borderRadius: 4, px: 2, py: 1, color: "#000",
+                backgroundColor: theme.palette.primary.mainbg, fontWeight: "bold",
+              }}
+              onClick={handleEditSave}
+              disabled={saving || !editReminder?.text.trim()}
+            >
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </ThemeProvider>
   );
 });
 
-export default Reminders;   
+export default Reminders;

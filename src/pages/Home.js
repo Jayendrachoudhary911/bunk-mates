@@ -15,6 +15,9 @@ import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
+// Import placesData (assuming path is correct relative to Home.js)
+import placesData from '../data/data.json';
+
 
 import {
   AppBar,
@@ -38,10 +41,23 @@ import {
   Fab,
   Zoom,
   Badge,
+  IconButton,
+  Collapse,
+  BottomNavigation,
+  BottomNavigationAction,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Chip, // Added Chip for place details
+  Divider, // Added Divider for visual separation
+  CardMedia, // Added CardMedia for place image
+  Stack
 } from "@mui/material";
 import {
   LocationOn,
   AccessTime,
+  WbSunnyOutlined, // Added weather icon
+  CalendarTodayOutlined, // Added season icon
 } from "@mui/icons-material";
 import ProfilePic from "../components/Profile";
 import Reminders from "./Reminders";
@@ -66,6 +82,15 @@ import AlarmOutlinedIcon from '@mui/icons-material/AlarmOutlined';
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import CircleIcon from "@mui/icons-material/Circle";
+import LiveTvIcon from "@mui/icons-material/LiveTv";
+import BroadcastOnPersonalIcon from "@mui/icons-material/BroadcastOnPersonal";
+import WifiTetheringIcon from "@mui/icons-material/WifiTethering";
+
+
 
 const fadeIn = keyframes`
   from {
@@ -78,6 +103,7 @@ const fadeIn = keyframes`
   }
 `;
 
+// ... (CATEGORY_ICONS constant remains the same)
 const CATEGORY_ICONS = {
   Food: {
     icon: <RestaurantOutlinedIcon sx={{ fontSize: "large" }} />,
@@ -178,6 +204,7 @@ const CATEGORY_ICONS = {
     fcolor: "#a4a4a4"           // grey[900]
   }
 };
+// ... (rest of the constants remain the same)
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -243,6 +270,90 @@ const sliderSettings = {
   arrows: false,
 };
 
+const pickTip = keyframes`
+  0% { transform: translateY(0) rotate(0deg); }
+  40% { transform: translateY(-6px) rotate(-1deg); }
+  70% { transform: translateY(-2px) rotate(0.4deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+`;
+
+// Helper component for Place Cards
+const PlaceCard = ({ place, mode, navigate }) => {
+  const theme = useTheme();
+  return (
+    <Card 
+      sx={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        borderRadius: 4, 
+        overflow: 'hidden',
+        boxShadow: theme.shadows[4],
+        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: theme.shadows[8],
+          cursor: 'pointer',
+        }
+      }}
+      onClick={() => navigate("/search", { state: { initialSearch: place.name, openPlaceId: place.id } })}
+    >
+      <CardMedia
+        component="img"
+        height="140"
+        image={place.images?.[0]}
+        alt={place.name}
+        sx={{ filter: mode === 'dark' ? 'brightness(0.8)' : 'none' }}
+      />
+      <CardContent sx={{ flexGrow: 1, pb: 1 }}>
+        <Typography variant="h6" component="div" sx={{ fontWeight: 700, mb: 0.5, lineHeight: 1.2 }}>
+          {place.name}
+        </Typography>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+          <LocationOn fontSize="small" sx={{ color: theme.palette.text.secondary }} />
+          <Typography variant="body2" color="text.secondary">
+            {place.city}, {place.state}
+          </Typography>
+        </Stack>
+        
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          <Chip
+            icon={<WbSunnyOutlined />}
+            label={`${place.weather.split(';')[0].trim()}`}
+            size="small"
+            variant="outlined"
+          />
+          <Chip
+            icon={<CalendarTodayOutlined />}
+            label={`${place.season}`}
+            size="small"
+            variant="outlined"
+          />
+        </Stack>
+        
+        <Typography variant="body2" sx={{ mt: 1, color: theme.palette.text.primary }} noWrap>
+          {place.description}
+        </Typography>
+        
+      </CardContent>
+      <Box sx={{ p: 2, pt: 0 }}>
+         <Button 
+            size="small" 
+            variant="contained" 
+            fullWidth
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("/trips", { state: { place } });
+            }}
+         >
+          Plan Trip
+         </Button>
+      </Box>
+    </Card>
+  );
+};
+
+
 const Home = () => {
   const navigate = useNavigate();
   const muiTheme = useTheme();
@@ -274,6 +385,66 @@ const Home = () => {
   const [notifications, setNotifications] = useState([]);
   const [notifPopup, setNotifPopup] = useState({ open: false, message: "", id: null });
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const [liveAlerts, setLiveAlerts] = useState({ upcoming: [], ongoing: [], reminders: [] });
+  const [expandedGroups, setExpandedGroups] = useState({ upcoming: true, reminders: true });
+  const [openUpcoming, setOpenUpcoming] = useState(false);
+
+  const toggleGroup = (group) => {
+    setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
+  };
+
+  const NAV_ITEMS = [ // <-- NEW CONSTANT ARRAY
+    {
+      label: "Notes",
+      icon: <StickyNote2OutlinedIcon />,
+      path: "/notes",
+    },
+    {
+      label: "Reminder",
+      icon: <AlarmOutlinedIcon />,
+      path: "/reminders",
+    },
+    {
+      label: "Trip",
+      icon: <ExploreOutlinedIcon />,
+      path: "/trips",
+    },
+    {
+      label: "Budget",
+      icon: <AccountBalanceWalletOutlinedIcon />,
+      path: "/budget-mngr",
+    },
+  ];
+
+  // --- START: Places Data Processing ---
+
+  const placeSuggestions = useMemo(() => {
+    if (!placesData || !placesData.states) return [];
+
+    const allStates = Array.isArray(placesData.states) ? placesData.states : [];
+          
+    // Flatten the nested structure: states -> districts -> places
+    const flatPlaces = allStates.flatMap(state => 
+      (state.districts || []).flatMap(district => 
+        (district.places || []).map(p => ({ 
+          // Generate a unique ID and add location context
+          id: p.name.replace(/\s/g, '_') + '_' + state.code + '_' + district.name,
+          location: `${district.name}, ${state.name}`, 
+          city: district.name,
+          state: state.name,
+          ...p 
+        }))
+      )
+    );
+    // Shuffle the array and take a maximum of 4 suggestions
+    return flatPlaces
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 4);
+  }, []);
+
+  // --- END: Places Data Processing ---
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -328,6 +499,71 @@ const [settings, setSettings] = useState(() => {
   const saved = localStorage.getItem('settings');
   return saved ? JSON.parse(saved) : { locationMode: 'auto', manualLocation: '' };
 });
+
+useEffect(() => {
+  const now = new Date();
+  const in12h = 12 * 60 * 60 * 1000; // 12 hours in ms
+  const upcoming = [];
+  const ongoing = [];
+  const rems = [];
+
+  // Trips
+  (myTrips || []).forEach((trip) => {
+    try {
+      const startRaw = trip.startDate || trip.date;
+      const endRaw = trip.endDate || trip.date;
+      if (!startRaw) return;
+
+      const start = new Date(startRaw);
+      const end = endRaw ? new Date(endRaw) : new Date(startRaw);
+      if (isNaN(start.getTime())) return;
+
+      // Fetch from/to locations
+      const from = trip.from || trip.startLocation || "Unknown";
+      const to = trip.to || trip.endLocation || trip.location || "Unknown";
+
+      if (start > now && start - now <= in12h) {
+        // Upcoming trips within next 12h
+        upcoming.push({
+          id: trip.id,
+          name: trip.name || "Unnamed Trip",
+          start,
+          from,
+          to,
+        });
+      } else if (start <= now && now <= end) {
+        // Ongoing trips
+        ongoing.push({
+          id: trip.id,
+          name: trip.name || "Unnamed Trip",
+          start,
+          end,
+          from,
+          to,
+        });
+      }
+    } catch (e) {
+      console.warn("Malformed trip data", e);
+    }
+  });
+
+  // Reminders (look for time/due fields or Firestore timestamp)
+  (reminders || []).forEach((r) => {
+    if (r.completed) return;
+    let dt = null;
+    if (r.time && typeof r.time === "string") dt = new Date(r.time);
+    if (!dt && r.due) dt = new Date(r.due);
+    if (!dt && r.when) dt = new Date(r.when);
+    if (!dt && r.timestamp && r.timestamp.seconds) dt = new Date(r.timestamp.seconds * 1000);
+    if (!dt) return;
+    if (isNaN(dt.getTime())) return;
+    if (dt > now && dt - now <= in12h) {
+      rems.push({ id: r.id, text: r.text || r.title || "Reminder", time: dt });
+    }
+  });
+
+  setLiveAlerts({ upcoming, ongoing, reminders: rems });
+}, [myTrips, reminders]);
 
 
 useEffect(() => {
@@ -676,7 +912,7 @@ useEffect(() => {
             <AppBar position="fixed" elevation={0} sx={{ backgroundColor: "transparent", backdropFilter: "blur(10px)", boxShadow: "none" }}>
               <Toolbar sx={{ justifyContent: 'space-between', py: 1, px: 3, backgroundColor: 'transparent' }}>
                 <Typography variant="h6" sx={{ userSelect: 'none', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 'bold', color: mode === "dark" ? "#f1f1f1" : "#333" }}>
-                  BunkMate 🏖️
+                  BunkMates
                   {userType && (
                     <Typography
                       variant="caption"
@@ -697,20 +933,9 @@ useEffect(() => {
                   <ProfilePic />
               </Toolbar>
             </AppBar>
+
             <Box sx={{ height: { xs: 0, sm: 77 } }} />
-            {loading ? (
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  height: "60vh",
-                  zIndex: 1500
-                }}
-              >
-                <CircularProgress color="white" />
-              </Box>
-            ) : notLoggedIn ? (
+            {notLoggedIn ? (
               <Box sx={{ p: 6, textAlign: "center" }}>
                 <Typography variant="h5" color="text.secondary">
                   Please log in to use BunkMate.
@@ -802,78 +1027,214 @@ useEffect(() => {
 </Box>
 
                   </Box>
+
+<>
+      <Card
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          px: 2,
+          py: 1.5,
+          borderRadius: 4,
+          backdropFilter: "blur(10px)",
+          backgroundImage: "none",
+          backgroundColor: 'transparent',
+          color: mode === "dark" ? "#f5f5f5" : "#111",
+          boxShadow:'none',
+          minWidth: 260,
+          maxWidth: 520,
+          gap: 2,
+          transition: "all 280ms cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+      >
+        {/* Ongoing Alerts (always visible) */}
+<Box
+  sx={{
+    display: "flex",
+    flexDirection: "row",
+    gap: 1.5,
+    alignItems: "center",
+    flexWrap: "wrap",
+  }}
+>
+  {liveAlerts.ongoing.map((t) => (
+    <Box
+      key={t.id}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        px: 1,
+        py: 1,
+        borderRadius: 8,
+        backgroundColor:
+          mode === "dark"
+            ? "rgba(201, 201, 201, 0.09)"
+            : "rgba(0,0,0,0.03)",
+        transition: "all 200ms ease",
+        "&:hover": {
+          transform: "translateY(-2px)",
+          backgroundColor:
+            mode === "dark"
+              ? "rgba(255,255,255,0.08)"
+              : "rgba(0,0,0,0.06)",
+        },
+      }}
+    >
+      <Box
+        sx={{
+          position: "relative",
+          display: "inline-flex",
+          borderRadius: 8,
+          p: 0.5,
+          backgroundColor: mode === "dark" ? "#ff575718" : "#ff000030",
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            borderRadius: 8,
+            backgroundColor: mode === "dark" ? "#ff5757" : "#ff0000ff",
+            opacity: 0.3,
+            animation: "pulse 1.5s infinite",
+          },
+        }}
+      >
+        <WifiTetheringIcon
+          sx={{
+            fontSize: 22,
+            color: mode === "dark" ? "#ff5757ff" : "#ff0000ff",
+          }}
+        />
+      </Box>
+
+      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        {t.name}
+      </Typography>
+      <Typography variant="caption" sx={{ color: "text.secondary" }}>
+        {t.from} - {t.to}
+      </Typography>
+      <Typography
+        variant="caption"
+        sx={{ color: "text.secondary", ml: "auto", mr: 1 }}
+      >
+        ongoing
+      </Typography>
+    </Box>
+  ))}
+
+  {/* Pulse keyframes */}
+  <style>
+    {`
+      @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.3; }
+        50% { transform: scale(1.4); opacity: 0; }
+        100% { transform: scale(1); opacity: 0.3; }
+      }
+    `}
+  </style>
+</Box>
+
+
+        {/* Upcoming Alerts Icons */}
+        <Box sx={{ display: "flex", gap: 1 }}>
+          {liveAlerts.upcoming.map((t) => (
+            <IconButton
+              key={t.id}
+              onClick={() => setOpenUpcoming(true)}
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                backgroundColor:
+                  mode === "dark"
+                    ? "rgba(158,234,158,0.2)"
+                    : "rgba(0,122,51,0.15)",
+                "&:hover": {
+                  backgroundColor:
+                    mode === "dark"
+                      ? "rgba(158,234,158,0.3)"
+                      : "rgba(0,122,51,0.25)",
+                },
+                transition: "all 200ms ease",
+              }}
+            >
+              <AccessTime
+                sx={{
+                  fontSize: 20,
+                  color: mode === "dark" ? "#9eea9e" : "#007a33",
+                }}
+              />
+            </IconButton>
+          ))}
+        </Box>
+      </Card>
+
+      {/* Upcoming Alerts Dialog */}
+      <Dialog
+        open={openUpcoming}
+        onClose={() => setOpenUpcoming(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            backdropFilter: "blur(12px)",
+            backgroundColor:
+              mode === "dark" ? "rgba(18,18,18,0.85)" : "rgba(255,255,255,0.9)",
+          },
+        }}
+      >
+        <DialogTitle>Upcoming Alerts</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          {liveAlerts.upcoming.map((t) => (
+            <Box
+              key={t.id}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                px: 1,
+                py: 0.6,
+                borderRadius: 2,
+                backgroundColor:
+                  mode === "dark"
+                    ? "rgba(255,255,255,0.05)"
+                    : "rgba(0,0,0,0.03)",
+                transition: "all 200ms ease",
+                "&:hover": {
+                  transform: "translateX(4px)",
+                  backgroundColor:
+                    mode === "dark"
+                      ? "rgba(158,234,158,0.2)"
+                      : "rgba(0,122,51,0.1)",
+                },
+              }}
+            >
+              <AccessTime
+                sx={{
+                  fontSize: 18,
+                  color: mode === "dark" ? "#9eea9e" : "#007a33",
+                }}
+              />
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {t.name}
+              </Typography>
+              <Typography variant="caption" sx={{ ml: "auto", color: "text.secondary" }}>
+                {t.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </Typography>
+            </Box>
+          ))}
+        </DialogContent>
+      </Dialog>
+</>
+
                 </Container>
 
-                <Container maxWidth="lg" sx={{ mb: 3, padding: 0 }}>
-                  <Grid
-                    container
-                    spacing={1.2}
-                    justifyContent="center"
-                    alignItems="stretch"
-                  >
-                    {[
-                      {
-                        label: "Add Notes",
-                        icon: <StickyNote2OutlinedIcon />,
-                        onClick: () => navigate("/notes"),
-                      },
-                      {
-                        label: "Reminder",
-                        icon: <AlarmOutlinedIcon />,
-                        onClick: () => navigate("/reminders"),
-                      },
-                      {
-                        label: "Trip",
-                        icon: <ExploreOutlinedIcon />,
-                        onClick: () => navigate("/trips"),
-                      },
-                      {
-                        label: "Budget",
-                        icon: <AccountBalanceWalletOutlinedIcon />,
-                        onClick: () => navigate("/budget-mngr"),
-                      },
-                    ].map((tile) => (
-                      <Grid
-                        item
-                        xs={3}
-                        sm={3}
-                        md={3}
-                        lg={3}
-                        key={tile.label}
-                        sx={{ display: "flex" }}
-                      >
-                        <Card
-                          sx={{
-                            flex: 1,
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            minHeight: 105,
-                            width: "21vw",
-                            aspectRatio: "1 / 1",
-                            cursor: "pointer",
-                            background: mode === "dark" ? "#f1f1f111" : "#0c0c0c07",
-                            borderRadius: 5,
-                            boxShadow: "none",
-                            transition: "background 0.2s",
-                          }}
-                          onClick={tile.onClick}
-                        >
-                          <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 6, backgroundColor: theme.palette.primary.bgr, color: theme.palette.primary.maintxt }}>
-                            {tile.icon}
-                          </Box>
-                          <Typography
-                            variant="subtitle6"
-                            sx={{ color: "text.primary", fontSize: "10.5px" }}
-                          >
-                            {tile.label}
-                          </Typography>
-                        </Card>
-                      </Grid>
-                    ))}
-                  </Grid>
-                </Container>
               </Box>
             )}
             {/* Main Content */}
@@ -893,12 +1254,13 @@ useEffect(() => {
                   </Box>
                 ) : (
                   <Grid container spacing={3} justifyContent={"center"}>
+                    
                     {/* Trips Display card */}
                     <Grid item xs={12} md={6} lg={4}>
                       {myTrips && myTrips.length > 0 ? (
                         <Box sx={{ minWidth: "86vw", px: 0 }}>
                           <Typography variant="h6" textAlign="left" mb={1} ml={1.4}>Your Trips</Typography>
-                          <Slider {...sliderSettings} slickGoTo={sliderIndex} gap={2}>
+                          <Slider {...sliderSettings} slickGoTo={sliderIndex} afterChange={setSliderIndex} >
                             {myTrips.map((tripInfo) => (
                               <Box key={tripInfo.id} sx={{ px: 0 }}>
                                 <Card
@@ -917,6 +1279,7 @@ useEffect(() => {
                                     justifyContent: "flex-end",
                                     mx: 1,
                                   }}
+                                  onClick={() => navigate(`/trips/${tripInfo.id}`)}
                                 >
                                   <CardContent
                                     sx={{
@@ -986,180 +1349,41 @@ useEffect(() => {
                         </Box>
                       ) : (
                         <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: "center", mt: 4 }}>
-                          No trips found.
+                          No trips found. Start planning!
                         </Typography>
                       )}
                     </Grid>
-                    {/* Budgets Display Card */}
-                    <Grid item xs={12} md={6} lg={4}>
-                      <Box sx={{ minWidth: "90vw", mt: 3 }} >
-                        <CardContent>
-                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-                            <Typography variant="h6" sx={{ color: "text.primary" }}>
-                              Your Budgets
+                    
+                    {/* Trips Suggestions Card (NEW SECTION) */}
+                    <Grid item xs={12} md={6} lg={8} sx={{ minWidth: "100%", px: { xs: 3, md: 0 } }}>
+                        <Typography variant="h6" textAlign="left" mb={1}>Trip Suggestions & Discovery</Typography>
+                        
+                        {placeSuggestions.length > 0 ? (
+                            <Grid container spacing={2}>
+                                {placeSuggestions.map((place) => (
+                                    <Grid item xs={12} sm={6} md={6} lg={3} key={place.id}>
+                                        <PlaceCard place={place} mode={mode} navigate={navigate} />
+                                    </Grid>
+                                ))}
+                            </Grid>
+                        ) : (
+                            <Typography variant="body2" color="text.secondary">
+                                No travel suggestions loaded from local data.
                             </Typography>
-                            {budgets.length > 0 && (
-                              <Box
-                                component="button"
-                                onClick={() => navigate("/budget-mngr")}
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  background: "none",
-                                  border: "none",
-                                  color: mode === "dark" ? "#f1f1f1" : "#333",
-                                  fontWeight: 600,
-                                  fontSize: 14,
-                                  cursor: "pointer",
-                                  px: 1,
-                                  py: 0.5,
-                                  borderRadius: 5,
-                                  transition: "background 0.2s",
-                                  "&:hover": {
-                                    background: mode === "dark" ? "#f1f1f111" : "#e0e0e0",
-                                  },
-                                }}
-                              >
-                                View More <ChevronRightIcon />
-                              </Box>
-                            )}
-                          </Box>
-                          {budgets.length > 0 ? (
-                            <Box
-                              sx={{
-                                display: "flex",
-                                flexDirection: "row",
-                                gap: 1,
-                                overflowX: "auto",
-                                maxWidth: "100%",
-                                px: 1,
-                                py: 0.5,
-                                scrollbarWidth: "none",
-                                "&::-webkit-scrollbar": {
-                                  display: "none",
-                                  height: 6,
-                                },
-                                "&::-webkit-scrollbar-thumb": {
-                                  display: "none",
-                                  borderRadius: 4,
-                                },
-                              }}
+                        )}
+                        <Box sx={{ mt: 2, textAlign: 'right' }}>
+                            <Button 
+                                variant="outlined" 
+                                size="small"
+                                endIcon={<ArrowForwardIosIcon />}
+                                onClick={() => navigate("/search", { state: { tab: 'places' } })}
                             >
-                              {sortedBudgets.slice(0, 5).map((b, idx) => {
-                                const category =
-                                  b.category || (Array.isArray(b.items) && b.items[0]?.category) || "Other";
-                                const cat = CATEGORY_ICONS[category] || CATEGORY_ICONS.Other;
-
-                                const budgetName =
-                                  b.name || b.title || (Array.isArray(b.items) && b.items[0]?.name) || "Untitled";
-                                const totalBudget = Number(b.amount || b.total || 0);
-                                const expenses = Array.isArray(b.expenses)
-                                  ? b.expenses
-                                  : Array.isArray(b.items)
-                                    ? b.items.flatMap(i => i.expenses || [])
-                                    : [];
-                                const totalExpense = expenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
-                                const balance = totalBudget - totalExpense;
-                                const contributors = Array.isArray(b.contributors)
-                                  ? b.contributors
-                                  : Array.isArray(b.users)
-                                    ? b.users
-                                    : [];
-                                const budgetIndex = sortedBudgets.findIndex(budget => budget === b);
-
-                                return (
-                                  <Box
-                                    key={b.id || b.name || idx}
-                                    sx={{
-                                      background: cat.listbgcolor,
-                                      borderRadius: 8,
-                                      px: 1,
-                                      py: 1,
-                                      minWidth: 120,
-                                      maxWidth: 180,
-                                      fontSize: 13,
-                                      color: theme.palette.text.primary,
-                                      textAlign: "left",
-                                      boxShadow: "none",
-                                      flex: "0 0 auto",
-                                      display: "flex",
-                                      flexDirection: "column",
-                                      justifyContent: "center",
-                                      alignItems: "flex-start",
-                                      cursor: "pointer",
-                                      transition: "box-shadow 0.2s",
-                                      "&:hover": {
-                                        boxShadow: "0 4px 16px #0006",
-                                      },
-                                    }}
-                                    onClick={() => navigate(`/budget-mngr?index=${budgetIndex}&expdrawer=true`)}
-                                  >
-                                    <Box sx={{ display: "flex", alignItems: "center", mb: 0 }}>
-                                      <Box
-                                        sx={{
-                                          background: cat.mcolor,
-                                          borderRadius: "50%",
-                                          width: 36,
-                                          height: 36,
-                                          display: "flex",
-                                          alignItems: "center",
-                                          justifyContent: "center",
-                                          mr: 1,
-                                        }}
-                                      >
-                                        {React.cloneElement(
-                                          cat.icon,
-                                          { sx: { fontSize: 22, color: cat.fcolor } }
-                                        )}
-                                      </Box>
-                                      <Box>
-                                        <Box display={"flex"} flexDirection={"row"} justifyContent={"space-between"} alignItems="center" gap={1}>
-                                          <Typography style={{ fontSize: 15 }}>
-                                            {budgetName}
-                                          </Typography>
-                                          <Typography variant="caption" style={{ backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", color: mode === "dark" ? "#aaa" : "#333", padding: "1px 6px", borderRadius: "20px", mt: 0, fontWeight: "bolder" }}>
-                                            {contributors.length > 0
-                                              ? `${contributors.length}`
-                                              : "0"}
-                                          </Typography>
-                                        </Box>
-                                        <div style={{ color: cat.fcolor, fontWeight: 600 }}>
-                                          ₹{balance.toFixed(2)}
-                                          {totalBudget > 0 && (
-                                            <span style={{ color: mode === "dark" ? "#ccc" : "#555", fontWeight: 400, fontSize: 12, marginLeft: 4 }}>
-                                              / ₹{totalBudget}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </Box>
-                                    </Box>
-                                  </Box>
-                                );
-                              })}
-                              {budgets.length > 5 && (
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    px: 2,
-                                    color: theme.palette.text.secondary,
-                                    fontSize: 13,
-                                    fontWeight: 500,
-                                    minWidth: 60,
-                                  }}
-                                >
-                                  +{budgets.length - 5} more...
-                                </Box>
-                              )}
-                            </Box>
-                          ) : (
-                            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: "center", mt: 2 }}>
-                              No budgets found.
-                            </Typography>
-                          )}
-                        </CardContent>
-                      </Box>
+                                Discover All Places
+                            </Button>
+                        </Box>
                     </Grid>
+
+
                     {/* Reminders Glimpse Card */}
                     <Container maxWidth="lg" sx={{ mt: 2, mb: 2 }}>
                       <Box
@@ -1223,6 +1447,9 @@ useEffect(() => {
                                         alignItems: "center",
                                       }}
                                       title="Mark as completed"
+                                      // Note: remindersRef.current?.markReminderComplete(rem.id) requires a ref to the Reminders component
+                                      // If the Reminders component is not mounted here, this function call will not work.
+                                      // It is left as is to match the existing logic structure.
                                       onClick={() =>
                                         remindersRef.current?.markReminderComplete(rem.id)
                                       }
@@ -1280,8 +1507,8 @@ useEffect(() => {
               container
               sx={{
                 position: "sticky",
-                bottom: 20,
-                right: 20,
+                bottom: 90,
+                right: 30,
                 mr: 1.5
               }}
             >

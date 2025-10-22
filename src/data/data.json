@@ -1,0 +1,534 @@
+{
+  "states": [
+    {
+      "name": "Rajasthan",
+      "code": "RJ",
+      "districts": [
+        {
+          "name": "Jaipur",
+          "places": [
+            {
+              "name": "Hawa Mahal",
+              "type": "Monument",
+              "description": "The Palace of Winds is a five-storey honeycomb façade built in 1799 for royal ladies to observe street life while remaining unseen. Intricate latticework and pink sandstone make it an iconic symbol of Jaipur.",
+              "bestTimeToVisit": "November to February",
+              "weather": "Cool and dry; clear skies ideal for photography",
+              "season": "Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1528909514045-2fa4ac7a08ba?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=1",
+                "https://images.unsplash.com/photo-1505672678657-cc7037095e2a?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=2",
+                "https://images.unsplash.com/photo-1549887534-8d0f3b1d7f3d?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=3"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "City Palace",
+                  "description": "Royal complex with museums, courtyards and the Mubarak Mahal — rich in Rajasthani and Mughal architecture.",
+                  "image": "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=4"
+                },
+                {
+                  "name": "Jantar Mantar",
+                  "description": "An 18th-century astronomical observatory with large stone instruments; UNESCO site.",
+                  "image": "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fbc?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=5"
+                }
+              ]
+            },
+            {
+              "name": "Amber Fort",
+              "type": "Fort",
+              "description": "A hilltop fort overlooking Maota Lake, known for its artistic Hindu style architecture, mirrored Sheesh Mahal, and panoramic views over Jaipur.",
+              "bestTimeToVisit": "October to March",
+              "weather": "Cool mornings; pleasant afternoons for exploration",
+              "season": "Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1508898578281-774ac4893b3f?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=6",
+                "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fbd?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=7",
+                "https://images.unsplash.com/photo-1526481280698-112c3f450f17?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=8"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Jaigarh Fort",
+                  "description": "Fortress known for its cannon collection and robust ramparts, set on the Aravalli hills.",
+                  "image": "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=9"
+                },
+                {
+                  "name": "Panna Meena Ka Kund",
+                  "description": "A historic stepwell with geometric steps — popular photography spot near Amber Fort.",
+                  "image": "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fbb?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=10"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Udaipur",
+          "places": [
+            {
+              "name": "Lake Pichola",
+              "type": "Lake",
+              "description": "A scenic artificial lake surrounded by palaces, ghats and islands; famous for sunset boat rides and postcard views of the City Palace.",
+              "bestTimeToVisit": "October to March",
+              "weather": "Cool and breezy; evenings ideal for boat trips",
+              "season": "Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1512453979798-5ea266f8880e?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=11",
+                "https://images.unsplash.com/photo-1505238680356-667803448bb6?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=12",
+                "https://images.unsplash.com/photo-1526481280698-112c3f450f18?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=13"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "City Palace (Udaipur)",
+                  "description": "A large complex of palaces and museums overlooking Lake Pichola featuring intricate balconies and courtyards.",
+                  "image": "https://images.unsplash.com/photo-1519681393784-d120267933bb?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=14"
+                },
+                {
+                  "name": "Jag Mandir",
+                  "description": "Island palace on Lake Pichola, often used for leisure boat stops and scenic photos.",
+                  "image": "https://images.unsplash.com/photo-1503602642458-232111445657?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=15"
+                }
+              ]
+            },
+            {
+              "name": "City Palace (Udaipur)",
+              "type": "Palace",
+              "description": "An architectural marvel made of marble and granite, housing museums with royal artifacts and offering sweeping lake views.",
+              "bestTimeToVisit": "November to February",
+              "weather": "Mild days and cool evenings",
+              "season": "Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1470770903676-69b98201ea1c?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=16",
+                "https://images.unsplash.com/photo-1482192596544-9eb780fc7f66?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=17",
+                "https://images.unsplash.com/photo-1491553895911-0055eca6402d?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=18"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Bagore Ki Haveli",
+                  "description": "Converted haveli hosting cultural shows, traditional costumes and folk performances.",
+                  "image": "https://images.unsplash.com/photo-1494526585095-c41746248156?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=19"
+                },
+                {
+                  "name": "Fateh Sagar Lake",
+                  "description": "A nearby placid lake with boating and promenade space, great for morning walks.",
+                  "image": "https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=20"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Delhi",
+      "code": "DL",
+      "districts": [
+        {
+          "name": "New Delhi",
+          "places": [
+            {
+              "name": "India Gate",
+              "type": "Monument",
+              "description": "A war memorial honoring Indian soldiers, set along a grand ceremonial boulevard. Evenings are lively with locals and food stalls around the lawns.",
+              "bestTimeToVisit": "October to March",
+              "weather": "Cool and comfortable; clear skies at night",
+              "season": "Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1508057198894-247b23fe5ade?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=21",
+                "https://images.unsplash.com/photo-1533750349088-cd871a92f312?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=22",
+                "https://images.unsplash.com/photo-1519681393784-d120267933bc?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=23"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Rajpath & Rashtrapati Bhavan",
+                  "description": "The ceremonial axis of New Delhi with government buildings and the Presidential residence.",
+                  "image": "https://images.unsplash.com/photo-1475964491064-3a23b7d6f7ff?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=24"
+                },
+                {
+                  "name": "National War Memorial",
+                  "description": "Contemporary memorial honoring the fallen soldiers with a reflective layout.",
+                  "image": "https://images.unsplash.com/photo-1533750349088-cd871a92f313?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=25"
+                }
+              ]
+            },
+            {
+              "name": "Qutub Minar",
+              "type": "Historical Monument",
+              "description": "A 73-metre tall minaret, a UNESCO World Heritage site, known for intricate Indo-Islamic architecture and surrounding archaeological ruins.",
+              "bestTimeToVisit": "October to March",
+              "weather": "Pleasant days; cool evenings",
+              "season": "Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1467269204594-9661b134dd2b?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=26",
+                "https://images.unsplash.com/photo-1506806732259-39c2d0268443?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=27",
+                "https://images.unsplash.com/photo-1469474968028-56623f02e42d?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=28"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Iron Pillar",
+                  "description": "Ancient rust-resistant pillar located within the Qutub complex, famed for metallurgy.",
+                  "image": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=29"
+                },
+                {
+                  "name": "Alai Darwaza",
+                  "description": "An impressive gateway demonstrating early Indo-Islamic architecture.",
+                  "image": "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fbf?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=30"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Old Delhi",
+          "places": [
+            {
+              "name": "Jama Masjid",
+              "type": "Mosque",
+              "description": "One of India’s largest mosques, built by Shah Jahan; offers amazing city views from its minarets and a bustling market (Chandni Chowk) nearby.",
+              "bestTimeToVisit": "October to March",
+              "weather": "Cool mornings; crowded afternoons during festivals",
+              "season": "Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fbe?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=31",
+                "https://images.unsplash.com/photo-1508057198894-247b23fe5adf?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=32",
+                "https://images.unsplash.com/photo-1533750349088-cd871a92f314?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=33"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Chandni Chowk",
+                  "description": "Historic market street famous for street food, narrow lanes and traditional bazaars.",
+                  "image": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=34"
+                },
+                {
+                  "name": "Red Fort",
+                  "description": "Massive Mughal fort and UNESCO site hosting evening sound-and-light shows.",
+                  "image": "https://images.unsplash.com/photo-1470770903676-69b98201ea1d?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=35"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Maharashtra",
+      "code": "MH",
+      "districts": [
+        {
+          "name": "Mumbai",
+          "places": [
+            {
+              "name": "Gateway of India",
+              "type": "Monument",
+              "description": "Built in 1924, the Gateway overlooks the Arabian Sea and is a ceremonial entrance to Mumbai — popular for ferry rides to Elephanta and sunset views.",
+              "bestTimeToVisit": "November to February",
+              "weather": "Pleasant with sea breeze; humid in monsoon",
+              "season": "Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fc0?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=36",
+                "https://images.unsplash.com/photo-1528909514045-2fa4ac7a08bb?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=37",
+                "https://images.unsplash.com/photo-1505672678657-cc7037095e2b?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=38"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Elephanta Caves",
+                  "description": "Island cave temples with rock-cut sculptures dedicated to Shiva; accessible by ferry.",
+                  "image": "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fc1?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=39"
+                },
+                {
+                  "name": "Colaba Causeway",
+                  "description": "Vibrant street for shopping, cafes and antiques close to Gateway Area.",
+                  "image": "https://images.unsplash.com/photo-1506806732259-39c2d0268441?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=40"
+                }
+              ]
+            },
+            {
+              "name": "Marine Drive",
+              "type": "Seaside Promenade",
+              "description": "Popular evening promenade called the Queen’s Necklace; great for sunset walks and skyline views of South Mumbai.",
+              "bestTimeToVisit": "October to March",
+              "weather": "Mild and breezy; humid in monsoon",
+              "season": "Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1505672678657-cc7037095e2c?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=41",
+                "https://images.unsplash.com/photo-1526481280698-112c3f450f19?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=42",
+                "https://images.unsplash.com/photo-1470770903676-69b98201ea1e?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=43"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Chowpatty Beach",
+                  "description": "Adjacent public beach famous for local snacks and lively crowds at sundown.",
+                  "image": "https://images.unsplash.com/photo-1508057198894-247b23fe5ad0?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=44"
+                },
+                {
+                  "name": "Nariman Point",
+                  "description": "Prime business district and skyline viewpoint at the southern tip of Marine Drive.",
+                  "image": "https://images.unsplash.com/photo-1506806732259-39c2d0268442?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=45"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Pune",
+          "places": [
+            {
+              "name": "Sinhagad Fort",
+              "type": "Fort",
+              "description": "Historic hill fort with trekking routes, panoramic views of the Deccan plateau and famous local snacks at the top.",
+              "bestTimeToVisit": "June to February",
+              "weather": "Cool and breezy; lush during monsoon",
+              "season": "Monsoon & Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1526481280698-112c3f450f20?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=46",
+                "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fc3?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=47",
+                "https://images.unsplash.com/photo-1505238680356-667803448bb7?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=48"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Kondana Caves",
+                  "description": "Ancient Buddhist caves near the fort, offering history and scenic treks.",
+                  "image": "https://images.unsplash.com/photo-1494526585095-c41746248157?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=49"
+                },
+                {
+                  "name": "Khambatki Ghat",
+                  "description": "Scenic mountain pass with viewpoints near Sinhagad.",
+                  "image": "https://images.unsplash.com/photo-1469474968028-56623f02e42f?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=50"
+                }
+              ]
+            },
+            {
+              "name": "Shaniwar Wada",
+              "type": "Historical Fort",
+              "description": "Once the seat of the Peshwas, an important Maratha-era monument with ruins and evocative history.",
+              "bestTimeToVisit": "October to February",
+              "weather": "Cool and comfortable",
+              "season": "Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1508898578281-774ac4893b3g?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=51",
+                "https://images.unsplash.com/photo-1505672678657-cc7037095e2d?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=52",
+                "https://images.unsplash.com/photo-1528909514045-2fa4ac7a08bc?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=53"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Raja Dinkar Kelkar Museum",
+                  "description": "Museum showcasing Indian decorative arts, musical instruments and daily life artifacts.",
+                  "image": "https://images.unsplash.com/photo-1505238680356-667803448bb8?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=54"
+                },
+                {
+                  "name": "Pune University Campus",
+                  "description": "Lush campus area with architectural and cultural significance.",
+                  "image": "https://images.unsplash.com/photo-1491553895911-0055eca6402e?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=55"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Karnataka",
+      "code": "KA",
+      "districts": [
+        {
+          "name": "Bengaluru Urban",
+          "places": [
+            {
+              "name": "Lalbagh Botanical Garden",
+              "type": "Park",
+              "description": "A historic 240-acre botanical garden with a famous glasshouse, seasonal flower shows and rare plant species.",
+              "bestTimeToVisit": "August to February",
+              "weather": "Pleasant mornings; mild afternoons",
+              "season": "Monsoon & Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1469474968028-56623f02e430?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=56",
+                "https://images.unsplash.com/photo-1503602642458-232111445658?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=57",
+                "https://images.unsplash.com/photo-1494526585095-c41746248158?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=58"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Bangalore Palace",
+                  "description": "A Tudor-style palace with lavish interiors and occasional cultural events.",
+                  "image": "https://images.unsplash.com/photo-1470770903676-69b98201ea1f?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=59"
+                },
+                {
+                  "name": "Cubbon Park",
+                  "description": "Large public park near the city center with shady trails and colonial-era buildings.",
+                  "image": "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fc5?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=60"
+                }
+              ]
+            },
+            {
+              "name": "Bangalore Palace",
+              "type": "Palace",
+              "description": "Inspired by Windsor Castle, featuring woodcarvings, stained glass and sprawling grounds used for concerts and events.",
+              "bestTimeToVisit": "October to February",
+              "weather": "Cool and dry",
+              "season": "Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1470770903676-69b98201ea20?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=61",
+                "https://images.unsplash.com/photo-1508804185872-d7badad00f7d?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=62",
+                "https://images.unsplash.com/photo-1505238680356-667803448bb9?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=63"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Tipu Sultan's Summer Palace",
+                  "description": "Historic teak structure and museum dedicated to Tipu Sultan.",
+                  "image": "https://images.unsplash.com/photo-1504674900247-0877df9cc837?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=64"
+                },
+                {
+                  "name": "ISKCON Temple, Bangalore",
+                  "description": "Modern temple complex hosting devotional cultural events and vegetarian dining.",
+                  "image": "https://images.unsplash.com/photo-1506806732259-39c2d0268444?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=65"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Mysuru",
+          "places": [
+            {
+              "name": "Mysore Palace",
+              "type": "Palace",
+              "description": "A glorious Indo-Saracenic palace famed for Dussehra celebrations and nightly illuminations in thousands of bulbs.",
+              "bestTimeToVisit": "October to February",
+              "weather": "Pleasant with festive vibes in Dussehra",
+              "season": "Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1503602642458-232111445659?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=66",
+                "https://images.unsplash.com/photo-1469474968028-56623f02e431?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=67",
+                "https://images.unsplash.com/photo-1494526585095-c41746248159?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=68"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Chamundi Hill",
+                  "description": "Sacred hill with temple and sweeping city views, near the palace area.",
+                  "image": "https://images.unsplash.com/photo-1491553895911-0055eca6402f?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=69"
+                },
+                {
+                  "name": "Brindavan Gardens",
+                  "description": "Famous terraced gardens with musical fountains next to the dam.",
+                  "image": "https://images.unsplash.com/photo-1505238680356-667803448bba?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=70"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Himachal Pradesh",
+      "code": "HP",
+      "districts": [
+        {
+          "name": "Shimla",
+          "places": [
+            {
+              "name": "The Ridge (Shimla)",
+              "type": "Promenade",
+              "description": "A wide open pedestrian area in Shimla offering panoramic views of the Himalayas, colonial architecture and seasonal festivals.",
+              "bestTimeToVisit": "March to June; December for snow",
+              "weather": "Cool summers; cold and snowy in peak winter",
+              "season": "Summer & Winter (snow)",
+              "images": [
+                "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fc6?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=71",
+                "https://images.unsplash.com/photo-1526481280698-112c3f450f21?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=72",
+                "https://images.unsplash.com/photo-1508057198894-247b23fe5ad1?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=73"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Mall Road",
+                  "description": "Bustling street with shops, cafes and colonial charm; perfect for evening strolls.",
+                  "image": "https://images.unsplash.com/photo-1506806732259-39c2d0268445?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=74"
+                },
+                {
+                  "name": "Jakhu Temple",
+                  "description": "Ancient hilltop temple dedicated to Lord Hanuman with city views and playful monkeys.",
+                  "image": "https://images.unsplash.com/photo-1469474968028-56623f02e432?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=75"
+                }
+              ]
+            },
+            {
+              "name": "Kufri",
+              "type": "Hill Station",
+              "description": "Small resort town famous for hiking, pony rides and winter snow activities; panoramic Himalayan viewpoints.",
+              "bestTimeToVisit": "March to June; December to February (snow)",
+              "weather": "Cool summers; snow in winter",
+              "season": "Summer & Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1503602642458-232111445660?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=76",
+                "https://images.unsplash.com/photo-1494526585095-c41746248160?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=77",
+                "https://images.unsplash.com/photo-1526481280698-112c3f450f22?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=78"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Mahasu Peak",
+                  "description": "The highest point around Kufri offering breathtaking Himalayan views and trekking.",
+                  "image": "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fc7?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=79"
+                },
+                {
+                  "name": "Fagu",
+                  "description": "Quiet village with apple orchards and scenic walks, close to Kufri.",
+                  "image": "https://images.unsplash.com/photo-1508057198894-247b23fe5ad2?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=80"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Manali",
+          "places": [
+            {
+              "name": "Solang Valley",
+              "type": "Valley / Adventure Spot",
+              "description": "Adventure hub near Manali offering paragliding, zorbing, skiing in winter and picturesque alpine meadows.",
+              "bestTimeToVisit": "May to October for adventure; December to February for skiing",
+              "weather": "Cool mountain climate; heavy snow in winter",
+              "season": "Summer & Winter",
+              "images": [
+                "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fc8?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=81",
+                "https://images.unsplash.com/photo-1526481280698-112c3f450f23?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=82",
+                "https://images.unsplash.com/photo-1503602642458-232111445661?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=83"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Atal Tunnel (Rohtang)",
+                  "description": "Record-breaking high-altitude highway tunnel providing access to Lahaul-Spiti and shorter routes to Manali.",
+                  "image": "https://images.unsplash.com/photo-1494526585095-c41746248161?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=84"
+                },
+                {
+                  "name": "Beas River",
+                  "description": "Scenic river with riverside walks and rafting spots near Manali.",
+                  "image": "https://images.unsplash.com/photo-1508057198894-247b23fe5ad3?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=85"
+                }
+              ]
+            },
+            {
+              "name": "Old Manali",
+              "type": "Town / Cultural",
+              "description": "Laid-back part of Manali with cafes, artisan shops, and a backpacker vibe — great for easing into mountain life.",
+              "bestTimeToVisit": "March to June; September to November",
+              "weather": "Cool and pleasant outside winter months",
+              "season": "Summer & Post-Monsoon",
+              "images": [
+                "https://images.unsplash.com/photo-1505765056810-ccb34c2b9fc9?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=86",
+                "https://images.unsplash.com/photo-1526481280698-112c3f450f24?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=87",
+                "https://images.unsplash.com/photo-1503602642458-232111445662?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=88"
+              ],
+              "nearestAttractions": [
+                {
+                  "name": "Vashisht Hot Water Springs",
+                  "description": "Natural hot springs near Old Manali, believed to have therapeutic properties.",
+                  "image": "https://images.unsplash.com/photo-1506806732259-39c2d0268446?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=89"
+                },
+                {
+                  "name": "Hadimba Devi Temple",
+                  "description": "Ancient wooden temple set in cedar forests near Manali.",
+                  "image": "https://images.unsplash.com/photo-1469474968028-56623f02e433?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=90"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

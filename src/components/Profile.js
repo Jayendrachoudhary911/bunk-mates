@@ -380,6 +380,24 @@ const handleScanSuccess = async (decodedText) => {
   }
 };
 
+    useEffect(() => {
+        if (!auth.currentUser) return;
+
+        const userId = auth.currentUser.uid;
+        const notificationsQuery = query(
+            collection(db, "notifications"),
+            where("uid", "==", userId),
+            where("seen", "==", false)
+        );
+
+        const unsubscribe = onSnapshot(notificationsQuery, (querySnapshot) => {
+            setUnreadCount(querySnapshot.size);
+        });
+
+        // Cleanup listener on component unmount
+        return () => unsubscribe();
+    }, []);
+
 // This handler receives the error message
 const handleScanError = (errorMessage) => {
   // We can ignore common errors, but log others
@@ -966,7 +984,7 @@ const handleUnblockUser = async (userIdToUnblock) => {
     <Badge
         color="error"
         variant="dot"
-        invisible={unreadCount === 0}
+        badgeContent={unreadCount}
         sx={{
             '& .MuiBadge-badge': {
                 right: 8,
