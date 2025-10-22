@@ -57,13 +57,13 @@ const BottomNavBar = () => {
     <div
       style={{
         position: "fixed",
-        bottom: "7px",
+        bottom: "4px",
         left: "50%",
         transform: "translateX(-50%)",
         display: "flex",
         justifyContent: "space-around",
         alignItems: "center",
-        width: "90%",
+        width: "95%",
         maxWidth: "400px",
         padding: "12px 0px",
         borderRadius: "22px",
