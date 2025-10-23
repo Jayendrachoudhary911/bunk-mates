@@ -110,6 +110,8 @@ import FlashlightOnOutlinedIcon from '@mui/icons-material/FlashlightOnOutlined';
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
+import InstagramIcon from "@mui/icons-material/Instagram";
+import YouTubeIcon from "@mui/icons-material/YouTube";
 
 import { signOut, updateProfile, getAuth, deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
 import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, arrayRemove, deleteDoc } from "firebase/firestore";
@@ -495,68 +497,74 @@ const handleSnackbarClose = () => {
   setSnackbar({ ...snackbar, open: false });
 };
 
-const [features] = useState([
+const libraries = [
+  { name: "React.js / React Native", functionality: "Core Application UI & Framework", license: "MIT License" },
+  { name: "Firebase (Auth, Firestore, Messaging)", functionality: "Backend Services, Cloud Messaging, Data Storage", license: "Apache License 2.0" },
+  { name: "Material UI (v5)", functionality: "UI Components & Design System", license: "MIT License" },
+  { name: "OpenWeatherMap API", functionality: "Real-Time Weather Data", license: "CC BY-SA 4.0" },
+  { name: "Google Fonts", functionality: "Typography Fonts", license: "SIL Open Font License 1.1" },
+  { name: "Material Icons", functionality: "UI Icons / Visual Assets", license: "Apache License 2.0" },
+  { name: "framer-motion", functionality: "Advanced UI Animations", license: "MIT License" },
+  { name: "@fullcalendar/react, daygrid, etc.", functionality: "Calendar & Scheduling", license: "MIT / Commercial Dual License" },
+  { name: "dayjs / date-fns", functionality: "Date & Time Handling", license: "MIT License" },
+  { name: "react-easy-crop", functionality: "Client-Side Image Cropping", license: "MIT License" },
+  { name: "react-webcam", functionality: "Camera Access & Streaming", license: "MIT License" },
+  { name: "jsqr", functionality: "QR Code Scanning", license: "MIT License" },
+  { name: "uuid", functionality: "Unique Identifier Generation", license: "MIT License" },
+  { name: "lucide-react / qrcode.react", functionality: "UI Icons & QR Generation", license: "ISC License" },
+];
+
+const licenseSections = [
   {
-    name: "Trip Creation",
-    detail: "Create new trips with names, dates, destinations, and invite members by email or username."
+    title: "1. The MIT License",
+    description:
+      "Covers React.js, Material UI, and other core frontend dependencies. The MIT License is permissive, allowing reuse, modification, and redistribution of code provided the original copyright notice is retained.",
+    details: [
+      "Permission is granted free of charge to use, modify, publish, and distribute the software.",
+      "The software is provided 'as is' without warranty of any kind.",
+      "Includes copyrights from Facebook, Inc., Material-UI Team, and various contributors.",
+    ],
   },
   {
-    name: "Trip Dashboard",
-    detail: "View trip summary including destination, dates, group icon, checklist, members, and budget."
+    title: "2. Apache License 2.0",
+    description:
+      "Applies to Firebase SDKs and Material Icons. This license includes explicit patent grants and requires retaining copyright notices.",
+    details: [
+      "Grants perpetual, royalty-free copyright and patent licenses.",
+      "Allows modification and distribution in source or object form.",
+      "Applies to Firebase Auth, Firestore, Messaging, and Material Icons.",
+    ],
   },
   {
-    name: "Checklist Manager",
-    detail: "Add, edit, and mark tasks as complete using a swipeable drawer UI for trip planning."
+    title: "3. Creative Commons Attribution-ShareAlike 4.0 (CC BY-SA 4.0)",
+    description:
+      "Used for OpenWeatherMap API data. Allows adaptation and commercial use provided attribution and same-license sharing.",
+    details: [
+      "Attribution required — include credit and link to license.",
+      'Required credit: “Weather Data provided by OpenWeatherMap, licensed under CC BY-SA 4.0.”',
+    ],
   },
   {
-    name: "Group Chat per Trip",
-    detail: "Real-time chat with trip members powered by Firestore, automatically created with each trip."
+    title: "4. SIL Open Font License 1.1",
+    description:
+      "Covers Google Fonts used in the app’s typography. Allows free use, modification, and bundling of font software.",
+    details: [
+      "Fonts cannot be sold standalone.",
+      "Modified font names must differ from reserved names.",
+      "Full OFL text is included in font metadata.",
+    ],
   },
   {
-    name: "Standalone Group Chats",
-    detail: "Create custom group chats with friends, add emoji/icon, and manage members in a drawer UI."
+    title: "5. FullCalendar Dual License",
+    description:
+      "FullCalendar components operate under MIT or a Commercial License. Commercial use of advanced features may require a paid license.",
+    details: [
+      "BunkMates complies with either MIT or commercial terms as required.",
+      "Copyright © 2025 Adam Shaw.",
+    ],
   },
-  {
-    name: "Notes and Media",
-    detail: "Add text notes with optional media to your trips; keep private or share with group."
-  },
-  {
-    name: "Reminders & Notifications",
-    detail: "Set and manage reminders linked to tasks or notes with local notifications support."
-  },
-  {
-    name: "Trip Budgeting",
-    detail: "Assign individual contributions, auto-calculate total budget, and sync with all contributors."
-  },
-  {
-    name: "Expense Tracking",
-    detail: "Log and categorize expenses for each trip, view real-time updates on usage."
-  },
-  {
-    name: "Join via Invite Link",
-    detail: "Accept or reject invites to trips or groups using a preview-based JoinTrip page."
-  },
-  {
-    name: "Profile Management",
-    detail: "Update your username, avatar, and contact info via a swipeable profile drawer."
-  },
-  {
-    name: "Authentication",
-    detail: "Secure login and registration using Supabase with persistent sessions."
-  },
-  {
-    name: "Trip Weather Forecast",
-    detail: "View current and upcoming weather for your trip location directly on the Trips screen."
-  },
-  {
-    name: "Google Maps Integration",
-    detail: "View trip route with full navigation support using external Google Maps link."
-  },
-  {
-    name: "Dark Mode UI",
-    detail: "Sleek, minimal dark-themed interface for chats, JoinTrip screen, and core UI."
-  }
-]);
+];
+
 
   // const handleLanguageChange = (langCode) => {
   //   setLanguage(langCode);
@@ -568,33 +576,10 @@ const [features] = useState([
   //   lang.name.toLowerCase().includes(searchTerm.toLowerCase())
   // );
 
-    const changelogs = [
-{
-  version: "2.1.14.0.07(Beta1)",
-  date: "2025-07-20",
-  changes: [
-    "Initial beta release of BunkMate",
-    "User authentication using Supabase",
-    "Create and manage trips with members",
-    "Trip dashboard with weather, route link, and checklist",
-    "Real-time group chat per trip with Firestore",
-    "Custom group chat creation with emoji/icon support",
-    "Notes system with text and media attachments",
-    "Reminders with local notification support",
-    "Per-member budget contribution and auto-calculated totals",
-    "Expense tracking system per trip",
-    "Invite members via email or join link with preview screen",
-    "User profile management with swipeable drawer",
-    "Google Maps redirection for trip routes",
-    "Current weather display on Trips page",
-    "Dark mode interface for main screens",
-    "Firestore-based real-time syncing of trips, budgets, and chats"
-  ]
-}
 
-  ];
 
   // Real-time listener for user Firestore document
+  
   useEffect(() => {
     if (!auth.currentUser) return setLoading(false);
 
@@ -2515,28 +2500,14 @@ sx={{
       Built with ❤️ in India.
     </Typography>
 
-    {/* Credits / Licenses */}
-    <Box sx={{ mb: 4 }}>
-      <Typography variant="h6" gutterBottom>Licenses & Credits</Typography>
-        <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", lineHeight: 1.8 }}>
-          • React.js — MIT License<br />
-          • Firebase (Auth, Firestore, Messaging) — Apache License 2.0<br />
-          • Material UI (v5) — MIT License<br />
-          • OpenWeatherMap API — CC BY-SA 4.0 (Attribution Required)<br />
-          • Google Fonts — SIL Open Font License 1.1<br />
-          • Material Icons — Apache License 2.0<br />
-          • Additional Libraries — MIT/Apache Licensed Open Source
-        </Typography>
-    </Box>
-
     {/* Policy Links */}
     <Box sx={{ mb: 4 }}>
       <Typography variant="h6" sx={{ mb: 1 }}>Legal & Policy</Typography>
 
       <Button
         fullWidth
-        variant="outlined"
-        sx={{ mb: 2, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  color: theme.palette.text.primary, border: "1px solid #ccc", borderRadius: 3 }}
+        variant="contained"
+        sx={{ mb: 1, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", py: 1.3, boxShadow: "none",  color: theme.palette.text.primary, border: "0px solid #cccccc00", borderRadius: 3 }}
         onClick={() => window.open('/privacy-policy', '_blank')}
       >
         Privacy Policy
@@ -2544,8 +2515,8 @@ sx={{
 
       <Button
         fullWidth
-        variant="outlined"
-        sx={{ mb: 2, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  color: theme.palette.text.primary, border: "1px solid #ccc", borderRadius: 3 }}
+        variant="contained"
+        sx={{ mb: 2, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", py: 1.3, boxShadow: "none",  color: theme.palette.text.primary, border: "0px solid #cccccc00", borderRadius: 3 }}
         onClick={() => window.open('/terms', '_blank')}
       >
         Terms of Service
@@ -2553,26 +2524,86 @@ sx={{
     </Box>
 
     {/* Contact / Social */}
-    <Box sx={{ mb: 3 }}>
-      <Typography variant="h6" sx={{ mb: 1 }}>Connect With Us</Typography>
+<Box sx={{ mb: 3 }}>
+  <Typography variant="h6" sx={{ mb: 1 }}>
+    Connect With Us
+  </Typography>
 
-      <Stack direction="row" spacing={2}>
-        <Button
-          variant="contained"
-          sx={{ backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  color: theme.palette.text.primary, minWidth: 48, boxShadow: "none" }}
-          onClick={() => window.open('mailto:jayendrachoudhary.am@gmail.com')}
-        >
-          <MailOutlinedIcon />
-        </Button>
-        {/* Add social buttons here if needed */}
-      </Stack>
-    </Box>
+  <Stack direction="row" spacing={2}>
+    {/* Mail Button */}
+    <Button
+      variant="contained"
+      sx={{
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+        color: theme.palette.text.primary,
+        minWidth: 48,
+        boxShadow: "none",
+        borderRadius: 8,
+        transition: "all 0.3s ease",
+        p: 1.5,
+        "&:hover": {
+          backgroundColor: mode === "dark" ? "#f1f1f122" : "#e0e0e099",
+          transform: "scale(1.05)",
+        },
+      }}
+      onClick={() => window.open("mailto:team.bunkmates@gmail.com")}
+    >
+      <MailOutlinedIcon />
+    </Button>
+
+    {/* Instagram Button */}
+    <Button
+      variant="contained"
+      sx={{
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+        color: theme.palette.text.primary,
+        minWidth: 48,
+        boxShadow: "none",
+        borderRadius: 8,
+        transition: "all 0.3s ease",
+        p: 1.5,
+        "&:hover": {
+          backgroundColor: mode === "dark" ? "#f1f1f122" : "#e0e0e099",
+          transform: "scale(1.05)",
+        },
+      }}
+      onClick={() =>
+        window.open("https://www.instagram.com/bunkmates.app", "_blank")
+      }
+    >
+      <InstagramIcon />
+    </Button>
+
+    {/* YouTube Button */}
+    <Button
+      variant="contained"
+      sx={{
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+        color: theme.palette.text.primary,
+        minWidth: 48,
+        boxShadow: "none",
+        borderRadius: 8,
+        transition: "all 0.3s ease",
+        p: 1.5,
+        "&:hover": {
+          backgroundColor: mode === "dark" ? "#f1f1f122" : "#e0e0e099",
+          transform: "scale(1.05)",
+        },
+      }}
+      onClick={() =>
+        window.open("https://www.youtube.com/@Team_BunkMates", "_blank")
+      }
+    >
+      <YouTubeIcon />
+    </Button>
+  </Stack>
+</Box>
 
     {/* Open Source Link */}
     <Box sx={{ mt: 4, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  px: 3, py: 3, borderRadius: 6 }}>
       <Typography variant="h6" gutterBottom>Open Source</Typography>
       <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", mb: 2 }}>
-        Our source code is available on GitHub. Feel free to contribute, report issues, or fork it.
+        Our source code will be soon available on GitHub. Till then, stay tuned!
       </Typography>
       <Button
         variant="outlined"
@@ -2593,51 +2624,135 @@ sx={{
   </Container>
 )}
 
-  {drawerPage === "featuresChangelog" && (
-    <Container sx={{ mt: 5, mb: 2 }}>
+{drawerPage === "featuresChangelog" && (
+  <Container sx={{ mt: 5, mb: 2 }}>
+    {/* Back Button */}
     <Button
       startIcon={<ArrowBackIcon />}
       onClick={() => handleSetDrawerPage("about")}
       sx={{
         mb: 2,
-        borderRadius: 8, 
+        borderRadius: 8,
         color: theme.palette.text.primary,
-        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", 
-        '&:hover': { backgroundColor: "#f1f1f121" },
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+        "&:hover": { backgroundColor: "#f1f1f121" },
       }}
     >
       Back
     </Button>
-          <Typography variant="h5" gutterBottom><h2>Features & Changelog</h2></Typography>
 
-          {/* Features Section */}
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" gutterBottom>Features</Typography>
-            {features.map(({ name, detail }, idx) => (
-              <Box key={idx} sx={{ mb: 2, ml: 2 }}>
-                <Typography variant="subtitle1" component="div" fontWeight="bold">{name}</Typography>
-                <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>{detail}</Typography>
-              </Box>
-            ))}
-          </Box>
-
-          {/* Changelog Section */}
-          <Box>
-            <Typography variant="h6" gutterBottom>Changelog</Typography>
-{changelogs.map(({ version, date, changes }) => (
-  <Card sx={{ my: 2, p: 2, boxShadow: "none", backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", borderRadius: 5 }} key={version}>
-    <Typography variant="subtitle1" fontWeight="bold">
-      Version {version} – <span style={{ color: mode === "dark" ? "#aaa" : "#333" }}>{date}</span>
+    {/* Title */}
+    <Typography variant="h5" gutterBottom>
+      <h2>Third-Party Licenses & Attributions</h2>
     </Typography>
-    <ul style={{ paddingLeft: 20 }}>
-      {changes.map((c, i) => <li key={i}><Typography variant="body2">{c}</Typography></li>)}
-    </ul>
-  </Card>
-))}
 
-          </Box>
-        </Container>
-  )}
+    {/* Overview Intro */}
+    <Typography
+      variant="body1"
+      sx={{
+        color: mode === "dark" ? "#ccc" : "#444",
+        mb: 4,
+        lineHeight: 1.7,
+      }}
+    >
+      This page lists all open-source and third-party libraries used in
+      <strong> BunkMates</strong>, along with their license types and
+      attributions. We ensure full compliance by including the necessary license
+      text, copyright notices, and usage terms for every component.
+    </Typography>
+
+    {/* Library Overview */}
+    <Box sx={{ mb: 4 }}>
+      <Typography
+        variant="h6"
+        gutterBottom
+        sx={{ color: mode === "dark" ? "#fff" : "#111" }}
+      >
+        Library Overview
+      </Typography>
+      {libraries.map((lib, idx) => (
+        <Box key={idx} sx={{ mb: 1.2, ml: 2 }}>
+          <Typography
+            variant="subtitle1"
+            fontWeight="bold"
+            sx={{ color: mode === "dark" ? "#fff" : "#000" }}
+          >
+            {lib.name}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ color: mode === "dark" ? "#aaa" : "#333" }}
+          >
+            {lib.functionality} — {lib.license}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
+
+    <Divider sx={{ my: 3, borderColor: "rgba(255,255,255,0.1)" }} />
+
+    {/* License Sections */}
+    <Box>
+      {licenseSections.map((sec, idx) => (
+        <Box key={idx} sx={{ mb: 4 }}>
+          <Typography
+            variant="h6"
+            fontWeight="bold"
+            sx={{
+              color: mode === "dark" ? "#fff" : "#111",
+              mb: 1.5,
+            }}
+          >
+            {sec.title}
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              color: mode === "dark" ? "#ccc" : "#444",
+              mb: sec.details ? 1.5 : 0,
+              lineHeight: 1.7,
+            }}
+          >
+            {sec.description}
+          </Typography>
+
+          {sec.details && (
+            <ul style={{ paddingLeft: 22, marginTop: 6 }}>
+              {sec.details.map((item, i) => (
+                <li key={i}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: mode === "dark" ? "#aaa" : "#333",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {item}
+                  </Typography>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Box>
+      ))}
+    </Box>
+
+    {/* Footer Note */}
+    <Typography
+      variant="body2"
+      sx={{
+        mt: 5,
+        textAlign: "center",
+        color: mode === "dark" ? "#777" : "#666",
+        fontStyle: "italic",
+      }}
+    >
+      End of Statement — © {new Date().getFullYear()} BunkMates. All rights
+      reserved.
+    </Typography>
+  </Container>
+)}
+
 
 {drawerPage === "support" && (
   <Container sx={{ mt: 5, mb: 2 }}>

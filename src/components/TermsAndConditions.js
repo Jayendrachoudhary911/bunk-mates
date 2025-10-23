@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { Link } from "react-router-dom";
 
-export default function TermsAndConditions() {
+export default function TermsAndConditionsDark() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -22,176 +22,299 @@ export default function TermsAndConditions() {
   return (
     <>
       {/* Header */}
-      <AppBar position="static" color="default" elevation={1}>
+      <AppBar
+        position="sticky"
+        elevation={0}
+        sx={{
+          bgcolor: "rgba(18, 18, 18, 0.6)",
+          backdropFilter: "blur(10px)",
+          borderBottom: "0px solid rgba(255,255,255,0.08)",
+        }}
+      >
         <Toolbar>
-          <Typography variant="h6" color="#000000" sx={{ flexGrow: 1, fontWeight: "bolder" }}>
-            BunkMate
+          <Typography
+            variant="h6"
+            sx={{
+              flexGrow: 1,
+              fontWeight: 800,
+              color: "#fff",
+              letterSpacing: 0.5,
+            }}
+          >
+            BunkMates
           </Typography>
         </Toolbar>
       </AppBar>
 
       {/* Main Content */}
-      <Container maxWidth="md" sx={{ bgcolor: "#fff" }}>
-        <Paper elevation={2} sx={{ py: 8, px: 2, boxShadow: "none" }}>
-          <Typography variant="h3" fontWeight={600} gutterBottom>
-            Terms & Conditions
-          </Typography>
-
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            Last updated: July 17, 2025
-          </Typography>
-
-          <Divider sx={{ my: 3 }} />
-
-          <TOSSection
-            title="1. Acceptance of Terms"
-            content="By accessing or using BunkMate, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use our application."
-          />
-
-          <TOSSection
-            title="2. Eligibility"
-            content="You must be at least 13 years old to use BunkMate. By using the app, you represent and warrant that you meet this requirement."
-          />
-
-          <TOSSection
-            title="3. User Accounts & Security"
-            list={[
-              "You are responsible for maintaining the confidentiality of your login credentials.",
-              "You agree to notify us immediately of any unauthorized use of your account.",
-              "We are not liable for any loss or damage resulting from unauthorized access to your account.",
-            ]}
-          />
-
-          <TOSSection
-            title="4. App Features & Limitations"
-            content="BunkMate provides tools such as group chats, trip planning, reminders, budgeting, and file sharing."
-            list={[
-              "Some features may be limited based on your device or network capabilities.",
-              "Offline functionality may vary by region and OS support.",
-              "We reserve the right to modify or disable any feature without prior notice.",
-            ]}
-          />
-
-          <TOSSection
-            title="5. User Conduct"
-            list={[
-              "You agree not to use the app for unlawful or abusive purposes.",
-              "You shall not harass, bully, threaten, or impersonate others.",
-              "You shall not upload malicious code, spam, or inappropriate content.",
-            ]}
-          />
-
-          <TOSSection
-            title="6. Content Ownership & Rights"
-            content="You retain ownership of all content you post on BunkMate. By using the app, you grant us a limited license to display and process your content as necessary to provide app functionality."
-            list={[
-              "You must have rights to any media or text you upload.",
-              "We do not claim ownership of your content but reserve the right to moderate or remove harmful material.",
-            ]}
-          />
-
-          <TOSSection
-            title="7. Intellectual Property"
-            content="All intellectual property related to BunkMate, including branding, UI design, source code, and graphics, is owned by BunkMate or its licensors. You may not reproduce, copy, or distribute any part of the app without written permission."
-          />
-
-          <TOSSection
-            title="8. Third-Party Services"
-            list={[
-              "BunkMate integrates third-party APIs such as Firebase, OpenWeatherMap, and Google Maps.",
-              "We are not responsible for any data handled by these third-party services.",
-              "Use of these services is subject to their individual privacy policies and terms.",
-            ]}
-          />
-
-          <TOSSection
-            title="9. Termination"
-            list={[
-              "We may suspend or permanently terminate access if you violate these terms.",
-              "You may discontinue use at any time by uninstalling the app.",
-              "Termination may result in loss of access to your account and stored content.",
-            ]}
-          />
-
-          <TOSSection
-            title="10. Disclaimers & Limitation of Liability"
-            list={[
-              "BunkMate is provided on an 'as is' and 'as available' basis.",
-              "We do not guarantee that the app will be error-free, secure, or uninterrupted.",
-              "We are not liable for any indirect or consequential damages arising from your use of the app.",
-            ]}
-          />
-
-          <TOSSection
-            title="11. Indemnification"
-            content="You agree to indemnify and hold BunkMate, its affiliates, employees, and licensors harmless from any claims, liabilities, or damages arising out of your use of the app, your content, or your violation of these terms."
-          />
-
-          <TOSSection
-            title="12. Changes to Terms"
-            content="We reserve the right to update these Terms and Conditions at any time. We will notify users of significant changes via the app or email. Continued use of the app after updates means you accept the revised terms."
-          />
-
-          <TOSSection
-            title="13. Governing Law"
-            content="These terms shall be governed by and construed in accordance with the laws of your local jurisdiction, without regard to conflict of law principles."
-          />
-
-          <TOSSection
-            title="14. Contact Us"
-            content="For questions or concerns regarding these Terms and Conditions:"
-          />
-          <Typography variant="body1" fontWeight={500}>
-            Email: jayendrachoudhary.am@gmail.com
-          </Typography>
-
-          {/* Navigation to Privacy Policy */}
-          <Box sx={{ mt: 5, textAlign: "center" }}>
-            <Typography variant="body2">
-              Read our{" "}
-              <MuiLink component={Link} to="/privacy-policy" color="primary" underline="hover">
-                Privacy Policy
-              </MuiLink>{" "}
-              to learn how we handle your data.
+      <Box
+        sx={{
+          minHeight: "100vh",
+          bgcolor: "linear-gradient(180deg, #0f0f0f 0%, #1b1b1b 100%)",
+          py: 8,
+          color: "#e0e0e0",
+        }}
+      >
+        <Container maxWidth="md">
+          <Paper
+            elevation={6}
+            sx={{
+              px: { xs: 3, sm: 6 },
+              py: { xs: 5, sm: 8 },
+              borderRadius: 4,
+              background: "rgba(30,30,30,0.9)",
+              backdropFilter: "blur(12px)",
+              color: "#e0e0e0",
+              border: "1px solid rgba(255,255,255,0.1)",
+            }}
+          >
+            <Typography
+              variant="h3"
+              fontWeight={700}
+              gutterBottom
+              sx={{
+                textAlign: "center",
+                color: "#ffffff",
+                fontSize: { xs: "2rem", sm: "2.8rem" },
+              }}
+            >
+              Terms & Conditions
             </Typography>
-          </Box>
-        </Paper>
-      </Container>
+
+            <Typography
+              variant="subtitle2"
+              color="rgba(200,200,200,0.8)"
+              sx={{ textAlign: "center", mb: 4 }}
+            >
+              Last Updated: October 23, 2025
+            </Typography>
+
+            <Divider sx={{ mb: 5, borderColor: "rgba(255,255,255,0.1)" }} />
+
+            {sections.map((section, index) => (
+              <TOSSection key={index} {...section} />
+            ))}
+
+            <Typography variant="body1" fontWeight={500} sx={{ mt: 4 }}>
+              Email: team.bunkmates@gmail.com
+              <br />
+              Address: Rajasthan, India
+            </Typography>
+
+            {/* Privacy Policy Link */}
+            <Box sx={{ mt: 6, textAlign: "center" }}>
+              <Typography variant="body2" color="rgba(200,200,200,0.7)">
+                Read our{" "}
+                <MuiLink
+                  component={Link}
+                  to="/privacy-policy"
+                  color="primary"
+                  underline="hover"
+                >
+                  Privacy Policy
+                </MuiLink>{" "}
+                to learn how we handle your data.
+              </Typography>
+            </Box>
+          </Paper>
+        </Container>
+      </Box>
 
       {/* Footer */}
       <Box
         sx={{
-          bgcolor: "#f5f5f5",
+          bgcolor: "#121212",
           py: 3,
           textAlign: "center",
-          borderTop: "1px solid #ddd",
+          borderTop: "1px solid rgba(255,255,255,0.08)",
         }}
       >
-        <Typography variant="body2" color="text.secondary">
-          &copy; {new Date().getFullYear()} BunkMate. All rights reserved.
+        <Typography variant="body2" color="rgba(255,255,255,0.6)">
+          © {new Date().getFullYear()} BunkMates. All rights reserved.
         </Typography>
       </Box>
     </>
   );
 }
 
+// Content Data
+const sections = [
+  {
+    title: "1. Acceptance of Terms",
+    content:
+      "By accessing or using the BunkMates mobile application, website, and related services (collectively, the 'Services'), you acknowledge that you have read, understood, and agree to be bound by these Terms & Conditions. If you do not agree with any part of these terms, you must immediately discontinue use of the Services.",
+  },
+  {
+    title: "2. Services Description",
+    list: [
+      "Create and manage group trips",
+      "Communicate through integrated group chat and voice calls",
+      "Set reminders and manage schedules",
+      "Share notes and checklists",
+      "Track and split expenses among group members",
+      "Access weather updates and calendar integration",
+      "View unified trip dashboards",
+    ],
+  },
+  {
+    title: "3. Eligibility and Account Registration",
+    list: [
+      "You must be at least 16 years old to use the Services. Some jurisdictions may require a higher age of consent for data processing.",
+      "You must provide accurate, complete, and current registration information.",
+      "You are responsible for maintaining the confidentiality of your account credentials.",
+      "You agree to immediately notify us of any unauthorized use of your account.",
+    ],
+  },
+  {
+    title: "4. User Responsibilities",
+    list: [
+      "Use the Services only for lawful purposes related to trip planning and management.",
+      "Do not post harmful, threatening, harassing, or defamatory content.",
+      "Do not impersonate anyone or disrupt the Services.",
+      "Do not attempt unauthorized access or use automated means to collect data.",
+    ],
+  },
+  {
+    title: "5. Trip Management and Group Coordination",
+    list: [
+      "Trip creators become default Trip Administrators.",
+      "Trip Administrators can manage settings, invite/remove members, and moderate content.",
+      "All group communication must comply with these terms.",
+    ],
+  },
+  {
+    title: "6. Financial Management Features",
+    list: [
+      "The expense tracking feature is for informational purposes only.",
+      "BunkMates does not facilitate actual money transfers.",
+      "Users are responsible for verifying expense accuracy and settling directly with others.",
+      "BunkMates is not liable for any financial losses or disputes.",
+    ],
+  },
+  {
+    title: "7. Intellectual Property",
+    list: [
+      "All rights and content in the Services belong to BunkMates or its licensors.",
+      "You retain ownership of your content but grant BunkMates a license to display it within the app.",
+      "BunkMates name, logo, and design are trademarks of BunkMates.",
+    ],
+  },
+  {
+    title: "8. Privacy and Data Protection",
+    list: [
+      "Our Privacy Policy governs the collection and protection of your data.",
+      "We use TLS/SSL encryption and secure infrastructure.",
+      "We comply with GDPR, CCPA, and other global privacy regulations.",
+      "You can contact us at team.bunkmates@gmail.com for data access or deletion requests.",
+    ],
+  },
+  {
+    title: "9. Third-Party Services",
+    list: [
+      "The app integrates with third-party services like weather APIs and Google Maps.",
+      "We are not responsible for third-party content or privacy policies.",
+      "Your use of third-party services is at your own risk.",
+    ],
+  },
+  {
+    title: "10. Disclaimers and Limitations of Liability",
+    list: [
+      "The Services are provided 'as is' and 'as available' without warranties.",
+      "BunkMates is not responsible for travel delays, weather, or safety concerns.",
+      "Liability is limited to ₹1,000 or the amount paid in the last 12 months.",
+    ],
+  },
+  {
+    title: "11. Indemnification",
+    content:
+      "You agree to indemnify and hold harmless BunkMates, its developers, and affiliates from any claims, damages, or losses arising from your use of the Services, your violation of these Terms, or your content.",
+  },
+  {
+    title: "12. Termination",
+    list: [
+      "You may delete your account at any time.",
+      "We may suspend or terminate access for violations of these terms.",
+      "Upon termination, your right to use the Services ceases immediately.",
+    ],
+  },
+  {
+    title: "13. Modifications to Terms",
+    content:
+      "We may update these Terms at any time. Continued use after changes means you accept the updated terms.",
+  },
+  {
+    title: "14. Governing Law and Dispute Resolution",
+    list: [
+      "These Terms are governed by the laws of India.",
+      "Disputes will be under the jurisdiction of Rajasthan, India.",
+      "We encourage informal dispute resolution first.",
+    ],
+  },
+  {
+    title: "15. Miscellaneous",
+    list: [
+      "If any clause is invalid, others remain effective.",
+      "You may not transfer your rights without consent.",
+      "These Terms represent the full agreement between you and BunkMates.",
+      "We are not liable for delays due to force majeure events.",
+    ],
+  },
+  {
+    title: "16. Contact Information",
+    content:
+      "For questions about these Terms, please contact us at team.bunkmates@gmail.com or mail us at Rajasthan, India.",
+  },
+  {
+    title: "17. Compliance and Updates",
+    content:
+      "We regularly review Google Play and regulatory guidelines to maintain compliance and keep our policies up-to-date.",
+  },
+  {
+    title: "Acknowledgement",
+    content:
+      "By using BunkMates Services, you acknowledge that you have read, understood, and agree to be bound by these Terms & Conditions.",
+  },
+];
+
 // Reusable Section Component
 function TOSSection({ title, content, list }) {
   return (
-    <Box sx={{ mb: 4 }}>
-      <Typography variant="h6" fontWeight={600} gutterBottom>
+    <Box sx={{ mb: 5 }}>
+      <Typography
+        variant="h6"
+        fontWeight={700}
+        gutterBottom
+        sx={{
+          color: "#fff",
+          mb: 1.5,
+        }}
+      >
         {title}
       </Typography>
+
       {content && (
-        <Typography variant="body1" sx={{ mb: list ? 1.5 : 0 }}>
+        <Typography
+          variant="body1"
+          sx={{
+            mb: list ? 1.5 : 0,
+            color: "#ccc",
+            lineHeight: 1.7,
+          }}
+        >
           {content}
         </Typography>
       )}
+
       {list && (
         <List dense disablePadding sx={{ pl: 2 }}>
           {list.map((item, idx) => (
-            <ListItem key={idx} sx={{ py: 0.5 }}>
-              <ListItemText primary={item} />
+            <ListItem key={idx} sx={{ py: 0.4 }}>
+              <ListItemText
+                primaryTypographyProps={{
+                  sx: { fontSize: "0.95rem", color: "#aaa" },
+                }}
+                primary={item}
+              />
             </ListItem>
           ))}
         </List>
