@@ -286,9 +286,11 @@ const PlaceCard = ({ place, mode, navigate }) => {
         height: '100%', 
         display: 'flex', 
         flexDirection: 'column',
-        borderRadius: 4, 
+        borderRadius: 6, 
         overflow: 'hidden',
-        boxShadow: theme.shadows[4],
+        backgroundColor: mode === 'dark' ? '#101010c8' : '#ffffff',
+        backgroundImage: "none",
+        boxShadow: 'none',
         transition: "transform 0.2s ease, box-shadow 0.2s ease",
         '&:hover': {
           transform: 'translateY(-4px)',
@@ -322,12 +324,14 @@ const PlaceCard = ({ place, mode, navigate }) => {
             label={`${place.weather.split(';')[0].trim()}`}
             size="small"
             variant="outlined"
+            sx={{p:1}}
           />
           <Chip
             icon={<CalendarTodayOutlined />}
             label={`${place.season}`}
             size="small"
             variant="outlined"
+            sx={{p:1}}
           />
         </Stack>
         
@@ -345,6 +349,7 @@ const PlaceCard = ({ place, mode, navigate }) => {
               e.stopPropagation();
               navigate("/trips", { state: { place } });
             }}
+            sx={{ borderRadius: 3.5, px: 2, py: 1 }}
          >
           Plan Trip
          </Button>
@@ -1355,8 +1360,8 @@ useEffect(() => {
                     </Grid>
                     
                     {/* Trips Suggestions Card (NEW SECTION) */}
-                    <Grid item xs={12} md={6} lg={8} sx={{ minWidth: "100%", px: { xs: 3, md: 0 } }}>
-                        <Typography variant="h6" textAlign="left" mb={1}>Trip Suggestions & Discovery</Typography>
+                    <Grid item xs={12} md={6} lg={8} sx={{ minWidth: "100%", px: { xs: 3, md: 0 }, mt: 4 }}>
+                        <Typography variant="h6" textAlign="left" mb={1} ml={-1}>Trip Suggestions & Discovery</Typography>
                         
                         {placeSuggestions.length > 0 ? (
                             <Grid container spacing={2}>
@@ -1377,6 +1382,11 @@ useEffect(() => {
                                 size="small"
                                 endIcon={<ArrowForwardIosIcon />}
                                 onClick={() => navigate("/search", { state: { tab: 'places' } })}
+                                sx={{
+                                    borderColor: mode === "dark" ? "#ffffff33" : "#00000033",
+                                    color: mode === "dark" ? "#ffffff" : "#000000",
+                                    borderRadius: 3,
+                                }}
                             >
                                 Discover All Places
                             </Button>
