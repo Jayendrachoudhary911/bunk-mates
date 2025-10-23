@@ -288,7 +288,7 @@ const Login = () => {
                       >
                         {loading ? "Logging in..." : "Login"}
                       </Button>
-                      <Button
+                      {/* <Button
                         variant="outlined"
                         startIcon={<GoogleIcon />}
                         onClick={handleGoogleLogin}
@@ -297,7 +297,7 @@ const Login = () => {
                         disabled={loading}
                       >
                         Login with Google
-                      </Button>
+                      </Button> */}
                     </Stack>
                   </form>
 

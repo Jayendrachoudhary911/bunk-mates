@@ -233,7 +233,7 @@ const Signup = () => {
             Sign Up
           </Button>
 
-          <Button
+          {/* <Button
             fullWidth
             onClick={handleGoogleSignup}
             startIcon={<GoogleIcon />}
@@ -250,7 +250,7 @@ const Signup = () => {
             }}
           >
             Continue with Google
-          </Button>
+          </Button> */}
 
           <Typography variant="body2" align="center" sx={{ color: "#ffffffff", mt: 2 }}>
             Already have an account?{" "}
