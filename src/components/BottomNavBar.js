@@ -57,7 +57,7 @@ const BottomNavBar = () => {
     <div
       style={{
         position: "fixed",
-        bottom: "4px",
+        bottom: "8px",
         left: "50%",
         transform: "translateX(-50%)",
         display: "flex",
@@ -66,7 +66,7 @@ const BottomNavBar = () => {
         width: "95%",
         maxWidth: "400px",
         padding: "12px 0px",
-        borderRadius: "22px",
+        borderRadius: "26px",
         backdropFilter: "blur(15px)",
         background:
           mode === "dark"
