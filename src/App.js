@@ -91,7 +91,7 @@ function AppContent() {
       <Box
         sx={{
           // Add padding at the top equal to the safe area inset
-          paddingTop: 'env(safe-area-inset-top)', 
+          marginTop: 'env(safe-area-inset-top)', 
         }}
       >
         <Routes>
