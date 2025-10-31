@@ -88,12 +88,7 @@ function AppContent() {
       {/* Wrap all routes in SwipeableRoutes. The component will only apply the swipe logic 
           to the paths defined in SWIPEABLE_PATHS, but it must be an ancestor of all Routes.
       */}
-      <Box
-        sx={{
-          // Add padding at the top equal to the safe area inset
-          marginTop: 'env(safe-area-inset-top)', 
-        }}
-      >
+      <Box>
         <Routes>
           
           {/* Main swipeable pages */}
