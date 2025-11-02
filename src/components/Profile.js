@@ -2949,8 +2949,8 @@ sx={{
     >
       <List disablePadding>
         {[
-          { label: "App Version", value: packageJson.version || "N/A" },
-          { label: "Build ID", value: "1.0.31" },
+          { label: "App Version", value: "1.0.31" },
+          { label: "Build ID", value: packageJson.version || "N/A" },
           { label: "Developer", value: "Team BunkMates" },
         ].map((item, idx) => (
           <ListItem key={idx} disableGutters sx={{ py: 0.5 }}>
