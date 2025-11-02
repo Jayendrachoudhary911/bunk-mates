@@ -112,6 +112,7 @@ import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
 import InstagramIcon from "@mui/icons-material/Instagram";
 import YouTubeIcon from "@mui/icons-material/YouTube";
+import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 
 import { signOut, updateProfile, getAuth, deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
 import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, arrayRemove, deleteDoc } from "firebase/firestore";
@@ -130,6 +131,7 @@ import QrScanner from "./QrScanner";
 import { useSwipeable } from 'react-swipeable';
 import { toPng } from "html-to-image";
 import { color } from "framer-motion";
+import { alpha } from '@mui/material/styles';
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -173,6 +175,8 @@ const wallpapers = [
   { id: 'light1', name: '', url: '/assets/images/chatbg/12.jpeg', theme: 'both' },
   { id: 'light2', name: '', url: '/assets/images/chatbg/13.jpeg', theme: 'both' },
 ];
+
+const downloadLink = "https://bunkmateshome.vercel.app/bm-install";
 
 const ProfilePic = ({currentUser}) => {
   const navigate = useNavigate();
@@ -916,7 +920,7 @@ const handleUnblockUser = async (userIdToUnblock) => {
       // A list of valid pages to prevent opening the drawer for arbitrary URL params
       const validPages = [
         "main", "profile", "accounts", "chats", "generalSettings", 
-        "support", "feedback", "inviteFriend", "about", "featuresChangelog", "adduser", "blockedContacts"
+        "support", "feedback", "inviteFriend", "about", "featuresChangelog", "adduser", "blockedContacts", "appInfo"
       ];
 
       if (validPages.includes(settingsPage)) {
@@ -2073,41 +2077,148 @@ sx={{
 )}
 
 {drawerPage === "inviteFriend" && (
-  <Container sx={{ mt: 5, mb: 2 }}>
-
-    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-  <IconButton
-    onClick={() => navigate(-1)}
+  <Container
     sx={{
-      mr: 2,
-      borderRadius: 8,
-      color: theme.palette.text.primary,
-      backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
-      '&:hover': { backgroundColor: "#f1f1f121" },
+      mt: 5,
+      mb: 3,
+      animation: "fadeIn 0.4s ease-in-out",
+      "@keyframes fadeIn": { from: { opacity: 0 }, to: { opacity: 1 } },
+      px: { xs: 2, sm: 3 },
     }}
   >
-    <ArrowBackIcon />
-  </IconButton>
-  <Typography variant="h5" fontWeight="bold">
-    Invite a Friend
-  </Typography>
-</Box>
+    {/* Header */}
+    <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
+      <IconButton
+        onClick={() => navigate(-1)}
+        sx={{
+          mr: 2,
+          borderRadius: 8,
+          p: 1,
+          color: theme.palette.text.primary,
+          backgroundColor: mode === "dark" ? "#ffffff10" : "#e0e0e060",
+          transition: "all 0.2s ease",
+          "&:hover": {
+            backgroundColor:
+              mode === "dark" ? "#ffffff20" : alpha(theme.palette.primary.main, 0.1),
+            transform: "scale(1.05)",
+          },
+        }}
+      >
+        <ArrowBackIcon />
+      </IconButton>
+      <Typography variant="h5" fontWeight="700">
+        Invite & Download
+      </Typography>
+    </Box>
 
-    <Typography sx={{ mb: 2, color: theme.palette.text.secondary }}>
-      Share your invite link with friends to connect on the app.
+    {/* --- App Download QR Code Section --- */}
+    <Typography
+      variant="subtitle1"
+      fontWeight="700"
+      sx={{ mb: 2, color: theme.palette.text.primary }}
+    >
+      Share the BunkMates App
+    </Typography>
+
+    <Card
+      sx={{
+        p: 4,
+        mb: 4,
+        borderRadius: 5,
+        textAlign: "center",
+        background:
+          mode === "dark"
+            ? "linear-gradient(145deg, #1b1b1b0d 0%, #2323230a 100%)"
+            : "linear-gradient(145deg, #ffffff32 0%, #f8f8f81f 100%)",
+        backdropFilter: "blur(10px)",
+        boxShadow: "none",
+      }}
+    >
+      <Box sx={{ display: "inline-block", p: 1.5, borderRadius: 3, bgcolor: "white", mb: 2 }}>
+        <QRCodeSVG
+          value={downloadLink}
+          size={200}
+          level={"H"}
+          bgColor={"#FFFFFF"}
+          fgColor={"#000000"}
+        />
+      </Box>
+
+      <Typography
+        variant="body2"
+        sx={{ color: theme.palette.text.secondary, mb: 2 }}
+      >
+        Scan the QR or share this download link:
+      </Typography>
+
+      <TextField
+        label="App Download Link"
+        defaultValue={downloadLink}
+        fullWidth
+        InputProps={{ readOnly: true }}
+        sx={{
+          mb: 2,
+          "& .MuiInputBase-root": {
+            bgcolor:
+              mode === "dark"
+                ? "rgba(255,255,255,0.05)"
+                : "rgba(0,0,0,0.04)",
+            borderRadius: 2,
+          },
+        }}
+      />
+
+      <Button
+        variant="contained"
+        onClick={() => navigator.clipboard.writeText(downloadLink)}
+        sx={{
+          borderRadius: 8,
+          width: "100%",
+          py: 1.2,
+          fontWeight: 600,
+          textTransform: "none",
+          transition: "all 0.2s ease",
+          bgcolor: theme.palette.primary.main,
+          "&:hover": {
+            bgcolor: theme.palette.primary.dark,
+            transform: "translateY(-2px)",
+          },
+        }}
+      >
+        Copy Download Link
+      </Button>
+    </Card>
+
+    <Divider sx={{ my: 4 }} />
+
+    {/* --- Personal Invite Link Section --- */}
+    {/* <Typography
+      variant="subtitle1"
+      fontWeight="700"
+      sx={{ mb: 1.5, color: theme.palette.text.primary }}
+    >
+      Personal Invite Link
+    </Typography>
+    <Typography
+      variant="body2"
+      sx={{ mb: 2, color: theme.palette.text.secondary }}
+    >
+      Share your <b>personal invite link</b> so friends can instantly connect
+      with you after downloading the app.
     </Typography>
 
     <TextField
-      label="Your Invite Link"
+      label="Your Profile Link"
       defaultValue={inviteLink}
       fullWidth
-      InputProps={{
-        readOnly: true,
-      }}
+      InputProps={{ readOnly: true }}
       sx={{
         mb: 2,
-        '& .MuiInputBase-root': {
-          bgcolor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+        "& .MuiInputBase-root": {
+          bgcolor:
+            mode === "dark"
+              ? "rgba(255,255,255,0.05)"
+              : "rgba(0,0,0,0.04)",
           borderRadius: 2,
         },
       }}
@@ -2120,56 +2231,99 @@ sx={{
         mb: 3,
         width: "100%",
         borderRadius: 2,
+        py: 1.2,
+        fontWeight: 600,
         textTransform: "none",
         bgcolor: theme.palette.primary.main,
-        '&:hover': {
+        "&:hover": {
           bgcolor: theme.palette.primary.dark,
+          transform: "translateY(-2px)",
         },
       }}
     >
-      Copy Link
-    </Button>
+      Copy Profile Link
+    </Button> */}
 
-    <Typography variant="subtitle1" sx={{ mb: 2, color: theme.palette.text.secondary }}>
-      Share via
+    <Typography
+      variant="subtitle1"
+      sx={{ mb: 2, color: theme.palette.text.secondary }}
+    >
+      Share Invite Link via
     </Typography>
 
-    <Stack direction="row" spacing={2} justifyContent="center" sx={{ pb: 1, overflowX: "auto", width: "60%", pl: 18 }}>
-      <Button
-        startIcon={<WhatsAppIcon />}
-        onClick={() => window.open(`https://wa.me/?text=${inviteLink}`, "_blank")}
-        sx={buttonStyle(mode, theme)}
-      >
-        WhatsApp
-      </Button>
-
-      <Button
-        startIcon={<EmailIcon />}
-        onClick={() => window.open(`mailto:?subject=Join me on MyApp&body=Join using this link: ${inviteLink}`, "_blank")}
-        sx={buttonStyle(mode, theme)}
-      >
-        Email
-      </Button>
-
-      <Button
-        startIcon={<TelegramIcon />}
-        onClick={() => window.open(`https://t.me/share/url?url=${inviteLink}&text=Join me on MyApp!`, "_blank")}
-        sx={buttonStyle(mode, theme)}
-      >
-        Telegram
-      </Button>
-
-      <Button
-        startIcon={<ShareIcon />}
-        onClick={() => navigator.share && navigator.share({
-          title: 'Join me on MyApp!',
-          text: 'Join using this link:',
-          url: `${inviteLink}`,
-        })}
-        sx={buttonStyle(mode, theme)}
-      >
-        More
-      </Button>
+    {/* Share Buttons */}
+    <Stack
+      direction="row"
+      spacing={2}
+      justifyContent="center"
+      overflowX="auto"
+    >
+      {[
+        {
+          icon: <WhatsAppIcon />,
+          action: () =>
+            window.open(
+              `https://wa.me/?text=Join me on BunkMates using this link: ${downloadLink}`,
+              "_blank"
+            ),
+        },
+        {
+          icon: <EmailIcon />,
+          action: () =>
+            window.open(
+              `mailto:?subject=Join me on BunkMates&body=Join using my profile link: ${downloadLink}`,
+              "_blank"
+            ),
+        },
+        {
+          icon: <TelegramIcon />,
+          action: () =>
+            window.open(
+              `https://t.me/share/url?url=${downloadLink}&text=Connect with me on BunkMates!`,
+              "_blank"
+            ),
+        },
+        {
+          icon: <ShareIcon />,
+          label: "More",
+          action: () =>
+            navigator.share &&
+            navigator.share({
+              title: "Connect with me on BunkMates!",
+              text: "Join using this profile link:",
+              url: downloadLink,
+            }),
+        },
+      ].map((btn, idx) => (
+        <Button
+          key={idx}
+          startIcon={btn.icon}
+          onClick={btn.action}
+          sx={{
+            borderRadius: 3,
+            textTransform: "none",
+            px: 2,
+            alignContent: "center",
+            fontWeight: 500,
+            color: theme.palette.text.primary,
+            border: `1px solid ${
+              mode === "dark" ? "#ffffff22" : "#00000015"
+            }`,
+            backgroundColor:
+              mode === "dark" ? "#ffffff05" : "rgba(0,0,0,0.03)",
+            "&:hover": {
+              backgroundColor:
+                mode === "dark"
+                  ? alpha(theme.palette.primary.main, 0.15)
+                  : alpha(theme.palette.primary.main, 0.08),
+              transform: "translateY(-2px)",
+            },
+            transition: "all 0.2s ease",
+          }}
+        >
+          {btn.label}
+        </Button>
+      ))}
     </Stack>
   </Container>
 )}
@@ -2453,182 +2607,414 @@ sx={{
 )}
 
 {drawerPage === "about" && (
-  <Container sx={{ mt: 5, mb: 4 }}>
+  <Container
+    sx={{
+      mt: 6,
+      mb: 5,
+      maxWidth: 700,
+      borderRadius: 6,
+    }}
+  >
     {/* Back Button */}
     <Button
       startIcon={<ArrowBackIcon />}
       onClick={() => navigate(-1)}
       sx={{
-        mb: 2,
-        borderRadius: 8, 
+        mb: 3,
+        borderRadius: 8,
         color: theme.palette.text.primary,
-        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", 
-        '&:hover': { backgroundColor: "#f1f1f121" },
+        background: alpha(theme.palette.primary.main, 0.08),
+        "&:hover": {
+          background: alpha(theme.palette.primary.main, 0.16),
+          transform: "translateX(-2px)",
+        },
+        transition: "all 0.25s ease",
       }}
     >
       Back
     </Button>
 
     {/* Header */}
-    <Typography variant="h5" fontWeight="bold" sx={{ mb: 1 }}>
-      App Version & About
+    <Typography
+      variant="h4"
+      fontWeight="700"
+      sx={{
+        mb: 1,
+        textAlign: "left",
+        color: theme.palette.text.primary,
+      }}
+    >
+      About BunkMates
+    </Typography>
+
+    <Typography
+      variant="body2"
+      align="left"
+      sx={{ color: theme.palette.text.secondary, mb: 4 }}
+    >
+      Version info, policies, and how to reach us 🌍
     </Typography>
 
     {/* Version Card */}
-    <Box
+<Button
+  onClick={() => handleSetDrawerPage("appInfo")}
+  fullWidth
+  variant="contained"
+  endIcon={
+    <KeyboardArrowRightIcon
       sx={{
-        backgroundColor: mode === "dark" ? "#1e1e1e71" : "#cccccc81",
-        p: 2,
-        borderRadius: 5, 
-        mb: 3,
-        mt: 3,
-        boxShadow: "none",
+        fontSize: 26,
+        transition: "transform 0.3s ease",
       }}
-      onClick={() => handleSetDrawerPage("featuresChangelog")}
-    >
-      <Typography variant="subtitle1" fontWeight="bold">
-        Version
-      </Typography>
-      <Typography variant="body2" sx={{ color: mode === "dark" ? "#ccc" : "#555" }}>
-        {packageJson.version || "N/A"}
-      </Typography>
-      <Divider />
-      
-      <Typography variant="subtitle1" fontWeight="bold">
-        Applicaton Version
-      </Typography>
-      <Typography variant="body2" sx={{ color: mode === "dark" ? "#ccc" : "#555" }}>
-        {"1.0.31" || "N/A"}
-      </Typography>
-    </Box>
+    />
+  }
+  sx={{
+    mb: 3,
+    py: 1.6,
+    px: 2,
+    borderRadius: 4,
+    textTransform: "none",
+    justifyContent: "space-between",
+    fontWeight: 600,
+    fontSize: "1rem",
+    color: theme.palette.text.primary,
+    background: mode === "dark"
+      ? "linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))"
+      : "linear-gradient(145deg, rgba(0,0,0,0.05), rgba(0,0,0,0.02))",
+    boxShadow: "none",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+    transition: "all 0.35s ease",
+    "&:hover": {
+      background: mode === "dark"
+        ? "linear-gradient(145deg, rgba(255,255,255,0.15), rgba(255,255,255,0.08))"
+        : "linear-gradient(145deg, rgba(0,0,0,0.08), rgba(0,0,0,0.03))",
+      transform: "translateY(-3px) scale(1.02)",
+      boxShadow: "none",
+      "& .MuiButton-startIcon": {
+        transform: "translateX(2px)",
+      },
+      "& .MuiButton-endIcon": {
+        transform: "translateX(3px)",
+      },
+    },
+  }}
+>
+  <Box
+    sx={{ display: "flex", alignItems: "center", gap: 2 }}
+  >
+    <LayersOutlinedIcon
+        sx={{
+          fontSize: 24,
+          transition: "transform 0.3s ease",
+        }}
+      />
+    App Info
+  </Box>
+</Button>
 
     {/* About Text */}
-    <Typography variant="body1" sx={{ mb: 3, color: mode === "dark" ? "#aaa" : "#333" }}>
-      This app is designed to simplify your group trip planning experience — chat, split expenses, manage tasks, and discover places together. 
+    <Typography
+      variant="body1"
+      sx={{
+        mb: 4,
+        color: theme.palette.text.secondary,
+        lineHeight: 1.7,
+        textAlign: "justify",
+      }}
+    >
+      BunkMates is built to simplify your group travel — from planning and
+      chatting to managing expenses, tasks, and exploring destinations
+      together. Designed for smooth adventures and lasting memories. 🌄
+      <br />
+      <br />
       Built with ❤️ in India.
     </Typography>
 
-    {/* Policy Links */}
+    {/* Legal Links */}
     <Box sx={{ mb: 4 }}>
-      <Typography variant="h6" sx={{ mb: 1 }}>Legal & Policy</Typography>
-
-      <Button
-        fullWidth
-        variant="contained"
-        sx={{ mb: 1, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", py: 1.3, boxShadow: "none",  color: theme.palette.text.primary, border: "0px solid #cccccc00", borderRadius: 3 }}
-        onClick={() => window.open('/privacy-policy', '_blank')}
+      <Typography
+        variant="h6"
+        fontWeight="600"
+        sx={{ mb: 1.5, color: theme.palette.text.primary }}
       >
-        Privacy Policy
-      </Button>
+        Legal & Policy
+      </Typography>
 
-      <Button
-        fullWidth
-        variant="contained"
-        sx={{ mb: 2, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", py: 1.3, boxShadow: "none",  color: theme.palette.text.primary, border: "0px solid #cccccc00", borderRadius: 3 }}
-        onClick={() => window.open('/terms', '_blank')}
-      >
-        Terms of Service
-      </Button>
+      {[
+        {
+          label: "Privacy Policy",
+          link: "/privacy-policy",
+        },
+        {
+          label: "Terms of Service",
+          link: "/terms",
+        },
+      ].map((item, i) => (
+        <Button
+          key={i}
+          fullWidth
+          variant="contained"
+          sx={{
+            mb: 1.5,
+            py: 1.3,
+            borderRadius: 3,
+            textTransform: "none",
+            background: alpha(theme.palette.primary.main, 0.08),
+            color: theme.palette.text.primary,
+            boxShadow: "none",
+            "&:hover": {
+              background: alpha(theme.palette.primary.main, 0.16),
+              transform: "translateY(-2px)",
+            },
+            transition: "all 0.25s ease",
+          }}
+          onClick={() => window.open(item.link, "_blank")}
+        >
+          {item.label}
+        </Button>
+      ))}
     </Box>
 
-    {/* Contact / Social */}
-<Box sx={{ mb: 3 }}>
-  <Typography variant="h6" sx={{ mb: 1 }}>
-    Connect With Us
-  </Typography>
+    {/* Connect Section */}
+    <Box sx={{ mb: 4 }}>
+      <Typography
+        variant="h6"
+        fontWeight="600"
+        sx={{ mb: 1.5, color: theme.palette.text.primary }}
+      >
+        Connect With Us
+      </Typography>
+      <Stack direction="row" spacing={2}>
+        {[
+          {
+            icon: <MailOutlinedIcon />,
+            action: () => window.open("mailto:team.bunkmates@gmail.com"),
+          },
+          {
+            icon: <InstagramIcon />,
+            action: () =>
+              window.open("https://www.instagram.com/bunkmates.app", "_blank"),
+          },
+          {
+            icon: <YouTubeIcon />,
+            action: () =>
+              window.open("https://www.youtube.com/@Team_BunkMates", "_blank"),
+          },
+        ].map((social, idx) => (
+          <Button
+            key={idx}
+            variant="contained"
+            onClick={social.action}
+            sx={{
+              background: alpha(theme.palette.primary.main, 0.08),
+              color: theme.palette.text.primary,
+              minWidth: 52,
+              minHeight: 52,
+              borderRadius: "50%",
+              boxShadow: "none",
+              p: 1.5,
+              "&:hover": {
+                background: alpha(theme.palette.primary.main, 0.16),
+                transform: "scale(1.1)",
+              },
+              transition: "all 0.25s ease",
+            }}
+          >
+            {social.icon}
+          </Button>
+        ))}
+      </Stack>
+    </Box>
 
-  <Stack direction="row" spacing={2}>
-    {/* Mail Button */}
-    <Button
-      variant="contained"
+    {/* Open Source Section */}
+    <Box
       sx={{
-        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
-        color: theme.palette.text.primary,
-        minWidth: 48,
-        boxShadow: "none",
-        borderRadius: 8,
-        transition: "all 0.3s ease",
-        p: 1.5,
-        "&:hover": {
-          backgroundColor: mode === "dark" ? "#f1f1f122" : "#e0e0e099",
-          transform: "scale(1.05)",
-        },
+        mt: 5,
+        p: 3,
+        borderRadius: 5,
+        background: alpha(theme.palette.background.paper, 0.4),
+        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
       }}
-      onClick={() => window.open("mailto:team.bunkmates@gmail.com")}
     >
-      <MailOutlinedIcon />
-    </Button>
-
-    {/* Instagram Button */}
-    <Button
-      variant="contained"
-      sx={{
-        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
-        color: theme.palette.text.primary,
-        minWidth: 48,
-        boxShadow: "none",
-        borderRadius: 8,
-        transition: "all 0.3s ease",
-        p: 1.5,
-        "&:hover": {
-          backgroundColor: mode === "dark" ? "#f1f1f122" : "#e0e0e099",
-          transform: "scale(1.05)",
-        },
-      }}
-      onClick={() =>
-        window.open("https://www.instagram.com/bunkmates.app", "_blank")
-      }
-    >
-      <InstagramIcon />
-    </Button>
-
-    {/* YouTube Button */}
-    <Button
-      variant="contained"
-      sx={{
-        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
-        color: theme.palette.text.primary,
-        minWidth: 48,
-        boxShadow: "none",
-        borderRadius: 8,
-        transition: "all 0.3s ease",
-        p: 1.5,
-        "&:hover": {
-          backgroundColor: mode === "dark" ? "#f1f1f122" : "#e0e0e099",
-          transform: "scale(1.05)",
-        },
-      }}
-      onClick={() =>
-        window.open("https://www.youtube.com/@Team_BunkMates", "_blank")
-      }
-    >
-      <YouTubeIcon />
-    </Button>
-  </Stack>
-</Box>
-
-    {/* Open Source Link */}
-    <Box sx={{ mt: 4, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  px: 3, py: 3, borderRadius: 6 }}>
-      <Typography variant="h6" gutterBottom>Open Source</Typography>
-      <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", mb: 2 }}>
-        Our source code will be soon available on GitHub. Till then, stay tuned!
+      <Typography
+        variant="h6"
+        fontWeight="600"
+        sx={{ mb: 1, color: theme.palette.text.primary }}
+      >
+        Open Source
+      </Typography>
+      <Typography
+        variant="body2"
+        sx={{ color: theme.palette.text.secondary, mb: 2 }}
+      >
+        Our source code will be available soon on GitHub. Stay tuned for the
+        launch!
       </Typography>
       <Button
         variant="outlined"
         fullWidth
-        sx={{ color: "#000", borderColor: "#555", borderRadius: 3 }}
+        sx={{
+          borderRadius: 3,
+          borderColor: alpha(theme.palette.text.primary, 0.4),
+          color: theme.palette.text.primary,
+          "&:hover": {
+            borderColor: theme.palette.primary.main,
+            color: theme.palette.primary.main,
+          },
+        }}
       >
-        Providing Soon...
+        Coming Soon...
       </Button>
-      {/* <Button
-        variant="outlined"
-        fullWidth
-        onClick={() => window.open('https://github.com/yourapp', '_blank')}
-        sx={{ color: "#000", borderColor: "#555" }}
-      >
-        View on GitHub
-      </Button> */}
     </Box>
+  </Container>
+)}
+
+{drawerPage === "appInfo" && (
+  <Container
+    sx={{
+      mt: 5,
+      mb: 3,
+      px: { xs: 2, sm: 3 },
+      animation: "fadeIn 0.4s ease-in-out",
+      "@keyframes fadeIn": { from: { opacity: 0 }, to: { opacity: 1 } },
+    }}
+  >
+    {/* Header */}
+    <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
+      <IconButton
+        onClick={() => navigate(-1)}
+        sx={{
+          mr: 2,
+          borderRadius: 8,
+          p: 1,
+          color: theme.palette.text.primary,
+          backgroundColor: mode === "dark" ? "#ffffff10" : "#e0e0e060",
+          transition: "all 0.2s ease",
+          "&:hover": {
+            backgroundColor:
+              mode === "dark" ? "#ffffff20" : alpha(theme.palette.primary.main, 0.1),
+            transform: "scale(1.05)",
+          },
+        }}
+      >
+        <ArrowBackIcon />
+      </IconButton>
+      <Typography variant="h5" fontWeight="700">
+        App Info
+      </Typography>
+    </Box>
+
+    {/* App Logo and Info */}
+    <Box sx={{ textAlign: "center", mb: 5 }}>
+      <Avatar
+        alt="BunkMates Logo"
+        src="/logo512.png"
+        sx={{
+          width: 140,
+          height: 140,
+          mx: "auto",
+          mb: 2,
+          borderRadius: "20%",
+          boxShadow: "none",
+        }}
+      />
+
+      <Typography
+        variant="h5"
+        fontWeight="700"
+        sx={{ color: theme.palette.text.primary }}
+      >
+        BunkMates
+      </Typography>
+      <Typography
+        variant="body2"
+        sx={{ color: theme.palette.text.secondary, mt: 0.5 }}
+      >
+        Bunk The Chaos, Keep The Fun!
+      </Typography>
+    </Box>
+
+    {/* Version Details */}
+    <Box
+      sx={{
+        borderRadius: 4,
+        p: 2.5,
+        mb: 3,
+        backgroundColor:
+          mode === "dark" ? "#ffffff08" : alpha(theme.palette.primary.main, 0.02),
+        boxShadow: theme.shadows[1],
+      }}
+    >
+      <List disablePadding>
+        {[
+          { label: "App Version", value: packageJson.version || "N/A" },
+          { label: "Build ID", value: "1.0.31" },
+          { label: "Developer", value: "Team BunkMates" },
+        ].map((item, idx) => (
+          <ListItem key={idx} disableGutters sx={{ py: 0.5 }}>
+            <ListItemText
+              primary={item.label}
+              secondary={item.value}
+              primaryTypographyProps={{
+                fontWeight: 500,
+                color: theme.palette.text.secondary,
+              }}
+              secondaryTypographyProps={{
+                color: theme.palette.text.primary,
+                fontWeight: 600,
+              }}
+            />
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+
+    {/* Link Section */}
+    <ListItem
+      disablePadding
+      sx={{
+        borderRadius: 3,
+        overflow: "hidden",
+        mb: 1,
+        backgroundColor:
+          mode === "dark" ? "#ffffff08" : alpha(theme.palette.primary.main, 0.02),
+      }}
+    >
+      <ListItemButton
+        onClick={() => handleSetDrawerPage("featuresChangelog")}
+        sx={{
+          py: 1.7,
+          "&:hover": {
+            bgcolor: alpha(theme.palette.primary.main, 0.08),
+            transition: "all 0.2s ease",
+          },
+        }}
+      >
+        <ListItemIcon sx={{ minWidth: 40 }}>
+          <InfoOutlinedIcon sx={{ color: theme.palette.text.secondary }} />
+        </ListItemIcon>
+        <ListItemText
+          primary="Third-Party Licenses & Attributions"
+          primaryTypographyProps={{ fontWeight: 500 }}
+        />
+        <KeyboardArrowRightIcon sx={{ color: theme.palette.text.secondary }} />
+      </ListItemButton>
+    </ListItem>
+
+    {/* Footer */}
+    <Typography
+      variant="caption"
+      align="center"
+      sx={{
+        display: "block",
+        mt: 5,
+        color: theme.palette.text.disabled,
+      }}
+    >
+      © {new Date().getFullYear()} BunkMates. All rights reserved.
+    </Typography>
   </Container>
 )}
 
@@ -2637,7 +3023,7 @@ sx={{
     {/* Back Button */}
     <Button
       startIcon={<ArrowBackIcon />}
-      onClick={() => handleSetDrawerPage("about")}
+      onClick={() => navigate(-1)}
       sx={{
         mb: 2,
         borderRadius: 8,
@@ -2760,7 +3146,6 @@ sx={{
     </Typography>
   </Container>
 )}
-
 
 {drawerPage === "support" && (
   <Container sx={{ mt: 5, mb: 2 }}>
@@ -3691,7 +4076,7 @@ sx={{
     
     <Box sx={{ mt: 4 }}>
       <Typography variant="body2" sx={{ color: "#888" }}>
-        For urgent issues, email us at <a href="mailto:jayendrachoudhary.am@gmail.com" style={{ color: "#888888ff" }}>jayendrachoudhary.am@gmail.com</a>
+        For urgent issues, email us at <a href="mailto:team.bunkmates@gmail.com" style={{ color: "#888888ff" }}>team.bunkmates@gmail.com</a>
       </Typography>
     </Box>
   </Container>

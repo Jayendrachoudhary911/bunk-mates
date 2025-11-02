@@ -364,8 +364,6 @@ const UserDrawerContent = ({ user }) => {
               width: 120,
               height: 120,
               mb: 1,
-              boxShadow: `0 0 14px ${alpha(theme.palette.primary.main, 0.6)}`,
-              border: `2px solid ${alpha(theme.palette.background.paper, 0.5)}`,
             }}
           >
             {user.displayName?.[0] || user.name?.[0]}
@@ -397,7 +395,7 @@ const UserDrawerContent = ({ user }) => {
               sx={{ 
                 fontStyle: "italic",
                 p: 2,
-                borderRadius: 2,
+                borderRadius: 4,
                 bgcolor: alpha(theme.palette.background.paper, 0.3)
               }}
             >
@@ -413,7 +411,7 @@ const UserDrawerContent = ({ user }) => {
             mb: 3, 
             textAlign: 'center', 
             border: `1px solid ${theme.palette.warning.main}`, 
-            borderRadius: 2,
+            borderRadius: 4,
             bgcolor: alpha(theme.palette.warning.main, 0.1)
           }}>
             <Typography color="warning.main" fontWeight={600} variant="body1">
@@ -431,7 +429,7 @@ const UserDrawerContent = ({ user }) => {
           <Paper sx={{ 
             p: 2, 
             mb: 2,
-            borderRadius: 2,
+            borderRadius: 6,
             bgcolor: alpha(theme.palette.background.paper, 0.4)
           }}>
             <Typography variant="h6" sx={{ mb: 2 }}>Profile Details</Typography>
@@ -460,7 +458,7 @@ const UserDrawerContent = ({ user }) => {
 
           {/* Mutual Friends Section */}
           {isFullyViewable && user.mutualFriends?.length > 0 && (
-            <Paper sx={{ p: 2, mb: 2, borderRadius: 2, bgcolor: alpha(theme.palette.background.paper, 0.4) }}>
+            <Paper sx={{ p: 2, mb: 2, borderRadius: 6, bgcolor: alpha(theme.palette.background.paper, 0.4) }}>
               <Typography variant="h6" sx={{ mb: 2 }}>Mutual Friends</Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap">
                 {user.mutualFriends.map((friend) => (
@@ -477,7 +475,7 @@ const UserDrawerContent = ({ user }) => {
 
           {/* Shared Trips Section */}
           {isFullyViewable && user.mutualTrips?.length > 0 && (
-            <Paper sx={{ p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.background.paper, 0.4) }}>
+            <Paper sx={{ p: 2, borderRadius: 6, bgcolor: alpha(theme.palette.background.paper, 0.4) }}>
               <Typography variant="h6" sx={{ mb: 2 }}>Shared Trips</Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap">
                 {user.mutualTrips.map((trip) => (
@@ -504,6 +502,7 @@ const UserDrawerContent = ({ user }) => {
               startIcon={<MessageIcon />}
               onClick={() => navigate(`/chats/${user.uid}`)}
               fullWidth
+              sx={{ borderRadius: 8 }}
             >
               Message
             </Button>
@@ -514,6 +513,7 @@ const UserDrawerContent = ({ user }) => {
               onClick={() => handleAddFriend(user)}
               disabled={!currentUser}
               fullWidth
+              sx={{ borderRadius: 8 }}
             >
               {visibility === "private" ? "Send Friend Request" : "Add Friend"}
             </Button>
@@ -547,7 +547,6 @@ const UserDrawerContent = ({ user }) => {
             backgroundImage: `url(${place.images[0]})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
-            filter: "blur(8px)",
             transform: "scale(1.1)",
             zIndex: 0,
             "&::after": {
@@ -571,22 +570,18 @@ const UserDrawerContent = ({ user }) => {
           pt: place.images?.[0] ? 16 : 3,
           px: 3,
           pb: 3,
-          backdropFilter: "blur(12px)",
         }}
       >
         <Stack alignItems="center" spacing={2} sx={{ mb: 3 }}>
-          <Avatar
+          <Box
             variant="rounded"
             src={place.images?.[0]}
             sx={{
               width: 120,
-              height: 120,
-              boxShadow: `0 0 20px ${alpha(theme.palette.primary.main, 0.4)}`,
-              border: `2px solid ${alpha(theme.palette.background.paper, 0.4)}`,
+              height: 120
             }}
           >
-            <PlaceIcon fontSize="large" />
-          </Avatar>
+          </Box>
           <Typography
             variant="h5"
             fontWeight={700}
@@ -617,7 +612,7 @@ const UserDrawerContent = ({ user }) => {
           </Stack>
         </Stack>
 
-        <Divider sx={{ mb: 3 }} />
+        <Divider sx={{ mb: 3, background: "transparent" }} />
 
         <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
           Overview
@@ -639,10 +634,13 @@ const UserDrawerContent = ({ user }) => {
           <Button
             variant="contained"
             onClick={() => navigate(`/trips`, { state: { place } })}
+            sx={{
+              borderRadius: 8,
+            }}
           >
             Plan Trip Here
           </Button>
-          <Button variant="outlined" onClick={closeDrawer}>
+          <Button variant="outlined" onClick={closeDrawer} sx={{ borderRadius: 8 }}>
             Close
           </Button>
         </Stack>
@@ -822,7 +820,7 @@ const UserDrawerContent = ({ user }) => {
             mx: "auto",
             maxHeight: "90vh",
             background: alpha(theme.palette.background.paper, 0.3),
-            backdropFilter: "blur(18px)",
+            backdropFilter: "blur(38px)",
             boxShadow: theme.shadows[10],
             overflowY: "auto",
           },

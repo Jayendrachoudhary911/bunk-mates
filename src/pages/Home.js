@@ -318,7 +318,6 @@ const Home = () => {
     },
   ];
 
-  // --- START: Places Data Processing ---
 
   const placeSuggestions = useMemo(() => {
     if (!placesData || !placesData.states) return [];
@@ -344,7 +343,9 @@ const Home = () => {
       .slice(0, 4);
   }, []);
 
-  // --- END: Places Data Processing ---
+const incompleteRemindersCount = useMemo(() => {
+    return reminders.filter((rem) => !rem.completed).length;
+  }, [reminders]);
 
 
   useEffect(() => {
@@ -1248,48 +1249,13 @@ useEffect(() => {
                         </Typography>
                       )}
                     </Grid>
-                    
-                    {/* Trips Suggestions Card (NEW SECTION) */}
-                    <Grid item xs={12} md={6} lg={8} sx={{ minWidth: "100%", px: { xs: 3, md: 0 }, mt: 4 }}>
-                        <Typography variant="h6" textAlign="left" mb={1} ml={-1}>Trip Suggestions & Discovery</Typography>
-                        
-                        {placeSuggestions.length > 0 ? (
-                            <Grid container spacing={2}>
-                                {placeSuggestions.map((place) => (
-                                    <Grid item xs={12} sm={6} md={6} lg={3} key={place.id}>
-                                        <PlaceCard place={place} mode={mode} navigate={navigate} />
-                                    </Grid>
-                                ))}
-                            </Grid>
-                        ) : (
-                            <Typography variant="body2" color="text.secondary">
-                                No travel suggestions loaded from local data.
-                            </Typography>
-                        )}
-                        <Box sx={{ mt: 2, textAlign: 'right' }}>
-                            <Button 
-                                variant="outlined" 
-                                size="small"
-                                endIcon={<ArrowForwardIosIcon />}
-                                onClick={() => navigate("/search", { state: { tab: 'places' } })}
-                                sx={{
-                                    borderColor: mode === "dark" ? "#ffffff33" : "#00000033",
-                                    color: mode === "dark" ? "#ffffff" : "#000000",
-                                    borderRadius: 3,
-                                }}
-                            >
-                                Discover All Places
-                            </Button>
-                        </Box>
-                    </Grid>
 
-
-                    {/* Reminders Glimpse Card */}
-                    <Container maxWidth="lg" sx={{ mt: 2, mb: 2 }}>
+                                        {/* Reminders Glimpse Card */}
+                    <Container maxWidth="lg" sx={{ mt: 6, mb: 0 }}>
                       <Box
                         sx={{
                           mb: 2,
-                          background: mode === "dark" ? "#f1f1f111" : "#afafaf16",
+                          background: mode === "dark" ? "#84848408" : "#afafaf16",
                           color: theme.palette.text.primary,
                           boxShadow: "none",
                           borderRadius: 5,
@@ -1322,13 +1288,13 @@ useEffect(() => {
                             <ul style={{ margin: 0, paddingLeft: 0 }}>
                               {reminders
                                 .filter((rem) => !rem.completed)
-                                .slice(0, 3)
+                                .slice(0, 1)
                                 .map((rem) => (
                                   <li
                                     key={rem.id}
                                     style={{
                                       fontSize: 16,
-                                      backgroundColor: mode === "dark" ? "#f1f1f111" : "#ffffffff",
+                                      backgroundColor: mode === "dark" ? "#77777711" : "#ffffffff",
                                       borderRadius: 28,
                                       padding: 9,
                                       listStyle: "none",
@@ -1377,11 +1343,46 @@ useEffect(() => {
                             }}
                             onClick={() => navigate("/reminders")}
                           >
-                            View All
+                            View All ({incompleteRemindersCount})
                           </Button>
                         </CardContent>
                       </Box>
                     </Container>
+
+                    
+                    {/* Trips Suggestions Card (NEW SECTION) */}
+                    <Grid item xs={12} md={6} lg={8} sx={{ minWidth: "100%", px: { xs: 3, md: 0 }, mt: 1 }}>
+                        <Typography variant="h6" textAlign="left" mb={1} ml={-1}>Trip Suggestions & Discovery</Typography>
+                        
+                        {placeSuggestions.length > 0 ? (
+                            <Grid container spacing={2}>
+                                {placeSuggestions.map((place) => (
+                                    <Grid item xs={12} sm={6} md={6} lg={3} key={place.id}>
+                                        <PlaceCard place={place} mode={mode} navigate={navigate} />
+                                    </Grid>
+                                ))}
+                            </Grid>
+                        ) : (
+                            <Typography variant="body2" color="text.secondary">
+                                No travel suggestions loaded from local data.
+                            </Typography>
+                        )}
+                        <Box sx={{ mt: 2, textAlign: 'right' }}>
+                            <Button 
+                                variant="outlined" 
+                                size="small"
+                                endIcon={<ArrowForwardIosIcon />}
+                                onClick={() => navigate("/search", { state: { tab: 'places' } })}
+                                sx={{
+                                    borderColor: mode === "dark" ? "#ffffff33" : "#00000033",
+                                    color: mode === "dark" ? "#ffffff" : "#000000",
+                                    borderRadius: 3,
+                                }}
+                            >
+                                Discover All Places
+                            </Button>
+                        </Box>
+                    </Grid>
 
                     <Box
                       sx={{
