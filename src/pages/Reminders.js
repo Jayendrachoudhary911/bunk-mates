@@ -685,7 +685,7 @@ const Reminders = forwardRef(({ open, onClose }, ref) => {
       </motion.div>
     </Box>
 
-        <Card sx={{ mb: 2, borderRadius: 5 }}>
+        {/* <Card sx={{ mb: 2, borderRadius: 5 }}>
           <CardContent>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
               Active Reminders ({filteredReminders.length})
@@ -742,11 +742,11 @@ const Reminders = forwardRef(({ open, onClose }, ref) => {
               )}
             </CardContent>
           </Collapse>
-        </Card>
+        </Card> */}
       </Container>
 
       {/* Action menu */}
-      <Menu anchorEl={menuAnchorEl} open={Boolean(menuAnchorEl)} onClose={handleMenuClose}>
+      {/* <Menu anchorEl={menuAnchorEl} open={Boolean(menuAnchorEl)} onClose={handleMenuClose}>
         <MenuItem onClick={handleEditOpenFromMenu}>
           <EditIcon fontSize="small" sx={{ mr: 1 }} />
           Edit
@@ -755,7 +755,7 @@ const Reminders = forwardRef(({ open, onClose }, ref) => {
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
           Delete
         </MenuItem>
-      </Menu>
+      </Menu> */}
 
       {/* Add Drawer */}
       {/* <SwipeableDrawer
