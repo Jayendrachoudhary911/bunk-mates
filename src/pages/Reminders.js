@@ -758,7 +758,7 @@ const Reminders = forwardRef(({ open, onClose }, ref) => {
       </Menu>
 
       {/* Add Drawer */}
-      <SwipeableDrawer
+      {/* <SwipeableDrawer
         anchor="bottom"
         open={drawerOpen}
         onClose={() => {
@@ -801,10 +801,10 @@ const Reminders = forwardRef(({ open, onClose }, ref) => {
             {saving ? "Saving..." : "Add Reminder"}
           </Button>
         </Stack>
-      </SwipeableDrawer>
+      </SwipeableDrawer> */}
 
       {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="xs" fullWidth>
+      {/* <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Edit Reminder</DialogTitle>
         <DialogContent>
           <TextField
@@ -838,7 +838,7 @@ const Reminders = forwardRef(({ open, onClose }, ref) => {
             {saving ? "Saving..." : "Save"}
           </Button>
         </DialogActions>
-      </Dialog>
+      </Dialog> */}
     </Box>
   );
 });
