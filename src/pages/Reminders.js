@@ -1,846 +1,498 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useImperativeHandle,
-  forwardRef,
-  useMemo,
-  useCallback,
-} from "react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+// ...existing code...
+import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from 'react-router-dom';
 import {
+  AppBar,
+  Toolbar,
   Typography,
   Box,
-  Card,
-  CardContent,
-  TextField,
-  Button,
+  Container,
+  IconButton,
+  CircularProgress,
   List,
   ListItem,
   ListItemText,
-  IconButton,
-  SwipeableDrawer,
-  Stack,
-  CircularProgress,
+  ListItemIcon,
+  Checkbox,
+  TextField,
+  InputAdornment,
+  Collapse,
+  Button,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Menu,
-  MenuItem,
-  Tooltip,
-  InputAdornment,
-  Container,
-  Collapse,
+  useMediaQuery,
+  Alert,
 } from "@mui/material";
+import { ThemeProvider, useTheme } from "@mui/material/styles";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import {
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Edit as EditIcon,
-  NotificationsActive as NotificationsActiveIcon,
-  MoreVert as MoreVertIcon,
-  ArrowBack as ArrowBackIcon,
-  Search as SearchIcon,
-  CheckCircle as CheckCircleIcon,
-  ExpandMore,
-  DeleteOutline as DeleteOutlineIcon,
-} from "@mui/icons-material";
-
-import { db, messaging } from "../firebase";
-import ProfilePic from "../components/Profile";
-import { useWeather } from "../contexts/WeatherContext";
+  collection,
+  query,
+  where,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
+import { db, auth } from "../firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 
-// Firestore functions
-import {
-  collection,
-  addDoc,
-  query,
-  where,
-  orderBy,
-  doc,
-  deleteDoc,
-  updateDoc,
-  onSnapshot,
-  serverTimestamp,
-} from "firebase/firestore";
+// Helper to format date for input type="date" (YYYY-MM-DD)
+const formatDateForInput = (date) => {
+  if (!date) return '';
+  const d = date instanceof Date ? date : (date.toDate ? date.toDate() : new Date(date));
+  return d.toISOString().split('T')[0];
+};
 
-// FCM
-import { getToken, onMessage } from "firebase/messaging";
+// Helper to format time for input type="time" (HH:MM)
+const formatTimeForInput = (date) => {
+  if (!date) return '';
+  const d = date instanceof Date ? date : (date.toDate ? date.toDate() : new Date(date));
+  return d.toTimeString().slice(0, 5); // "HH:MM"
+};
 
-/* -------------------------
-   Helper utilities
-   ------------------------- */
-
-function getUserFromStorage() {
-  try {
-    const storedUser = localStorage.getItem("bunkmateuser");
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      if (parsed?.uid) return parsed;
-    }
-    const cookieUser = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("bunkmateuser="))
-      ?.split("=")[1];
-    if (cookieUser) {
-      const parsed = JSON.parse(decodeURIComponent(cookieUser));
-      if (parsed?.uid) return parsed;
-    }
-  } catch (err) {
-    console.warn("Error reading user from storage", err);
-  }
-  return null;
-}
-
-async function requestNotificationPermission() {
-  try {
-    const permission = await Notification.requestPermission();
-    if (permission === "granted") {
-      const token = await getToken(messaging, {
-        vapidKey:
-          "BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs",
-      });
-      console.log("FCM Token:", token);
-      return token;
-    }
-  } catch (err) {
-    console.error("Notification permission error:", err);
-  }
-  return null;
-}
-
-function showLocalNotification(title, options = {}) {
-  if (Notification.permission !== "granted") return;
-  // If page is focused, show normal Notification (modern browsers)
-  if (document.hasFocus()) {
-    try {
-      new Notification(title, options);
-    } catch (err) {
-      console.warn("Local notification failed:", err);
-    }
-  } else if (navigator.serviceWorker?.ready) {
-    navigator.serviceWorker.ready.then((reg) =>
-      reg.showNotification(title, options).catch(() => {})
-    );
-  }
-}
-
-function getTodayStr() {
-  const now = new Date();
-  return now.toLocaleDateString("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-}
-
-/* -------------------------
-   Small presentational items
-   ------------------------- */
-
-const ReminderListItem = React.memo(
-  // ({ rem, mode, onToggleComplete, onOpenMenu }) => {
-  //   const isDark = mode === "dark";
-  //   return (
-  //     <ListItem
-  //       key={rem.id}
-  //       sx={{
-  //         borderRadius: 3,
-  //         py: 0.3,
-  //         mb: 1,
-  //         background: isDark ? "#222226" : "#f3f3f3",
-  //         color: isDark ? "#fff" : "#000",
-  //         opacity: rem.completed ? 0.6 : 1,
-  //       }}
-  //       secondaryAction={
-  //         <IconButton
-  //           edge="end"
-  //           onClick={(e) => onOpenMenu(e, rem)}
-  //           sx={{ color: isDark ? "#fff" : "#000" }}
-  //           aria-label="more"
-  //         >
-  //           <MoreVertIcon />
-  //         </IconButton>
-  //       }
-  //     >
-  //       <IconButton
-  //         onClick={() => onToggleComplete(rem)}
-  //         sx={{ mr: 1, px: 0.5 }}
-  //         aria-label="toggle-complete"
-  //       >
-  //         {rem.completed ? (
-  //           <CheckCircleIcon sx={{ fontSize: 26, color: "#00c853" }} />
-  //         ) : (
-  //           <NotificationsActiveIcon sx={{ fontSize: 26 }} />
-  //         )}
-  //       </IconButton>
-
-  //       <ListItemText
-  //         primary={
-  //           <Typography
-  //             variant="body1"
-  //             sx={{
-  //               fontWeight: rem.completed ? "normal" : 700,
-  //               textDecoration: rem.completed ? "line-through" : "none",
-  //             }}
-  //           >
-  //             {rem.text}
-  //           </Typography>
-  //         }
-  //         secondary={
-  //           rem.date || rem.time ? (
-  //             <Typography variant="caption" sx={{ color: "text.secondary" }}>
-  //               {rem.date} {rem.time}
-  //             </Typography>
-  //           ) : null
-  //         }
-  //       />
-  //     </ListItem>
-  //   );
-  // }
-);
-
-const CompletedReminderListItem = React.memo(
-  // ({ rem, mode, onToggleComplete, onDelete }) => {
-  //   const isDark = mode === "dark";
-  //   return (
-  //     <ListItem
-  //       key={rem.id}
-  //       sx={{
-  //         borderRadius: 3,
-  //         mb: 1,
-  //         background: isDark ? "#1a1a1a" : "#fafafa",
-  //         color: isDark ? "#fff" : "#000",
-  //         opacity: 0.7,
-  //       }}
-  //     >
-  //       <IconButton onClick={() => onToggleComplete(rem)} sx={{ mr: 1 }}>
-  //         <CheckCircleIcon sx={{ color: "#00c853" }} />
-  //       </IconButton>
-
-  //       <ListItemText
-  //         primary={
-  //           <Typography variant="body1" sx={{ textDecoration: "line-through" }}>
-  //             {rem.text}
-  //           </Typography>
-  //         }
-  //         secondary={
-  //           rem.time ? (
-  //             <Typography variant="caption" sx={{ color: "text.secondary" }}>
-  //               {rem.time}
-  //             </Typography>
-  //           ) : null
-  //         }
-  //       />
-  //       <IconButton
-  //         size="small"
-  //         onClick={() => onDelete(rem.id)}
-  //         aria-label="delete-completed"
-  //       >
-  //         <DeleteOutlineIcon sx={{ color: "#e53935" }} />
-  //       </IconButton>
-  //     </ListItem>
-  //   );
-  // }
-);
-
-/* -------------------------
-   Main Component
-   ------------------------- */
-
-const Reminders = forwardRef(({ open, onClose }, ref) => {
-  const navigate = useNavigate();
+export default function Reminders() {
   const [reminders, setReminders] = useState([]);
-  const remindersRef = useRef([]); // always holds latest reminders for intervals/listeners
-  const [newReminderData, setNewReminderData] = useState({
-    text: "",
-    date: "",
-    time: "",
-  });
-
   const [loading, setLoading] = useState(true);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editReminder, setEditReminder] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
-  const [menuReminder, setMenuReminder] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [user, setUser] = useState(null);
-  const [notifAllowed, setNotifAllowed] = useState(Notification.permission === "granted");
-  const notifiedIdsRef = useRef({}); // track notifications per-day reliably
-  const mountedRef = useRef(true);
-  const [completedOpen, setCompletedOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentReminder, setCurrentReminder] = useState(null); 
+  // ALWAYS use fallback (no orderBy) to avoid composite index requirement
+  // Form states for adding/editing
+  const [reminderText, setReminderText] = useState("");
+  const [reminderDate, setReminderDate] = useState(formatDateForInput(new Date()));
+  const [reminderTime, setReminderTime] = useState(formatTimeForInput(new Date()));
 
-  const { weather } = useWeather?.() || {};
-  const { mode, accent } = useThemeToggle?.() || { mode: "light", accent: "blue" };
-  const theme = getTheme(mode, accent);
-  const isDark = mode === "dark";
+  const { mode } = useThemeToggle();
+  const theme = getTheme(mode);
+  const muiTheme = useTheme(); 
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down('sm'));
+  const navigate = useNavigate();
 
-  // keep remindersRef updated
+  // Fetches and sets the current authenticated user
   useEffect(() => {
-    remindersRef.current = reminders;
-  }, [reminders]);
-
-  // expose some methods to parent
-  useImperativeHandle(ref, () => ({
-    openAddReminderDrawer: () => setDrawerOpen(true),
-    markReminderComplete: async (reminderId) => {
-      const rem = remindersRef.current.find((r) => r.id === reminderId);
-      if (rem && !rem.completed) {
-        await handleToggleComplete(rem);
-      }
-    },
-  }));
-
-  // -------------------------
-  // Firestore real-time listener
-  // -------------------------
-  useEffect(() => {
-    mountedRef.current = true;
-    const storedUser = getUserFromStorage();
-    setUser(storedUser);
-
-    let unsubscribe = null;
-    if (!storedUser?.uid) {
-      setReminders([]);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Auth user:", user); // DEBUG
+      setCurrentUser(user);
       setLoading(false);
-      return () => {
-        mountedRef.current = false;
-      };
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Real-time Firestore subscription — always fallback to query without orderBy
+  useEffect(() => {
+    if (!currentUser) {
+      setReminders([]);
+      return;
     }
 
     setLoading(true);
-    try {
-      const q = query(
-        collection(db, "reminders"),
-        where("uid", "==", storedUser.uid),
-        orderBy("createdAt", "desc")
-      );
 
-      unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          if (!mountedRef.current) return;
-          const docs = snapshot.docs.map((d) => {
-            const data = d.data();
-            // normalize timestamps safely
-            return {
-              id: d.id,
-              text: data.text || "",
-              date: data.date || "",
-              time: data.time || "",
-              completed: !!data.completed,
-              createdAt: data.createdAt || null,
-              completedAt: data.completedAt || null,
-              uid: data.uid,
-            };
-          });
-          setReminders(docs);
-          setLoading(false);
-        },
-        (err) => {
-          console.error("Realtime listener error:", err);
-          setLoading(false);
-        }
-      );
-    } catch (err) {
-      console.error("Listener setup error:", err);
-      setLoading(false);
-    }
+    const baseCollection = collection(db, "reminders");
+    const q = query(baseCollection, where("uid", "==", currentUser.uid)); // fallback: no orderBy
 
-    return () => {
-      mountedRef.current = false;
-      if (unsubscribe) unsubscribe();
-    };
-    // we intentionally only run once on mount (user will be read from storage)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log("Snapshot size:", snapshot.size); // DEBUG
+      const remindersData = snapshot.docs.map((d) => {
+        const data = d.data() || {};
 
-  // -------------------------
-  // FCM onMessage listener & permission
-  // -------------------------
-  useEffect(() => {
-    let unsubscribeOnMessage = () => {};
-    (async () => {
-      // request permission only if not granted
-      if (Notification.permission !== "granted") {
-        await requestNotificationPermission();
-        setNotifAllowed(Notification.permission === "granted");
-      } else {
-        setNotifAllowed(true);
-      }
+        // Normalize text
+        const text = data.text || "";
 
-      try {
-        unsubscribeOnMessage = onMessage(messaging, (payload) => {
-          // payload.notification may be undefined depending on message
-          const title = payload?.notification?.title || "Notification";
-          const body = payload?.notification?.body || "";
-          showLocalNotification(title, {
-            body,
-            icon: "/logo192.png",
-          });
-        });
-      } catch (err) {
-        console.warn("FCM onMessage setup failed:", err);
-      }
-    })();
+        // Normalize createdAt
+        const createdAt = data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt)) : new Date();
 
-    return () => {
-      try {
-        unsubscribeOnMessage();
-      } catch {}
-    };
-  }, []);
+        // Normalize date/time fields: support timestamp stored in `date` or combined timestamp
+        let dateStr = "";
+        let timeStr = "";
 
-  // -------------------------
-  // Local notification scheduler
-  // Uses refs to avoid stale closures & avoids leaking intervals
-  // -------------------------
-  useEffect(() => {
-    if (!notifAllowed) return;
-    const minuteInMs = 60 * 1000;
-    const checkIntervalMs = 30 * 1000; // 30s
-
-    const intervalId = setInterval(() => {
-      const now = new Date();
-      const todaysStr = getTodayStr();
-      remindersRef.current.forEach((rem) => {
-        if (!rem.time || !rem.date || rem.completed) return;
-        try {
-          // ensure parsing using YYYY-MM-DD + HH:MM
-          const iso = `${rem.date}T${rem.time}:00`;
-          const reminderDate = new Date(iso);
-          if (Number.isNaN(reminderDate.getTime())) return;
-          const diff = Math.abs(reminderDate.getTime() - now.getTime());
-          if (diff < minuteInMs) {
-            const notifiedFor = notifiedIdsRef.current[rem.id];
-            if (notifiedFor !== todaysStr) {
-              showLocalNotification("Reminder", { body: rem.text, icon: "/logo192.png" });
-              // persist daily stamp in memory (not persisted across refresh)
-              notifiedIdsRef.current = { ...notifiedIdsRef.current, [rem.id]: todaysStr };
-            }
-          }
-        } catch (err) {
-          // ignore invalid date parsing
-        }
-      });
-    }, checkIntervalMs);
-
-    return () => clearInterval(intervalId);
-  }, [notifAllowed]);
-
-  // -------------------------
-  // Auto-delete completed older than 1 day
-  // -------------------------
-  useEffect(() => {
-    // run once whenever reminders change
-    const oneDayMs = 24 * 60 * 60 * 1000;
-    reminders.forEach((rem) => {
-      if (rem.completed && rem.completedAt) {
-        let completedTime = null;
-        if (typeof rem.completedAt?.toDate === "function") {
-          completedTime = rem.completedAt.toDate().getTime();
+        // If there's a dedicated date field that is a Firestore Timestamp
+        if (data.date && typeof data.date === "object" && data.date.toDate) {
+          const dt = data.date.toDate();
+          dateStr = dt.toISOString().split("T")[0];
+          timeStr = dt.toTimeString().slice(0,5);
+        } else if (data.datetime && typeof data.datetime === "object" && data.datetime.toDate) {
+          // Some schemas store a single datetime field
+          const dt = data.datetime.toDate();
+          dateStr = dt.toISOString().split("T")[0];
+          timeStr = dt.toTimeString().slice(0,5);
         } else {
-          completedTime = new Date(rem.completedAt).getTime();
+          // Fall back to string fields if present
+          dateStr = typeof data.date === "string" ? data.date : (data.date ? String(data.date) : "");
+          timeStr = typeof data.time === "string" ? data.time : (data.time ? String(data.time) : "");
         }
-        if (!Number.isNaN(completedTime) && Date.now() - completedTime > oneDayMs) {
-          // delete and optimistically update local state
-          deleteDoc(doc(db, "reminders", rem.id))
-            .then(() => {
-              if (!mountedRef.current) return;
-              setReminders((prev) => prev.filter((r) => r.id !== rem.id));
-            })
-            .catch((err) => console.error("Auto-delete error:", err));
+
+        return {
+          id: d.id,
+          ...data,
+          text,
+          date: dateStr,
+          time: timeStr,
+          createdAt,
+        };
+      });
+      console.log("Fetched reminders:", remindersData); // DEBUG
+      setReminders(remindersData);
+      setLoading(false);
+    }, (error) => {
+      // Hide index errors — log only and continue with empty state
+      console.error("Firestore error fetching reminders (hidden):", error);
+      setReminders([]);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Filter and sort reminders based on search and completion status
+  const filteredAndSortedReminders = useMemo(() => {
+    const active = [];
+    const completed = [];
+
+    reminders.forEach(r => {
+      const text = (r.text || "").toString();
+      const matchesSearch = text.toLowerCase().includes(searchQuery.toLowerCase());
+
+      if (matchesSearch) {
+        if (r.completed) {
+          completed.push(r);
+        } else {
+          active.push(r);
         }
       }
     });
-  }, [reminders]);
 
-  // -------------------------
-  // handlers
-  // -------------------------
-  const handleToggleComplete = useCallback(async (reminder) => {
-    if (!reminder?.id) return;
+    // Sort active reminders by date/time ascending (soonest first)
+    active.sort((a, b) => {
+      const dateA = new Date(`${a.date || formatDateForInput(new Date())}T${a.time || "00:00"}:00`);
+      const dateB = new Date(`${b.date || formatDateForInput(new Date())}T${b.time || "00:00"}:00`);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    // Sort completed reminders by createdAt descending (most recently completed first)
+    completed.sort((a, b) => {
+      const ca = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+      const cb = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+      return cb.getTime() - ca.getTime();
+    });
+
+    return { active, completed };
+  }, [reminders, searchQuery]);
+
+  // Firestore update: Toggle completion status
+  const handleToggleCompleted = async (id, currentStatus) => {
+    if (!currentUser) return;
     try {
-      const ref = doc(db, "reminders", reminder.id);
-      const completed = !reminder.completed;
-      const payload = {
-        completed,
-        completedAt: completed ? serverTimestamp() : null,
-      };
-      await updateDoc(ref, payload);
-      // local update is optional because real-time listener will update state
-      setReminders((prev) => prev.map((r) => (r.id === reminder.id ? { ...r, ...payload } : r)));
+      const reminderRef = doc(db, "reminders", id);
+      await updateDoc(reminderRef, {
+        completed: !currentStatus,
+      });
     } catch (err) {
-      console.error("Error toggling completion:", err);
+      console.error("Error toggling completed:", err);
     }
-  }, []);
+  };
 
-  const handleDeleteReminder = useCallback(async (id) => {
-    if (!id) return;
+  // Firestore delete
+  const handleDeleteReminder = async (id) => {
+    if (!currentUser) return;
     try {
       await deleteDoc(doc(db, "reminders", id));
-      // optimistic local update (listener will also reflect)
-      setReminders((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       console.error("Error deleting reminder:", err);
     }
-  }, []);
+  };
 
-  const handleAddReminder = useCallback(async () => {
-    if (!newReminderData.text.trim() || !user?.uid) return;
-    setSaving(true);
+  // Dialog handlers
+  const handleOpenDialog = (reminder = null) => {
+    setCurrentReminder(reminder);
+    if (reminder) {
+      setReminderText(reminder.text || "");
+      setReminderDate(reminder.date || formatDateForInput(new Date()));
+      setReminderTime(reminder.time || formatTimeForInput(new Date()));
+    } else {
+      setReminderText("");
+      setReminderDate(formatDateForInput(new Date()));
+      setReminderTime(formatTimeForInput(new Date()));
+    }
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setCurrentReminder(null);
+    setReminderText("");
+    setReminderDate(formatDateForInput(new Date()));
+    setReminderTime(formatTimeForInput(new Date()));
+  };
+
+  // Firestore add/update
+  const handleSaveReminder = async () => {
+    if (!currentUser || !reminderText.trim() || !reminderDate.trim() || !reminderTime.trim()) {
+      alert("Please fill in all reminder details.");
+      return;
+    }
+
+    const reminderData = {
+      text: reminderText.trim(),
+      date: reminderDate,
+      time: reminderTime,
+      uid: currentUser.uid,
+    };
+
     try {
-      const newReminder = {
-        uid: user.uid,
-        text: newReminderData.text.trim(),
-        time: newReminderData.time || "",
-        date: newReminderData.date || "",
-        createdAt: serverTimestamp(),
-        completed: false,
-      };
-      const docRef = await addDoc(collection(db, "reminders"), newReminder);
-      // close drawer & reset; listener will add the item. But we'll optimistically insert:
-      setReminders((prev) => [{ id: docRef.id, ...newReminder }, ...prev]);
-      setNewReminderData({ text: "", time: "", date: "" });
-      setDrawerOpen(false);
+      if (currentReminder) {
+        // Update existing reminder
+        const reminderRef = doc(db, "reminders", currentReminder.id);
+        await updateDoc(reminderRef, reminderData);
+      } else {
+        // Add new reminder
+        await addDoc(collection(db, "reminders"), {
+          ...reminderData,
+          completed: false,
+          createdAt: new Date(), 
+        });
+      }
     } catch (err) {
-      console.error("Error adding reminder:", err);
-    } finally {
-      if (mountedRef.current) setSaving(false);
+      console.error("Error saving reminder:", err);
+      alert("Failed to save reminder. Check console for details.");
     }
-  }, [newReminderData, user]);
+    handleCloseDialog();
+  };
 
-  const handleEditSave = useCallback(async () => {
-    if (!editReminder?.text?.trim()) return;
-    setSaving(true);
-    try {
-      const updatePayload = {
-        text: editReminder.text,
-        time: editReminder.time || "",
-        date: editReminder.date || "",
-      };
-      await updateDoc(doc(db, "reminders", editReminder.id), updatePayload);
-      setReminders((prev) => prev.map((r) => (r.id === editReminder.id ? { ...r, ...updatePayload } : r)));
-      setEditDialogOpen(false);
-      setEditReminder(null);
-    } catch (err) {
-      console.error("Error updating:", err);
-    } finally {
-      if (mountedRef.current) setSaving(false);
-    }
-  }, [editReminder]);
+  const onBack = () => navigate(-1);
 
-  const handleMenuOpen = useCallback((e, reminder) => {
-    setMenuAnchorEl(e.currentTarget);
-    setMenuReminder(reminder);
-  }, []);
-  const handleMenuClose = useCallback(() => {
-    setMenuAnchorEl(null);
-    setMenuReminder(null);
-  }, []);
-  const handleEditOpenFromMenu = useCallback(() => {
-    handleMenuClose();
-    if (menuReminder) {
-      setEditReminder(menuReminder);
-      setEditDialogOpen(true);
-    }
-  }, [menuReminder, handleMenuClose]);
-  const handleDeleteFromMenu = useCallback(() => {
-    handleMenuClose();
-    if (menuReminder) handleDeleteReminder(menuReminder.id);
-  }, [menuReminder, handleDeleteReminder, handleMenuClose]);
-
-  // -------------------------
-  // filtering
-  // -------------------------
-  const { filteredReminders, completedReminders } = useMemo(() => {
-    const lower = searchTerm.toLowerCase();
-    const active = reminders.filter((r) => !r.completed && r.text.toLowerCase().includes(lower));
-    const completed = reminders.filter((r) => r.completed && r.text.toLowerCase().includes(lower));
-    return { filteredReminders: active, completedReminders: completed };
-  }, [reminders, searchTerm]);
-
-  // -------------------------
-  // UI
-  // -------------------------
   return (
-    <Box sx={{ px: 2 }}>
-      <Box sx={{ pt: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", p: 2, justifyContent: "space-between" }}>
-          <Button
-            onClick={() => navigate(-1)}
-            sx={{
-              mr: 2,
-              width: 36,
-              height: 36,
-              minWidth: 0,
-              borderRadius: 8,
-              p: 3,
-              color: isDark ? "#fff" : "#000",
-              backgroundColor: isDark ? "#1f1f1fff" : "#f0f0f0",
-              "&:hover": {
-                backgroundColor: isDark ? "#333337" : "#e0e0e0",
-              },
-            }}
-          >
-            <ArrowBackIcon />
-          </Button>
-
-          <ProfilePic />
-        </Box>
-      </Box>
-
-      <Container maxWidth="sm" sx={{ pt: 2, pb: 8 }}>
-        {!notifAllowed && (
-          <Box sx={{ mb: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={async () => {
-                await requestNotificationPermission();
-                setNotifAllowed(Notification.permission === "granted");
-              }}
-            >
-              Enable Push Notifications
-            </Button>
-          </Box>
-        )}
-
-        <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-          <Typography variant="h5" fontWeight="bold" sx={{ flex: 1, color: 'text.primary' }}>
-            Reminders
-          </Typography>
-          <Tooltip title="Add Reminder">
-            <Button
-              size="medium"
-              sx={{ ml: 2, borderRadius: 8, minWidth: 44, color: 'text.primary', backgroundColor: 'primary.mainbg', '&:hover': { backgroundColor: 'primary.mainbg' } }}
-              onClick={() => setDrawerOpen(true)}
-            >
+    <ThemeProvider theme={theme}>
+      <Box sx={{ flexGrow: 1, bgcolor: 'background.default', minHeight: '100vh', px: isMobile ? 1 : 2 }}>
+        <AppBar position="static" elevation={0} sx={{ bgcolor: 'transparent', color: 'text.primary', mt: 2 }}>
+          <Toolbar>
+            <IconButton edge="start" color="inherit" onClick={onBack} sx={{ mr: 2 }}>
+              <ArrowBackIcon />
+            </IconButton>
+            <Typography variant="h6" color="inherit" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
+              Reminders
+            </Typography>
+            <IconButton color="inherit" onClick={() => handleOpenDialog()}>
               <AddIcon />
-            </Button>
-          </Tooltip>
-        </Box>
+            </IconButton>
+          </Toolbar>
+        </AppBar>
 
-    <Box
-      sx={{
-        mb: 2,
-        position: "relative",
-      }}
-    >
-      <motion.div
-        whileHover={{ scale: 1.02 }}
-        whileFocus={{ scale: 1.03 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      >
-        <TextField
-          size="small"
-          placeholder="Search reminders..."
-          variant="outlined"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon
-                  sx={{
-                    color:
-                      theme.palette.mode === "dark"
-                        ? "rgba(255,255,255,0.6)"
-                        : "rgba(0,0,0,0.5)",
-                  }}
-                />
-              </InputAdornment>
-            ),
-          }}
-          fullWidth
-          sx={{
-            "& .MuiOutlinedInput-root": {
-              borderRadius: 3,
-              backgroundColor:
-                theme.palette.mode === "dark"
-                  ? "rgba(255,255,255,0.05)"
-                  : "#fafafa",
-              boxShadow: "none",
-              transition: "all 0.3s ease",
-              "&:hover": {
-                boxShadow: "none"
-              },
-              "&.Mui-focused fieldset": {
-                borderColor: theme.palette.primary.main,
-                boxShadow: "none",
-              },
-            },
-            "& input::placeholder": {
-              color:
-                theme.palette.mode === "dark"
-                  ? "rgba(255,255,255,0.5)"
-                  : "rgba(0,0,0,0.5)",
-            },
-          }}
-        />
-      </motion.div>
-    </Box>
+        <Container sx={{ mt: 2, p: 0 }}>
+          {!currentUser && !loading && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Not signed in. Sign in to view your reminders.
+            </Alert>
+          )}
 
-        <Card sx={{ mb: 2, borderRadius: 5 }}>
-          <CardContent>
-            <Typography variant="subtitle1" sx={{ mb: 1 }}>
-              Active Reminders ({filteredReminders.length})
-            </Typography>
+          {/* Search Bar */}
+          <TextField
+            fullWidth
+            variant="outlined"
+            placeholder="Search reminders..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            sx={{ mb: 3, '.MuiOutlinedInput-notchedOutline': { borderColor: 'text.secondary' } }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon color="action" />
+                </InputAdornment>
+              ),
+            }}
+          />
 
-            {loading ? (
-              <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-                <CircularProgress />
+          {loading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" mt={5}><CircularProgress /></Box>
+          ) : (
+            <>
+              {/* Active Reminders Section */}
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  Active Reminders ({filteredAndSortedReminders.active.length})
+                </Typography>
+                {filteredAndSortedReminders.active.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">No active reminders yet.</Typography>
+                ) : (
+                  <List disablePadding>
+                    {filteredAndSortedReminders.active.map((reminder) => {
+                      const dateVal = reminder.date || formatDateForInput(new Date());
+                      const timeVal = reminder.time || "00:00";
+                      const isPast = new Date(`${dateVal}T${timeVal}:00`) < new Date();
+                      return (
+                      <ListItem
+                        key={reminder.id}
+                        secondaryAction={
+                          <Box>
+                            <IconButton edge="end" aria-label="edit" onClick={() => handleOpenDialog(reminder)} size="small">
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteReminder(reminder.id)} size="small" sx={{ ml: 1 }}>
+                              <DeleteIcon fontSize="small" color="error" />
+                            </IconButton>
+                          </Box>
+                        }
+                        sx={{ 
+                            bgcolor: 'background.paper', 
+                            borderRadius: 2, 
+                            mb: 1, 
+                            boxShadow: theme.shadows[1],
+                            opacity: isPast ? 0.6 : 1,
+                        }}
+                      >
+                        <ListItemIcon>
+                          <Checkbox
+                            edge="start"
+                            checked={Boolean(reminder.completed)}
+                            onChange={() => handleToggleCompleted(reminder.id, reminder.completed)}
+                            tabIndex={-1}
+                            disableRipple
+                          />
+                        </ListItemIcon>
+                        <ListItemText 
+                            primary={reminder.text} 
+                            secondary={`${dateVal} at ${timeVal}`} 
+                            primaryTypographyProps={{ 
+                                sx: { 
+                                    textDecoration: reminder.completed ? 'line-through' : 'none',
+                                    color: isPast && !reminder.completed ? 'error.main' : 'inherit'
+                                } 
+                            }}
+                        />
+                      </ListItem>
+                    )})}
+                  </List>
+                )}
               </Box>
-            ) : filteredReminders.length === 0 ? (
-              <Typography color="text.secondary">No reminders yet.</Typography>
-            ) : (
-              <List>
-                {filteredReminders.map((rem) => (
-                  <ReminderListItem
-                    key={rem.id}
-                    rem={rem}
-                    mode={mode}
-                    onToggleComplete={handleToggleComplete}
-                    onOpenMenu={handleMenuOpen}
-                  />
-                ))}
-              </List>
-            )}
-          </CardContent>
-        </Card>
 
-        <Card sx={{ mb: 2, borderRadius: 5 }}>
-          <Box
-            sx={{ display: "flex", alignItems: "center", cursor: "pointer", px: 2, py: 1 }}
-            onClick={() => setCompletedOpen((p) => !p)}
-          >
-            <ExpandMore sx={{ transform: completedOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
-            <Typography variant="subtitle1" sx={{ ml: 1 }}>
-              Completed ({completedReminders.length})
-            </Typography>
-          </Box>
-          <Collapse in={completedOpen} timeout="auto" unmountOnExit>
-            <CardContent sx={{ pt: 0 }}>
-              {completedReminders.length === 0 ? (
-                <Typography color="text.secondary">No completed reminders.</Typography>
-              ) : (
-                <List>
-                  {completedReminders.map((rem) => (
-                    <CompletedReminderListItem
-                      key={rem.id}
-                      rem={rem}
-                      mode={mode}
-                      onToggleComplete={handleToggleComplete}
-                      onDelete={handleDeleteReminder}
-                    />
-                  ))}
-                </List>
-              )}
-            </CardContent>
-          </Collapse>
-        </Card>
-      </Container>
+              {/* Completed Reminders Section */}
+              <Box>
+                <Button 
+                  fullWidth 
+                  onClick={() => setShowCompleted(!showCompleted)} 
+                  sx={{ 
+                    justifyContent: 'flex-start', 
+                    color: 'text.primary', 
+                    fontWeight: 'bold', 
+                    mb: 1, 
+                    py: 1,
+                    px: 0,
+                    bgcolor: 'transparent',
+                    '&:hover': { bgcolor: 'action.hover' }
+                  }}
+                  endIcon={showCompleted ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                >
+                  Completed ({filteredAndSortedReminders.completed.length})
+                </Button>
+                <Collapse in={showCompleted}>
+                  <List disablePadding>
+                    {filteredAndSortedReminders.completed.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>No completed reminders yet.</Typography>
+                    ) : (
+                      filteredAndSortedReminders.completed.map((reminder) => (
+                        <ListItem
+                          key={reminder.id}
+                          secondaryAction={
+                            <Box>
+                              <IconButton edge="end" aria-label="edit" onClick={() => handleOpenDialog(reminder)} size="small">
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteReminder(reminder.id)} size="small" sx={{ ml: 1 }}>
+                                <DeleteIcon fontSize="small" color="error" />
+                              </IconButton>
+                            </Box>
+                          }
+                          sx={{ 
+                              bgcolor: 'background.paper', 
+                              borderRadius: 2, 
+                              mb: 1, 
+                              boxShadow: theme.shadows[1],
+                              opacity: 0.7,
+                          }}
+                        >
+                          <ListItemIcon>
+                            <Checkbox
+                              edge="start"
+                              checked={Boolean(reminder.completed)}
+                              onChange={() => handleToggleCompleted(reminder.id, reminder.completed)}
+                              tabIndex={-1}
+                              disableRipple
+                            />
+                          </ListItemIcon>
+                          <ListItemText 
+                              primary={reminder.text} 
+                              secondary={`${reminder.date || ''} at ${reminder.time || ''}`}
+                              primaryTypographyProps={{ textDecoration: 'line-through' }}
+                          />
+                        </ListItem>
+                      ))
+                    )}
+                  </List>
+                </Collapse>
+              </Box>
+            </>
+          )}
+        </Container>
 
-      {/* Action menu */}
-      <Menu anchorEl={menuAnchorEl} open={Boolean(menuAnchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={handleEditOpenFromMenu}>
-          <EditIcon fontSize="small" sx={{ mr: 1 }} />
-          Edit
-        </MenuItem>
-        <MenuItem onClick={handleDeleteFromMenu} sx={{ color: "#f44336" }}>
-          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-          Delete
-        </MenuItem>
-      </Menu>
-
-      {/* Add Drawer */}
-      <SwipeableDrawer
-        anchor="bottom"
-        open={drawerOpen}
-        onClose={() => {
-          setDrawerOpen(false);
-          setNewReminderData({ text: "", date: "", time: "" });
-        }}
-        onOpen={() => setDrawerOpen(true)}
-        disableSwipeToOpen
-        PaperProps={{
-          sx: { borderTopLeftRadius: 16, borderTopRightRadius: 16, p: 3 },
-        }}
-      >
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Add New Reminder
-        </Typography>
-        <Stack spacing={2}>
-          <TextField
-            label="Reminder"
-            value={newReminderData.text}
-            onChange={(e) => setNewReminderData((p) => ({ ...p, text: e.target.value }))}
-            fullWidth
-          />
-          <TextField
-            label="Remind Date"
-            type="date"
-            value={newReminderData.date}
-            onChange={(e) => setNewReminderData((p) => ({ ...p, date: e.target.value }))}
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            label="Remind At"
-            type="time"
-            value={newReminderData.time}
-            onChange={(e) => setNewReminderData((p) => ({ ...p, time: e.target.value }))}
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-          />
-          <Button variant="contained" onClick={handleAddReminder} disabled={saving || !newReminderData.text.trim()}>
-            {saving ? "Saving..." : "Add Reminder"}
-          </Button>
-        </Stack>
-      </SwipeableDrawer>
-
-      {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Edit Reminder</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Reminder"
-            fullWidth
-            value={editReminder?.text || ""}
-            onChange={(e) => setEditReminder((p) => ({ ...p, text: e.target.value }))}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Remind Date"
-            type="date"
-            fullWidth
-            value={editReminder?.date || ""}
-            onChange={(e) => setEditReminder((p) => ({ ...p, date: e.target.value }))}
-            InputLabelProps={{ shrink: true }}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Remind At"
-            type="time"
-            fullWidth
-            value={editReminder?.time || ""}
-            onChange={(e) => setEditReminder((p) => ({ ...p, time: e.target.value }))}
-            InputLabelProps={{ shrink: true }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleEditSave} disabled={saving || !editReminder?.text?.trim()}>
-            {saving ? "Saving..." : "Save"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+        {/* Add/Edit Reminder Dialog */}
+        <Dialog open={dialogOpen} onClose={handleCloseDialog} fullWidth maxWidth="sm">
+          <DialogTitle>{currentReminder ? "Edit Reminder" : "Add New Reminder"}</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Reminder Text"
+              type="text"
+              fullWidth
+              variant="outlined"
+              value={reminderText}
+              onChange={(e) => setReminderText(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              margin="dense"
+              label="Date"
+              type="date"
+              fullWidth
+              variant="outlined"
+              value={reminderDate}
+              onChange={(e) => setReminderDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              margin="dense"
+              label="Time"
+              type="time"
+              fullWidth
+              variant="outlined"
+              value={reminderTime}
+              onChange={(e) => setReminderTime(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{ mb: 2 }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDialog} color="inherit">Cancel</Button>
+            <Button onClick={handleSaveReminder} color="primary" variant="contained">
+              {currentReminder ? "Save Changes" : "Add Reminder"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
+    </ThemeProvider>
   );
-});
-
-export default Reminders;
+}
+// ...existing code...

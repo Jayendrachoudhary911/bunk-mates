@@ -2492,6 +2492,14 @@ sx={{
       <Typography variant="body2" sx={{ color: mode === "dark" ? "#ccc" : "#555" }}>
         {packageJson.version || "N/A"}
       </Typography>
+      <Divider />
+      
+      <Typography variant="subtitle1" fontWeight="bold">
+        Applicaton Version
+      </Typography>
+      <Typography variant="body2" sx={{ color: mode === "dark" ? "#ccc" : "#555" }}>
+        {"1.0.31" || "N/A"}
+      </Typography>
     </Box>
 
     {/* About Text */}
