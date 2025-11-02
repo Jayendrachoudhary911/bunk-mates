@@ -41,6 +41,7 @@
     "webpack-dev-server": "^5.2.1"
   },
   "dependencies": {
+    "@chakra-ui/react": "^3.28.0",
     "@emoji-mart/data": "^1.2.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
