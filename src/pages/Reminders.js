@@ -142,109 +142,109 @@ function getTodayStr() {
    ------------------------- */
 
 const ReminderListItem = React.memo(
-  ({ rem, mode, onToggleComplete, onOpenMenu }) => {
-    const isDark = mode === "dark";
-    return (
-      <ListItem
-        key={rem.id}
-        sx={{
-          borderRadius: 3,
-          py: 0.3,
-          mb: 1,
-          background: isDark ? "#222226" : "#f3f3f3",
-          color: isDark ? "#fff" : "#000",
-          opacity: rem.completed ? 0.6 : 1,
-        }}
-        secondaryAction={
-          <IconButton
-            edge="end"
-            onClick={(e) => onOpenMenu(e, rem)}
-            sx={{ color: isDark ? "#fff" : "#000" }}
-            aria-label="more"
-          >
-            <MoreVertIcon />
-          </IconButton>
-        }
-      >
-        <IconButton
-          onClick={() => onToggleComplete(rem)}
-          sx={{ mr: 1, px: 0.5 }}
-          aria-label="toggle-complete"
-        >
-          {rem.completed ? (
-            <CheckCircleIcon sx={{ fontSize: 26, color: "#00c853" }} />
-          ) : (
-            <NotificationsActiveIcon sx={{ fontSize: 26 }} />
-          )}
-        </IconButton>
+  // ({ rem, mode, onToggleComplete, onOpenMenu }) => {
+  //   const isDark = mode === "dark";
+  //   return (
+  //     <ListItem
+  //       key={rem.id}
+  //       sx={{
+  //         borderRadius: 3,
+  //         py: 0.3,
+  //         mb: 1,
+  //         background: isDark ? "#222226" : "#f3f3f3",
+  //         color: isDark ? "#fff" : "#000",
+  //         opacity: rem.completed ? 0.6 : 1,
+  //       }}
+  //       secondaryAction={
+  //         <IconButton
+  //           edge="end"
+  //           onClick={(e) => onOpenMenu(e, rem)}
+  //           sx={{ color: isDark ? "#fff" : "#000" }}
+  //           aria-label="more"
+  //         >
+  //           <MoreVertIcon />
+  //         </IconButton>
+  //       }
+  //     >
+  //       <IconButton
+  //         onClick={() => onToggleComplete(rem)}
+  //         sx={{ mr: 1, px: 0.5 }}
+  //         aria-label="toggle-complete"
+  //       >
+  //         {rem.completed ? (
+  //           <CheckCircleIcon sx={{ fontSize: 26, color: "#00c853" }} />
+  //         ) : (
+  //           <NotificationsActiveIcon sx={{ fontSize: 26 }} />
+  //         )}
+  //       </IconButton>
 
-        <ListItemText
-          primary={
-            <Typography
-              variant="body1"
-              sx={{
-                fontWeight: rem.completed ? "normal" : 700,
-                textDecoration: rem.completed ? "line-through" : "none",
-              }}
-            >
-              {rem.text}
-            </Typography>
-          }
-          secondary={
-            rem.date || rem.time ? (
-              <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                {rem.date} {rem.time}
-              </Typography>
-            ) : null
-          }
-        />
-      </ListItem>
-    );
-  }
+  //       <ListItemText
+  //         primary={
+  //           <Typography
+  //             variant="body1"
+  //             sx={{
+  //               fontWeight: rem.completed ? "normal" : 700,
+  //               textDecoration: rem.completed ? "line-through" : "none",
+  //             }}
+  //           >
+  //             {rem.text}
+  //           </Typography>
+  //         }
+  //         secondary={
+  //           rem.date || rem.time ? (
+  //             <Typography variant="caption" sx={{ color: "text.secondary" }}>
+  //               {rem.date} {rem.time}
+  //             </Typography>
+  //           ) : null
+  //         }
+  //       />
+  //     </ListItem>
+  //   );
+  // }
 );
 
 const CompletedReminderListItem = React.memo(
-  ({ rem, mode, onToggleComplete, onDelete }) => {
-    const isDark = mode === "dark";
-    return (
-      <ListItem
-        key={rem.id}
-        sx={{
-          borderRadius: 3,
-          mb: 1,
-          background: isDark ? "#1a1a1a" : "#fafafa",
-          color: isDark ? "#fff" : "#000",
-          opacity: 0.7,
-        }}
-      >
-        <IconButton onClick={() => onToggleComplete(rem)} sx={{ mr: 1 }}>
-          <CheckCircleIcon sx={{ color: "#00c853" }} />
-        </IconButton>
+  // ({ rem, mode, onToggleComplete, onDelete }) => {
+  //   const isDark = mode === "dark";
+  //   return (
+  //     <ListItem
+  //       key={rem.id}
+  //       sx={{
+  //         borderRadius: 3,
+  //         mb: 1,
+  //         background: isDark ? "#1a1a1a" : "#fafafa",
+  //         color: isDark ? "#fff" : "#000",
+  //         opacity: 0.7,
+  //       }}
+  //     >
+  //       <IconButton onClick={() => onToggleComplete(rem)} sx={{ mr: 1 }}>
+  //         <CheckCircleIcon sx={{ color: "#00c853" }} />
+  //       </IconButton>
 
-        <ListItemText
-          primary={
-            <Typography variant="body1" sx={{ textDecoration: "line-through" }}>
-              {rem.text}
-            </Typography>
-          }
-          secondary={
-            rem.time ? (
-              <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                {rem.time}
-              </Typography>
-            ) : null
-          }
-        />
-        <IconButton
-          size="small"
-          onClick={() => onDelete(rem.id)}
-          aria-label="delete-completed"
-        >
-          <DeleteOutlineIcon sx={{ color: "#e53935" }} />
-        </IconButton>
-      </ListItem>
-    );
-  }
+  //       <ListItemText
+  //         primary={
+  //           <Typography variant="body1" sx={{ textDecoration: "line-through" }}>
+  //             {rem.text}
+  //           </Typography>
+  //         }
+  //         secondary={
+  //           rem.time ? (
+  //             <Typography variant="caption" sx={{ color: "text.secondary" }}>
+  //               {rem.time}
+  //             </Typography>
+  //           ) : null
+  //         }
+  //       />
+  //       <IconButton
+  //         size="small"
+  //         onClick={() => onDelete(rem.id)}
+  //         aria-label="delete-completed"
+  //       >
+  //         <DeleteOutlineIcon sx={{ color: "#e53935" }} />
+  //       </IconButton>
+  //     </ListItem>
+  //   );
+  // }
 );
 
 /* -------------------------
@@ -685,7 +685,7 @@ const Reminders = forwardRef(({ open, onClose }, ref) => {
       </motion.div>
     </Box>
 
-        {/* <Card sx={{ mb: 2, borderRadius: 5 }}>
+        <Card sx={{ mb: 2, borderRadius: 5 }}>
           <CardContent>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
               Active Reminders ({filteredReminders.length})
@@ -742,11 +742,11 @@ const Reminders = forwardRef(({ open, onClose }, ref) => {
               )}
             </CardContent>
           </Collapse>
-        </Card> */}
+        </Card>
       </Container>
 
       {/* Action menu */}
-      {/* <Menu anchorEl={menuAnchorEl} open={Boolean(menuAnchorEl)} onClose={handleMenuClose}>
+      <Menu anchorEl={menuAnchorEl} open={Boolean(menuAnchorEl)} onClose={handleMenuClose}>
         <MenuItem onClick={handleEditOpenFromMenu}>
           <EditIcon fontSize="small" sx={{ mr: 1 }} />
           Edit
@@ -755,10 +755,10 @@ const Reminders = forwardRef(({ open, onClose }, ref) => {
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
           Delete
         </MenuItem>
-      </Menu> */}
+      </Menu>
 
       {/* Add Drawer */}
-      {/* <SwipeableDrawer
+      <SwipeableDrawer
         anchor="bottom"
         open={drawerOpen}
         onClose={() => {
@@ -801,10 +801,10 @@ const Reminders = forwardRef(({ open, onClose }, ref) => {
             {saving ? "Saving..." : "Add Reminder"}
           </Button>
         </Stack>
-      </SwipeableDrawer> */}
+      </SwipeableDrawer>
 
       {/* Edit Dialog */}
-      {/* <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Edit Reminder</DialogTitle>
         <DialogContent>
           <TextField
@@ -838,7 +838,7 @@ const Reminders = forwardRef(({ open, onClose }, ref) => {
             {saving ? "Saving..." : "Save"}
           </Button>
         </DialogActions>
-      </Dialog> */}
+      </Dialog>
     </Box>
   );
 });
