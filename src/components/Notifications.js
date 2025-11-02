@@ -42,6 +42,8 @@ import { db, auth } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+import { useSwipeable } from "react-swipeable";
+import { motion } from "framer-motion"; // Optional: smooth animations
 
 // Helper function to format date labels
 const formatDateLabel = (timestamp) => {
@@ -79,6 +81,220 @@ const getGroupDisplayTime = (timestamp) => {
 
 // ⭐️ Helper to capitalize the first letter of a string
 const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// NotificationCard.js (or inside the same file above your main component)
+const NotificationCard = ({
+  dateLabel,
+  index,
+  group,
+  handleGroupClick,
+  markGroupAsRead,
+  deleteNotification,
+}) => {
+  const latestNotif = group.notifications[0];
+  const groupCount = group.notifications.length;
+  const isGroupSeen = group.isSeen;
+
+  const [swiped, setSwiped] = React.useState(false);
+
+  const handlers = useSwipeable({
+    onSwipedLeft: () => setSwiped(true),
+    onSwipedRight: () => setSwiped(false),
+    preventScrollOnSwipe: true,
+    trackMouse: true,
+  });
+
+  return (
+    <Box
+      key={`${dateLabel}-${index}`}
+      sx={{
+        position: "relative",
+        overflow: "hidden",
+        mb: 0,
+        borderRadius: 3,
+      }}
+    >
+      {/* Swipe Background (Delete + Mark as Read) */}
+      <motion.div
+        animate={{ x: swiped ? 0 : "100%" }}
+        transition={{ duration: 0.3 }}
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          paddingRight: "20px",
+          paddingLeft: "30px",
+          zIndex: 0,
+          background:
+            "linear-gradient(90deg, rgba(34,197,94,0.2) 0%, rgba(239,68,68,0.2) 100%)",
+          backdropFilter: "blur(10px) saturate(180%)",
+          WebkitBackdropFilter: "blur(10px) saturate(180%)",
+        }}
+      >
+        <IconButton
+          size="large"
+          sx={{
+            bgcolor: "rgba(34,197,94,0.25)",
+            color: "success.main",
+            "&:hover": { bgcolor: "rgba(34,197,94,0.45)" },
+            transition: "0.3s",
+            p: 1.6,
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            markGroupAsRead(group);
+            setSwiped(false);
+          }}
+        >
+          <DoneIcon fontSize="medium" />
+        </IconButton>
+        <IconButton
+          size="large"
+          sx={{
+            bgcolor: "rgba(239,68,68,0.25)",
+            color: "error.main",
+            "&:hover": { bgcolor: "rgba(239,68,68,0.45)" },
+            transition: "0.3s",
+            p: 1.6,
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteNotification(latestNotif.id);
+            setSwiped(false);
+          }}
+        >
+          <DeleteIcon fontSize="medium" />
+        </IconButton>
+      </motion.div>
+
+      {/* Main Notification Card */}
+      <motion.div
+        {...handlers}
+        animate={{ x: swiped ? -140 : 0 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+      >
+        <Card
+          onClick={() => handleGroupClick(group)}
+          sx={(theme) => ({
+            cursor: "pointer",
+            bgcolor: isGroupSeen
+              ? theme.palette.mode === "dark"
+                ? "transparent"
+                : "transparent"
+              : theme.palette.mode === "dark"
+              ? "rgba(85, 85, 85, 0.18)"
+              : "rgba(77, 77, 77, 0.08)",
+            backdropFilter: "blur(14px) saturate(180%)",
+            WebkitBackdropFilter: "blur(14px) saturate(180%)",
+            boxShadow: "none",
+            pb: 0,
+            justifyContent: "center",
+            borderRadius: 3,
+            transition: "all 0.25s ease",
+            "&:hover": {
+              transform: "translateY(-2px)",
+              boxShadow: "none",
+            },
+            '&.MuiPaper-root': { backgroundImage: "none" },
+          })}
+        >
+          <CardContent
+            sx={{
+              py: 1,
+              px: 1.5,
+            }}
+          >
+            <ListItem disablePadding sx={{ alignItems: "center", justifyContent: "center" }}>
+              <ListItemAvatar>
+                <Avatar
+                  src={latestNotif.pic}
+                  sx={{
+                    bgcolor: "secondary.main",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+                    width: 42,
+                    height: 42,
+                  }}
+                >
+                  {!latestNotif.pic &&
+                    (group.groupType === "chat" ? (
+                      <ChatBubbleIcon fontSize="small" />
+                    ) : (
+                      <NotificationsIcon fontSize="small" />
+                    ))}
+                </Avatar>
+              </ListItemAvatar>
+
+              <ListItemText
+                sx={{ ml: 1 }}
+                primary={
+                  <Box display="flex" alignItems="center" width="100%">
+                    <Typography
+                      component="span"
+                      fontWeight={700}
+                      fontSize="0.95rem"
+                      color="text.primary"
+                      noWrap
+                      sx={{ flexGrow: 1 }}
+                    >
+                      {group.senderTitle}
+                    </Typography>
+
+                    {groupCount > 1 && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "text.secondary",
+                          fontWeight: 600,
+                          ml: 0.5,
+                        }}
+                      >
+                        ({groupCount}{" "}
+                        {group.groupType === "chat" ? "msgs" : "updates"})
+                      </Typography>
+                    )}
+
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      sx={{
+                        color: "text.secondary",
+                        ml: "auto",
+                        fontSize: "0.75rem",
+                      }}
+                    >
+                      {group.groupTime}
+                    </Typography>
+                  </Box>
+                }
+                secondary={
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      mt: 0.3,
+                      color: "text.secondary",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    {groupCount > 1
+                      ? `Latest: ${latestNotif.content}`
+                      : latestNotif.content}
+                  </Typography>
+                }
+              />
+            </ListItem>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </Box>
+  );
+};
 
 export default function Notifications() {
   const [notifications, setNotifications] = useState([]);
@@ -454,64 +670,17 @@ export default function Notifications() {
                   <Typography variant="overline" sx={{ display: 'block', fontWeight: 700, fontSize: '0.8rem', pt: 1.5, px: 2, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, mt: 0 }}>
                     {dateLabel}
                   </Typography>
-                  {Object.values(groupedNotifications[dateLabel]).map((group, index) => {
-                    const latestNotif = group.notifications[0];
-                    const groupCount = group.notifications.length;
-                    const isGroupSeen = group.isSeen;
-
-                    return (
-                        <Card
-                            key={`${dateLabel}-${index}`}
-                            onClick={() => handleGroupClick(group)} 
-                            sx={{
-                              mb: 0,
-                              my: 0.3,
-                              cursor: 'pointer',
-                              bgcolor: isGroupSeen ? 'transparent' : 'primary.mainbg',
-                              color: isGroupSeen ? 'text.secondary' : 'primary.contrastText',
-                              boxShadow: "none",
-                              borderRadius: 3,
-                              '&.MuiPaper-root': {
-                                backgroundImage: 'none',
-                              },
-                            }}
-                          >
-                          <CardContent sx={{ pt: 0, pb: "0 !Important", my: 0.3 }}>
-                            <ListItem disablePadding sx={{ pt: 0, pb: 0 }}>
-                              <ListItemAvatar>
-                                <Avatar src={latestNotif.pic} sx={{ bgcolor: 'secondary.main' }}>
-                                  {!latestNotif.pic && (group.groupType === 'chat' ? <ChatBubbleIcon /> : <NotificationsIcon />)}
-                                </Avatar>
-                              </ListItemAvatar>
-                              <ListItemText
-                                primary={
-                                    <Box>
-                                        <Typography component="span" fontWeight="bold" color="text.primary" noWrap sx={{ mr: 1 }}>
-                                            {group.senderTitle}
-                                        </Typography>
-                                        {groupCount > 1 && (
-                                            <Typography component="span" variant="caption" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>
-                                                ({groupCount} {group.groupType === 'chat' ? 'messages' : 'updates'})
-                                            </Typography>
-                                        )}
-                                        <Typography component="span" variant="caption" sx={{ color: 'text.secondary', float: 'right' }}>
-                                            {group.groupTime}
-                                        </Typography>
-                                    </Box>
-                                }
-                                secondary={
-                                  <Typography variant="body2" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'text.secondary' }}>
-                                    {groupCount > 1 ? `Latest: ${latestNotif.content}` : latestNotif.content}
-                                  </Typography>
-                                }
-                                primaryTypographyProps={{ sx: { mb: 0.5 } }}
-                                sx={{ '& .MuiListItemText-primary': { mb: 0.5 } }}
-                              />
-                            </ListItem>
-                          </CardContent>
-                        </Card>
-                    );
-                  })}
+{Object.values(groupedNotifications[dateLabel]).map((group, index) => (
+  <NotificationCard
+    key={`${dateLabel}-${index}`}
+    dateLabel={dateLabel}
+    index={index}
+    group={group}
+    handleGroupClick={handleGroupClick}
+    markGroupAsRead={markGroupAsRead}
+    deleteNotification={deleteNotification}
+  />
+))}
                 </React.Fragment>
               ))}
             </List>

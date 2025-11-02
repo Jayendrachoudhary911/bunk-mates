@@ -91,7 +91,6 @@ import BroadcastOnPersonalIcon from "@mui/icons-material/BroadcastOnPersonal";
 import WifiTetheringIcon from "@mui/icons-material/WifiTethering";
 
 
-
 const fadeIn = keyframes`
   from {
     opacity: 0;
@@ -102,109 +101,6 @@ const fadeIn = keyframes`
     transform: translateY(0);
   }
 `;
-
-// ... (CATEGORY_ICONS constant remains the same)
-const CATEGORY_ICONS = {
-  Food: {
-    icon: <RestaurantOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#ff9c000f",   // orange[50]
-    bgcolor: "#ff9c0030",   // orange[50]
-    mcolor: "#ff98005e",    // orange[500]
-    fcolor: "#e3aa8b"       // orange[900]
-  },
-  Tour: {
-    icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#0093ff0f",   // blue[50]
-    bgcolor: "#0093ff30",   // blue[50]
-    mcolor: "#2196f35e",    // blue[500]
-    fcolor: "#92b6ef"       // blue[900]
-  },
-  Rent: {
-    icon: <HomeOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#88ff000f",   // lightGreen[50]
-    bgcolor: "#88ff0030",   // lightGreen[50]
-    mcolor: "#8bc34a5e",    // lightGreen[500]
-    fcolor: "#8dc378"       // lightGreen[900]
-  },
-  Utilities: {
-    icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#8ad0ff0f",   // blueGrey[50]
-    bgcolor: "#8ad0ff30",   // blueGrey[50]
-    mcolor: "#607d8b5e",    // blueGrey[500]
-    fcolor: "#8e9ba1"       // blueGrey[900]
-  },
-  Shopping: {
-    icon: <LocalMallOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#ff00550f",   // pink[50]
-    bgcolor: "#ff005530",   // pink[50]
-    mcolor: "#e91e635e",    // pink[500]
-    fcolor: "#ffbce0"       // pink[900]
-  },
-  Fun: {
-    icon: <EmojiEventsOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#f5e7480f",   // yellow[50]
-    bgcolor: "#f5e74830",   // yellow[50]
-    mcolor: "#c3b6415e",    // yellow[500]
-    fcolor: "#ddca15"       // yellow[900]
-  },
-  Hospital: {
-    icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#ff00260f",   // red[50]
-    bgcolor: "#ff002630",   // red[50]
-    mcolor: "#f443365e",    // red[500]
-    fcolor: "#efa4a4"       // red[900]
-  },
-  Education: {
-    icon: <SchoolOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#0093ff0f",   // blue[50]
-    bgcolor: "#0093ff30",   // blue[50]
-    mcolor: "#2196f35e",    // blue[500]
-    fcolor: "#92b6ef"       // indigo[900]
-  },
-  Fuel: {
-    icon: <LocalGasStationOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#fbe9e70f",   // deepOrange[50]
-    bgcolor: "#fbe9e730",   // deepOrange[50]
-    mcolor: "#ff5722",      // deepOrange[500]
-    fcolor: "#bf360c"       // deepOrange[900]
-  },
-  Entertainment: {
-    icon: <MovieOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#f3e5f50f",   // purple[50]
-    bgcolor: "#f3e5f530",   // purple[50]
-    mcolor: "#9c27b0",      // purple[500]
-    fcolor: "#4a148c"       // purple[900]
-  },
-  Bills: {
-    icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#e0f2f10f",   // teal[50]
-    bgcolor: "#e0f2f130",   // teal[50]
-    mcolor: "#009688",      // teal[500]
-    fcolor: "#004d40"       // teal[900]
-  },
-  Travel: {
-    icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#e1f5fe0f",   // lightBlue[50]
-    bgcolor: "#e1f5fe",         // lightBlue[50]
-    mcolor: "#03a9f4",          // lightBlue[500]
-    fcolor: "#01579b"           // lightBlue[900]
-  },
-  Medical: {
-    icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#fce4ec0f",   // pink[50]
-    bgcolor: "#fce4ec",         // pink[50]
-    mcolor: "#e91e63",          // pink[500]
-    fcolor: "#880e4f"           // pink[900]
-  },
-  Other: {
-    icon: <CategoryOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#f5f5f50f",   // grey[50]
-    bgcolor: "#f5f5f530",       // grey[100]
-    mcolor: "#bdbdbd5e",        // grey[400]
-    fcolor: "#a4a4a4"           // grey[900]
-  }
-};
-// ... (rest of the constants remain the same)
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -647,36 +543,30 @@ useEffect(() => {
 }, [settings.locationMode, settings.manualLocation]);
 
 
-  useEffect(() => {
-    const fetchReminders = async () => {
-      setRemindersLoading(true);
-      try {
-        const user = getUserFromStorage();
-        if (!user || !user.uid) {
-          setReminders([]);
-          setRemindersLoading(false);
-          return;
-        }
-        const q = query(
-          collection(db, "reminders"),
-          orderBy("createdAt", "desc")
-        );
-        const querySnapshot = await getDocs(q);
-        const data = [];
-        querySnapshot.forEach((doc) => {
-          const reminder = { id: doc.id, ...doc.data() };
-          if (reminder.uid && reminder.uid === user.uid) {
-            data.push(reminder);
-          }
-        });
-        setReminders(data);
-      } catch (err) {
-        setReminders([]);
-      }
-      setRemindersLoading(false);
-    };
-    fetchReminders();
-  }, []);
+useEffect(() => {
+    if (!user?.uid) { // 👈 FIX: Guard against null user or missing uid
+      setReminders([]);
+      setRemindersLoading(false); // Make sure to handle loading state correctly
+      return;
+    }
+
+    setRemindersLoading(true);
+    
+    const unsubscribe = onSnapshot(
+      query(collection(db, "reminders"), where("uid", "==", user.uid)), // Now safe to access user.uid
+      (snapshot) => {
+        const remindersData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setReminders(remindersData);
+        setRemindersLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching reminders:", error);
+        setRemindersLoading(false);
+      }
+    );
+
+    return () => unsubscribe(); // Cleanup subscription on unmount
+  }, [user]);
 
   useEffect(() => {
     if (!user?.uid) {
