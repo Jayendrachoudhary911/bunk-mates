@@ -4,7 +4,7 @@ import {
   Button, Card, CardContent, List, ListItem, ListItemIcon, ListItemText,
   Divider, IconButton, TextField, Dialog, DialogTitle, DialogContent,
   DialogActions, Snackbar, InputAdornment, Drawer,
-  SwipeableDrawer, Paper, Checkbox, Tooltip,
+  SwipeableDrawer, Paper, Checkbox, Tooltip, Collapse, useTheme
 } from "@mui/material";
 import {
   LocationOn, AccessTime, CheckCircle, Cancel, Edit, Add, ContentCopy
@@ -27,10 +27,12 @@ import TelegramIcon from '@mui/icons-material/Telegram';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import TwitterIcon from '@mui/icons-material/Twitter';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { useWeather } from "../contexts/WeatherContext";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+import { motion } from "framer-motion";
 
 
 export default function TripDetails() {
@@ -64,6 +66,7 @@ export default function TripDetails() {
   const [checklistDrafts, setChecklistDrafts] = useState([]);
   const [uploadingBatch, setUploadingBatch] = useState(false);
   const [checklistViewAllOpen, setChecklistViewAllOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const unsubTimeline = onSnapshot(collection(db, `trips/${id}/timeline`), (snap) => {
   const events = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -1121,115 +1124,108 @@ const renderExpensePayers = (expense) => {
     {budget?.contributors?.length > 0 && (
       <Box
         sx={{
-          p: 2.5,
           borderRadius: 3,
-          backgroundColor: mode === 'dark' ? '#1e1e1e' : '#f9f9f9',
-          border: `1px solid ${mode === 'dark' ? '#333' : '#e0e0e0'}`,
-          mb: 3,
+          mb: 1,
+          transition: "all 0.3s ease",
         }}
       >
-        {/* Contributors Summary */}
-        {(() => {
-          const totalContributed = budget.contributors.reduce(
-            (sum, c) => sum + (Number(c.amount) || 0),
-            0
-          );
-          const totalBudget = Number(budget.total) || 0;
-          const remainingBudget = totalBudget - totalContributed;
-
-          return (
-            <Box mb={2}>
-              <Typography
-                variant="subtitle2"
-                color="text.secondary"
-                sx={{ mb: 0.5, fontWeight: 600 }}
-              >
-                Contributors Summary
-              </Typography>
-              <Typography variant="body1" fontWeight="bold">
-                ₹{totalContributed.toFixed(2)} / ₹{totalBudget.toFixed(2)}
-              </Typography>
-              <Typography
-                variant="body2"
-                color={remainingBudget < 0 ? 'error.main' : 'text.secondary'}
-                sx={{ mt: 0.3 }}
-              >
-                Remaining: ₹{remainingBudget.toFixed(2)}
-              </Typography>
-            </Box>
-          );
-        })()}
-
-        {/* Individual Contributions */}
-        <Typography
-          variant="subtitle2"
-          color="text.secondary"
-          sx={{ fontWeight: 600, mb: 1.5 }}
+        {/* Header */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+          onClick={() => setOpen(!open)}
         >
-          Individual Contributions
-        </Typography>
+          <Typography
+            variant="subtitle1"
+            sx={{
+              fontWeight: 600,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Contributions
+          </Typography>
+          <IconButton
+            size="small"
+            sx={{
+              transform: open ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 0.3s ease",
+            }}
+          >
+            <ExpandMoreIcon />
+          </IconButton>
+        </Box>
 
-        {budget.contributors.map((c, i) => {
-          const intendedContribution = Number(c.amount) || 0;
-          const actualPaid = calculateMemberPayments(c.uid);
-          const remaining = intendedContribution - actualPaid;
+        <Collapse in={open} timeout={400}>
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Divider sx={{ my: 1.5 }} />
+            {budget.contributors.map((c, i) => {
+              const intendedContribution = Number(c.amount) || 0;
+              const actualPaid = calculateMemberPayments(c.uid);
+              const remaining = intendedContribution - actualPaid;
 
-          return (
-            <Box
-              key={i}
-              sx={{
-                mb: 1,
-                p: 1.2,
-                borderRadius: 2,
-                backgroundColor:
-                  mode === 'dark' ? '#2a2a2a' : 'rgba(0,0,0,0.02)',
-                border: `1px solid ${mode === 'dark' ? '#333' : '#e0e0e0'}`,
-              }}
-            >
-              <Typography variant="body2" fontWeight="bold">
-                {getMemberName(c.uid)} (Target: ₹{intendedContribution.toFixed(2)})
-              </Typography>
-
-              <Typography
-                variant="caption"
-                display="flex"
-                justifyContent="space-between"
-                mt={0.3}
-                color="text.secondary"
-              >
-                Paid:
-                <Typography
-                  component="span"
-                  fontWeight="medium"
-                  color={
-                    actualPaid >= intendedContribution
-                      ? 'success.main'
-                      : 'text.primary'
-                  }
+              return (
+                <Box
+                  key={i}
+                  sx={{
+                    mb: 1.5,
+                    borderRadius: 2,
+                    transition: "all 0.3s ease",
+                  }}
                 >
-                  ₹{actualPaid.toFixed(2)}
-                </Typography>
-              </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {getMemberName(c.uid)} — ₹{intendedContribution.toFixed(2)}
+                  </Typography>
 
-              <Typography
-                variant="caption"
-                display="flex"
-                justifyContent="space-between"
-                color="text.secondary"
-              >
-                Remaining:
-                <Typography
-                  component="span"
-                  fontWeight="bold"
-                  color={remaining > 0 ? 'error.main' : 'success.main'}
-                >
-                  ₹{Math.abs(remaining).toFixed(2)}{' '}
-                  {remaining > 0 ? 'Needed' : 'Owed'}
-                </Typography>
-              </Typography>
-            </Box>
-          );
-        })}
+                  <Typography
+                    variant="caption"
+                    display="flex"
+                    justifyContent="space-between"
+                    mt={0.3}
+                    color="text.secondary"
+                  >
+                    Paid:
+                    <Typography
+                      component="span"
+                      fontWeight="medium"
+                      color={
+                        actualPaid >= intendedContribution
+                          ? "error.main"
+                          : "text.primary"
+                      }
+                    >
+                      ₹{actualPaid.toFixed(2)}
+                    </Typography>
+                  </Typography>
+
+                  <Typography
+                    variant="caption"
+                    display="flex"
+                    justifyContent="space-between"
+                    color="text.secondary"
+                  >
+                    Remaining:
+                    <Typography
+                      component="span"
+                      fontWeight="bold"
+                      color={remaining > 0 ? "success.main" : "error.main"}
+                    >
+                      ₹{remaining < 0 ? "-" : ""}{Math.abs(remaining).toFixed(2)}
+                    </Typography>
+                  </Typography>
+                </Box>
+              );
+            })}
+          </motion.div>
+        </Collapse>
       </Box>
     )}
 
@@ -1237,10 +1233,7 @@ const renderExpensePayers = (expense) => {
     {budget.expenses?.length > 0 && (
       <Box
         sx={{
-          p: 2.5,
           borderRadius: 3,
-          backgroundColor: mode === 'dark' ? '#1e1e1e' : '#f9f9f9',
-          border: `1px solid ${mode === 'dark' ? '#333' : '#e0e0e0'}`,
         }}
       >
         <Typography
@@ -1264,10 +1257,7 @@ const renderExpensePayers = (expense) => {
                 borderRadius: 2,
                 backgroundColor:
                   mode === 'dark' ? 'rgba(255,255,255,0.04)' : '#fff',
-                boxShadow:
-                  mode === 'dark'
-                    ? '0 1px 3px rgba(0,0,0,0.5)'
-                    : '0 1px 3px rgba(0,0,0,0.1)',
+                boxShadow: "none",
               }}
             >
               <Typography
@@ -1286,6 +1276,7 @@ const renderExpensePayers = (expense) => {
                 sx={{
                   px: 1,
                   py: 0.3,
+                  ml: 1,
                   borderRadius: 1,
                   backgroundColor:
                     mode === 'dark'
@@ -2601,376 +2592,308 @@ const renderExpensePayers = (expense) => {
                   </SwipeableDrawer>
 
         {/* Expense Drawer */}
-        <SwipeableDrawer
-          anchor="bottom"
-          open={expenseDrawerOpen}
-          onClose={() => setExpenseDrawerOpen(false)}
-          ModalProps={{
-            BackdropProps: {
-              sx: {
-                p: 3,
-                backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-                backdropFilter: "blur(2px)",
-              },
-            },
-          }}
-          PaperProps={{
-            sx: {
-              borderTopLeftRadius: 16,
-              borderTopRightRadius: 16,
-              backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
-              p: 3,
-              boxShadow: "none"
-            },
+<SwipeableDrawer
+  anchor="bottom"
+  open={expenseDrawerOpen}
+  onClose={() => setExpenseDrawerOpen(false)}
+  onOpen={() => {}}
+  disableBackdropTransition={false}
+  ModalProps={{
+    BackdropProps: {
+      sx: {
+        backgroundColor: "rgba(0,0,0,0.2)",
+        backdropFilter: "blur(4px)",
+      },
+    },
+  }}
+  PaperProps={{
+    sx: {
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      background: mode === "dark"
+        ? "rgba(20,20,20,0.9)"
+        : "rgba(255,255,255,0.9)",
+      backdropFilter: "blur(16px)",
+      boxShadow: mode === "dark"
+        ? "0px -6px 20px rgba(0,0,0,0.5)"
+        : "0px -6px 20px rgba(0,0,0,0.1)",
+      p: 3,
+      maxHeight: "85vh",
+      overflowY: "auto",
+      transition: "all 0.3s ease-in-out",
+    },
+  }}
+>
+  {/* Drag Handle */}
+  <Box
+    sx={{
+      width: 40,
+      height: 5,
+      bgcolor: "grey.500",
+      opacity: 0.5,
+      borderRadius: 2.5,
+      mx: "auto",
+      mb: 2,
+    }}
+  />
+
+  {/* Header */}
+  <Typography
+    variant="h6"
+    fontWeight="bold"
+    textAlign="center"
+    sx={{
+      mb: 2.5,
+      color: mode === "dark" ? "#fff" : "#000",
+      letterSpacing: 0.5,
+    }}
+  >
+    Add New Expense
+  </Typography>
+
+  {/* Expense Fields Section */}
+  <Box
+    component={motion.div}
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.3 }}
+  >
+    {/* Expense Name */}
+    <TextField
+      fullWidth
+      label="Expense Name"
+      value={newExpense.name}
+      onChange={(e) =>
+        setNewExpense((prev) => ({ ...prev, name: e.target.value }))
+      }
+      sx={{
+        mb: 2,
+        borderRadius: 3,
+        "& .MuiOutlinedInput-root": {
+          borderRadius: 3,
+          backgroundColor: mode === "dark" ? "#1e1e1e" : "#fafafa",
+          "&:hover fieldset": { borderColor: "#888" },
+          "&.Mui-focused fieldset": { borderColor: mode === "dark" ? "#fff" : "#000" },
+        },
+      }}
+    />
+
+    {/* Split Mode Button */}
+    <Button
+      fullWidth
+      variant="outlined"
+      onClick={() => {
+        const newMode =
+          newExpense.splitMode === "single_payer"
+            ? "multiple_payers"
+            : "single_payer";
+        setNewExpense((prev) => ({ ...prev, splitMode: newMode }));
+        setExpenseContributors(
+          initializeExpenseContributors(memberDetails, newMode)
+        );
+      }}
+      sx={{
+        borderRadius: 3,
+        py: 1.5,
+        mb: 2,
+        textTransform: "none",
+        borderColor: theme => theme.palette.divider,
+        color: theme => theme.palette.text.primary,
+        backgroundColor:
+          newExpense.splitMode === "multiple_payers"
+            ? (mode === "dark" ? "#ffffff10" : "#00000008")
+            : "transparent",
+        transition: "all 0.2s ease",
+        "&:hover": {
+          backgroundColor: mode === "dark" ? "#ffffff15" : "#00000010",
+          transform: "translateY(-2px)",
+        },
+      }}
+    >
+      {newExpense.splitMode === "single_payer"
+        ? "Switch to Multiple Contributors"
+        : `Multiple Payers Mode (Total ₹${parseFloat(
+            newExpense.amount || 0
+          ).toFixed(2)})`}
+    </Button>
+
+    {/* Conditional payer inputs */}
+    {newExpense.splitMode === "single_payer" && (
+      <TextField
+        select
+        fullWidth
+        label="Paid By"
+        value={newExpense.paidBy || currentUseruid}
+        onChange={(e) =>
+          setNewExpense((prev) => ({ ...prev, paidBy: e.target.value }))
+        }
+        SelectProps={{ native: true }}
+        sx={{
+          mb: 2,
+          borderRadius: 3,
+          "& .MuiOutlinedInput-root": {
+            borderRadius: 3,
+            backgroundColor: mode === "dark" ? "#1e1e1e" : "#fafafa",
+          },
+        }}
+      >
+        {memberDetails.map((member) => (
+          <option key={member.uid} value={member.uid}>
+            {getMemberName(member.uid)}
+          </option>
+        ))}
+      </TextField>
+    )}
+
+    {newExpense.splitMode === "multiple_payers" && (
+      <Collapse in={true}>
+        <Box
+          sx={{
+            mb: 2,
+            p: 1,
+            borderRadius: 3,
+            backgroundColor:
+              mode === "dark" ? "#ffffff08" : "#00000008",
           }}
         >
-
-          <Box
-            sx={{
-              width: 40,
-              height: 5,
-              bgcolor: "grey.500",
-              opacity: 0.5,
-              borderRadius: 2.5,
-              mx: "auto",
-              mb: 2,
-              cursor: "grab",
-            }}
-          />
-
-          <Typography variant="h6" mb={2}>
-            Add New Expense
+          <Typography variant="subtitle2" fontWeight={600} mb={1}>
+            Members Paid:
           </Typography>
 
-          <TextField
-            fullWidth
-            label="Expense Name"
-            value={newExpense.name}
-            onChange={(e) =>
-              setNewExpense((prev) => ({ ...prev, name: e.target.value }))
-            }
-            sx={{
-              bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-              borderRadius: 8,
-              mb: 2,
-              boxShadow: "none",
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: mode === "dark" ? "#fff" : "#000",
-              },
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 8,
-                '& fieldset': {
-                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-                },
-                '&:hover fieldset': {
-                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-                  boxShadow: "none",
-                  color: mode === "dark" ? "#fff" : "#000"
-                },
-                backgroundColor: 'inherit',
-              },
-              input: {
-                color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-              },
-              label: {
-                color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-              },
-            }}
-          />
+          {expenseContributors.map((c, index) => (
+            <Box
+              key={c.uid}
+              display="flex"
+              alignItems="center"
+              gap={1.5}
+              sx={{
+                p: 1,
+                mb: 1,
+                borderRadius: 2,
+                backgroundColor: c.included
+                  ? mode === "dark"
+                    ? "#ffffff10"
+                    : "#00000010"
+                  : "transparent",
+                transition: "all 0.25s ease",
+              }}
+            >
+              <Checkbox
+                checked={c.included}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setExpenseContributors((prev) =>
+                    prev.map((x, i) =>
+                      i === index
+                        ? { ...x, included: checked, paidAmount: checked ? x.paidAmount : 0 }
+                        : x
+                    )
+                  );
+                }}
+              />
+              <Avatar src={c.photoURL} sx={{ width: 32, height: 32 }} />
+              <Typography sx={{ flexGrow: 1 }}>
+                {getMemberName(c.uid)}
+              </Typography>
 
-<Box mb={2}>
-              <Button
-                  fullWidth
-                  variant="outlined"
-                  onClick={() => {
-                      const newMode = newExpense.splitMode === 'single_payer' ? 'multiple_payers' : 'single_payer';
-                      setNewExpense(prev => ({ ...prev, splitMode: newMode }));
-                      // Re-initialize contributors based on the new mode
-                      setExpenseContributors(initializeExpenseContributors(memberDetails, newMode));
-                  }}
-                  sx={{ 
-                      borderRadius: 8, 
-                      p: 1.5,
-                      textTransform: 'none',
-                      borderColor: theme => theme.palette.text.primary, 
-                      color: theme => theme.palette.text.primary,
-                      backgroundColor: newExpense.splitMode === 'multiple_payers' ? '#ffc10711' : 'transparent'
-                  }}
-              >
-                  {newExpense.splitMode === 'single_payer' 
-                    ? `Switch to Multiple Payers/Contributors` 
-                    : `Current Mode: Multiple Payers (Total: ₹${parseFloat(newExpense.amount || 0).toFixed(2)})`}
-              </Button>
-          </Box>
-          
-          
-          {newExpense.splitMode === 'single_payer' && (
-              <TextField
-                  select
-                  fullWidth
-                  label="Paid By (Single Payer)"
-                  value={newExpense.paidBy || currentUseruid}
+              {c.included && (
+                <TextField
+                  size="small"
+                  label="Amount Paid"
+                  type="number"
+                  value={c.paidAmount}
                   onChange={(e) =>
-                      setNewExpense((prev) => ({ ...prev, paidBy: e.target.value }))
+                    setExpenseContributors((prev) =>
+                      prev.map((x, i) =>
+                        i === index ? { ...x, paidAmount: e.target.value } : x
+                      )
+                    )
                   }
-                  SelectProps={{ native: true }}
                   sx={{
-                    bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-                    borderRadius: 8,
-                    mb: 2,
-                    boxShadow: "none",
-                    '& .MuiOutlinedInput-root': { borderRadius: 8 },
+                    width: 110,
+                    "& .MuiOutlinedInput-root": { borderRadius: 2 },
                   }}
-              >
-                  {memberDetails.map((member) => (
-                      <option key={member.uid} value={member.uid}>
-                          {getMemberName(member.uid)}
-                      </option>
-                  ))}
-              </TextField>
-          )}
-
-          {newExpense.splitMode === 'multiple_payers' && (
-            <Box>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                        Members Paid:
-                    </Typography>
-                    <Button
-                        size="small"
-                        onClick={() => {
-                            // Toggle all members' inclusion and reset paid amount for all
-                            const allIncluded = expenseContributors.every(c => c.included);
-                            setExpenseContributors(prev => prev.map(c => ({
-                                ...c,
-                                included: !allIncluded,
-                                paidAmount: 0 // Reset amount on toggle all
-                            })));
-                        }}
-                        sx={{ textTransform: 'none', borderRadius: 8 }}
-                    >
-                        {expenseContributors.every(c => c.included) ? 'Clear All' : 'Select All'}
-                    </Button>
-                </Box>
-
-                {expenseContributors.map((contributor, index) => (
-                    <Box key={contributor.uid} display="flex" alignItems="center" gap={1} mb={1} sx={{ p: 1, borderRadius: 2, backgroundColor: contributor.included ? (mode === "dark" ? "#ffffff11" : "#00000011") : 'transparent' }}>
-                        <Checkbox
-                            checked={contributor.included}
-                            onChange={(e) => {
-                                const checked = e.target.checked;
-                                setExpenseContributors(prev => prev.map((c, i) => i === index ? { 
-                                    ...c, 
-                                    included: checked,
-                                    paidAmount: checked ? c.paidAmount : 0 // Clear amount if unchecked
-                                } : c));
-                            }}
-                        />
-                        <Avatar src={contributor.photoURL} sx={{ width: 32, height: 32 }} />
-                        <Typography variant="body2" sx={{ flexGrow: 1 }}>{getMemberName(contributor.uid)}</Typography>
-                        
-                        {contributor.included && (
-                            <TextField
-                                label="Amount Paid"
-                                type="number"
-                                size="small"
-                                value={contributor.paidAmount}
-                                onChange={(e) => {
-                                    setExpenseContributors(prev => prev.map((c, i) => i === index ? { 
-                                        ...c, 
-                                        paidAmount: e.target.value 
-                                    } : c));
-                                }}
-                                sx={{ 
-                                    width: 120,
-                                    '& .MuiOutlinedInput-root': { borderRadius: 8 },
-                                }}
-                            />
-                        )}
-                    </Box>
-                ))}
+                />
+              )}
             </Box>
-          )}
+          ))}
+        </Box>
+      </Collapse>
+    )}
 
-          <TextField
-            fullWidth
-            label="Amount (₹)"
-            type="number"
-            value={newExpense.amount}
-            onChange={(e) =>
-              setNewExpense((prev) => ({ ...prev, amount: e.target.value }))
-            }
-            sx={{
-              bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-              borderRadius: 8,
-              mb: 2,
-              boxShadow: "none",
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: mode === "dark" ? "#fff" : "#000",
-              },
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 8,
-                '& fieldset': {
-                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-                },
-                '&:hover fieldset': {
-                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-                  boxShadow: "none",
-                  color: mode === "dark" ? "#fff" : "#000"
-                },
-                backgroundColor: 'inherit',
-              },
-              input: {
-                color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-              },
-              label: {
-                color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-              },
-            }}
-          />
+    {/* Other Fields */}
+    {["Amount (₹)", "Category", "Date", "Time"].map((label, idx) => (
+      <TextField
+        key={label}
+        fullWidth
+        label={label}
+        type={label === "Date" ? "date" : label === "Time" ? "time" : label === "Amount (₹)" ? "number" : "text"}
+        InputLabelProps={label === "Date" || label === "Time" ? { shrink: true } : {}}
+        value={
+          label === "Amount (₹)"
+            ? newExpense.amount
+            : label === "Category"
+            ? newExpense.category
+            : label === "Date"
+            ? newExpense.date
+            : newExpense.time
+        }
+        onChange={(e) => {
+          const value = e.target.value;
+          setNewExpense((prev) => ({
+            ...prev,
+            [label === "Amount (₹)"
+              ? "amount"
+              : label === "Category"
+              ? "category"
+              : label === "Date"
+              ? "date"
+              : "time"]: value,
+          }));
+        }}
+        sx={{
+          mb: 2,
+          borderRadius: 3,
+          "& .MuiOutlinedInput-root": {
+            borderRadius: 3,
+            backgroundColor: mode === "dark" ? "#1e1e1e" : "#fafafa",
+          },
+        }}
+      />
+    ))}
 
-          <TextField
-            fullWidth
-            label="Category"
-            value={newExpense.category}
-            onChange={(e) =>
-              setNewExpense((prev) => ({ ...prev, category: e.target.value }))
-            }
-            sx={{
-              bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-              borderRadius: 8,
-              mb: 2,
-              boxShadow: "none",
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: mode === "dark" ? "#fff" : "#000",
-              },
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 8,
-                '& fieldset': {
-                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-                },
-                '&:hover fieldset': {
-                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-                  boxShadow: "none",
-                  color: mode === "dark" ? "#fff" : "#000"
-                },
-                backgroundColor: 'inherit',
-              },
-              input: {
-                color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-              },
-              label: {
-                color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-              },
-            }}
-          />
+    {/* Save Button */}
+    <Button
+      fullWidth
+      variant="contained"
+      onClick={addExpense}
+      sx={{
+        mt: 1,
+        py: 1.4,
+        borderRadius: 3,
+        fontWeight: 600,
+        fontSize: "1rem",
+        letterSpacing: 0.4,
+        backgroundColor: mode === "dark" ? "#fff" : "#000",
+        color: mode === "dark" ? "#000" : "#fff",
+        "&:hover": {
+          transform: "translateY(-2px)",
+          backgroundColor: mode === "dark" ? "#f1f1f1" : "#111",
+        },
+        transition: "all 0.3s ease",
+      }}
+      disabled={
+        !newExpense.name ||
+        !newExpense.amount ||
+        !newExpense.date ||
+        !newExpense.time
+      }
+    >
+      Save Expense
+    </Button>
+  </Box>
+</SwipeableDrawer>
 
-          <TextField
-            fullWidth
-            label="Date"
-            type="date"
-            InputLabelProps={{ shrink: true }}
-            value={newExpense.date}
-            onChange={(e) =>
-              setNewExpense((prev) => ({ ...prev, date: e.target.value }))
-            }
-            sx={{
-              bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-              borderRadius: 8,
-              mb: 2,
-              boxShadow: "none",
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: mode === "dark" ? "#fff" : "#000",
-              },
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 8,
-                '& fieldset': {
-                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-                },
-                '&:hover fieldset': {
-                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-                  boxShadow: "none",
-                  color: mode === "dark" ? "#fff" : "#000"
-                },
-                backgroundColor: 'inherit',
-              },
-              input: {
-                color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-              },
-              label: {
-                color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-              },
-            }}
-          />
-
-          <TextField
-            fullWidth
-            label="Time"
-            type="time"
-            InputLabelProps={{ shrink: true }}
-            value={newExpense.time}
-            onChange={(e) =>
-              setNewExpense((prev) => ({ ...prev, time: e.target.value }))
-            }
-            sx={{
-              bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-              borderRadius: 8,
-              mb: 2,
-              boxShadow: "none",
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: mode === "dark" ? "#fff" : "#000",
-              },
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 8,
-                '& fieldset': {
-                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-                },
-                '&:hover fieldset': {
-                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-                  boxShadow: "none",
-                  color: mode === "dark" ? "#fff" : "#000"
-                },
-                backgroundColor: 'inherit',
-              },
-              input: {
-                color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-              },
-              label: {
-                color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-              },
-            }}
-          />
-
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={addExpense}
-            sx={{ p: 1.5, borderRadius: 8, backgroundColor: mode === "dark" ? "#ffffffff" : "#000000ff", color: mode === "dark" ? "#000000ff" : "#ffffffff" }}
-            disabled={
-              !newExpense.name ||
-              !newExpense.amount ||
-              !newExpense.date ||
-              !newExpense.time
-            }
-          >
-            Save Expense
-          </Button>
-        </SwipeableDrawer>
 
         <Dialog
   open={confirmDeleteOpen}
