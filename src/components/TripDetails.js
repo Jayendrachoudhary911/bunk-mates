@@ -82,8 +82,10 @@ export default function TripDetails() {
     category: "",
     date: "",
     time: "",
+    paidBy: currentUseruid,
+    splitMode: 'single_payer',
   });
-
+  const [expenseContributors, setExpenseContributors] = useState([]);
   const [showAllExpenses, setShowAllExpenses] = useState(false);
 const visibleExpenses = showAllExpenses
   ? budget?.expenses || []
@@ -176,6 +178,24 @@ const updateChecklistDraft = (index, value) => {
     updated[index] = value;
     return updated;
   });
+};
+
+const calculateMemberPayments = (memberUid) => {
+    if (!budget?.expenses) return 0;
+    
+    // Sum payments from all expenses where the member is listed in the 'payers' array
+    return budget.expenses.reduce((totalPaid, exp) => {
+        if (exp.payers && exp.payers.length > 0) {
+            const memberPayment = exp.payers.find(p => p.uid === memberUid);
+            if (memberPayment) {
+                totalPaid += Number(memberPayment.amount) || 0;
+            }
+        } else if (exp.paidBy === memberUid) {
+            // Include support for legacy single-payer expenses (amount paid = total expense amount)
+            totalPaid += Number(exp.amount) || 0;
+        }
+        return totalPaid;
+    }, 0);
 };
 
 // Remove a draft checklist item
@@ -395,52 +415,67 @@ const handleDeleteTrip = async () => {
 
 
 
-  const handleEditSave = async () => {
-    if (!currentUseruid) return;
+const handleEditSave = async () => {
+  if (!currentUseruid) return;
 
-    try {
-      const budgetDocRef = doc(db, "budgets", currentUseruid);
-      const budgetSnap = await getDoc(budgetDocRef);
-      if (!budgetSnap.exists()) {
-        setSnackbar({ open: true, message: "Budget document not found." });
-        return;
-      }
+  try {
+    const budgetDocRef = doc(db, "budgets", currentUseruid);
+    const budgetSnap = await getDoc(budgetDocRef);
+
+    // ✅ FIX: Declare and initialize items and tripBudgetIndex in the main function scope
+    let items = [];
+    let tripBudgetIndex = -1;
+
+    if (!budgetSnap.exists()) {
+      setSnackbar({ open: true, message: "Budget document not found. Creating a new budget entry." });
+      // If document doesn't exist, items remains []
+    } else {
       const data = budgetSnap.data();
-      const items = data.items || [];
-
-      const tripBudgetIndex = items.findIndex(item => item.tripId === id);
-
-      const updatedItem = {
-        name: trip?.name || "",
-        amount: parseInt(editBudget.total),
-        category: "General",
-        contributors: editBudget.contributors,
-        expenses: items[tripBudgetIndex]?.expenses || [],
-        tripId: id,
-      };
-
-      if (tripBudgetIndex !== -1) {
-        items[tripBudgetIndex] = updatedItem;
-      } else {
-        items.push(updatedItem);
-      }
-
-      await updateDoc(budgetDocRef, { items });
-
-      setBudget({
-        total: updatedItem.amount,
-        used: updatedItem.expenses.reduce((sum, e) => sum + (e.amount || 0), 0),
-        contributors: updatedItem.contributors,
-        expenses: updatedItem.expenses
-      });
-
-      setBudgetDrawerOpen(false);
-      setSnackbar({ open: true, message: "Budget updated successfully!" });
-    } catch (error) {
-      console.error("Error updating budget:", error);
-      setSnackbar({ open: true, message: "Failed to update budget." });
+      items = data.items || [];
+      // Find the budget item matching current tripId
+      tripBudgetIndex = items.findIndex(item => item.tripId === id);
     }
-  };
+    
+    // The variables items and tripBudgetIndex are now properly defined and accessible here.
+
+    const updatedItem = {
+      name: trip?.name || "",
+      amount: parseInt(editBudget.total),
+      category: "General",
+      contributors: editBudget.contributors,
+      // Safely access expenses: either existing or an empty array
+      expenses: tripBudgetIndex !== -1 ? (items[tripBudgetIndex]?.expenses || []) : [],
+      tripId: id,
+    };
+
+    if (tripBudgetIndex !== -1) {
+      // Update existing item
+      items[tripBudgetIndex] = updatedItem;
+    } else {
+      // Add new item
+      items.push(updatedItem);
+    }
+
+    // Use setDoc with merge:true for safety, ensuring the doc is created/updated.
+    await setDoc(budgetDocRef, { items }, { merge: true });
+
+    // Recalculate and update local budget state
+    const totalUsed = updatedItem.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    
+    setBudget({
+      total: updatedItem.amount,
+      used: totalUsed,
+      contributors: updatedItem.contributors,
+      expenses: updatedItem.expenses
+    });
+
+    setBudgetDrawerOpen(false);
+    setSnackbar({ open: true, message: "Budget updated successfully!" });
+  } catch (error) {
+    console.error("Error updating budget:", error);
+    setSnackbar({ open: true, message: "Failed to update budget." });
+  }
+};
 
     // Timeline handlers
 const addTimelineEvent = async () => {
@@ -521,68 +556,147 @@ const toggleEventCompleted = async (event) => {
       };
 
   // Expense adding function - saves expense to Firestore budget doc
-  const addExpense = async () => {
-    if (!currentUseruid) {
-      setSnackbar({ open: true, message: "User not authenticated." });
-      return;
-    }
-    if (!newExpense.name || !newExpense.amount || !newExpense.date || !newExpense.time) {
-      setSnackbar({ open: true, message: "Please fill all fields." });
-      return;
-    }
+const addExpense = async () => {
 
-    try {
-      const budgetDocRef = doc(db, "budgets", currentUseruid);
-      const budgetSnap = await getDoc(budgetDocRef);
-
-      if (!budgetSnap.exists()) {
-        setSnackbar({ open: true, message: "Budget document not found." });
-        return;
-      }
-
-      const data = budgetSnap.data();
-      const items = data.items || [];
-
-      const tripBudgetIndex = items.findIndex(item => item.tripId === id);
-
-      if (tripBudgetIndex === -1) {
-        setSnackbar({ open: true, message: "Budget for this trip not found." });
-        return;
-      }
-
-      const expenseDateTime = new Date(`${newExpense.date}T${newExpense.time}`).toISOString();
-
-      const expenseItem = {
-        name: newExpense.name,
-        amount: parseFloat(newExpense.amount),
-        category: newExpense.category || "General",
-        date: newExpense.date,
-        time: newExpense.time,
-        dateTime: expenseDateTime,
-      };
-
-      items[tripBudgetIndex].expenses = items[tripBudgetIndex].expenses || [];
-      items[tripBudgetIndex].expenses.push(expenseItem);
-
-      await updateDoc(budgetDocRef, { items });
-
-      // Update local budget state immediately
-      const totalUsed = items[tripBudgetIndex].expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-
-      setBudget(prev => ({
-        ...prev,
-        expenses: items[tripBudgetIndex].expenses,
-        used: totalUsed,
+  if (!currentUseruid) {
+    setSnackbar({ open: true, message: "User not authenticated." });
+    return;
+  }
+  
+  // 1. Validate based on mode
+  if (!newExpense.name || !newExpense.amount || !newExpense.date || !newExpense.time) {
+    setSnackbar({ open: true, message: "Please fill all required fields (Name, Amount, Date, Time)." });
+    return;
+  }
+  
+  // If multiple payers, calculate total paid amount from contributors
+  let totalPaid = 0;
+  let payers = [];
+  
+  if (newExpense.splitMode === 'multiple_payers') {
+    payers = expenseContributors
+      .filter(c => c.included && parseFloat(c.paidAmount) > 0)
+      .map(c => ({ 
+          uid: c.uid, 
+          amount: parseFloat(c.paidAmount) 
       }));
+      
+    totalPaid = payers.reduce((sum, p) => sum + p.amount, 0);
 
-      setSnackbar({ open: true, message: "Expense added successfully!" });
-      setExpenseDrawerOpen(false);
-      setNewExpense({ name: "", amount: "", category: "", date: "", time: "" });
-    } catch (error) {
-      console.error("Error adding expense:", error);
-      setSnackbar({ open: true, message: "Failed to add expense." });
+    if (totalPaid <= 0) {
+      setSnackbar({ open: true, message: "Please enter the amount paid by at least one member." });
+      return;
     }
-  };
+  } else {
+    // Single Payer Mode (using the old logic)
+    if (!newExpense.paidBy) {
+      setSnackbar({ open: true, message: "Please select the member who paid." });
+      return;
+    }
+    totalPaid = parseFloat(newExpense.amount);
+    if (totalPaid <= 0) {
+      setSnackbar({ open: true, message: "Amount must be greater than zero." });
+      return;
+    }
+    payers.push({ uid: newExpense.paidBy, amount: totalPaid });
+  }
+
+  // 2. Data consistency check
+  const expenseAmount = parseFloat(newExpense.amount);
+  if (totalPaid !== expenseAmount) {
+     setSnackbar({ open: true, message: `Total paid amount (₹${totalPaid.toFixed(2)}) does not match the expense total (₹${expenseAmount.toFixed(2)}).` });
+     return;
+  }
+
+  // 3. Save to Firestore
+  try {
+    const budgetDocRef = doc(db, "budgets", currentUseruid); 
+    const budgetSnap = await getDoc(budgetDocRef);
+
+    // ✅ FIX: Declare and initialize variables here, before they are used later.
+    let items = [];
+    let tripBudgetIndex = -1;
+
+    if (budgetSnap.exists()) {
+      const data = budgetSnap.data();
+      items = data.items || [];
+      tripBudgetIndex = items.findIndex(item => item.tripId === id);
+    }
+
+    if (tripBudgetIndex === -1) {
+      setSnackbar({ open: true, message: "Budget for this trip not found. Please set up the trip budget first." });
+      return;
+    }
+    // End of scope check for budget
+
+    const expenseDateTime = new Date(`${newExpense.date}T${newExpense.time}`).toISOString();
+
+    const expenseItem = {
+      name: newExpense.name,
+      amount: expenseAmount, // Total expense amount
+      category: newExpense.category || "General",
+      date: newExpense.date,
+      time: newExpense.time,
+      dateTime: expenseDateTime,
+      
+      payers: payers, 
+    };
+
+    // Use the correctly scoped variables
+    items[tripBudgetIndex].expenses = items[tripBudgetIndex].expenses || [];
+    items[tripBudgetIndex].expenses.push(expenseItem);
+
+    // Using setDoc with merge:true is generally safer when updating complex fields like items
+    await setDoc(budgetDocRef, { items }, { merge: true }); 
+
+    // 4. Update local state and reset drawer
+    const totalUsed = items[tripBudgetIndex].expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    setBudget(prev => ({
+      ...prev,
+      expenses: items[tripBudgetIndex].expenses,
+      used: totalUsed,
+    }));
+
+    setSnackbar({ open: true, message: "Expense added successfully!" });
+    setExpenseDrawerOpen(false);
+    setNewExpense({ 
+      name: "", 
+      amount: "", 
+      category: "", 
+      date: "", 
+      time: "", 
+      paidBy: currentUseruid,
+      splitMode: 'single_payer' // Reset mode
+    });
+    // Reset contributors state
+    setExpenseContributors(initializeExpenseContributors(memberDetails, 'single_payer')); 
+
+  } catch (error) {
+    console.error("Error adding expense:", error);
+    setSnackbar({ open: true, message: "Failed to add expense." });
+  }
+};
+
+const getMemberName = (uid) => {
+  const member = memberDetails.find(m => m.uid === uid);
+  // Prioritize showing 'You (Me)' for the current user for clarity
+  if (uid === currentUseruid) return `${member?.name || 'You'} (Me)`;
+  return member?.name || 'Unknown User';
+};
+
+const initializeExpenseContributors = (members, mode) => {
+  return members.map(member => ({
+    uid: member.uid,
+    name: member.name || 'Unknown',
+    photoURL: member.photoURL,
+    // When initializing, set 'included' to true only for the current user in 'single_payer' mode,
+    // but keep track of who paid (paidAmount: 0).
+    // In 'multiple_payers' mode, all are included.
+    included: mode === 'multiple_payers' ? true : (member.uid === currentUseruid),
+    paidAmount: 0, // This will hold how much this member actually paid for the total expense
+  }));
+};
 
   const addTask = async () => {
     if (!newTask) return;
@@ -614,6 +728,62 @@ const fetchCoverImage = async (location) => {
     return "";
   }
 };
+
+// --- Helper: Render Expense Payers ---
+const renderExpensePayers = (expense) => {
+  let payerUids = [];
+  if (expense.payers && expense.payers.length > 0) {
+    payerUids = expense.payers.map((p) => p.uid);
+  } else if (expense.paidBy) {
+    payerUids = [expense.paidBy];
+  }
+
+  const payersDetails = payerUids
+    .map((uid) => memberDetails.find((m) => m.uid === uid))
+    .filter(Boolean);
+
+  if (payersDetails.length === 0) return null;
+
+  if (payersDetails.length > 1) {
+    return (
+      <AvatarGroup
+        max={3}
+        total={payersDetails.length}
+        sx={{
+          '& .MuiAvatar-root': {
+            width: 18,
+            height: 18,
+            fontSize: 10,
+            border: `1px solid ${mode === 'dark' ? '#fff' : '#000'}`,
+          },
+        }}
+      >
+        {payersDetails.map((detail, idx) => (
+          <Tooltip title={getMemberName(detail.uid)} key={idx}>
+            <Avatar alt={detail.name} src={detail.photoURL} />
+          </Tooltip>
+        ))}
+      </AvatarGroup>
+    );
+  } else {
+    const singlePayer = payersDetails[0];
+    return (
+      <Tooltip title={`Paid by: ${getMemberName(singlePayer.uid)}`}>
+        <Avatar
+          alt={singlePayer.name}
+          src={singlePayer.photoURL}
+          sx={{
+            width: 18,
+            height: 18,
+            fontSize: 10,
+            border: `1px solid ${mode === 'dark' ? '#fff' : '#000'}`,
+          }}
+        />
+      </Tooltip>
+    );
+  }
+};
+
 
 
   const inviteLink = `${window.location.origin}/join?trip=${id}`;
@@ -944,66 +1114,214 @@ const fetchCoverImage = async (location) => {
                   "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff", borderRadius: 20 },
                 }}
               />
+              
+{(budget?.contributors?.length > 0 || budget?.expenses?.length > 0) && (
+  <Box mt={3}>
+    {/* ---------- Contributors Section ---------- */}
+    {budget?.contributors?.length > 0 && (
+      <Box
+        sx={{
+          p: 2.5,
+          borderRadius: 3,
+          backgroundColor: mode === 'dark' ? '#1e1e1e' : '#f9f9f9',
+          border: `1px solid ${mode === 'dark' ? '#333' : '#e0e0e0'}`,
+          mb: 3,
+        }}
+      >
+        {/* Contributors Summary */}
+        {(() => {
+          const totalContributed = budget.contributors.reduce(
+            (sum, c) => sum + (Number(c.amount) || 0),
+            0
+          );
+          const totalBudget = Number(budget.total) || 0;
+          const remainingBudget = totalBudget - totalContributed;
 
-              {(budget?.contributors?.length > 0 || budget?.expenses?.length > 0) && (
-                <Box mt={2}>
-                  {/* Contributors */}
-                  {budget?.contributors?.length > 0 && (
-                    <>
-                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                        Contributors
-                      </Typography>
-                      {budget.contributors.map((c, i) => (
-                        <Typography key={i} variant="body2">
-                          {c.name || "Anonymous"} — ₹{c.amount}
-                        </Typography>
-                      ))}
-                    </>
-                  )}
-                  {/* Expenses */}
-                  {budget.expenses?.length > 0 && (
-                    <>
-                      <Divider sx={{ my: 2 }} />
+          return (
+            <Box mb={2}>
+              <Typography
+                variant="subtitle2"
+                color="text.secondary"
+                sx={{ mb: 0.5, fontWeight: 600 }}
+              >
+                Contributors Summary
+              </Typography>
+              <Typography variant="body1" fontWeight="bold">
+                ₹{totalContributed.toFixed(2)} / ₹{totalBudget.toFixed(2)}
+              </Typography>
+              <Typography
+                variant="body2"
+                color={remainingBudget < 0 ? 'error.main' : 'text.secondary'}
+                sx={{ mt: 0.3 }}
+              >
+                Remaining: ₹{remainingBudget.toFixed(2)}
+              </Typography>
+            </Box>
+          );
+        })()}
 
-<Box mt={2}>
-  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-    Expenses
-  </Typography>
+        {/* Individual Contributions */}
+        <Typography
+          variant="subtitle2"
+          color="text.secondary"
+          sx={{ fontWeight: 600, mb: 1.5 }}
+        >
+          Individual Contributions
+        </Typography>
 
-  {visibleExpenses.length ? (
-    visibleExpenses.map((exp, idx) => (
-                        <Typography key={idx} variant="body2" justifyContent={"space-between"} display="flex" mb={0.2}>
-                          <Typography variant="body2" fontWeight="bold">
-                            {exp.name || "Unnamed"} — ₹{exp.amount}
-                          </Typography>
+        {budget.contributors.map((c, i) => {
+          const intendedContribution = Number(c.amount) || 0;
+          const actualPaid = calculateMemberPayments(c.uid);
+          const remaining = intendedContribution - actualPaid;
 
-                          <Typography variant="caption" color="text.secondary" backgroundColor="#ffffff11" px={1} py={0.2} borderRadius={1} sx={{ ml: 1 }}>
-                            {exp.category}
-                          </Typography>
-                        </Typography>
-    ))
-  ) : (
-    <Typography color="text.secondary">No expenses added yet.</Typography>
-  )}
+          return (
+            <Box
+              key={i}
+              sx={{
+                mb: 1,
+                p: 1.2,
+                borderRadius: 2,
+                backgroundColor:
+                  mode === 'dark' ? '#2a2a2a' : 'rgba(0,0,0,0.02)',
+                border: `1px solid ${mode === 'dark' ? '#333' : '#e0e0e0'}`,
+              }}
+            >
+              <Typography variant="body2" fontWeight="bold">
+                {getMemberName(c.uid)} (Target: ₹{intendedContribution.toFixed(2)})
+              </Typography>
 
-  {budget.expenses.length > 4 && (
-    <Button
-      onClick={() => setShowAllExpenses(!showAllExpenses)}
-      size="small"
-      variant="text"
-      sx={{ mt: 1, color: "#90caf9" }}
-    >
-      {showAllExpenses ? "Hide" : "View More"}
-    </Button>
-  )}
-</Box>
+              <Typography
+                variant="caption"
+                display="flex"
+                justifyContent="space-between"
+                mt={0.3}
+                color="text.secondary"
+              >
+                Paid:
+                <Typography
+                  component="span"
+                  fontWeight="medium"
+                  color={
+                    actualPaid >= intendedContribution
+                      ? 'success.main'
+                      : 'text.primary'
+                  }
+                >
+                  ₹{actualPaid.toFixed(2)}
+                </Typography>
+              </Typography>
 
+              <Typography
+                variant="caption"
+                display="flex"
+                justifyContent="space-between"
+                color="text.secondary"
+              >
+                Remaining:
+                <Typography
+                  component="span"
+                  fontWeight="bold"
+                  color={remaining > 0 ? 'error.main' : 'success.main'}
+                >
+                  ₹{Math.abs(remaining).toFixed(2)}{' '}
+                  {remaining > 0 ? 'Needed' : 'Owed'}
+                </Typography>
+              </Typography>
+            </Box>
+          );
+        })}
+      </Box>
+    )}
 
-                    </>
-                  )}
+    {/* ---------- Expenses Section ---------- */}
+    {budget.expenses?.length > 0 && (
+      <Box
+        sx={{
+          p: 2.5,
+          borderRadius: 3,
+          backgroundColor: mode === 'dark' ? '#1e1e1e' : '#f9f9f9',
+          border: `1px solid ${mode === 'dark' ? '#333' : '#e0e0e0'}`,
+        }}
+      >
+        <Typography
+          variant="subtitle2"
+          color="text.secondary"
+          sx={{ mb: 1.5, fontWeight: 600 }}
+        >
+          Expenses
+        </Typography>
 
+        {visibleExpenses.length ? (
+          visibleExpenses.map((exp, idx) => (
+            <Box
+              key={idx}
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 1,
+                p: 1,
+                borderRadius: 2,
+                backgroundColor:
+                  mode === 'dark' ? 'rgba(255,255,255,0.04)' : '#fff',
+                boxShadow:
+                  mode === 'dark'
+                    ? '0 1px 3px rgba(0,0,0,0.5)'
+                    : '0 1px 3px rgba(0,0,0,0.1)',
+              }}
+            >
+              <Typography
+                variant="body2"
+                fontWeight="bold"
+                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+              >
+                {exp.name || 'Unnamed'} — ₹{exp.amount}
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  {renderExpensePayers(exp)}
                 </Box>
-              )}
+              </Typography>
+
+              <Typography
+                variant="caption"
+                sx={{
+                  px: 1,
+                  py: 0.3,
+                  borderRadius: 1,
+                  backgroundColor:
+                    mode === 'dark'
+                      ? 'rgba(255,255,255,0.08)'
+                      : 'rgba(0,0,0,0.05)',
+                }}
+              >
+                {exp.category}
+              </Typography>
+            </Box>
+          ))
+        ) : (
+          <Typography color="text.secondary">
+            No expenses added yet.
+          </Typography>
+        )}
+
+        {budget.expenses.length > 4 && (
+          <Button
+            onClick={() => setShowAllExpenses(!showAllExpenses)}
+            size="small"
+            variant="text"
+            sx={{
+              mt: 1.5,
+              textTransform: 'none',
+              color: mode === 'dark' ? '#90caf9' : '#1976d2',
+            }}
+          >
+            {showAllExpenses ? 'Hide' : 'View More'}
+          </Button>
+        )}
+      </Box>
+    )}
+  </Box>
+)}
+
 
             </Box>
 
@@ -2362,6 +2680,120 @@ const fetchCoverImage = async (location) => {
               },
             }}
           />
+
+<Box mb={2}>
+              <Button
+                  fullWidth
+                  variant="outlined"
+                  onClick={() => {
+                      const newMode = newExpense.splitMode === 'single_payer' ? 'multiple_payers' : 'single_payer';
+                      setNewExpense(prev => ({ ...prev, splitMode: newMode }));
+                      // Re-initialize contributors based on the new mode
+                      setExpenseContributors(initializeExpenseContributors(memberDetails, newMode));
+                  }}
+                  sx={{ 
+                      borderRadius: 8, 
+                      p: 1.5,
+                      textTransform: 'none',
+                      borderColor: theme => theme.palette.text.primary, 
+                      color: theme => theme.palette.text.primary,
+                      backgroundColor: newExpense.splitMode === 'multiple_payers' ? '#ffc10711' : 'transparent'
+                  }}
+              >
+                  {newExpense.splitMode === 'single_payer' 
+                    ? `Switch to Multiple Payers/Contributors` 
+                    : `Current Mode: Multiple Payers (Total: ₹${parseFloat(newExpense.amount || 0).toFixed(2)})`}
+              </Button>
+          </Box>
+          
+          
+          {newExpense.splitMode === 'single_payer' && (
+              <TextField
+                  select
+                  fullWidth
+                  label="Paid By (Single Payer)"
+                  value={newExpense.paidBy || currentUseruid}
+                  onChange={(e) =>
+                      setNewExpense((prev) => ({ ...prev, paidBy: e.target.value }))
+                  }
+                  SelectProps={{ native: true }}
+                  sx={{
+                    bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+                    borderRadius: 8,
+                    mb: 2,
+                    boxShadow: "none",
+                    '& .MuiOutlinedInput-root': { borderRadius: 8 },
+                  }}
+              >
+                  {memberDetails.map((member) => (
+                      <option key={member.uid} value={member.uid}>
+                          {getMemberName(member.uid)}
+                      </option>
+                  ))}
+              </TextField>
+          )}
+
+          {newExpense.splitMode === 'multiple_payers' && (
+            <Box>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                        Members Paid:
+                    </Typography>
+                    <Button
+                        size="small"
+                        onClick={() => {
+                            // Toggle all members' inclusion and reset paid amount for all
+                            const allIncluded = expenseContributors.every(c => c.included);
+                            setExpenseContributors(prev => prev.map(c => ({
+                                ...c,
+                                included: !allIncluded,
+                                paidAmount: 0 // Reset amount on toggle all
+                            })));
+                        }}
+                        sx={{ textTransform: 'none', borderRadius: 8 }}
+                    >
+                        {expenseContributors.every(c => c.included) ? 'Clear All' : 'Select All'}
+                    </Button>
+                </Box>
+
+                {expenseContributors.map((contributor, index) => (
+                    <Box key={contributor.uid} display="flex" alignItems="center" gap={1} mb={1} sx={{ p: 1, borderRadius: 2, backgroundColor: contributor.included ? (mode === "dark" ? "#ffffff11" : "#00000011") : 'transparent' }}>
+                        <Checkbox
+                            checked={contributor.included}
+                            onChange={(e) => {
+                                const checked = e.target.checked;
+                                setExpenseContributors(prev => prev.map((c, i) => i === index ? { 
+                                    ...c, 
+                                    included: checked,
+                                    paidAmount: checked ? c.paidAmount : 0 // Clear amount if unchecked
+                                } : c));
+                            }}
+                        />
+                        <Avatar src={contributor.photoURL} sx={{ width: 32, height: 32 }} />
+                        <Typography variant="body2" sx={{ flexGrow: 1 }}>{getMemberName(contributor.uid)}</Typography>
+                        
+                        {contributor.included && (
+                            <TextField
+                                label="Amount Paid"
+                                type="number"
+                                size="small"
+                                value={contributor.paidAmount}
+                                onChange={(e) => {
+                                    setExpenseContributors(prev => prev.map((c, i) => i === index ? { 
+                                        ...c, 
+                                        paidAmount: e.target.value 
+                                    } : c));
+                                }}
+                                sx={{ 
+                                    width: 120,
+                                    '& .MuiOutlinedInput-root': { borderRadius: 8 },
+                                }}
+                            />
+                        )}
+                    </Box>
+                ))}
+            </Box>
+          )}
 
           <TextField
             fullWidth
