@@ -34,6 +34,20 @@ import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { motion } from "framer-motion";
 
+const getCurrentDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`; // Format: YYYY-MM-DD
+};
+
+const getCurrentTime = () => {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`; // Format: HH:MM
+};
 
 export default function TripDetails() {
   const { id } = useParams();
@@ -83,18 +97,26 @@ export default function TripDetails() {
     name: "",
     amount: "",
     category: "",
-    date: "",
-    time: "",
+    date: getCurrentDate(),
+    time: getCurrentTime(),
     paidBy: currentUseruid,
     splitMode: 'single_payer',
   });
   const [expenseContributors, setExpenseContributors] = useState([]);
   const [showAllExpenses, setShowAllExpenses] = useState(false);
-const visibleExpenses = showAllExpenses
-  ? budget?.expenses || []
-  : (budget?.expenses || []).slice(0, 4);
+  const visibleExpenses = showAllExpenses
+    ? budget?.expenses || []
+    : (budget?.expenses || []).slice(0, 4);
 
   const [memberDetails, setMemberDetails] = useState([]);
+  const [timelineDrafts, setTimelineDrafts] = useState([]);
+
+  const [memberToRemove, setMemberToRemove] = useState(null);
+  
+  const confirmRemoveMember = async () => {
+    await handleRemoveMember(memberToRemove);
+    setMemberToRemove(null);
+  };
 
 useEffect(() => {
   if (!id) return;
@@ -148,6 +170,87 @@ useEffect(() => {
     unsubTimeline();
   };
 }, [id]);
+
+const handleTimelineFileUpload = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const validTypes = ['text/plain', 'text/markdown', 'text/x-markdown'];
+  if (!validTypes.includes(file.type) && !file.name.match(/\.(txt|md)$/i)) {
+    setSnackbar({ open: true, message: "Please upload a .txt or .md file." });
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+
+    // Match list-like lines only: starting with -, *, •, or numbers (1., 2.), etc.
+    const lines = text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => /^([-*•]|\d+\.)\s+.+/.test(l))
+      .map((l) => ({
+        title: l.replace(/^([-*•]|\d+\.)\s*/, '').trim(),
+        time: getCurrentDate() + "T" + getCurrentTime(),
+        note: "",
+      }));
+
+    if (lines.length > 0) {
+      setTimelineDrafts(lines);
+    } else {
+      setSnackbar({ open: true, message: "No valid list items found in file." });
+    }
+  };
+  reader.readAsText(file);
+};
+
+// Add new blank draft
+const addEmptyTimelineDraft = () => {
+  setTimelineDrafts((prev) => [
+    ...prev,
+    { title: "", time: getCurrentDate() + "T" + getCurrentTime(), note: "" },
+  ]);
+};
+
+// Update draft
+const updateTimelineDraft = (index, updatedItem) => {
+  setTimelineDrafts((prev) => {
+    const updated = [...prev];
+    updated[index] = updatedItem;
+    return updated;
+  });
+};
+
+// Remove draft
+const removeTimelineDraft = (index) => {
+  setTimelineDrafts((prev) => prev.filter((_, i) => i !== index));
+};
+
+// Save all drafts to Firestore
+const addAllTimelineEvents = async () => {
+  if (timelineDrafts.length === 0) {
+    setSnackbar({ open: true, message: "No timeline events to add." });
+    return;
+  }
+
+  try {
+    await Promise.all(
+      timelineDrafts.map((item) =>
+        addDoc(collection(db, `trips/${id}/timeline`), {
+          ...item,
+          completed: false,
+        })
+      )
+    );
+    setSnackbar({ open: true, message: `${timelineDrafts.length} event(s) added!` });
+    setTimelineDrafts([]);
+    setTimelineDrawerOpen(false);
+  } catch (error) {
+    console.error(error);
+    setSnackbar({ open: true, message: "Failed to add timeline events." });
+  }
+};
 
   
 const handleChecklistFileUpload = (event) => {
@@ -210,6 +313,29 @@ const removeChecklistDraft = (index) => {
 const addEmptyChecklistDraft = () => {
   setChecklistDrafts(prev => [...prev, ""]);
 };
+
+useEffect(() => {
+  if (!id) return;
+
+  const unsubBudget = onSnapshot(doc(db, "budgets", id), (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      const totalUsed = (data.expenses || []).reduce(
+        (sum, exp) => sum + (Number(exp.amount) || 0),
+        0
+      );
+      setBudget({
+        total: data.total || 0,
+        used: totalUsed,
+        contributors: data.contributors || [],
+        expenses: data.expenses || [],
+      });
+    }
+  });
+
+  return () => unsubBudget();
+}, [id]);
+
 
 // Save all draft checklist items to Firestore, then clear and close drawer
 const addAllChecklistItems = async () => {
@@ -314,45 +440,36 @@ const loadMemberDetails = (uids) => {
   return () => userDetailsUnsubs.forEach(unsub => unsub());
 };
 
-  // Fetch budget & expenses for this trip from budgets collection (budgets/{userUid} document)
-  const fetchBudget = async (tripName) => {
-    if (!currentUseruid) return;
-
-    const budgetDocRef = doc(db, "budgets", currentUseruid);
-    const budgetSnap = await getDoc(budgetDocRef);
+// Fetch trip-based budget (from budgets/{tripId})
+const fetchBudget = async () => {
+  try {
+    const budgetRef = doc(db, "budgets", id);
+    const budgetSnap = await getDoc(budgetRef);
 
     if (budgetSnap.exists()) {
       const data = budgetSnap.data();
-      const items = data.items || [];
-
-      // Find budget item matching current tripId
-      const tripBudget = items.find(item => item.tripId === id);
-
-      if (tripBudget) {
-        // Calculate total used amount by summing expenses amount
-        const totalUsed = (tripBudget.expenses || []).reduce(
-          (sum, exp) => sum + (exp.amount || 0),
-          0
-        );
-
-        setBudget({
-          total: tripBudget.amount,
-          used: totalUsed,
-          contributors: tripBudget.contributors || [],
-          expenses: tripBudget.expenses || []
-        });
-
-        // Also initialize editBudget so user can edit it in budget drawer
-        setEditBudget({
-          total: tripBudget.amount,
-          contributors: tripBudget.contributors || []
-        });
-      } else {
-        setBudget(null);
-        setEditBudget({ total: "", contributors: [] });
-      }
+      const totalUsed = (data.expenses || []).reduce(
+        (sum, exp) => sum + (Number(exp.amount) || 0),
+        0
+      );
+      setBudget({
+        total: data.total || 0,
+        used: totalUsed,
+        contributors: data.contributors || [],
+        expenses: data.expenses || [],
+      });
+      setEditBudget({
+        total: data.total || 0,
+        contributors: data.contributors || [],
+      });
+    } else {
+      setBudget({ total: 0, used: 0, contributors: [], expenses: [] });
     }
-  };
+  } catch (error) {
+    console.error("Error fetching budget:", error);
+  }
+};
+
 
   const handleSaveEdit = async () => {
   if (!trip || !id) return;
@@ -416,6 +533,34 @@ const handleDeleteTrip = async () => {
   }
 };
 
+// Remove member from trip (admin only)
+const handleRemoveMember = async (memberUid) => {
+  if (!trip?.createdBy || trip.createdBy !== currentUseruid) {
+    setSnackbar({ open: true, message: "Only the trip creator can remove members." });
+    return;
+  }
+
+  if (memberUid === currentUseruid) {
+    setSnackbar({ open: true, message: "You cannot remove yourself." });
+    return;
+  }
+
+  try {
+    const tripRef = doc(db, "trips", id);
+    const updatedMembers = trip.members.filter((uid) => uid !== memberUid);
+
+    await updateDoc(tripRef, { members: updatedMembers });
+
+    // Optional: Also remove from related group chat
+    // const groupRef = doc(db, "groupChats", id);
+    // await updateDoc(groupRef, { members: updatedMembers });
+
+    setSnackbar({ open: true, message: "Member removed successfully!" });
+  } catch (error) {
+    console.error("Error removing member:", error);
+    setSnackbar({ open: true, message: "Failed to remove member." });
+  }
+};
 
 
 const handleEditSave = async () => {
@@ -517,169 +662,153 @@ const toggleEventCompleted = async (event) => {
 };
 
 
-      const saveBudget = async () => {
-        if (!trip) return;
-    
-        const userBudgetRef = doc(db, "budgets", currentUseruid);
-        const userBudgetSnap = await getDoc(userBudgetRef);
-    
-        let existingData = { items: [] };
-        if (userBudgetSnap.exists()) {
-          existingData = userBudgetSnap.data();
-          if (!Array.isArray(existingData.items)) existingData.items = [];
-        }
-    
-        const updatedItems = [...existingData.items];
-        const index = updatedItems.findIndex((item) => item.tripId === id);
-    
-        const newItem = {
-          name: trip.name,
-          amount: Number(editBudget.total),
-          category: "General",
-          contributors: editBudget.contributors.map((c) => ({
-            name: c.name,
-            amount: Number(c.amount),
-            uid: c.uid || "",
-          })),
-          expenses: budget?.expenses || [],
-          tripId: id,
-        };
-    
-        if (index !== -1) {
-          updatedItems[index] = newItem;
-        } else {
-          updatedItems.push(newItem);
-        }
-    
-        await setDoc(userBudgetRef, { items: updatedItems }, { merge: true });
-    
-        setBudgetDrawerOpen(false);
-        await fetchBudget(id);
-        setSnackbar({ open: true, message: "Budget saved successfully!" });
-      };
+// Save or update the trip budget in budgets/{tripId}
+const saveBudget = async () => {
+  if (!trip) return;
 
-  // Expense adding function - saves expense to Firestore budget doc
-const addExpense = async () => {
-
-  if (!currentUseruid) {
-    setSnackbar({ open: true, message: "User not authenticated." });
-    return;
-  }
-  
-  // 1. Validate based on mode
-  if (!newExpense.name || !newExpense.amount || !newExpense.date || !newExpense.time) {
-    setSnackbar({ open: true, message: "Please fill all required fields (Name, Amount, Date, Time)." });
-    return;
-  }
-  
-  // If multiple payers, calculate total paid amount from contributors
-  let totalPaid = 0;
-  let payers = [];
-  
-  if (newExpense.splitMode === 'multiple_payers') {
-    payers = expenseContributors
-      .filter(c => c.included && parseFloat(c.paidAmount) > 0)
-      .map(c => ({ 
-          uid: c.uid, 
-          amount: parseFloat(c.paidAmount) 
-      }));
-      
-    totalPaid = payers.reduce((sum, p) => sum + p.amount, 0);
-
-    if (totalPaid <= 0) {
-      setSnackbar({ open: true, message: "Please enter the amount paid by at least one member." });
-      return;
-    }
-  } else {
-    // Single Payer Mode (using the old logic)
-    if (!newExpense.paidBy) {
-      setSnackbar({ open: true, message: "Please select the member who paid." });
-      return;
-    }
-    totalPaid = parseFloat(newExpense.amount);
-    if (totalPaid <= 0) {
-      setSnackbar({ open: true, message: "Amount must be greater than zero." });
-      return;
-    }
-    payers.push({ uid: newExpense.paidBy, amount: totalPaid });
-  }
-
-  // 2. Data consistency check
-  const expenseAmount = parseFloat(newExpense.amount);
-  if (totalPaid !== expenseAmount) {
-     setSnackbar({ open: true, message: `Total paid amount (₹${totalPaid.toFixed(2)}) does not match the expense total (₹${expenseAmount.toFixed(2)}).` });
-     return;
-  }
-
-  // 3. Save to Firestore
   try {
-    const budgetDocRef = doc(db, "budgets", currentUseruid); 
-    const budgetSnap = await getDoc(budgetDocRef);
+    const budgetRef = doc(db, "budgets", id);
+    const total = Number(editBudget.total) || 0;
+    const contributors = editBudget.contributors.map((c) => ({
+      ...c,
+      amount: Number(c.amount) || 0,
+    }));
 
-    // ✅ FIX: Declare and initialize variables here, before they are used later.
-    let items = [];
-    let tripBudgetIndex = -1;
+    await setDoc(
+      budgetRef,
+      {
+        total,
+        contributors,
+        updatedAt: new Date().toISOString(),
+        createdBy: trip.createdBy || currentUseruid,
+        tripId: id,
+      },
+      { merge: true }
+    );
 
-    if (budgetSnap.exists()) {
-      const data = budgetSnap.data();
-      items = data.items || [];
-      tripBudgetIndex = items.findIndex(item => item.tripId === id);
-    }
+    setSnackbar({ open: true, message: "Budget saved successfully!" });
+    await fetchBudget();
+    setBudgetDrawerOpen(false);
+  } catch (error) {
+    console.error("Error saving budget:", error);
+    setSnackbar({ open: true, message: "Failed to save budget." });
+  }
+};
 
-    if (tripBudgetIndex === -1) {
-      setSnackbar({ open: true, message: "Budget for this trip not found. Please set up the trip budget first." });
+
+// --- Add Expense to budgets/{tripId} (supports multiple payers) ---
+const addExpense = async () => {
+  if (!newExpense.name || !newExpense.amount || !newExpense.date || !newExpense.time) {
+    setSnackbar({ open: true, message: "Please fill all required fields." });
+    return;
+  }
+
+  try {
+    const budgetRef = doc(db, "budgets", id);
+    const budgetSnap = await getDoc(budgetRef);
+
+    if (!budgetSnap.exists()) {
+      setSnackbar({ open: true, message: "Please set up the budget first." });
       return;
     }
-    // End of scope check for budget
 
+    const existingData = budgetSnap.data();
+    const expenses = existingData.expenses || [];
+
+    let payers = [];
+    let totalPaid = 0;
+
+    // --- MULTIPLE PAYERS MODE ---
+    if (newExpense.splitMode === "multiple_payers") {
+      payers = expenseContributors
+        .filter((p) => p.included && parseFloat(p.paidAmount) > 0)
+        .map((p) => ({
+          uid: p.uid,
+          name: getMemberName(p.uid),
+          amount: parseFloat(p.paidAmount),
+        }));
+
+      totalPaid = payers.reduce((sum, p) => sum + p.amount, 0);
+
+      if (payers.length === 0) {
+        setSnackbar({ open: true, message: "Please enter paid amounts for at least one member." });
+        return;
+      }
+
+      if (totalPaid !== parseFloat(newExpense.amount)) {
+        setSnackbar({
+          open: true,
+          message: `Total of payers (₹${totalPaid}) does not match expense total (₹${newExpense.amount}).`,
+        });
+        return;
+      }
+    } 
+    // --- SINGLE PAYER MODE ---
+    else {
+      if (!newExpense.paidBy) {
+        setSnackbar({ open: true, message: "Please select who paid." });
+        return;
+      }
+
+      payers = [
+        {
+          uid: newExpense.paidBy,
+          name: getMemberName(newExpense.paidBy),
+          amount: parseFloat(newExpense.amount),
+        },
+      ];
+      totalPaid = parseFloat(newExpense.amount);
+    }
+
+    // --- Prepare expense item ---
     const expenseDateTime = new Date(`${newExpense.date}T${newExpense.time}`).toISOString();
-
-    const expenseItem = {
+    const newExpenseItem = {
       name: newExpense.name,
-      amount: expenseAmount, // Total expense amount
+      amount: parseFloat(newExpense.amount),
       category: newExpense.category || "General",
       date: newExpense.date,
       time: newExpense.time,
       dateTime: expenseDateTime,
-      
-      payers: payers, 
+      payers: payers,
+      splitMode: newExpense.splitMode,
+      createdBy: currentUseruid,
+      createdAt: new Date().toISOString(),
     };
 
-    // Use the correctly scoped variables
-    items[tripBudgetIndex].expenses = items[tripBudgetIndex].expenses || [];
-    items[tripBudgetIndex].expenses.push(expenseItem);
+    // --- Push expense to Firestore ---
+    const updatedExpenses = [...expenses, newExpenseItem];
 
-    // Using setDoc with merge:true is generally safer when updating complex fields like items
-    await setDoc(budgetDocRef, { items }, { merge: true }); 
+    await updateDoc(budgetRef, { expenses: updatedExpenses });
 
-    // 4. Update local state and reset drawer
-    const totalUsed = items[tripBudgetIndex].expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-
-    setBudget(prev => ({
+    // --- Update UI state locally ---
+    const totalUsed = updatedExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    setBudget((prev) => ({
       ...prev,
-      expenses: items[tripBudgetIndex].expenses,
       used: totalUsed,
+      expenses: updatedExpenses,
     }));
 
     setSnackbar({ open: true, message: "Expense added successfully!" });
-    setExpenseDrawerOpen(false);
-    setNewExpense({ 
-      name: "", 
-      amount: "", 
-      category: "", 
-      date: "", 
-      time: "", 
-      paidBy: currentUseruid,
-      splitMode: 'single_payer' // Reset mode
-    });
-    // Reset contributors state
-    setExpenseContributors(initializeExpenseContributors(memberDetails, 'single_payer')); 
 
+    // --- Reset states ---
+    setExpenseDrawerOpen(false);
+    setNewExpense({
+      name: "",
+      amount: "",
+      category: "",
+      date: getCurrentDate(),
+      time: getCurrentTime(),
+      paidBy: currentUseruid,
+      splitMode: "single_payer",
+    });
+    setExpenseContributors(initializeExpenseContributors(memberDetails, "single_payer"));
   } catch (error) {
     console.error("Error adding expense:", error);
     setSnackbar({ open: true, message: "Failed to add expense." });
   }
 };
+
+
 
 const getMemberName = (uid) => {
   const member = memberDetails.find(m => m.uid === uid);
@@ -1557,19 +1686,81 @@ const renderExpensePayers = (expense) => {
             <Typography variant="h6" gutterBottom>
               Members
             </Typography>
-            <List dense>
-              {memberDetails.map((user) => (
-                <ListItem key={user.uid} disableGutters onClick={() => navigate(`/chat/${user.uid}`)} sx={{ cursor: "pointer" }}>
-                  <Avatar src={user.photoURL} sx={{ mr: 2 }} />
-                  <Box>
-                    <Typography fontWeight="medium">{user.name || "Unknown"}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {user.email}
-                    </Typography>
-                  </Box>
-                </ListItem>
-              ))}
-            </List>
+<List dense>
+  {memberDetails.map((user) => (
+    <ListItem
+      key={user.uid}
+      disableGutters
+      sx={{
+        borderRadius: 3,
+        mb: 1,
+        py: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        transition: "all 0.2s ease",
+      }}
+    >
+      <Box
+        display="flex"
+        alignItems="center"
+        gap={1.5}
+        sx={{ cursor: "pointer" }}
+        onClick={() => navigate(`/chat/${user.uid}`)}
+      >
+        <Avatar src={user.photoURL} sx={{ width: 40, height: 40 }} />
+        <Box>
+          <Typography fontWeight="medium">
+            {user.uid === currentUseruid
+              ? `${user.name || "You"} (Me)`
+              : user.name || "Unknown"}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {user.email}
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Only show remove button to trip creator */}
+      {trip?.createdBy === currentUseruid && user.uid !== currentUseruid && (
+        <Tooltip title="Remove Member">
+          <IconButton
+            size="small"
+            color="error"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMemberToRemove(user.uid);
+            }}
+            sx={{
+              backgroundColor:
+                mode === "dark" ? "#ff000015" : "#ff000010",
+              "&:hover": {
+                backgroundColor:
+                  mode === "dark" ? "#ff000025" : "#ff000020",
+              },
+              borderRadius: 2,
+            }}
+          >
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
+    </ListItem>
+  ))}
+</List>
+
+<Dialog open={!!memberToRemove} onClose={() => setMemberToRemove(null)}>
+  <DialogTitle>Remove Member</DialogTitle>
+  <DialogContent>
+    <Typography>Are you sure you want to remove this member from the trip?</Typography>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setMemberToRemove(null)}>Cancel</Button>
+    <Button color="error" onClick={confirmRemoveMember}>Remove</Button>
+  </DialogActions>
+</Dialog>
+
+
 
             <Button
               variant="outlined"
@@ -2149,182 +2340,189 @@ const renderExpensePayers = (expense) => {
 </SwipeableDrawer>
         
                   {/* Timeline Drawer */}
-                  <SwipeableDrawer
-                    anchor="bottom"
-                    open={timelineDrawerOpen}
-                    onClose={() => setTimelineDrawerOpen(false)}
-                    ModalProps={{
-                      BackdropProps: {
-                        sx: {
-                          p: 3,
-                          backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-                          backdropFilter: "blur(2px)",
-                        },
-                      },
-                    }}
-                    PaperProps={{
-                      sx: {
-                        p: 3,
-                        borderTopLeftRadius: 16,
-                        borderTopRightRadius: 16,
-                        backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
-                        boxShadow: "none"
-                      },
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 40,
-                        height: 5,
-                        bgcolor: "grey.500",
-                        opacity: 0.5,
-                        borderRadius: 2.5,
-                        mx: "auto",
-                        mb: 2,
-                        cursor: "grab",
-                      }}
-                    />
+{/* Enhanced Timeline Drawer */}
+<SwipeableDrawer
+  anchor="bottom"
+  open={timelineDrawerOpen}
+  onClose={() => {
+    setTimelineDrawerOpen(false);
+    setTimelineDrafts([]);
+    setNewEvent({ title: "", time: "", note: "" });
+  }}
+  ModalProps={{
+    BackdropProps: {
+      sx: {
+        p: 3,
+        backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
+        backdropFilter: "blur(5px)",
+      },
+    },
+  }}
+  PaperProps={{
+    sx: {
+      p: 3,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      maxHeight: "70vh",
+      overflowY: "auto",
+      backgroundColor: mode === "dark" ? "#000000ff" : "#fff",
+      boxShadow: "none",
+    },
+  }}
+>
+  <Box
+    sx={{
+      width: 40,
+      height: 5,
+      bgcolor: "grey.500",
+      opacity: 0.5,
+      borderRadius: 2.5,
+      mx: "auto",
+      mb: 2,
+      cursor: "grab",
+    }}
+  />
 
-                    <Typography variant="h5" mb={2}>
-                      Add Timeline Event
-                    </Typography>
-                    
-                    <Typography variant="caption" ml={2} fontWeight={"bolder"}>Title</Typography>
-                    <TextField
-                      fullWidth
-                      value={newEvent.title}
-                      onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                      placeholder="Enter your timelines title..."
-                      sx={{
-                        bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-                        borderRadius: 8,
-                        mb: 2,
-                        boxShadow: "none",
-                        '& .MuiInputLabel-root.Mui-focused': {
-                          color: mode === "dark" ? "#fff" : "#000",
-                        },
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 8,
-                          '& fieldset': {
-                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-                          },
-                          '&:hover fieldset': {
-                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-                          },
-                          '&.Mui-focused fieldset': {
-                            borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-                            boxShadow: "none",
-                            color: mode === "dark" ? "#fff" : "#000"
-                          },
-                          backgroundColor: 'inherit',
-                        },
-                        input: {
-                          color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-                        },
-                        label: {
-                          color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-                        },
-                      }}
-                    />
+  <Typography variant="h6" mb={2}>
+    Add Timeline Events
+  </Typography>
 
-                    <Typography variant="caption" ml={2} fontWeight={"bolder"}>Time</Typography>
-                    <TextField
-                      fullWidth
-                      type="datetime-local"
-                      value={newEvent.time}
-                      onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
-                      placeholder="Time"
-                      InputLabelProps={{ shrink: true }}
-                      sx={{
-                        bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-                        borderRadius: 8,
-                        mb: 2,
-                        boxShadow: "none",
-                        '& .MuiInputLabel-root.Mui-focused': {
-                          color: mode === "dark" ? "#fff" : "#000",
-                        },
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 8,
-                          '& fieldset': {
-                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-                          },
-                          '&:hover fieldset': {
-                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-                          },
-                          '&.Mui-focused fieldset': {
-                            borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-                            boxShadow: "none",
-                            color: mode === "dark" ? "#fff" : "#000"
-                          },
-                          backgroundColor: 'inherit',
-                        },
-                        input: {
-                          color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-                        },
-                        label: {
-                          color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-                        },
-                      }}
-                    />
+  <Box sx={{ display: "flex", gap: 1 }}>
+    <Button
+      variant="contained"
+      component="label"
+      sx={{
+        mb: 2,
+        boxShadow: "none",
+        color: theme.palette.text.primary,
+        borderRadius: 4,
+        backgroundColor: mode === "dark" ? "#ffffff10" : "#00000010",
+      }}
+    >
+      Upload Events
+      <input
+        type="file"
+        accept=".txt,.md,text/plain,text/markdown,text/x-markdown"
+        hidden
+        onChange={handleTimelineFileUpload}
+      />
+    </Button>
 
-                    <Typography variant="caption" ml={2} fontWeight={"bolder"}>Notes</Typography>
-                    <TextField
-                      fullWidth
-                      value={newEvent.note}
-                      onChange={(e) => setNewEvent({ ...newEvent, note: e.target.value })}
-                      placeholder="Enter your timeline notes..."
-                      multiline
-                      rows={3}
-                      sx={{
-                        bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-                        borderRadius: 8,
-                        mb: 2,
-                        boxShadow: "none",
-                        '& .MuiInputLabel-root.Mui-focused': {
-                          color: mode === "dark" ? "#fff" : "#000",
-                        },
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 8,
-                          '& fieldset': {
-                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-                          },
-                          '&:hover fieldset': {
-                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-                          },
-                          '&.Mui-focused fieldset': {
-                            borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-                            boxShadow: "none",
-                            color: mode === "dark" ? "#fff" : "#000"
-                          },
-                          backgroundColor: 'inherit',
-                        },
-                        input: {
-                          color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-                        },
-                        label: {
-                          color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-                        },
-                      }}
-                    />
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      onClick={addTimelineEvent}
-                      disabled={!newEvent.title || !newEvent.time}
-                      sx={{
-                        textTransform: "none",
-                        color: theme => theme.palette.mode === 'dark' ? '#fff' : '#000',
-                        backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010',
-                        fontWeight: 500,
-                        borderRadius: 8,
-                        px: 1.5,
-                        py: 1,
-                        mt: 2
-                      }}
-                    >
-                      Add Event
-                    </Button>
-                  </SwipeableDrawer>
+    <Button
+      variant="contained"
+      onClick={addEmptyTimelineDraft}
+      sx={{
+        mb: 2,
+        boxShadow: "none",
+        color: theme.palette.text.primary,
+        borderRadius: 4,
+        backgroundColor: mode === "dark" ? "#ffffff10" : "#00000010",
+      }}
+    >
+      Add Multiple Events
+    </Button>
+  </Box>
+
+  {/* Drafted timeline preview */}
+  {timelineDrafts.length > 0 && (
+    <>
+      <Typography variant="subtitle1" gutterBottom>
+        Preview & Edit Timeline Events
+      </Typography>
+      {timelineDrafts.map((item, index) => (
+        <Box key={index} display="flex" alignItems="center" mb={1} gap={1}>
+          <TextField
+            fullWidth
+            value={item.title}
+            onChange={(e) =>
+              updateTimelineDraft(index, { ...item, title: e.target.value })
+            }
+            placeholder={`Event ${index + 1} title`}
+            variant="outlined"
+            size="small"
+            sx={{
+              borderRadius: 8,
+              "& .MuiOutlinedInput-root": { borderRadius: 8 },
+            }}
+          />
+          <TextField
+            type="datetime-local"
+            value={item.time}
+            onChange={(e) =>
+              updateTimelineDraft(index, { ...item, time: e.target.value })
+            }
+            size="small"
+            sx={{ width: 200, borderRadius: 8 }}
+          />
+          <IconButton
+            color="error"
+            onClick={() => removeTimelineDraft(index)}
+            size="small"
+          >
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      ))}
+      <Button
+        fullWidth
+        variant="contained"
+        onClick={addAllTimelineEvents}
+        sx={{
+          mt: 2,
+          borderRadius: 8,
+          backgroundColor: mode === "dark" ? "#fff" : "#000",
+          color: mode === "dark" ? "#000" : "#fff",
+        }}
+      >
+        Add {timelineDrafts.length} Event(s)
+      </Button>
+    </>
+  )}
+
+  {/* Single input mode */}
+  {timelineDrafts.length === 0 && (
+    <>
+      <TextField
+        fullWidth
+        label="Event Title"
+        value={newEvent.title}
+        onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+        sx={{ mb: 2 }}
+      />
+      <TextField
+        fullWidth
+        type="datetime-local"
+        label="Event Time"
+        value={newEvent.time}
+        onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
+        sx={{ mb: 2 }}
+      />
+      <TextField
+        fullWidth
+        multiline
+        rows={2}
+        label="Notes"
+        value={newEvent.note}
+        onChange={(e) => setNewEvent({ ...newEvent, note: e.target.value })}
+        sx={{ mb: 3 }}
+      />
+      <Button
+        fullWidth
+        variant="contained"
+        onClick={addTimelineEvent}
+        disabled={!newEvent.title || !newEvent.time}
+        sx={{
+          borderRadius: 8,
+          backgroundColor: mode === "dark" ? "#fff" : "#000",
+          color: mode === "dark" ? "#000" : "#fff",
+        }}
+      >
+        Add Timeline Event
+      </Button>
+    </>
+  )}
+</SwipeableDrawer>
+
 
                   <SwipeableDrawer
                     anchor="bottom"
