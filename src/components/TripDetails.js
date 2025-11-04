@@ -3,7 +3,7 @@ import {
   Box, Typography, Container, AvatarGroup, Avatar, LinearProgress,
   Button, Card, CardContent, List, ListItem, ListItemIcon, ListItemText,
   Divider, IconButton, TextField, Dialog, DialogTitle, DialogContent,
-  DialogActions, Snackbar, InputAdornment, Drawer,
+  DialogActions, Snackbar, InputAdornment, Drawer, FormControlLabel,
   SwipeableDrawer, Paper, Checkbox, Tooltip, Collapse, useTheme
 } from "@mui/material";
 import {
@@ -18,6 +18,7 @@ import { getAuth } from "firebase/auth";
 import { db } from "../firebase";
 import { QRCodeSVG } from "qrcode.react";
 import ShareIcon from "@mui/icons-material/Share";
+import ImageIcon from "@mui/icons-material/Image";
 import DirectionsIcon from "@mui/icons-material/Directions";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import GroupIcon from "@mui/icons-material/Group";
@@ -28,11 +29,23 @@ import InstagramIcon from '@mui/icons-material/Instagram';
 import TwitterIcon from '@mui/icons-material/Twitter';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import CelebrationIcon from "@mui/icons-material/Celebration";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import CircleIcon from "@mui/icons-material/Circle";
+import AddLinkIcon from "@mui/icons-material/AddLink";
+import DriveFolderUploadIcon from "@mui/icons-material/DriveFolderUpload";
+import YouTubeIcon from "@mui/icons-material/YouTube";
+import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
+import EditIcon from "@mui/icons-material/Edit";
+import LinkIcon from "@mui/icons-material/Link";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { useWeather } from "../contexts/WeatherContext";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 const getCurrentDate = () => {
   const now = new Date();
@@ -88,6 +101,11 @@ export default function TripDetails() {
     setTimeline(sorted);
   });
 
+  const [tripLinks, setTripLinks] = useState([]);
+  const [newLink, setNewLink] = useState({ title: "", url: "" });
+  const [linkDrawerOpen, setLinkDrawerOpen] = useState(false);
+  const [editingLink, setEditingLink] = useState(null);
+
   const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
   const theme = getTheme(mode, accent);
 
@@ -113,10 +131,68 @@ export default function TripDetails() {
 
   const [memberToRemove, setMemberToRemove] = useState(null);
   
+  
   const confirmRemoveMember = async () => {
     await handleRemoveMember(memberToRemove);
     setMemberToRemove(null);
   };
+
+
+useEffect(() => {
+  if (!id) return;
+
+  const timelineRef = collection(db, `trips/${id}/timeline`);
+  const unsubTimeline = onSnapshot(timelineRef, async (snapshot) => {
+    const events = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    const now = new Date().toISOString();
+
+    // Auto reveal logic (safe scope)
+    for (const event of events) {
+      if (
+        event.surprise &&
+        event.revealAt &&
+        !event.revealed &&
+        event.revealAt <= now
+      ) {
+        try {
+          const eventRef = doc(db, `trips/${id}/timeline`, event.id);
+          await updateDoc(eventRef, { revealed: true });
+        } catch (err) {
+          console.warn("Auto reveal failed:", err);
+        }
+      }
+    }
+
+    // Filter surprise events visibility
+    const visibleEvents = events.filter((event) => {
+      if (!event.surprise) return true;
+      if (event.createdBy === currentUseruid) return true;
+      if (event.revealed) return true;
+      if (event.revealAt && event.revealAt <= now) return true;
+      return false;
+    });
+
+    setTimeline(visibleEvents.sort((a, b) => new Date(a.time) - new Date(b.time)));
+  });
+
+  return () => unsubTimeline();
+}, [id, currentUseruid]);
+
+const revealSurpriseEvent = async (eventId) => {
+  try {
+    const eventRef = doc(db, `trips/${id}/timeline`, eventId);
+    await updateDoc(eventRef, { revealed: true });
+    setSnackbar({ open: true, message: "Surprise revealed to everyone!" });
+  } catch (error) {
+    console.error("Error revealing surprise:", error);
+    setSnackbar({ open: true, message: "Failed to reveal surprise." });
+  }
+};
+
 
 useEffect(() => {
   if (!id) return;
@@ -156,12 +232,6 @@ useEffect(() => {
     setPhotos(snap.docs.map(doc => doc.data().url));
   });
 
-  const unsubTimeline = onSnapshot(collection(db, `trips/${id}/timeline`), snap => {
-    const events = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    const sorted = events.sort((a, b) => new Date(a.time) - new Date(b.time));
-    setTimeline(sorted);
-  });
-
   // Cleanup on unmount or id change
   return () => {
     unsubscribeTrip();
@@ -170,6 +240,82 @@ useEffect(() => {
     unsubTimeline();
   };
 }, [id]);
+
+useEffect(() => {
+  if (!id) return;
+
+const tripRef = doc(db, "trips", id);
+  const unsub = onSnapshot(tripRef, (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      setTripLinks(data.links || []);
+    }
+  });
+
+  return () => unsub();
+}, [id]);
+
+const handleAddLink = async () => {
+  if (!newLink.url || !newLink.title) {
+    setSnackbar({ open: true, message: "Please fill both fields." });
+    return;
+  }
+
+  try {
+    const tripRef = doc(db, "trips", id);
+    const updatedLinks = [
+      ...tripLinks,
+      {
+        id: crypto.randomUUID(),
+        ...newLink,
+        createdBy: currentUseruid,
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
+    await updateDoc(tripRef, { links: updatedLinks });
+    setSnackbar({ open: true, message: "Link added successfully!" });
+    setLinkDrawerOpen(false);
+    setNewLink({ title: "", url: "" });
+  } catch (error) {
+    console.error("Error adding link:", error);
+    setSnackbar({ open: true, message: "Failed to add link." });
+  }
+};
+
+const handleDeleteLink = async (linkId) => {
+  try {
+    const tripRef = doc(db, "trips", id);
+    const updated = tripLinks.filter((l) => l.id !== linkId);
+    await updateDoc(tripRef, { links: updated });
+    setSnackbar({ open: true, message: "Link removed." });
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const handleRenameLink = async (linkId, newTitle) => {
+  try {
+    const tripRef = doc(db, "trips", id);
+    const updated = tripLinks.map((l) =>
+      l.id === linkId ? { ...l, title: newTitle } : l
+    );
+    await updateDoc(tripRef, { links: updated });
+    setEditingLink(null);
+    setSnackbar({ open: true, message: "Link renamed successfully!" });
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const getLinkIcon = (url) => {
+  if (url.includes("drive.google")) return <DriveFolderUploadIcon />;
+  if (url.includes("youtube")) return <YouTubeIcon color="error" />;
+  if (url.includes("photos.google")) return <PhotoLibraryIcon color="info" />;
+  return <LinkIcon />;
+};
+
+
 
 const handleTimelineFileUpload = (event) => {
   const file = event.target.files[0];
@@ -212,6 +358,30 @@ const addEmptyTimelineDraft = () => {
     { title: "", time: getCurrentDate() + "T" + getCurrentTime(), note: "" },
   ]);
 };
+
+const revealAllSurprises = async () => {
+  try {
+    const hidden = timeline.filter(
+      (e) =>
+        e.surprise && e.createdBy === currentUseruid && !e.revealed
+    );
+    for (const event of hidden) {
+      const eventRef = doc(db, `trips/${id}/timeline`, event.id);
+      await updateDoc(eventRef, { revealed: true });
+    }
+    setSnackbar({
+      open: true,
+      message: "All surprise events revealed to members!",
+    });
+  } catch (error) {
+    console.error("Error revealing surprises:", error);
+    setSnackbar({
+      open: true,
+      message: "Failed to reveal some surprises.",
+    });
+  }
+};
+
 
 // Update draft
 const updateTimelineDraft = (index, updatedItem) => {
@@ -627,19 +797,47 @@ const handleEditSave = async () => {
 
     // Timeline handlers
 const addTimelineEvent = async () => {
-  if (!newEvent.title || !newEvent.time) return;
+  if (!newEvent.title || !newEvent.time) {
+    setSnackbar({ open: true, message: "Please fill all required fields." });
+    return;
+  }
 
   try {
-    await addDoc(collection(db, `trips/${id}/timeline`), {
-      ...newEvent,
-      completed: false, // Default to incomplete
+    const eventData = {
+      title: newEvent.title,
+      time: newEvent.time,
+      note: newEvent.note || "",
+      completed: false,
+      createdBy: currentUseruid,
+      createdAt: new Date().toISOString(),
+      surprise: newEvent.surprise || false,
+      revealed: !newEvent.surprise, // visible immediately if not surprise
+      revealAt: newEvent.revealAt || null,
+    };
+
+    await addDoc(collection(db, `trips/${id}/timeline`), eventData);
+
+    setSnackbar({
+      open: true,
+      message: newEvent.surprise
+        ? "Surprise timeline added secretly!"
+        : "Timeline event added successfully!",
     });
-    setNewEvent({ title: "", time: "", note: "" });
+
+    setNewEvent({
+      title: "",
+      time: getCurrentDate() + "T" + getCurrentTime(),
+      note: "",
+      surprise: false,
+      revealAt: "",
+    });
     setTimelineDrawerOpen(false);
   } catch (error) {
     console.error("Error adding timeline event:", error);
+    setSnackbar({ open: true, message: "Failed to add timeline event." });
   }
 };
+
 
 const deleteTimelineEvent = async (eventId) => {
   try {
@@ -861,6 +1059,93 @@ const fetchCoverImage = async (location) => {
   }
 };
 
+const generateSharePoster = async () => {
+  try {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const width = 1080;
+    const height = 1920;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    // Gradient background
+    const gradient = ctx.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, mode === "dark" ? "#000000" : "#ffffff");
+    gradient.addColorStop(1, mode === "dark" ? "#101010" : "#f3f3f3");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+
+    // Title
+    ctx.fillStyle = mode === "dark" ? "#ffffff" : "#000000";
+    ctx.font = "bold 70px Poppins";
+    ctx.textAlign = "center";
+    ctx.fillText(trip?.name || "Trip", width / 2, 200);
+
+    // Route
+    ctx.font = "40px Poppins";
+    ctx.fillText(`${trip?.from || "Origin"} → ${trip?.to || "Destination"}`, width / 2, 300);
+
+    // Date Range
+    ctx.font = "35px Poppins";
+    ctx.fillText(
+      `${trip?.startDate || "Start"} - ${trip?.endDate || "End"}`,
+      width / 2,
+      370
+    );
+
+    // QR Code (from QRCodeSVG)
+    const qrCanvas = document.createElement("canvas");
+    const qrSvg = document.querySelector("svg").outerHTML;
+    const blob = new Blob([qrSvg], { type: "image/svg+xml;charset=utf-8" });
+    const qrUrl = URL.createObjectURL(blob);
+    const qrImg = new Image();
+    await new Promise((res) => {
+      qrImg.onload = () => {
+        ctx.drawImage(qrImg, width / 2 - 180, 450, 360, 360);
+        URL.revokeObjectURL(qrUrl);
+        res();
+      };
+      qrImg.src = qrUrl;
+    });
+
+    // Footer Text
+    ctx.font = "28px Poppins";
+    ctx.fillStyle = mode === "dark" ? "#cccccc" : "#444444";
+    ctx.fillText("Join our trip on BunkMate!", width / 2, 950);
+
+    // Branding
+    ctx.font = "bold 40px Poppins";
+    ctx.fillStyle = mode === "dark" ? "#ffffff" : "#000000";
+    ctx.fillText("✨ BunkMate", width / 2, height - 100);
+
+    // Convert to blob and share/download
+    canvas.toBlob(async (blob) => {
+      const file = new File([blob], `${trip?.name || "trip"}.png`, {
+        type: "image/png",
+      });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `${trip?.name || "Trip"} Poster`,
+          text: `Join our trip "${trip?.name}" on BunkMate!`,
+          files: [file],
+        });
+      } else {
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(file);
+        link.download = `${trip?.name || "trip"}_poster.png`;
+        link.click();
+        setSnackbar({ open: true, message: "Poster downloaded successfully!" });
+      }
+    });
+  } catch (error) {
+    console.error("Error generating poster:", error);
+    setSnackbar({ open: true, message: "Failed to generate poster." });
+  }
+};
+
+
 // --- Helper: Render Expense Payers ---
 const renderExpensePayers = (expense) => {
   let payerUids = [];
@@ -1005,17 +1290,116 @@ const renderExpensePayers = (expense) => {
 
         <Container sx={{ py: 0, px: 0, position: "absolute", top: 250}}>
 
-          {weather && (
-  <Box m={1} sx={{ backgroundColor: mode === "dark" ? "#27272773" : "#ffffffa3", py: 1, px: 2, width: 220, borderRadius: 3, backdropFilter: "blur(30px)" }}>
-    <Typography variant="subtitle2" color="text.secondary">
-      Weather in {trip?.location}:
-    </Typography> 
-    <Box display="flex" alignItems="center" gap={1}>
-      <img src={weather.icon} alt="weather" width={32} height={32} />
-      <Typography variant="body2">
-        {weather.temp}°C — {weather.description}
-      </Typography>
+{weather && (
+  <Box
+    m={1.5}
+    sx={{
+      position: "relative",
+      display: "flex",
+      flexDirection: "column",
+      gap: 1,
+      background:
+        mode === "dark"
+          ? "linear-gradient(145deg, rgba(39, 39, 39, 0.35), rgba(25, 25, 25, 0.5))"
+          : "linear-gradient(145deg, rgba(255,255,255,0.8), rgba(245,245,245,0.7))",
+      borderRadius: 4,
+      width: 240,
+      py: 1.5,
+      px: 2,
+      backdropFilter: "blur(20px)",
+      boxShadow:"none",
+      cursor: "pointer",
+      transition: "all 0.3s ease",
+    }}
+  >
+    {/* Main Weather Row */}
+    <Box
+      display="flex"
+      alignItems="center"
+      justifyContent="space-between"
+    >
+      <Box display="flex" alignItems="center" gap={1.2}>
+        <Box
+          sx={{
+            backgroundColor:
+              mode === "dark" ? "rgba(255,255,255,0.05)" : "#ffffffb3",
+            p: 0.1,
+            borderRadius: "50%",
+            boxShadow:
+              mode === "dark"
+                ? "0 0 8px rgba(255,255,255,0.05)"
+                : "0 0 5px rgba(0,0,0,0.1)",
+          }}
+        >
+      <Box
+        sx={{
+          fontSize: 28,
+          opacity: 0.8,
+        }}
+      >
+        {weather.temp > 32
+          ? "🔥"
+          : weather.temp < 10
+          ? "❄️"
+          : weather.description?.includes("rain")
+          ? "🌧️"
+          : weather.description?.includes("cloud")
+          ? "⛅"
+          : "☀️"}
+      </Box>
+        </Box>
+
+        <Box>
+          <Typography
+            variant="h6"
+            fontWeight="600"
+            sx={{
+              lineHeight: 1.1,
+              color: mode === "dark" ? "#fff" : "#000",
+            }}
+          >
+            {weather.temp ? `${Math.round(weather.temp)}°C` : "—"}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              textTransform: "capitalize",
+              letterSpacing: 0.2,
+            }}
+          >
+            {weather.description || "N/A"}
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Small Icon for Conditions */}
+    <Typography
+      variant="caption"
+      color="text.secondary"
+      sx={{
+        fontWeight: 400,
+        letterSpacing: 0.3,
+        textTransform: "uppercase",
+      }}
+    >
+      in {trip?.location || "—"}
+    </Typography>
     </Box>
+
+    {/* Footer Detail Line */}
+    {/* <Typography
+      variant="caption"
+      color="text.secondary"
+      sx={{
+        mt: 0.3,
+        textAlign: "right",
+        fontStyle: "italic",
+        opacity: 0.7,
+      }}
+    >
+      Updated {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+    </Typography> */}
   </Box>
 )}
 
@@ -1203,6 +1587,127 @@ const renderExpensePayers = (expense) => {
     Save Changes
   </Button>
 )}
+
+<Box mt={3}>
+  <Typography variant="h6" fontWeight="bold" mb={1}>
+    Shared Trip Links
+  </Typography>
+
+  {tripLinks.length === 0 ? (
+    <Typography
+      variant="body2"
+      color="text.secondary"
+      sx={{ pb: 2, textAlign: "center" }}
+    >
+      No links added yet.
+    </Typography>
+  ) : (
+    <List
+      sx={{
+        maxHeight: "220px",
+        overflowY: "auto",
+        scrollbarWidth: "none",
+        mb: 1,
+      }}
+    >
+      {tripLinks.map((link) => (
+        <ListItem
+          key={link.id}
+          sx={{
+            backgroundColor:
+              mode === "dark" ? "#1a1a1a" : "#f7f7f7",
+            mb: 1,
+            borderRadius: 3,
+            px: 2,
+            py: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            transition: "0.2s ease",
+            "&:hover": {
+              backgroundColor:
+                mode === "dark" ? "#252525" : "#eeeeee",
+            },
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={1.5}>
+            {getLinkIcon(link.url)}
+            {editingLink === link.id ? (
+              <TextField
+                variant="standard"
+                size="small"
+                value={link.title}
+                onChange={(e) => {
+                  const updated = tripLinks.map((l) =>
+                    l.id === link.id
+                      ? { ...l, title: e.target.value }
+                      : l
+                  );
+                  setTripLinks(updated);
+                }}
+                onBlur={() => handleRenameLink(link.id, link.title)}
+                autoFocus
+              />
+            ) : (
+              <Typography
+                variant="body1"
+                fontWeight="500"
+                onClick={() => window.open(link.url, "_blank")}
+                sx={{
+                  cursor: "pointer",
+                  "&:hover": {
+                    textDecoration: "underline",
+                  },
+                }}
+              >
+                {link.title}
+              </Typography>
+            )}
+          </Box>
+
+          {trip?.createdBy === currentUseruid && (
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <IconButton
+                size="small"
+                onClick={() => setEditingLink(link.id)}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => handleDeleteLink(link.id)}
+              >
+                <Cancel color="error" fontSize="small" />
+              </IconButton>
+            </Box>
+          )}
+        </ListItem>
+      ))}
+    </List>
+  )}
+
+  {trip?.createdBy === currentUseruid && (
+    <Button
+      variant="contained"
+      startIcon={<AddLinkIcon />}
+      onClick={() => setLinkDrawerOpen(true)}
+      sx={{
+        borderRadius: 3,
+        mt: 1,
+        py: 1,
+        fontWeight: "bold",
+        backgroundColor: mode === "dark" ? "#fff" : "#000",
+        color: mode === "dark" ? "#000" : "#fff",
+        "&:hover": {
+          backgroundColor: mode === "dark" ? "#f1f1f1" : "#111",
+        },
+      }}
+    >
+      Add Trip Link
+    </Button>
+  )}
+</Box>
+
 
           </Box>
 
@@ -1548,6 +2053,68 @@ const renderExpensePayers = (expense) => {
 
 <Divider sx={{ my: 2 }} />
 
+{/* Surprise Reveal Card — visible only to creator */}
+{timeline.some(
+  (event) =>
+    event.surprise &&
+    event.createdBy === currentUseruid &&
+    !event.revealed
+) && (
+  <Card
+    sx={{
+      mb: 2,
+      borderRadius: 4,
+      background:
+        mode === "dark"
+          ? "linear-gradient(145deg, #111, #222)"
+          : "linear-gradient(145deg, #fff, #f3f3f3)",
+      boxShadow:
+        mode === "dark"
+          ? "0 0 20px rgba(255,255,255,0.05)"
+          : "0 0 10px rgba(0,0,0,0.05)",
+      p: 3,
+      display: "flex",
+      flexDirection: "column",
+      gap: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    <CelebrationIcon
+      sx={{
+        fontSize: 40,
+        color: mode === "dark" ? "#fff" : "#000",
+        mb: 1,
+      }}
+    />
+    <Typography fontWeight="bold" fontSize={18}>
+      You have surprise events hidden from others!
+    </Typography>
+    <Typography color="text.secondary" fontSize={14}>
+      You can reveal them manually or let them auto-reveal on schedule.
+    </Typography>
+    <Button
+      variant="contained"
+      onClick={revealAllSurprises}
+      sx={{
+        mt: 2,
+        borderRadius: 3,
+        px: 4,
+        py: 1,
+        fontWeight: "bold",
+        backgroundColor: mode === "dark" ? "#fff" : "#000",
+        color: mode === "dark" ? "#000" : "#fff",
+        "&:hover": {
+          backgroundColor: mode === "dark" ? "#f3f3f3" : "#222",
+        },
+      }}
+    >
+      Reveal All Surprises Now
+    </Button>
+  </Card>
+)}
+
+
             {/* Timeline */}
 <Box sx={{ mt: 4, px: 2, py: 1 }}>
   <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1565,51 +2132,88 @@ const renderExpensePayers = (expense) => {
   </Box>
   
 <Box sx={{ position: "relative" }}>
-  {timeline.length === 0 ? (
-    <Typography variant="body2" color="text.secondary" sx={{ pb: 5, mb: 3, textAlign: "center" }}>
-      No events added yet.
-    </Typography>
-  ) : (
-    <List
-      sx={{
-        maxHeight: "300px",
-        overflowY: "auto",
-        scrollbarWidth: "none",
-        pb: 5,
-        mb: 1
-      }}
-    >
-      {timeline.map((item, index) => {
-        const itemTime = new Date(item.time);
-        const isCompleted = item.completed;
-        const isUpcoming = !isCompleted && itemTime > new Date() &&
-          timeline.findIndex((e) => new Date(e.time) > new Date() && !e.completed) === index;
+{timeline.length === 0 ? (
+  <Typography
+    variant="body2"
+    color="text.secondary"
+    sx={{ pb: 5, mb: 3, textAlign: "center" }}
+  >
+    No events added yet.
+  </Typography>
+) : (
+  <List
+    sx={{
+      maxHeight: "300px",
+      overflowY: "auto",
+      scrollbarWidth: "none",
+      pb: 5,
+      mb: 1,
+    }}
+  >
+    {timeline.map((item, index) => {
+      const itemTime = new Date(item.time);
+      const isCompleted = item.completed;
+      const isUpcoming =
+        !isCompleted &&
+        itemTime > new Date() &&
+        timeline.findIndex(
+          (e) => new Date(e.time) > new Date() && !e.completed
+        ) === index;
 
-        return (
-          <ListItem
-            key={item.id}
-            sx={{
-              backgroundColor: isUpcoming
-                ? "#bc751835" // Indigo for upcoming
-                : isCompleted
-                ? mode === "dark" ? "#000000" : "#ffffff"
-                : mode === "dark" ? "#1c1c1c" : "#f0f0f0ff",
-              borderRadius: 3,
-              mb: 1,
-              px: 2,
-              py: 0.1,
-              border: isUpcoming ? "2px solid #bc7518ff" : "none",
-              boxShadow: isUpcoming ? "0 0 10px #bc751880" : "none",
-            }}
-            secondaryAction={
-              isCompleted &&
-              trip?.createdBy === currentUseruid && (
-                <IconButton onClick={() => deleteTimelineEvent(item.id)}>
-                  <Cancel color="error" />
-                </IconButton>
-              )
-            }
-          >
+      // Surprise event conditions
+      const isCreator = item.createdBy === currentUseruid;
+      const isLocked =
+        item.surprise &&
+        !item.revealed &&
+        !isCreator &&
+        (!item.revealAt || new Date(item.revealAt) > new Date());
+      const canReveal =
+        item.surprise && isCreator && !item.revealed;
+
+      return (
+        <ListItem
+          key={item.id}
+          sx={{
+            backgroundColor: isLocked
+              ? mode === "dark"
+                ? "#292929"
+                : "#f4f4f4"
+              : isUpcoming
+              ? "#bc751835"
+              : isCompleted
+              ? mode === "dark"
+                ? "#000000"
+                : "#ffffff"
+              : mode === "dark"
+              ? "#1c1c1c"
+              : "#f0f0f0ff",
+            borderRadius: 3,
+            mb: 1,
+            px: 2,
+            py: 1,
+            border: isUpcoming
+              ? "2px solid #bc7518ff"
+              : isLocked
+              ? "1px dashed #888"
+              : "none",
+            boxShadow: isUpcoming
+              ? "0 0 10px #bc751880"
+              : "none",
+            display: "flex",
+            alignItems: "center",
+            transition: "all 0.2s ease",
+          }}
+          secondaryAction={
+            isCompleted &&
+            trip?.createdBy === currentUseruid && (
+              <IconButton onClick={() => deleteTimelineEvent(item.id)}>
+                <Cancel color="error" />
+              </IconButton>
+            )
+          }
+        >
+          {/* Checkbox for visible (non-surprise) or creator view */}
+          {!isLocked && (
             <ListItemIcon>
               <Checkbox
                 checked={isCompleted}
@@ -1617,32 +2221,100 @@ const renderExpensePayers = (expense) => {
                 sx={{ color: "#999" }}
               />
             </ListItemIcon>
+          )}
 
-            <ListItemText
-              primary={
-                <Typography
-                  variant="body1"
-                  fontWeight={isUpcoming ? "bold" : isCompleted ? "normal" : "medium"}
-                  color={isCompleted ? "#888" : isUpcoming ? theme.palette.text.primary : theme.palette.text.primary}
-                  sx={{
-                    textDecoration: isCompleted ? "line-through" : "none",
-                  }}
-                >
-                  {item.title}
-                </Typography>
-              }
-              secondary={
-                <Typography variant="caption" color="text.secondary">
-                  {itemTime.toLocaleString()}
-                  {item.note && ` — ${item.note}`}
-                </Typography>
-              }
-            />
-          </ListItem>
-        );
-      })}
-    </List>
-  )}
+          <ListItemText
+            primary={
+              <Typography
+                variant="body1"
+                fontWeight={
+                  isLocked
+                    ? "bold"
+                    : isUpcoming
+                    ? "bold"
+                    : isCompleted
+                    ? "normal"
+                    : "medium"
+                }
+                color={
+                  isLocked
+                    ? "text.secondary"
+                    : isCompleted
+                    ? "#888"
+                    : theme.palette.text.primary
+                }
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.8,
+                  textDecoration: isCompleted ? "line-through" : "none",
+                }}
+              >
+                {/* Locked View */}
+                {isLocked ? (
+                  <>
+                    <LockOutlinedIcon
+                      sx={{
+                        fontSize: 18,
+                        color: mode === "dark" ? "#bbb" : "#555",
+                      }}
+                    />
+                    🎁 Surprise Locked
+                  </>
+                ) : (
+                  item.title
+                )}
+              </Typography>
+            }
+            secondary={
+              <>
+                {isLocked ? (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontStyle: "italic" }}
+                  >
+                    Planned secretly by{" "}
+                    <b>{getMemberName(item.createdBy) || "a member"}</b>
+                  </Typography>
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    {itemTime.toLocaleString()}
+                    {item.note && ` — ${item.note}`}
+                  </Typography>
+                )}
+              </>
+            }
+          />
+
+          {/* Reveal Button (Creator Only) */}
+          {canReveal && (
+            <Button
+              size="small"
+              variant="outlined"
+              sx={{
+                ml: 1,
+                borderRadius: 2,
+                textTransform: "none",
+                borderColor:
+                  mode === "dark" ? "#ffffff60" : "#00000060",
+                color: mode === "dark" ? "#fff" : "#000",
+                "&:hover": {
+                  backgroundColor:
+                    mode === "dark" ? "#ffffff20" : "#00000010",
+                },
+              }}
+              onClick={() => revealSurpriseEvent(item.id)}
+            >
+              Reveal Now
+            </Button>
+          )}
+        </ListItem>
+      );
+    })}
+  </List>
+)}
+
     <Box
     sx={{
       position: "absolute",
@@ -1749,18 +2421,134 @@ const renderExpensePayers = (expense) => {
   ))}
 </List>
 
-<Dialog open={!!memberToRemove} onClose={() => setMemberToRemove(null)}>
-  <DialogTitle>Remove Member</DialogTitle>
-  <DialogContent>
-    <Typography>Are you sure you want to remove this member from the trip?</Typography>
+<motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+<Dialog
+  open={!!memberToRemove}
+  onClose={() => setMemberToRemove(null)}
+  PaperProps={{
+    sx: {
+      borderRadius: 4,
+      background:
+        mode === "dark"
+          ? "linear-gradient(145deg, #1a1a1a3b, rgba(34, 34, 34, 0.2))"
+          : "linear-gradient(145deg, #fff, #f9f9f9)",
+      boxShadow: "none",
+      backgroundImage: "none",
+      p: 2,
+      backdropFilter: "blur(26px)",
+      width: "100%",
+      maxWidth: 400,
+    },
+  }}
+  TransitionProps={{
+    timeout: 300,
+  }}
+>
+  <DialogTitle
+    sx={{
+      textAlign: "center",
+      fontWeight: "700",
+      fontSize: "1.2rem",
+      color: mode === "dark" ? "#fff" : "#000",
+      pb: 0,
+    }}
+  >
+    Remove Member
+  </DialogTitle>
+
+  <DialogContent sx={{ textAlign: "center", mt: 2 }}>
+    <Box
+      display="flex"
+      flexDirection="column"
+      alignItems="center"
+      justifyContent="center"
+      gap={1.5}
+    >
+      <Box
+        sx={{
+          width: 60,
+          height: 60,
+          borderRadius: "50%",
+          backgroundColor: mode === "dark" ? "#2a0000" : "#ffebee",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "none",
+          mb: 1,
+        }}
+      >
+        <Typography sx={{ fontSize: 30 }}>🚫</Typography>
+      </Box>
+
+      <Typography
+        variant="body1"
+        color="text.primary"
+        sx={{
+          fontWeight: 500,
+          px: 2,
+        }}
+      >
+        Are you sure you want to remove this member from the trip?
+      </Typography>
+
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ fontStyle: "italic" }}
+      >
+        This action can’t be undone.
+      </Typography>
+    </Box>
   </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setMemberToRemove(null)}>Cancel</Button>
-    <Button color="error" onClick={confirmRemoveMember}>Remove</Button>
+
+  <DialogActions
+    sx={{
+      justifyContent: "center",
+      mt: 1,
+      pb: 2,
+      gap: 1.5,
+    }}
+  >
+    <Button
+      variant="outlined"
+      onClick={() => setMemberToRemove(null)}
+      sx={{
+        textTransform: "none",
+        borderRadius: 3,
+        px: 3,
+        fontWeight: 600,
+        borderColor: mode === "dark" ? "#888" : "#ccc",
+        color: mode === "dark" ? "#fff" : "#000",
+        "&:hover": {
+          borderColor: mode === "dark" ? "#aaa" : "#000",
+          backgroundColor: mode === "dark" ? "#222" : "#f0f0f0",
+        },
+      }}
+    >
+      Cancel
+    </Button>
+
+    <Button
+      variant="contained"
+      color="error"
+      onClick={confirmRemoveMember}
+      sx={{
+        textTransform: "none",
+        borderRadius: 3,
+        px: 3,
+        fontWeight: 600,
+        boxShadow: "none",
+        backgroundColor: "#e53935",
+        "&:hover": {
+          backgroundColor: "#c62828",
+        },
+      }}
+    >
+      Remove
+    </Button>
   </DialogActions>
 </Dialog>
-
-
+</motion.div>
 
             <Button
               variant="outlined"
@@ -1815,35 +2603,39 @@ const renderExpensePayers = (expense) => {
       borderTopLeftRadius: 26,
       borderTopRightRadius: 26,
       backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
-      boxShadow: "none"
+      boxShadow: "none",
     },
   }}
 >
+  {/* Drawer Handle */}
+  <Box
+    sx={{
+      width: 40,
+      height: 5,
+      bgcolor: "grey.500",
+      opacity: 0.5,
+      borderRadius: 2.5,
+      mx: "auto",
+      mb: 2,
+      cursor: "grab",
+    }}
+  />
 
-    <Box
-      sx={{
-        width: 40,
-        height: 5,
-        bgcolor: "grey.500",
-        opacity: 0.5,
-        borderRadius: 2.5,
-        mx: "auto",
-        mb: 1,
-        cursor: "grab",
-      }}
-    />
-
-  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 4 }}>
-
-    <Typography variant="h6">
-      Invite Members via Link
+  {/* Header */}
+  <Box
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      mb: 3,
+    }}
+  >
+    <Typography variant="h6" fontWeight="bold">
+      Share Trip Invite
     </Typography>
-
-    <Button
-      onClick={() => setShareDrawerOpen(false)}
-    >
-      Close
-    </Button>
+    <IconButton onClick={() => setShareDrawerOpen(false)}>
+      <CloseOutlinedIcon />
+    </IconButton>
   </Box>
 
   {/* QR Code */}
@@ -1853,18 +2645,20 @@ const renderExpensePayers = (expense) => {
         width: 180,
         height: 180,
         backgroundColor: "#fff",
-        padding: 2,
-        borderRadius: 3,
+        p: 2,
+        borderRadius: 4,
+        boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
         display: "flex",
-        justifyContent: "center",
         alignItems: "center",
+        justifyContent: "center",
       }}
     >
-      <QRCodeSVG value={inviteLink} size={180} bgColor="#fff" fgColor="#000000" p={3} />
+      <QRCodeSVG value={inviteLink} size={160} bgColor="#fff" fgColor="#000" />
     </Box>
   </Box>
 
-    <TextField
+  {/* Invite Link */}
+  <TextField
     fullWidth
     multiline
     value={inviteLink}
@@ -1883,20 +2677,64 @@ const renderExpensePayers = (expense) => {
         </InputAdornment>
       ),
     }}
-    sx={{ mb: 2 }}
+    sx={{ mb: 3 }}
   />
 
+  {/* Native Device Share */}
+  {navigator.share && (
+    <Button
+      fullWidth
+      variant="contained"
+      startIcon={<ShareIcon />}
+      onClick={async () => {
+        try {
+          await navigator.share({
+            title: `Join my trip "${trip?.name}" on BunkMate!`,
+            text: `Hey! Join our trip "${trip?.name}" using this invite link.`,
+            url: inviteLink,
+          });
+          setSnackbar({ open: true, message: "Shared successfully!" });
+        } catch (error) {
+          console.log("Share cancelled or failed:", error);
+        }
+      }}
+      sx={{
+        mb: 2,
+        py: 1.3,
+        fontWeight: 600,
+        borderRadius: 10,
+        backgroundColor: mode === "dark" ? "#ffffff" : "#000000",
+        color: mode === "dark" ? "#000" : "#fff",
+        "&:hover": {
+          backgroundColor: mode === "dark" ? "#f1f1f1" : "#111",
+        },
+      }}
+    >
+      Share via Device
+    </Button>
+  )}
 
-  {/* MUI Social Icons */}
-  <Box display="flex" justifyContent="center" gap={3} mb={2}>
+  {/* Social Sharing Options */}
+  <Box
+    display="flex"
+    flexWrap="wrap"
+    justifyContent="center"
+    alignItems="center"
+    gap={2}
+  >
     <Tooltip title="Share on WhatsApp">
       <IconButton
         component="a"
         href={`https://wa.me/?text=${encodeURIComponent(
-          `You're invited to join our trip "${trip?.name}" on BunkMate! 🚀\nClick to join: ${inviteLink}`
+          `You're invited to join "${trip?.name}" on BunkMate! 🚀\nTap here: ${inviteLink}`
         )}`}
         target="_blank"
-        sx={{ color: mode === "dark" ? "#fff" : "#000", p: 1.5, backgroundColor: "#25D366" }}
+        sx={{
+          backgroundColor: "#25D366",
+          color: "#fff",
+          p: 2,
+          "&:hover": { opacity: 0.8 },
+        }}
       >
         <WhatsAppIcon />
       </IconButton>
@@ -1905,13 +2743,38 @@ const renderExpensePayers = (expense) => {
     <Tooltip title="Share on Telegram">
       <IconButton
         component="a"
-        href={`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(
-          `Join our "${trip?.name}" trip on BunkMate! 🚀`
+        href={`https://t.me/share/url?url=${encodeURIComponent(
+          inviteLink
+        )}&text=${encodeURIComponent(
+          `Join our "${trip?.name}" on BunkMate! 🚀`
         )}`}
         target="_blank"
-        sx={{ color: mode === "dark" ? "#fff" : "#000", p: 1.5, backgroundColor: "#229ED9" }}
+        sx={{
+          backgroundColor: "#229ED9",
+          color: "#fff",
+          p: 2,
+          "&:hover": { opacity: 0.8 },
+        }}
       >
         <TelegramIcon />
+      </IconButton>
+    </Tooltip>
+
+    <Tooltip title="Share on X (Twitter)">
+      <IconButton
+        component="a"
+        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
+          `Join my trip "${trip?.name}" on BunkMate! 🌍 ${inviteLink}`
+        )}`}
+        target="_blank"
+        sx={{
+          backgroundColor: "#1DA1F2",
+          color: "#fff",
+          p: 2,
+          "&:hover": { opacity: 0.8 },
+        }}
+      >
+        <TwitterIcon />
       </IconButton>
     </Tooltip>
 
@@ -1919,49 +2782,78 @@ const renderExpensePayers = (expense) => {
       <IconButton
         onClick={() => {
           navigator.clipboard.writeText(inviteLink);
-          setSnackbar({ open: true, message: "Copied! Share it on Instagram." });
+          setSnackbar({
+            open: true,
+            message: "Copied! Paste link in your Instagram story caption.",
+          });
         }}
-        sx={{ color: mode === "dark" ? "#fff" : "#000", p: 1.5, backgroundColor: "#E1306C" }}
+        sx={{
+          backgroundColor: "#E1306C",
+          color: "#fff",
+          p: 2,
+          "&:hover": { opacity: 0.8 },
+        }}
       >
         <InstagramIcon />
       </IconButton>
     </Tooltip>
 
-    <Tooltip title="Share on Twitter / X">
+    <Tooltip title="Share QR Image">
       <IconButton
-        component="a"
-        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
-          `Join my trip "${trip?.name}" on BunkMate! ${inviteLink}`
-        )}`}
-        target="_blank"
-        sx={{ color: "#1DA1F2", p: 1.5, backgroundColor: mode === "dark" ? "white" : "#d5d5d5ff" }}
+        onClick={async () => {
+          try {
+            const canvas = document.querySelector("svg").outerHTML;
+            const blob = new Blob([canvas], { type: "image/svg+xml" });
+            const file = new File([blob], "trip_qr.svg", { type: "image/svg+xml" });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({
+                title: `Trip QR for ${trip?.name}`,
+                text: "Scan this QR to join our trip on BunkMate!",
+                files: [file],
+              });
+            } else {
+              setSnackbar({
+                open: true,
+                message: "QR saved. Your device may not support file sharing.",
+              });
+            }
+          } catch (error) {
+            console.log("QR sharing failed:", error);
+          }
+        }}
+        sx={{
+          backgroundColor: mode === "dark" ? "#555" : "#ddd",
+          color: mode === "dark" ? "#fff" : "#000",
+          p: 2,
+          "&:hover": { opacity: 0.9 },
+        }}
       >
-        <TwitterIcon />
+        <ShareIcon />
       </IconButton>
     </Tooltip>
+    {/* <Button
+  fullWidth
+  variant="contained"
+  startIcon={<ImageIcon />}
+  onClick={generateSharePoster}
+  sx={{
+    mt: 3,
+    py: 1.3,
+    fontWeight: 600,
+    borderRadius: 10,
+    backgroundColor: mode === "dark" ? "#fff" : "#000",
+    color: mode === "dark" ? "#000" : "#fff",
+    "&:hover": {
+      backgroundColor: mode === "dark" ? "#f1f1f1" : "#111",
+    },
+  }}
+>
+  Generate Share Poster
+</Button> */}
+
   </Box>
-
-  {/* Native Share API */}
-  {navigator.share && (
-    <Button
-      fullWidth
-      variant="contained"
-      startIcon={<ShareIcon />}
-      sx={{ mb: 1, borderRadius: 8, py: 1.5, backgroundColor: theme.palette.text.primary, color: mode === "dark" ? "#000" : "#fff" }}
-      onClick={() =>
-        navigator.share({
-          title: `Join our trip on BunkMate`,
-          text: `You're invited to join "${trip?.name}" on BunkMate! 🚀\nTap to accept the invite.`,
-          url: inviteLink,
-        })
-      }
-    >
-      Share via Device…
-    </Button>
-  )}
-
 </SwipeableDrawer>
-
         
                   {/* Checklist Drawer */}
       <SwipeableDrawer
@@ -2340,7 +3232,6 @@ const renderExpensePayers = (expense) => {
 </SwipeableDrawer>
         
                   {/* Timeline Drawer */}
-{/* Enhanced Timeline Drawer */}
 <SwipeableDrawer
   anchor="bottom"
   open={timelineDrawerOpen}
@@ -2478,6 +3369,34 @@ const renderExpensePayers = (expense) => {
       </Button>
     </>
   )}
+
+  <FormControlLabel
+  control={
+    <Checkbox
+      checked={newEvent.surprise || false}
+      onChange={(e) =>
+        setNewEvent({ ...newEvent, surprise: e.target.checked })
+      }
+    />
+  }
+  label="Mark as Surprise Timeline (hidden from others)"
+  sx={{ mb: 2 }}
+/>
+
+{newEvent.surprise && (
+  <TextField
+    fullWidth
+    type="datetime-local"
+    label="Auto Reveal Time (optional)"
+    value={newEvent.revealAt || ""}
+    onChange={(e) =>
+      setNewEvent({ ...newEvent, revealAt: e.target.value })
+    }
+    helperText="Leave blank to reveal manually later"
+    sx={{ mb: 2 }}
+  />
+)}
+
 
   {/* Single input mode */}
   {timelineDrafts.length === 0 && (
@@ -3092,27 +4011,227 @@ const renderExpensePayers = (expense) => {
   </Box>
 </SwipeableDrawer>
 
-
-        <Dialog
-  open={confirmDeleteOpen}
-  onClose={() => setConfirmDeleteOpen(false)}
-  PaperProps={{ sx: { backgroundColor: "#0000002b", p: 2, borderRadius: 2, backdropFilter: "blur(20px)" } }}
+<SwipeableDrawer
+  anchor="bottom"
+  open={linkDrawerOpen}
+  onClose={() => setLinkDrawerOpen(false)}
+  PaperProps={{
+    sx: {
+      p: 3,
+      borderTopLeftRadius: 26,
+      borderTopRightRadius: 26,
+      backgroundColor: mode === "dark" ? "#111" : "#fff",
+    },
+  }}
 >
-  <DialogTitle sx={{ color: mode === "dark" ? "#fff" : "#000" }}>Confirm Delete</DialogTitle>
-  <DialogContent>
-    <Typography color="text.secondary">
-      Are you sure you want to permanently delete this trip? This action cannot be undone.
-    </Typography>
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setConfirmDeleteOpen(false)} color="primary" variant="outlined">
-      Cancel
-    </Button>
-    <Button onClick={handleDeleteTrip} color="error" variant="contained">
-      Delete
-    </Button>
-  </DialogActions>
-</Dialog>
+  <Typography variant="h6" fontWeight="bold" mb={2}>
+    Add Trip Link
+  </Typography>
+  <TextField
+    fullWidth
+    label="Link Title"
+    variant="outlined"
+    sx={{ mb: 2 }}
+    value={newLink.title}
+    onChange={(e) =>
+      setNewLink({ ...newLink, title: e.target.value })
+    }
+  />
+  <TextField
+    fullWidth
+    label="Paste Link (e.g. Google Drive, YouTube, etc.)"
+    variant="outlined"
+    value={newLink.url}
+    onChange={(e) =>
+      setNewLink({ ...newLink, url: e.target.value })
+    }
+  />
+  <Button
+    variant="contained"
+    fullWidth
+    startIcon={<AddLinkIcon />}
+    sx={{
+      mt: 3,
+      py: 1.3,
+      borderRadius: 3,
+      fontWeight: "bold",
+      backgroundColor: mode === "dark" ? "#fff" : "#000",
+      color: mode === "dark" ? "#000" : "#fff",
+      "&:hover": {
+        backgroundColor: mode === "dark" ? "#f3f3f3" : "#111",
+      },
+    }}
+    onClick={handleAddLink}
+  >
+    Add Link
+  </Button>
+</SwipeableDrawer>
+
+
+<AnimatePresence>
+  {confirmDeleteOpen && (
+    <Dialog
+      open={confirmDeleteOpen}
+      onClose={() => setConfirmDeleteOpen(false)}
+      PaperProps={{
+        sx: {
+          background:
+            mode === "dark"
+              ? "linear-gradient(145deg, rgba(20,20,20,0.9), rgba(40,40,40,0.85))"
+              : "linear-gradient(145deg, rgba(255,255,255,0.95), rgba(240,240,240,0.9))",
+          p: 2.5,
+          borderRadius: 4,
+          backdropFilter: "blur(25px)",
+          boxShadow: "none",
+          width: "100%",
+          maxWidth: 420,
+          overflow: "hidden",
+        },
+      }}
+      TransitionProps={{
+        timeout: 300,
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+      >
+        {/* Warning Icon Section */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+          >
+            <Box
+              sx={{
+                width: 72,
+                height: 72,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background:
+                  mode === "dark"
+                    ? "rgba(255, 50, 50, 0.1)"
+                    : "rgba(255, 100, 100, 0.15)",
+                boxShadow: "none",
+              }}
+            >
+              <WarningAmberRoundedIcon
+                sx={{
+                  fontSize: 42,
+                  color: "#ff4444",
+                }}
+              />
+            </Box>
+          </motion.div>
+        </Box>
+
+        {/* Title */}
+        <DialogTitle
+          sx={{
+            textAlign: "center",
+            fontWeight: "700",
+            fontSize: "1.25rem",
+            color: mode === "dark" ? "#fff" : "#000",
+            pb: 0.5,
+          }}
+        >
+          Confirm Delete
+        </DialogTitle>
+
+        {/* Message */}
+        <DialogContent>
+          <Typography
+            color="text.secondary"
+            textAlign="center"
+            sx={{
+              px: 2,
+              fontSize: "0.95rem",
+              lineHeight: 1.5,
+            }}
+          >
+            Are you sure you want to permanently delete this trip? <br />
+            <Typography
+              component="span"
+              sx={{
+                color: "#e53935",
+                fontWeight: "600",
+              }}
+            >
+              This action cannot be undone.
+            </Typography>
+          </Typography>
+        </DialogContent>
+
+        {/* Buttons */}
+        <DialogActions
+          sx={{
+            justifyContent: "center",
+            gap: 2,
+            mt: 2,
+            pb: 1,
+          }}
+        >
+          <Button
+            variant="outlined"
+            onClick={() => setConfirmDeleteOpen(false)}
+            sx={{
+              textTransform: "none",
+              borderRadius: 3,
+              px: 3,
+              py: 0.8,
+              fontWeight: 600,
+              borderColor: mode === "dark" ? "#888" : "#aaa",
+              color: mode === "dark" ? "#fff" : "#000",
+              "&:hover": {
+                backgroundColor:
+                  mode === "dark" ? "#2a2a2a" : "#f0f0f0",
+                borderColor: mode === "dark" ? "#bbb" : "#000",
+              },
+            }}
+          >
+            Cancel
+          </Button>
+
+          <motion.div whileTap={{ scale: 0.95 }}>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleDeleteTrip}
+              sx={{
+                textTransform: "none",
+                borderRadius: 3,
+                px: 3,
+                py: 0.8,
+                fontWeight: 600,
+                background:
+                  "linear-gradient(135deg, #ff4e4e, #d32f2f)",
+                boxShadow: "none",
+                "&:hover": {
+                  background:
+                    "linear-gradient(135deg, #ff3c3c, #b71c1c)",
+                },
+              }}
+            >
+              Delete
+            </Button>
+          </motion.div>
+        </DialogActions>
+      </motion.div>
+    </Dialog>
+  )}
+</AnimatePresence>
 
 
       </Box>
