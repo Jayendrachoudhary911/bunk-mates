@@ -903,9 +903,28 @@ await addDoc(collection(db, "notifications"), {
                 (group) =>
                 group.items.length > 0 && (
                     <Box key={group.key} sx={{ mb: 3 }}>
-                    <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>
-                        {group.label} ({group.items.length})
-                    </Typography>
+<Typography
+  variant="overline"
+  sx={{
+    mb: 1.5,
+    fontWeight: 700,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: "#555", // Neutral mid-gray tone, fixed (doesn’t switch in themes)
+    display: "flex",
+    alignItems: "center",
+    "&::after": {
+      content: '""',
+      flex: 1,
+      height: "1px",
+      ml: 1.5,
+      background: "linear-gradient(90deg, #bbb 0%, transparent 100%)",
+    },
+  }}
+>
+  {group.label} ({group.items.length})
+</Typography>
+
                     <List>
                         {group.items
                           .slice(0, tab === "all" ? 5 : 50) // show only top 5 items in "All" tab

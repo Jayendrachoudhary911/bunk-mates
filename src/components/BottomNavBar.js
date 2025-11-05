@@ -33,26 +33,41 @@ const BottomNavBar = () => {
   ];
 
   // Hide/show on scroll
+// Hide/show on scroll (improved)
 useEffect(() => {
-  // Only activate scroll hide/show on search page
-  if (window.location.pathname !== "/search") {
-    setVisible(true); // Always visible on non-search pages
-    return; // Exit early, don’t attach the scroll listener
+  const isSearchPage = location.pathname === "/search";
+
+  if (!isSearchPage) {
+    setVisible(true);
+    return; // No scroll listener on other pages
   }
 
-  const handleScroll = () => {
+  let lastScrollY = window.scrollY;
+  let ticking = false;
+
+  const updateVisibility = () => {
     const currentScroll = window.scrollY;
-    if (currentScroll > lastScroll && currentScroll > 50) {
-      setVisible(false);
-    } else {
-      setVisible(true);
-    }
-    setLastScroll(currentScroll);
+    const scrollDown = currentScroll > lastScrollY && currentScroll > 80;
+
+    // Hide if scrolling down, show if scrolling up
+    setVisible(!scrollDown);
+
+    lastScrollY = currentScroll > 0 ? currentScroll : 0;
+    ticking = false;
   };
 
-  window.addEventListener("scroll", handleScroll);
-  return () => window.removeEventListener("scroll", handleScroll);
-}, [lastScroll]);
+  const onScroll = () => {
+    if (!ticking) {
+      window.requestAnimationFrame(updateVisibility);
+      ticking = true;
+    }
+  };
+
+  window.addEventListener("scroll", onScroll);
+  return () => {
+    window.removeEventListener("scroll", onScroll);
+  };
+}, [location.pathname]);
 
 
   // Active index detection
@@ -67,7 +82,7 @@ useEffect(() => {
         position: "fixed",
         bottom: visible ? 0 : -80,
         left: "50%",
-        transform: "translateX(-50%)",
+        transform: `translateX(-50%) translateY(${visible ? "0" : "120%"} )`,
         width: "100%",
         maxWidth: 500,
         display: "flex",
@@ -78,7 +93,7 @@ useEffect(() => {
         zIndex: 999,
         transition: "all 0.5s cubic-bezier(.4,0,.2,1)",
         overflow: "hidden",
-        background: "linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0), rgba(0, 0, 0, 0.95))",
+        background: mode === "dark" ? "linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0), rgba(0, 0, 0, 0.95))" : "linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0), rgba(255, 255, 255, 0.95))",
       }}
     >
       {/* Navigation items in row */}
