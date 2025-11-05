@@ -37,6 +37,8 @@ import {
   updateDoc,
   doc,
   deleteDoc,
+  arrayUnion,
+  setDoc,
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -94,7 +96,6 @@ const NotificationCard = ({
   const latestNotif = group.notifications[0];
   const groupCount = group.notifications.length;
   const isGroupSeen = group.isSeen;
-
   const [swiped, setSwiped] = React.useState(false);
 
   const handlers = useSwipeable({
@@ -104,17 +105,62 @@ const NotificationCard = ({
     trackMouse: true,
   });
 
+  // ✅ Handle Accept Friend Request
+  const handleAcceptRequest = async (notif) => {
+    try {
+      const currentUid = auth.currentUser?.uid;
+      if (!currentUid) return;
+
+      await updateDoc(doc(db, "notifications", notif.id), {
+        status: "accepted",
+        read: true,
+        message: "You are now friends!",
+      });
+
+      await Promise.all([
+        updateDoc(doc(db, "users", currentUid), { friends: arrayUnion(notif.senderId) }),
+        updateDoc(doc(db, "users", notif.senderId), { friends: arrayUnion(currentUid) }),
+      ]);
+
+      await setDoc(doc(db, "notifications", notif.id), {
+        type: "friend_accepted",
+        senderId: currentUid,
+        uid: notif.senderId,
+        title: "Friend Request Accepted",
+        content: `${auth.currentUser?.displayName || "A user"} accepted your friend request.`,
+        pic: auth.currentUser?.photoURL || "",
+        seen: false,
+        timestamp: new Date(),
+      });
+    } catch (err) {
+      console.error("Error accepting friend request:", err);
+    }
+  };
+
+  // ❌ Handle Reject Friend Request
+  const handleRejectRequest = async (notif) => {
+    try {
+      await updateDoc(doc(db, "notifications", notif.id), {
+        status: "rejected",
+        read: true,
+        message: "Friend request rejected.",
+      });
+    } catch (err) {
+      console.error("Error rejecting friend request:", err);
+    }
+  };
+
   return (
     <Box
       key={`${dateLabel}-${index}`}
       sx={{
         position: "relative",
         overflow: "hidden",
-        mb: 0,
+        mb: 1.2,
         borderRadius: 3,
       }}
     >
-      {/* Swipe Background (Delete + Mark as Read) */}
+      {/* Swipe Background (Mark/Remove) */}
       <motion.div
         animate={{ x: swiped ? 0 : "100%" }}
         transition={{ duration: 0.3 }}
@@ -130,9 +176,8 @@ const NotificationCard = ({
           paddingLeft: "30px",
           zIndex: 0,
           background:
-            "linear-gradient(90deg, rgba(34,197,94,0.2) 0%, rgba(239,68,68,0.2) 100%)",
-          backdropFilter: "blur(10px) saturate(180%)",
-          WebkitBackdropFilter: "blur(10px) saturate(180%)",
+            "linear-gradient(90deg, rgba(34,197,94,0.15) 0%, rgba(239,68,68,0.15) 100%)",
+          backdropFilter: "blur(10px)",
         }}
       >
         <IconButton
@@ -141,8 +186,6 @@ const NotificationCard = ({
             bgcolor: "rgba(34,197,94,0.25)",
             color: "success.main",
             "&:hover": { bgcolor: "rgba(34,197,94,0.45)" },
-            transition: "0.3s",
-            p: 1.6,
           }}
           onClick={(e) => {
             e.stopPropagation();
@@ -158,8 +201,6 @@ const NotificationCard = ({
             bgcolor: "rgba(239,68,68,0.25)",
             color: "error.main",
             "&:hover": { bgcolor: "rgba(239,68,68,0.45)" },
-            transition: "0.3s",
-            p: 1.6,
           }}
           onClick={(e) => {
             e.stopPropagation();
@@ -178,53 +219,49 @@ const NotificationCard = ({
         transition={{ duration: 0.25, ease: "easeOut" }}
       >
         <Card
-          onClick={() => handleGroupClick(group)}
+          onClick={() =>
+            latestNotif.type !== "friend_request" &&
+            handleGroupClick(group)
+          }
           sx={(theme) => ({
-            cursor: "pointer",
+            cursor:
+              latestNotif.type === "friend_request"
+                ? "default"
+                : "pointer",
             bgcolor: isGroupSeen
-              ? theme.palette.mode === "dark"
-                ? "transparent"
-                : "transparent"
+              ? "transparent"
               : theme.palette.mode === "dark"
-              ? "rgba(85, 85, 85, 0.18)"
-              : "rgba(77, 77, 77, 0.08)",
-            backdropFilter: "blur(14px) saturate(180%)",
-            WebkitBackdropFilter: "blur(14px) saturate(180%)",
-            boxShadow: "none",
-            pb: 0,
-            justifyContent: "center",
+              ? "rgba(85,85,85,0.18)"
+              : "rgba(77,77,77,0.06)",
+            backgroundImage: "none",
+            backdropFilter: "blur(14px)",
             borderRadius: 3,
+            pb: 0,
             transition: "all 0.25s ease",
             "&:hover": {
-              transform: "translateY(-2px)",
-              boxShadow: "none",
+              transform:
+                latestNotif.type !== "friend_request"
+                  ? "translateY(-2px)"
+                  : "none",
             },
-            '&.MuiPaper-root': { backgroundImage: "none" },
+            boxShadow: "none", // ✅ clean and modern
           })}
         >
-          <CardContent
-            sx={{
-              py: 1,
-              px: 1.5,
-            }}
-          >
-            <ListItem disablePadding sx={{ alignItems: "center", justifyContent: "center" }}>
+          <CardContent sx={{ py: 1.5, px: 2 }}>
+            <ListItem disablePadding sx={{ alignItems: "center" }}>
               <ListItemAvatar>
                 <Avatar
                   src={latestNotif.pic}
                   sx={{
-                    bgcolor: "secondary.main",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+                    bgcolor: "primary.main",
                     width: 42,
                     height: 42,
+                    fontSize: "0.95rem",
                   }}
                 >
-                  {!latestNotif.pic &&
-                    (group.groupType === "chat" ? (
-                      <ChatBubbleIcon fontSize="small" />
-                    ) : (
-                      <NotificationsIcon fontSize="small" />
-                    ))}
+                  {!latestNotif.pic && (
+                    <NotificationsIcon fontSize="small" />
+                  )}
                 </Avatar>
               </ListItemAvatar>
 
@@ -234,29 +271,14 @@ const NotificationCard = ({
                   <Box display="flex" alignItems="center" width="100%">
                     <Typography
                       component="span"
-                      fontWeight={700}
+                      fontWeight={600}
                       fontSize="0.95rem"
                       color="text.primary"
                       noWrap
                       sx={{ flexGrow: 1 }}
                     >
-                      {group.senderTitle}
+                      {latestNotif.title || "Notification"}
                     </Typography>
-
-                    {groupCount > 1 && (
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          color: "text.secondary",
-                          fontWeight: 600,
-                          ml: 0.5,
-                        }}
-                      >
-                        ({groupCount}{" "}
-                        {group.groupType === "chat" ? "msgs" : "updates"})
-                      </Typography>
-                    )}
-
                     <Typography
                       component="span"
                       variant="caption"
@@ -270,23 +292,84 @@ const NotificationCard = ({
                     </Typography>
                   </Box>
                 }
-                secondary={
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      mt: 0.3,
-                      color: "text.secondary",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      fontSize: "0.85rem",
-                    }}
-                  >
-                    {groupCount > 1
-                      ? `Latest: ${latestNotif.content}`
-                      : latestNotif.content}
-                  </Typography>
-                }
+secondary={
+  <Box sx={{ mt: 0.5 }}>
+    {latestNotif.type === "friend_request" ? (
+      <Box
+        sx={{
+          display: "flex",
+          gap: 1,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ flexGrow: 1 }}
+        >
+          {latestNotif.content || latestNotif.message}
+        </Typography>
+        <Button
+          variant="contained"
+          color="success"
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleAcceptRequest(latestNotif);
+          }}
+        >
+          Accept
+        </Button>
+        <Button
+          variant="outlined"
+          color="error"
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleRejectRequest(latestNotif);
+          }}
+        >
+          Reject
+        </Button>
+      </Box>
+    ) : (
+      <Box>
+        {/* ✅ Display a concise summary of grouped notifications */}
+        {groupCount > 1 && (
+          <Typography
+            variant="caption"
+            sx={{
+              display: "block",
+              color: "primary.main",
+              fontWeight: 600,
+              mb: 0.2,
+            }}
+          >
+            {groupCount} {group.groupType.replace("_", " ")} updates
+          </Typography>
+        )}
+
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            fontSize: "0.85rem",
+            opacity: 0.9,
+          }}
+        >
+          {latestNotif.content ||
+            latestNotif.message ||
+            "No details available."}
+        </Typography>
+      </Box>
+    )}
+  </Box>
+}
+
               />
             </ListItem>
           </CardContent>
@@ -295,6 +378,7 @@ const NotificationCard = ({
     </Box>
   );
 };
+
 
 export default function Notifications() {
   const [notifications, setNotifications] = useState([]);
@@ -363,56 +447,58 @@ export default function Notifications() {
   }, [notifications, filter]);
 
 
-  // Grouping Logic - now uses filteredNotifications
-  const groupedNotifications = useMemo(() => {
-    const byDate = filteredNotifications.reduce((acc, notif) => {
-      const dateLabel = formatDateLabel(notif.timestamp);
-      if (!acc[dateLabel]) acc[dateLabel] = [];
-      acc[dateLabel].push(notif);
+// 🧩 Group notifications by sender + type + hour
+const groupedNotifications = useMemo(() => {
+  if (!filteredNotifications.length) return {};
+
+  const byDate = filteredNotifications.reduce((acc, notif) => {
+    const dateLabel = formatDateLabel(notif.timestamp);
+    if (!acc[dateLabel]) acc[dateLabel] = [];
+    acc[dateLabel].push(notif);
+    return acc;
+  }, {});
+
+  const finalGrouped = {};
+
+  for (const dateLabel in byDate) {
+    const bySenderAndType = byDate[dateLabel].reduce((acc, notif) => {
+      const sender = notif.senderId || "system";
+      const type = notif.type || "general";
+      const timeKey = formatTimeLabel(notif.timestamp); // hour-level grouping
+      const key = `${sender}_${type}_${timeKey}`;
+
+      if (!acc[key]) {
+        acc[key] = {
+          sender,
+          senderPic: notif.pic || "",
+          groupType: type,
+          groupTime: getGroupDisplayTime(notif.timestamp),
+          notifications: [],
+          title: notif.title || "Notification",
+          isSeen: notif.seen,
+          latestTimestamp: notif.timestamp,
+        };
+      }
+
+      acc[key].notifications.push(notif);
+
+      // update if any unseen
+      if (!notif.seen) acc[key].isSeen = false;
       return acc;
     }, {});
 
-    const finalGrouped = {};
+    // Sort groups by most recent
+    const sortedGroups = Object.values(bySenderAndType).sort(
+      (a, b) =>
+        (b.latestTimestamp?.toDate().getTime() || 0) -
+        (a.latestTimestamp?.toDate().getTime() || 0)
+    );
 
-    for (const dateLabel in byDate) {
-      finalGrouped[dateLabel] = [];
-      const notifsForDate = byDate[dateLabel];
+    finalGrouped[dateLabel] = sortedGroups;
+  }
 
-      const bySenderAndTime = notifsForDate.reduce((acc, notif) => {
-        // Group by Sender + Type + Pic + Time Block for maximum flexibility.
-        const timeKey = formatTimeLabel(notif.timestamp);
-        const senderKey = `${notif.senderId || notif.title || 'Unknown'}|${notif.type || 'Generic'}|${notif.pic || 'NoPic'}|${timeKey}`;
-
-        if (!acc[senderKey]) {
-          acc[senderKey] = {
-            senderTitle: notif.title,
-            senderPic: notif.pic,
-            groupType: notif.type, 
-            groupTime: getGroupDisplayTime(notif.timestamp),
-            notifications: [],
-            isSeen: notif.seen,
-            latestTimestamp: notif.timestamp,
-          };
-        }
-        
-        acc[senderKey].notifications.push(notif);
-
-        if (!notif.seen) {
-            acc[senderKey].isSeen = false;
-        }
-
-        return acc;
-      }, {});
-
-      const groupsArray = Object.values(bySenderAndTime).sort((a, b) => 
-        (b.latestTimestamp?.toDate().getTime() || 0) - (a.latestTimestamp?.toDate().getTime() || 0)
-      );
-
-      finalGrouped[dateLabel] = groupsArray;
-    }
-
-    return finalGrouped;
-  }, [filteredNotifications]); // DEPENDS ON FILTERED NOTIFICATIONS
+  return finalGrouped;
+}, [filteredNotifications]);
 
   // Function to mark an entire group as read
   const markGroupAsRead = async (group) => {

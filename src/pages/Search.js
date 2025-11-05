@@ -36,6 +36,7 @@ import {
   arrayUnion,
   setDoc,
   collection,
+  addDoc,
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 
@@ -81,6 +82,16 @@ export default function SearchPage() {
   const { results, loading: isSearchLoading } = useUniversalSearch(q, {
     maxPerCollection: 200,
   });
+
+  useEffect(() => {
+    const bottomBar = document.getElementById("bottom-nav"); // Adjust ID based on your layout
+    if (bottomBar) {
+      bottomBar.style.display = q.trim() ? "none" : "flex";
+    }
+    return () => {
+      if (bottomBar) bottomBar.style.display = "flex";
+    };
+  }, [q]);
 
   // 1. Fetch current user data (MODIFIED to extract visibility from privacy map)
   useEffect(() => {
@@ -155,54 +166,98 @@ export default function SearchPage() {
   };
   
   // 3. Conditional list of users to display for the "Users" tab
-  // 3. Conditional list of users to display for the "Users" tab
-  const usersToDisplay = useMemo(() => {
-    const trimmedQ = q.trim().toLowerCase();
-    
-    // Don't show any users if there's no search query
-    if (!trimmedQ) {
-      return [];
-    }
+const usersToDisplay = useMemo(() => {
+  const trimmedQ = q.trim().toLowerCase();
+  const currentUserId = auth.currentUser?.uid;
 
-    const baseList = results.users;
-    const currentUserId = auth.currentUser?.uid;
+  if (!trimmedQ) return [];
 
-    const filteredList = baseList.filter(user => {
-        const isSelf = currentUserId && user.uid === currentUserId;
-        if (isSelf) {
-            return false;
-        }
+  // Merge useUniversalSearch results + all fetched users
+  const combinedList = [
+    ...(results.users || []),
+    ...(fetchedAllUsers || []),
+  ];
 
-        // Match against name OR nickname/displayName
-        const displayName = user.displayName?.toLowerCase() || user.name?.toLowerCase() || "";
-        const username = user.username?.toLowerCase() || "";
+  // Filter and rank matches
+  const scoredMatches = combinedList
+    .filter((user) => {
+      const isSelf = currentUserId && user.uid === currentUserId;
+      if (isSelf) return false;
 
-        // Check for exact matches first
-        const isExactMatch = displayName === trimmedQ || username === trimmedQ;
-        
-        // If it's an exact match, show even if they're friends
-        if (isExactMatch) {
-            return true;
-        }
-        
-        // Check for partial matches
-        return displayName.includes(trimmedQ) || username.includes(trimmedQ);
+      const displayName = (user.displayName || user.name || "").toLowerCase();
+      const username = (user.username || "").toLowerCase();
+
+      // Match logic: either name or username includes the query
+      return displayName.includes(trimmedQ) || username.includes(trimmedQ);
+    })
+    .map((user) => {
+      const displayName = (user.displayName || user.name || "").toLowerCase();
+      const username = (user.username || "").toLowerCase();
+
+      // Relevance scoring
+      let score = 0;
+      if (username.startsWith(trimmedQ) || displayName.startsWith(trimmedQ)) score += 3;
+      else if (username.includes(trimmedQ) || displayName.includes(trimmedQ)) score += 1;
+
+      // Slight boost if name length is short (more likely a direct match)
+      if (displayName.length <= trimmedQ.length + 2) score += 0.5;
+
+      return { ...user, _matchScore: score };
     });
 
-    return filteredList;
-  }, [q, results.users, currentUser]);
+  // Remove duplicates (keep highest score)
+  const uniqueByUid = new Map();
+  for (const user of scoredMatches) {
+    const existing = uniqueByUid.get(user.uid);
+    if (!existing || user._matchScore > existing._matchScore) {
+      uniqueByUid.set(user.uid, user);
+    }
+  }
+
+  // Sort by score (desc), then alphabetically
+  const sortedResults = Array.from(uniqueByUid.values()).sort((a, b) => {
+    if (b._matchScore !== a._matchScore) return b._matchScore - a._matchScore;
+    return (a.displayName || a.name || "").localeCompare(b.displayName || b.name || "");
+  });
+
+  return sortedResults;
+}, [q, results.users, fetchedAllUsers, currentUser]);
+
+
+  // Filter Notes and Reminders — only show if created or shared with the current user
+const currentUid = auth.currentUser?.uid;
+
+const filteredNotes = useMemo(() => {
+  if (!results.notes || !currentUid) return [];
+  return results.notes.filter(
+    (note) =>
+      note.createdBy === currentUid ||
+      (Array.isArray(note.sharedWith) && note.sharedWith.includes(currentUid))
+  );
+}, [results.notes, currentUid]);
+
+const filteredReminders = useMemo(() => {
+  if (!results.reminders || !currentUid) return [];
+  return results.reminders.filter(
+    (reminder) =>
+      reminder.createdBy === currentUid ||
+      (Array.isArray(reminder.sharedWith) && reminder.sharedWith.includes(currentUid))
+  );
+}, [results.reminders, currentUid]);
+
 
 
 const groups = useMemo(
   () => [
     { key: "users", label: "Users", items: usersToDisplay },
-    { key: "notes", label: "Notes", items: results.notes },
-    { key: "reminders", label: "Reminders", items: results.reminders },
+    { key: "notes", label: "Notes", items: filteredNotes },
+    { key: "reminders", label: "Reminders", items: filteredReminders },
     { key: "trips", label: "Trips", items: results.trips },
     { key: "places", label: "Places", items: results.places },
   ],
-  [usersToDisplay, results]
+  [usersToDisplay, filteredNotes, filteredReminders, results]
 );
+
 
   const filteredGroups =
     tab === "all" ? groups : groups.filter((g) => g.key === tab);
@@ -230,298 +285,409 @@ const groups = useMemo(
     else if (type === "trips") navigate(`/trips/${item.id}`);
   };
 
-  const handleAddFriend = async (targetUser) => {
-    try {
-      if (!auth.currentUser) {
-        alert("You must be logged in to add friends");
-        return;
-      }
+const handleAddFriend = async (targetUser) => {
+  try {
+    if (!auth.currentUser) {
+      alert("You must be logged in to add friends");
+      return;
+    }
 
-      const currentUid = auth.currentUser.uid;
-      if (targetUser.uid === currentUid) {
-        alert("You cannot add yourself as a friend!");
-        return;
-      }
+    const currentUid = auth.currentUser.uid;
+    if (targetUser.uid === currentUid) {
+      alert("You cannot add yourself as a friend!");
+      return;
+    }
 
-      const targetRef = doc(db, "users", targetUser.uid);
-      const currentRef = doc(db, "users", currentUid);
+    const currentUserRef = doc(db, "users", currentUid);
+    const targetUserRef = doc(db, "users", targetUser.uid);
+    const [currentSnap, targetSnap] = await Promise.all([
+      getDoc(currentUserRef),
+      getDoc(targetUserRef),
+    ]);
 
-      const [targetSnap, currentSnap] = await Promise.all([
-        getDoc(targetRef),
-        getDoc(currentRef),
+    if (!currentSnap.exists() || !targetSnap.exists()) {
+      alert("User data not found");
+      return;
+    }
+
+    const currentUserData = currentSnap.data();
+    const visibility = targetSnap.data().privacy?.profileVisibility || "public";
+    const currentUserName = currentUserData.name || "A user";
+    const currentUserPic = currentUserData.photoURL || "";
+
+    if (visibility === "public") {
+      await Promise.all([
+        updateDoc(currentUserRef, { friends: arrayUnion(targetUser.uid) }),
+        updateDoc(targetUserRef, { friends: arrayUnion(currentUid) }),
       ]);
 
-      if (!targetSnap.exists() || !currentSnap.exists()) {
-        console.error("Target or current user document not found");
-        alert("User profile data not found.");
-        return;
+      // 🟢 Friend added notifications
+      await Promise.all([
+        addDoc(collection(db, "notifications"), {
+          content: `${currentUserName} added you as a friend.`,
+          pic: currentUserPic,
+          seen: false,
+          senderId: currentUid,
+          timestamp: new Date(),
+          title: "New Friend Added",
+          type: "friend_added",
+          uid: targetUser.uid,
+        }),
+        addDoc(collection(db, "notifications"), {
+          content: `You are now friends with ${targetUser.displayName || targetUser.name}.`,
+          pic: targetUser.photoURL || "",
+          seen: false,
+          senderId: targetUser.uid,
+          timestamp: new Date(),
+          title: "Friendship Confirmed",
+          type: "friend_added_self",
+          uid: currentUid,
+        }),
+      ]);
+
+      alert(`You and ${targetUser.displayName || targetUser.name} are now friends!`);
+    } else {
+      // 🔵 Friend request notification (Private Profile)
+      await addDoc(collection(db, "notifications"), {
+        content: `${currentUserName} sent you a friend request.`,
+        pic: currentUserPic,
+        seen: false,
+        senderId: currentUid,
+        timestamp: new Date(),
+        title: "Friend Request Received",
+        type: "friend_request",
+        uid: targetUser.uid,
+        status: "pending",
+      });
+
+      alert("Friend request sent! Waiting for approval.");
+    }
+  } catch (err) {
+    console.error("Error adding friend:", err);
+    alert("Something went wrong while adding friend.");
+  }
+};
+
+const UserDrawerContent = ({ user }) => {
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const [isRequestReceived, setIsRequestReceived] = useState(false);
+  const [requestId, setRequestId] = useState(null);
+  const [loadingRequestState, setLoadingRequestState] = useState(true);
+  const [isCurrentUserFriend, setIsCurrentUserFriend] = useState(false);
+
+  const currentUid = auth.currentUser?.uid;
+  const isSelf = currentUid === user.uid;
+  const visibility = user.profileVisibility || "public";
+  const isPublic = visibility === "public";
+  const isFullyViewable = isSelf || isCurrentUserFriend || isPublic;
+
+  const joinDate = user.createdAt
+    ? new Date(user.createdAt.seconds * 1000).toLocaleDateString()
+    : "Unknown";
+
+  // 🧠 Listen for existing friend requests (sent or received)
+useEffect(() => {
+  if (!currentUid || !user?.uid || isSelf) return;
+  setLoadingRequestState(true);
+
+  const notificationsRef = collection(db, "notifications");
+  const unsubscribe = onSnapshot(notificationsRef, (snapshot) => {
+    const requests = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    // ✅ Check friend requests using the new structure
+    const sent = requests.find(
+      (r) =>
+        r.type === "friend_request" &&
+        r.senderId === currentUid &&
+        r.uid === user.uid &&
+        (r.status === "pending" || r.status === "accepted")
+    );
+
+    const received = requests.find(
+      (r) =>
+        r.type === "friend_request" &&
+        r.senderId === user.uid &&
+        r.uid === currentUid &&
+        r.status === "pending"
+    );
+
+    setHasPendingRequest(!!sent);
+    setIsRequestReceived(!!received);
+    setRequestId(received ? received.id : sent ? sent.id : null);
+    setLoadingRequestState(false);
+    if (sent?.status === "accepted" || received?.status === "accepted") {
+      setIsCurrentUserFriend(true);
+    }
+  });
+
+  return () => unsubscribe();
+}, [currentUid, user?.uid, isSelf]);
+
+
+  // 🔁 Real-time listener for friendship status
+  useEffect(() => {
+    if (!currentUid || !user?.uid || isSelf) return;
+
+    const currentUserRef = doc(db, "users", currentUid);
+    const unsubscribe = onSnapshot(currentUserRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const friends = docSnap.data().friends || [];
+        setIsCurrentUserFriend(friends.includes(user.uid));
       }
+    });
 
-      // Re-read visibility from the doc for accuracy, falling back to data from the search result if necessary
-      const targetData = targetSnap.data();
-      const visibility = targetData.privacy?.profileVisibility || targetUser.profileVisibility || "public";
-      
-      const currentData = currentSnap.data();
+    return () => unsubscribe();
+  }, [currentUid, user?.uid, isSelf]);
 
-      if (isFriend(targetUser.uid)) {
-        alert("You are already friends with this user!");
-        return;
-      }
+  // ✅ Accept Friend Request
+  const handleAcceptRequest = async () => {
+    if (!requestId || !user?.uid || !currentUid) return;
+    try {
+      const requestRef = doc(db, "notifications", requestId);
+      await updateDoc(requestRef, { status: "accepted" });
 
-      const currentUserName = currentData.name || "A user";
+      await Promise.all([
+        updateDoc(doc(db, "users", currentUid), {
+          friends: arrayUnion(user.uid),
+        }),
+        updateDoc(doc(db, "users", user.uid), {
+          friends: arrayUnion(currentUid),
+        }),
+      ]);
 
-      if (visibility === "public") {
-        await Promise.all([
-          updateDoc(currentRef, { friends: arrayUnion(targetUser.uid) }),
-          updateDoc(targetRef, { friends: arrayUnion(currentUid) }),
-        ]);
+await addDoc(collection(db, "notifications"), {
+  content: `${auth.currentUser?.displayName || "A user"} accepted your friend request.`,
+  pic: auth.currentUser?.photoURL || "",
+  seen: false,
+  senderId: currentUid,
+  timestamp: new Date(),
+  title: "Friend Request Accepted",
+  type: "friend_accept",
+  uid: user.uid,
+  status: "accepted",
+});
 
-        const notificationId1 = `friend_added_${currentUid}_${targetUser.uid}_${Date.now()}`;
-        const notificationId2 = `friend_added_${targetUser.uid}_${currentUid}_${Date.now()}`;
-
-        await Promise.all([
-          setDoc(doc(db, "notifications", notificationId1), {
-            type: "friend_added",
-            to: targetUser.uid,
-            from: currentUid,
-            createdAt: new Date(),
-            message: `${currentUserName} added you as a friend.`,
-            read: false,
-          }),
-          setDoc(doc(db, "notifications", notificationId2), {
-            type: "friend_added_self",
-            to: currentUid,
-            from: targetUser.uid,
-            createdAt: new Date(),
-            message: `You are now friends with ${targetUser.displayName || targetUser.name || "a new user"}.`,
-            read: false,
-          }),
-        ]);
-
-        alert(`You and ${targetUser.displayName || targetUser.name || "the user"} are now friends!`);
-      } else {
-        const requestId = `friend_request_${currentUid}_${targetUser.uid}_${Date.now()}`;
-
-        await setDoc(doc(db, "notifications", requestId), {
-          type: "friend_request",
-          to: targetUser.uid,
-          from: currentUid,
-          createdAt: new Date(),
-          message: `${currentUserName} sent you a friend request.`,
-          status: "pending",
-          read: false,
-        });
-
-        alert("Friend request sent! Waiting for approval.");
-      }
+      alert(`You and ${user.displayName || user.name} are now friends!`);
     } catch (err) {
-      console.error("Error adding friend:", err);
-      alert("Something went wrong while adding friend. Check console for details.");
+      console.error("Error accepting request:", err);
+      alert("Something went wrong while accepting the friend request.");
     }
   };
 
-  // User Drawer Content component (MODIFIED to use the explicitly fetched visibility)
-// ...existing code...
+  // ❌ Reject Friend Request
+  const handleRejectRequest = async () => {
+    if (!requestId) return;
+    try {
+      await addDoc(collection(db, "notifications"), {
+        content: `${auth.currentUser?.displayName || "A user"} rejected your friend request.`,
+        pic: auth.currentUser?.photoURL || "",
+        seen: false,
+        senderId: currentUid,
+        timestamp: new Date(),
+        title: "Friend Request Rejected",
+        type: "friend_reject",
+        uid: user.uid,
+        status: "rejected",
+      });
 
-const UserDrawerContent = ({ user }) => {
-    const isCurrentUserFriend = isFriend(user.uid);
-    const isSelf = auth.currentUser?.uid === user.uid;
-    
-    const visibility = user.profileVisibility || "public"; 
-    const isPublic = visibility === "public";
-    
-    const isFullyViewable = isSelf || isCurrentUserFriend || isPublic;
-    
-    const joinDate = user.createdAt
-      ? new Date(user.createdAt.seconds * 1000).toLocaleDateString()
-      : "Unknown";
+      alert("Friend request rejected.");
+    } catch (err) {
+      console.error("Error rejecting request:", err);
+    }
+  };
 
-    const userDetails = [
-      { label: "Display Name", value: user.displayName },
-      { label: "Username", value: user.username && `@${user.username}` },
-      { label: "Email", value: isFullyViewable ? user.email : null },
-      { label: "Location", value: user.location },
-      { label: "Phone", value: isFullyViewable ? user.phone : null },
-      { label: "Gender", value: user.gender },
-      { label: "Date of Birth", value: user.dateOfBirth },
-      { label: "Occupation", value: user.occupation },
-      { label: "Education", value: user.education },
-      { label: "Joined Date", value: joinDate },
-      { label: "Profile Status", value: visibility },
-      { label: "Languages", value: user.languages?.join(", ") },
-      { label: "Hobbies", value: user.hobbies?.join(", ") },
-      { label: "Interests", value: user.interests?.join(", ") },
-      { label: "Social Links", value: user.socialLinks ? Object.keys(user.socialLinks).join(", ") : null }
-    ].filter(item => item.value); // Only show fields that have values
+  const limitedInfo = [
+    { label: "Display Name", value: user.displayName || user.name },
+    { label: "Profile Status", value: visibility },
+  ];
 
-    return (
-      <Box sx={{ p: 3 }}>
-        {/* Profile Header */}
-        <Stack alignItems="center" spacing={1.5} sx={{ mb: 3 }}>
-          <Avatar
-            src={user.photoURL}
+  const fullInfo = [
+    { label: "Username", value: user.username && `@${user.username}` },
+    { label: "Email", value: user.email },
+    { label: "Location", value: user.location },
+    { label: "Gender", value: user.gender },
+    { label: "Date of Birth", value: user.dateOfBirth },
+    { label: "Occupation", value: user.occupation },
+    { label: "Education", value: user.education },
+    { label: "Joined Date", value: joinDate },
+    { label: "Languages", value: user.languages?.join(", ") },
+    { label: "Hobbies", value: user.hobbies?.join(", ") },
+    { label: "Interests", value: user.interests?.join(", ") },
+    {
+      label: "Social Links",
+      value: user.socialLinks ? Object.keys(user.socialLinks).join(", ") : null,
+    },
+  ].filter((item) => item.value);
+
+  return (
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Stack alignItems="center" spacing={1.5} sx={{ mb: 3 }}>
+        <Avatar
+          src={user.photoURL}
+          sx={{
+            width: 120,
+            height: 120,
+            mb: 1,
+            boxShadow: 4,
+          }}
+        >
+          {user.displayName?.[0] || user.name?.[0]}
+        </Avatar>
+
+        <Typography variant="h5" fontWeight={600}>
+          {user.displayName || user.name || "Unnamed User"}
+        </Typography>
+
+        <Stack direction="row" spacing={1}>
+          {isCurrentUserFriend && (
+            <Chip label="Friend" color="success" size="small" />
+          )}
+          <Chip
+            label={visibility.charAt(0).toUpperCase() + visibility.slice(1)}
+            color={isPublic ? "info" : "warning"}
+            size="small"
+          />
+        </Stack>
+      </Stack>
+
+      {/* Bio / Private Notice */}
+      {user.bio && isFullyViewable ? (
+        <Box sx={{ mb: 3, px: 2 }}>
+          <Typography
+            variant="body1"
+            color="text.secondary"
+            align="center"
             sx={{
-              width: 120,
-              height: 120,
-              mb: 1,
+              fontStyle: "italic",
+              p: 2,
+              borderRadius: 4,
+              bgcolor: alpha(theme.palette.background.paper, 0.3),
             }}
           >
-            {user.displayName?.[0] || user.name?.[0]}
-          </Avatar>
-
-          <Typography variant="h5" fontWeight={600}>
-            {user.displayName || user.name || "Unnamed User"}
+            "{user.bio}"
           </Typography>
+        </Box>
+      ) : !isFullyViewable ? (
+        <Box
+          sx={{
+            p: 2,
+            mb: 3,
+            textAlign: "center",
+            border: `1px solid ${theme.palette.warning.main}`,
+            borderRadius: 4,
+            bgcolor: alpha(theme.palette.warning.main, 0.1),
+          }}
+        >
+          <Typography color="warning.main" fontWeight={600} variant="body1">
+            🔒 This profile is private
+          </Typography>
+          <Typography color="text.secondary" variant="body2">
+            Send a friend request to view more details
+          </Typography>
+        </Box>
+      ) : null}
 
-          <Stack direction="row" spacing={1}>
-            {isCurrentUserFriend && (
-              <Chip label="Friend" color="success" size="small" />
-            )}
-            <Chip 
-              label={visibility.charAt(0).toUpperCase() + visibility.slice(1)} 
-              color={isPublic ? "info" : "warning"} 
-              size="small" 
-            />
-          </Stack>
-        </Stack>
-
-        {/* Bio Section */}
-        {user.bio && (
-          <Box sx={{ mb: 3, px: 2 }}>
-            <Typography
-              variant="body1"
-              color="text.secondary"
-              align="center"
-              sx={{ 
-                fontStyle: "italic",
-                p: 2,
-                borderRadius: 4,
-                bgcolor: alpha(theme.palette.background.paper, 0.3)
+      {/* Profile Info */}
+      <Paper
+        sx={{
+          p: 2,
+          mb: 2,
+          borderRadius: 6,
+          bgcolor: alpha(theme.palette.background.paper, 0.4),
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Profile Details
+        </Typography>
+        <Stack spacing={1.5}>
+          {(isFullyViewable ? fullInfo : limitedInfo).map((detail, index) => (
+            <Stack
+              key={index}
+              direction="row"
+              justifyContent="space-between"
+              sx={{
+                p: 1,
+                borderRadius: 1,
+                "&:hover": {
+                  bgcolor: alpha(theme.palette.background.paper, 0.3),
+                },
               }}
             >
-              "{user.bio}"
-            </Typography>
-          </Box>
-        )}
-
-        {/* Private Profile Warning */}
-        {!isFullyViewable && (
-          <Box sx={{ 
-            p: 2, 
-            mb: 3, 
-            textAlign: 'center', 
-            border: `1px solid ${theme.palette.warning.main}`, 
-            borderRadius: 4,
-            bgcolor: alpha(theme.palette.warning.main, 0.1)
-          }}>
-            <Typography color="warning.main" fontWeight={600} variant="body1">
-              🔒 This is a {visibility} profile
-            </Typography>
-            <Typography color="text.secondary" variant="body2">
-              Send a friend request to view all details
-            </Typography>
-          </Box>
-        )}
-
-        {/* Details Sections */}
-        <Box sx={{ mb: 3 }}>
-          {/* Basic Info */}
-          <Paper sx={{ 
-            p: 2, 
-            mb: 2,
-            borderRadius: 6,
-            bgcolor: alpha(theme.palette.background.paper, 0.4)
-          }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>Profile Details</Typography>
-            <Stack spacing={1.5}>
-              {userDetails.map((detail, index) => (
-                <Stack 
-                  key={index}
-                  direction="row" 
-                  justifyContent="space-between" 
-                  sx={{ 
-                    p: 1,
-                    borderRadius: 1,
-                    '&:hover': { bgcolor: alpha(theme.palette.background.paper, 0.3) }
-                  }}
-                >
-                  <Typography variant="body2" color="text.secondary">
-                    {detail.label}
-                  </Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {detail.value}
-                  </Typography>
-                </Stack>
-              ))}
+              <Typography variant="body2" color="text.secondary">
+                {detail.label}
+              </Typography>
+              <Typography variant="body2" fontWeight={500}>
+                {detail.value}
+              </Typography>
             </Stack>
-          </Paper>
-
-          {/* Mutual Friends Section */}
-          {isFullyViewable && user.mutualFriends?.length > 0 && (
-            <Paper sx={{ p: 2, mb: 2, borderRadius: 6, bgcolor: alpha(theme.palette.background.paper, 0.4) }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>Mutual Friends</Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap">
-                {user.mutualFriends.map((friend) => (
-                  <Chip
-                    key={friend.uid}
-                    avatar={<Avatar src={friend.photoURL}>{friend.name[0]}</Avatar>}
-                    label={friend.name}
-                    sx={{ mb: 1 }}
-                  />
-                ))}
-              </Stack>
-            </Paper>
-          )}
-
-          {/* Shared Trips Section */}
-          {isFullyViewable && user.mutualTrips?.length > 0 && (
-            <Paper sx={{ p: 2, borderRadius: 6, bgcolor: alpha(theme.palette.background.paper, 0.4) }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>Shared Trips</Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap">
-                {user.mutualTrips.map((trip) => (
-                  <Chip
-                    key={trip.id}
-                    label={trip.name}
-                    sx={{ mb: 1 }}
-                  />
-                ))}
-              </Stack>
-            </Paper>
-          )}
-        </Box>
-
-        {/* Action Buttons */}
-        <Stack direction="row" spacing={2} justifyContent="center">
-          {isSelf ? (
-            <Button variant="contained" disabled>
-              This is You
-            </Button>
-          ) : isCurrentUserFriend ? (
-            <Button
-              variant="contained"
-              startIcon={<MessageIcon />}
-              onClick={() => navigate(`/chats/${user.uid}`)}
-              fullWidth
-              sx={{ borderRadius: 8 }}
-            >
-              Message
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              startIcon={<PersonAddIcon />}
-              onClick={() => handleAddFriend(user)}
-              disabled={!currentUser}
-              fullWidth
-              sx={{ borderRadius: 8 }}
-            >
-              {visibility === "private" ? "Send Friend Request" : "Add Friend"}
-            </Button>
-          )}
+          ))}
         </Stack>
-      </Box>
-    );
-  };
+      </Paper>
+
+      {/* Action Buttons */}
+      <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 3 }}>
+        {isSelf ? (
+          <Button variant="contained" disabled>
+            This is You
+          </Button>
+        ) : isCurrentUserFriend ? (
+          <Button
+            variant="contained"
+            startIcon={<MessageIcon />}
+            onClick={() => navigate(`/chats/${user.uid}`)}
+            fullWidth
+            sx={{ borderRadius: 8 }}
+          >
+            Message
+          </Button>
+        ) : isRequestReceived ? (
+          <>
+            <Button
+              variant="contained"
+              color="success"
+              onClick={handleAcceptRequest}
+              fullWidth
+              sx={{ borderRadius: 8 }}
+            >
+              Accept
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={handleRejectRequest}
+              fullWidth
+              sx={{ borderRadius: 8 }}
+            >
+              Reject
+            </Button>
+          </>
+        ) : hasPendingRequest ? (
+          <Button
+            variant="outlined"
+            color="warning"
+            disabled
+            fullWidth
+            sx={{ borderRadius: 8 }}
+          >
+            Requested
+          </Button>
+        ) : (
+          <Button
+            variant="contained"
+            startIcon={<PersonAddIcon />}
+            onClick={() => handleAddFriend(user)}
+            disabled={loadingRequestState}
+            fullWidth
+            sx={{ borderRadius: 8 }}
+          >
+            {visibility === "private" ? "Send Friend Request" : "Add Friend"}
+          </Button>
+        )}
+      </Stack>
+    </Box>
+  );
+};
 
 // ...existing code...
   
@@ -741,7 +907,9 @@ const UserDrawerContent = ({ user }) => {
                         {group.label} ({group.items.length})
                     </Typography>
                     <List>
-                        {group.items.slice(0, 50).map((item) => (
+                        {group.items
+                          .slice(0, tab === "all" ? 5 : 50) // show only top 5 items in "All" tab
+                          .map((item) => (
                         <motion.div
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
@@ -800,6 +968,18 @@ const UserDrawerContent = ({ user }) => {
                         </motion.div>
                         ))}
                     </List>
+                    {tab === "all" && group.items.length > 5 && (
+                      <Box textAlign="center" sx={{ mt: 1 }}>
+                        <Button
+                          size="small"
+                          onClick={() => setTab(group.key)}
+                          sx={{ textTransform: "none", borderRadius: 3 }}
+                        >
+                          View all {group.label}
+                        </Button>
+                      </Box>
+                    )}
+
                     </Box>
                 )
             )
