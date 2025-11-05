@@ -33,6 +33,8 @@ import Notifications from "./components/Notifications";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
 import SearchPage from "./pages/Search";
+import HourlyForecast from "./components/Weather/WeatherPage";
+import WeatherDebugPage from "./components/Weather/WeatherMap";
 import { ThemeToggleProvider, useThemeToggle } from './contexts/ThemeToggleContext';
 
 import BottomNavBar from './components/BottomNavBar'; 
@@ -73,6 +75,22 @@ function BodyBackgroundSetter() {
   }, [mode]);
   return null;
 }
+
+// Developer-only route guard
+const DeveloperRoute = ({ children }) => {
+  const navigate = useNavigate();
+  const isDeveloper = localStorage.getItem("isDeveloper") === "true";
+
+  useEffect(() => {
+    if (!isDeveloper) {
+      alert("🚫 Access denied. Developer Mode required!");
+      navigate("/");
+    }
+  }, [isDeveloper, navigate]);
+
+  return isDeveloper ? children : null;
+};
+
 
 function AppContent() {
   const location = useLocation();
@@ -138,6 +156,31 @@ function App() {
            <Route path="/notifications" element={<Notifications />} />
            <Route path="/forgot-password" element={<ForgotPassword />} />
            <Route path="/reset-password" element={<ResetPassword />} />
+
+             {/* <Route
+    path="/developer"
+    element={
+      <DeveloperRoute>
+        <DeveloperHub />
+      </DeveloperRoute>
+    }
+  /> */}
+  <Route
+    path="/developer/waether-forecast"
+    element={
+      <DeveloperRoute>
+        <HourlyForecast />
+      </DeveloperRoute>
+    }
+  />
+  <Route
+    path="/developer/weather"
+    element={
+      <DeveloperRoute>
+        <WeatherDebugPage />
+      </DeveloperRoute>
+    }
+  />
           </Routes>
         </Router>
       </WeatherProvider>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, userRef, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db, firestore } from "../firebase";
 import packageJson from '../../package.json'; 
@@ -113,6 +113,7 @@ import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNone
 import InstagramIcon from "@mui/icons-material/Instagram";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
+import EngineeringOutlinedIcon from '@mui/icons-material/EngineeringOutlined'
 
 import { signOut, updateProfile, getAuth, deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
 import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, arrayRemove, deleteDoc } from "firebase/firestore";
@@ -228,6 +229,13 @@ const ProfilePic = ({currentUser}) => {
   const [croppedImageDataUri, setCroppedImageDataUri] = useState(""); // base64 string to save
   const [selectedImageFile, setSelectedImageFile] = useState(null);
 
+  const [tapCount, setTapCount] = React.useState(0);
+  const [showDevDialog, setShowDevDialog] = React.useState(false);
+  const [enteredKey, setEnteredKey] = React.useState("");
+  const [isDeveloper, setIsDeveloper] = React.useState(
+    localStorage.getItem("isDeveloper") === "true"
+  );
+  const tapTimer = React.useRef(null);
 
   const themeOptions = ["dark", "light"];
   const accentOptions = ["default", "blue", "green", "red", "purple"];
@@ -569,6 +577,42 @@ const licenseSections = [
   },
 ];
 
+const handleBuildTap = () => {
+  // Increment tap count
+  setTapCount((prev) => {
+    const newCount = prev + 1;
+
+    // Reset if paused for too long
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    tapTimer.current = setTimeout(() => setTapCount(0), 1500);
+
+    // When tapped 7 times
+    if (newCount >= 7) {
+      setTapCount(0);
+      setShowDevDialog(true);
+    }
+
+    return newCount;
+  });
+};
+
+  const handleVerifyDevKey = async () => {
+    try {
+      const keyDoc = await getDoc(doc(db, "secret", "devkey"));
+      const validKey = keyDoc.exists() ? keyDoc.data().key : null;
+      if (enteredKey.trim() === validKey) {
+        setIsDeveloper(true);
+        localStorage.setItem("isDeveloper", "true");
+        setShowDevDialog(false);
+        alert("✅ Developer Mode Unlocked!");
+      } else {
+        alert("❌ Invalid Developer Key.");
+      }
+    } catch (err) {
+      console.error("Error verifying dev key:", err);
+      alert("Error verifying key. Try again later.");
+    }
+  };
 
   // const handleLanguageChange = (langCode) => {
   //   setLanguage(langCode);
@@ -920,7 +964,7 @@ const handleUnblockUser = async (userIdToUnblock) => {
       // A list of valid pages to prevent opening the drawer for arbitrary URL params
       const validPages = [
         "main", "profile", "accounts", "chats", "generalSettings", 
-        "support", "feedback", "inviteFriend", "about", "featuresChangelog", "adduser", "blockedContacts", "appInfo"
+        "support", "feedback", "inviteFriend", "about", "featuresChangelog", "adduser", "blockedContacts", "appInfo", "developers"
       ];
 
       if (validPages.includes(settingsPage)) {
@@ -1144,6 +1188,43 @@ sx={{
             <ListItemText primary="About" primaryTypographyProps={{ fontWeight: 'medium' }} />
           </ListItemButton>
         </ListItem>
+
+{isDeveloper && (
+  <ListItem sx={{ pb: 0 }}>
+    <ListItemButton
+      onClick={() => handleSetDrawerPage("developers")}
+      sx={{
+        borderRadius: 3,
+        py: 1.2,
+        px: 1,
+        "&:hover": {
+          bgcolor: mode === "dark" ? "#f1f1f121" : "#e7e7e788",
+          transform: "scale(1.02)",
+          transition: "all 0.2s ease",
+        },
+      }}
+    >
+      <ListItemIcon sx={{ minWidth: 40 }}>
+        <EngineeringOutlinedIcon sx={{ color: theme.palette.text.secondary }} />
+      </ListItemIcon>
+      <ListItemText
+        primary="Testing Features & Other Routes"
+        secondary="Access internal tools, sandboxes, and dev utilities"
+        primaryTypographyProps={{
+          fontWeight: "medium",
+        }}
+        secondaryTypographyProps={{
+          variant: "body2",
+          color: "text.secondary",
+          noWrap: true,
+        }}
+      />
+      <KeyboardArrowRightIcon sx={{ color: theme.palette.text.secondary }} />
+    </ListItemButton>
+  </ListItem>
+)}
+
+
       </List>
     </>
   )}
@@ -2881,140 +2962,278 @@ sx={{
       "@keyframes fadeIn": { from: { opacity: 0 }, to: { opacity: 1 } },
     }}
   >
-    {/* Header */}
-    <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
-      <IconButton
-        onClick={() => navigate(-1)}
-        sx={{
-          mr: 2,
-          borderRadius: 8,
-          p: 1,
-          color: theme.palette.text.primary,
-          backgroundColor: mode === "dark" ? "#ffffff10" : "#e0e0e060",
-          transition: "all 0.2s ease",
-          "&:hover": {
-            backgroundColor:
-              mode === "dark" ? "#ffffff20" : alpha(theme.palette.primary.main, 0.1),
-            transform: "scale(1.05)",
-          },
-        }}
-      >
-        <ArrowBackIcon />
-      </IconButton>
-      <Typography variant="h5" fontWeight="700">
-        App Info
-      </Typography>
-    </Box>
-
-    {/* App Logo and Info */}
-    <Box sx={{ textAlign: "center", mb: 5 }}>
-      <Avatar
-        alt="BunkMates Logo"
-        src="/logo512.png"
-        sx={{
-          width: 140,
-          height: 140,
-          mx: "auto",
-          mb: 2,
-          borderRadius: "20%",
-          boxShadow: "none",
-        }}
-      />
-
-      <Typography
-        variant="h5"
-        fontWeight="700"
-        sx={{ color: theme.palette.text.primary }}
-      >
-        BunkMates
-      </Typography>
-      <Typography
-        variant="body2"
-        sx={{ color: theme.palette.text.secondary, mt: 0.5 }}
-      >
-        Bunk The Chaos, Keep The Fun!
-      </Typography>
-    </Box>
-
-    {/* Version Details */}
-    <Box
-      sx={{
-        borderRadius: 4,
-        p: 2.5,
-        mb: 3,
-        backgroundColor:
-          mode === "dark" ? "#ffffff08" : alpha(theme.palette.primary.main, 0.02),
-        boxShadow: theme.shadows[1],
-      }}
-    >
-      <List disablePadding>
-        {[
-          { label: "App Version", value: "1.0.31" },
-          { label: "Build ID", value: packageJson.version || "N/A" },
-          { label: "Developer", value: "Team BunkMates" },
-        ].map((item, idx) => (
-          <ListItem key={idx} disableGutters sx={{ py: 0.5 }}>
-            <ListItemText
-              primary={item.label}
-              secondary={item.value}
-              primaryTypographyProps={{
-                fontWeight: 500,
-                color: theme.palette.text.secondary,
-              }}
-              secondaryTypographyProps={{
+        <>
+          {/* Header */}
+          <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
+            <IconButton
+              onClick={() => navigate(-1)}
+              sx={{
+                mr: 2,
+                borderRadius: 8,
+                p: 1,
                 color: theme.palette.text.primary,
-                fontWeight: 600,
+                backgroundColor: mode === "dark" ? "#ffffff10" : "#e0e0e060",
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  backgroundColor:
+                    mode === "dark"
+                      ? "#ffffff20"
+                      : alpha(theme.palette.primary.main, 0.1),
+                  transform: "scale(1.05)",
+                },
+              }}
+            >
+              <ArrowBackIcon />
+            </IconButton>
+            <Typography variant="h5" fontWeight="700">
+              App Info
+            </Typography>
+          </Box>
+
+          {/* App Logo and Info */}
+          <Box sx={{ textAlign: "center", mb: 5 }}>
+            <Avatar
+              alt="BunkMates Logo"
+              src="/logo512.png"
+              sx={{
+                width: 140,
+                height: 140,
+                mx: "auto",
+                mb: 2,
+                borderRadius: "20%",
+                boxShadow: "none",
               }}
             />
+
+            <Typography
+              variant="h5"
+              fontWeight="700"
+              sx={{ color: theme.palette.text.primary }}
+            >
+              BunkMates
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ color: theme.palette.text.secondary, mt: 0.5 }}
+            >
+              Bunk The Chaos, Keep The Fun!
+            </Typography>
+                    {isDeveloper && (
+          <Box
+            sx={{
+              mt: 2,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 1,
+              px: 1.6,
+              py: 0.6,
+              borderRadius: 2,
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              background:
+                mode === "dark"
+                  ? alpha(theme.palette.primary.main, 0.15)
+                  : alpha(theme.palette.primary.main, 0.1),
+              color: theme.palette.primary.main,
+              boxShadow: theme.shadows[1],
+              animation: "fadeInBadge 0.6s ease-in-out",
+              "@keyframes fadeInBadge": {
+                from: { opacity: 0, transform: "translateY(8px)" },
+                to: { opacity: 1, transform: "translateY(0)" },
+              },
+              mx: "auto",
+            }}
+          >
+            🧑‍💻 Developer Mode Active
+          </Box>
+        )}
+          </Box>
+
+          {/* Version Details */}
+          <Box
+            sx={{
+              borderRadius: 4,
+              p: 2.5,
+              mb: 3,
+              backgroundColor:
+                mode === "dark"
+                  ? "#ffffff08"
+                  : alpha(theme.palette.primary.main, 0.02),
+              boxShadow: theme.shadows[1],
+            }}
+          >
+            <List disablePadding>
+              <ListItem disableGutters sx={{ py: 0.5 }}>
+                <ListItemText
+                  primary="App Version"
+                  secondary="1.0.31"
+                  primaryTypographyProps={{
+                    fontWeight: 500,
+                    color: theme.palette.text.secondary,
+                  }}
+                  secondaryTypographyProps={{
+                    color: theme.palette.text.primary,
+                    fontWeight: 600,
+                  }}
+                />
+              </ListItem>
+
+              {/* Build ID with tap handler */}
+<ListItem
+  disableGutters
+  sx={{
+    py: 0.5,
+    transition: "all 0.2s ease",
+    "&:active": { transform: "scale(0.98)" },
+  }}
+  onClick={handleBuildTap} // ✅ Correct syntax
+>
+  <ListItemText
+    primary="Build ID"
+    secondary={packageJson.version || "N/A"}
+    primaryTypographyProps={{
+      fontWeight: 500,
+      color: theme.palette.text.secondary,
+    }}
+    secondaryTypographyProps={{
+      color: theme.palette.text.primary,
+      fontWeight: 600,
+    }}
+  />
+</ListItem>
+
+
+              <ListItem disableGutters sx={{ py: 0.5 }}>
+                <ListItemText
+                  primary="Developer"
+                  secondary="Team BunkMates"
+                  primaryTypographyProps={{
+                    fontWeight: 500,
+                    color: theme.palette.text.secondary,
+                  }}
+                  secondaryTypographyProps={{
+                    color: theme.palette.text.primary,
+                    fontWeight: 600,
+                  }}
+                />
+              </ListItem>
+            </List>
+          </Box>
+
+          {/* Developer Features Option */}
+          {isDeveloper && (
+            <ListItem
+              disablePadding
+              sx={{
+                borderRadius: 3,
+                overflow: "hidden",
+                mb: 1,
+                backgroundColor:
+                  mode === "dark"
+                    ? "#ffffff08"
+                    : alpha(theme.palette.primary.main, 0.02),
+              }}
+            >
+              <ListItemButton
+                onClick={() => handleSetDrawerPage("developers")}
+                sx={{
+                  py: 1.7,
+                  "&:hover": {
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                    transition: "all 0.2s ease",
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <LayersOutlinedIcon
+                    sx={{ color: theme.palette.text.secondary }}
+                  />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Testing Features & Other Routes"
+                  primaryTypographyProps={{ fontWeight: 500 }}
+                />
+                <KeyboardArrowRightIcon
+                  sx={{ color: theme.palette.text.secondary }}
+                />
+              </ListItemButton>
+            </ListItem>
+          )}
+
+          {/* Third-Party Licenses Link */}
+          <ListItem
+            disablePadding
+            sx={{
+              borderRadius: 3,
+              overflow: "hidden",
+              mb: 1,
+              backgroundColor:
+                mode === "dark"
+                  ? "#ffffff08"
+                  : alpha(theme.palette.primary.main, 0.02),
+            }}
+          >
+            <ListItemButton
+              onClick={() => handleSetDrawerPage("featuresChangelog")}
+              sx={{
+                py: 1.7,
+                "&:hover": {
+                  bgcolor: alpha(theme.palette.primary.main, 0.08),
+                  transition: "all 0.2s ease",
+                },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <InfoOutlinedIcon sx={{ color: theme.palette.text.secondary }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Third-Party Licenses & Attributions"
+                primaryTypographyProps={{ fontWeight: 500 }}
+              />
+              <KeyboardArrowRightIcon sx={{ color: theme.palette.text.secondary }} />
+            </ListItemButton>
           </ListItem>
-        ))}
-      </List>
-    </Box>
 
-    {/* Link Section */}
-    <ListItem
-      disablePadding
-      sx={{
-        borderRadius: 3,
-        overflow: "hidden",
-        mb: 1,
-        backgroundColor:
-          mode === "dark" ? "#ffffff08" : alpha(theme.palette.primary.main, 0.02),
-      }}
-    >
-      <ListItemButton
-        onClick={() => handleSetDrawerPage("featuresChangelog")}
-        sx={{
-          py: 1.7,
-          "&:hover": {
-            bgcolor: alpha(theme.palette.primary.main, 0.08),
-            transition: "all 0.2s ease",
-          },
-        }}
-      >
-        <ListItemIcon sx={{ minWidth: 40 }}>
-          <InfoOutlinedIcon sx={{ color: theme.palette.text.secondary }} />
-        </ListItemIcon>
-        <ListItemText
-          primary="Third-Party Licenses & Attributions"
-          primaryTypographyProps={{ fontWeight: 500 }}
-        />
-        <KeyboardArrowRightIcon sx={{ color: theme.palette.text.secondary }} />
-      </ListItemButton>
-    </ListItem>
+          {/* Footer */}
+          <Typography
+            variant="caption"
+            align="center"
+            sx={{
+              display: "block",
+              mt: 5,
+              color: theme.palette.text.disabled,
+            }}
+          >
+            © {new Date().getFullYear()} BunkMates. All rights reserved.
+          </Typography>
 
-    {/* Footer */}
-    <Typography
-      variant="caption"
-      align="center"
-      sx={{
-        display: "block",
-        mt: 5,
-        color: theme.palette.text.disabled,
-      }}
-    >
-      © {new Date().getFullYear()} BunkMates. All rights reserved.
-    </Typography>
+          {/* Developer Passkey Dialog */}
+          <Dialog
+            open={showDevDialog}
+            onClose={() => setShowDevDialog(false)}
+            PaperProps={{ sx: { borderRadius: 3, p: 1.5 } }}
+          >
+            <DialogTitle>Enter Developer Passkey</DialogTitle>
+            <DialogContent>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="Developer Key"
+                type="text"
+                fullWidth
+                variant="outlined"
+                value={enteredKey}
+                onChange={(e) => setEnteredKey(e.target.value)}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setShowDevDialog(false)}>Cancel</Button>
+              <Button variant="contained" onClick={handleVerifyDevKey}>
+                Verify
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </>
   </Container>
 )}
 
@@ -4305,6 +4524,221 @@ sx={{
   </>
 )}
 
+{drawerPage === "developers" && (
+  <Container
+    sx={{
+      mt: 5,
+      mb: 4,
+      px: { xs: 2, sm: 3 },
+      animation: "fadeIn 0.4s ease-in-out",
+      "@keyframes fadeIn": { from: { opacity: 0 }, to: { opacity: 1 } },
+    }}
+  >
+    {/* Header */}
+    <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
+      <IconButton
+        onClick={() => navigate(-1)}
+        sx={{
+          mr: 2,
+          borderRadius: 8,
+          p: 1,
+          color: theme.palette.text.primary,
+          backgroundColor: mode === "dark" ? "#ffffff10" : "#e0e0e060",
+          transition: "all 0.2s ease",
+          "&:hover": {
+            backgroundColor:
+              mode === "dark"
+                ? "#ffffff20"
+                : alpha(theme.palette.primary.main, 0.1),
+            transform: "scale(1.05)",
+          },
+        }}
+      >
+        <ArrowBackIcon />
+      </IconButton>
+      <Typography variant="h5" fontWeight="700">
+        Developer Tools
+      </Typography>
+    </Box>
+
+    {/* Developer Section Info */}
+    <Typography
+      variant="body2"
+      sx={{
+        mb: 3,
+        color: theme.palette.text.secondary,
+        textAlign: "center",
+      }}
+    >
+      🧑‍💻 Welcome to Developer Mode — explore experimental and internal tools
+      for testing, debugging, and feature previews.
+    </Typography>
+
+    {/* Feature List */}
+    <Box
+      sx={{
+        borderRadius: 4,
+        backgroundColor:
+          mode === "dark"
+            ? "#ffffff08"
+            : alpha(theme.palette.primary.main, 0.02),
+        p: 2,
+        mb: 3,
+        boxShadow: theme.shadows[1],
+      }}
+    >
+      <Typography
+        variant="subtitle1"
+        sx={{
+          mb: 2,
+          fontWeight: 700,
+          color: theme.palette.primary.main,
+        }}
+      >
+        Testing Features
+      </Typography>
+
+      <List disablePadding>
+        {[
+          {
+            label: "Weather Forecast Hourly",
+            description: "Displays hourly weather data for testing.",
+            action: () => navigate("/developer/waether-forecast"),
+          },
+          {
+            label: "Weather Page",
+            description: "Standalone weather information page.",
+            action: () => navigate("/developer/weather"),
+          },
+        ].map((feature, index) => (
+          <ListItem
+            key={index}
+            sx={{
+              mb: 1.2,
+              borderRadius: 3,
+              transition: "all 0.2s ease",
+              "&:hover": {
+                bgcolor: alpha(theme.palette.primary.main, 0.06),
+                transform: "scale(1.01)",
+              },
+            }}
+            onClick={feature.action}
+          >
+            <ListItemText
+              primary={feature.label}
+              secondary={feature.description}
+              primaryTypographyProps={{
+                fontWeight: 600,
+                color: theme.palette.text.primary,
+              }}
+              secondaryTypographyProps={{
+                color: theme.palette.text.secondary,
+                fontSize: "0.85rem",
+              }}
+            />
+            <KeyboardArrowRightIcon
+              sx={{ color: theme.palette.text.secondary }}
+            />
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+
+    {/* Other Routes */}
+    {/* <Box
+      sx={{
+        borderRadius: 4,
+        backgroundColor:
+          mode === "dark"
+            ? "#ffffff08"
+            : alpha(theme.palette.primary.main, 0.02),
+        p: 2,
+        boxShadow: theme.shadows[1],
+      }}
+    >
+      <Typography
+        variant="subtitle1"
+        sx={{
+          mb: 2,
+          fontWeight: 700,
+          color: theme.palette.primary.main,
+        }}
+      >
+        Other Developer Routes
+      </Typography>
+
+      <List disablePadding>
+        {[
+          {
+            label: "Firestore Playground",
+            description: "Temporary Firestore data editor & viewer.",
+            action: () => navigate("/developer/firestore-playground"),
+          },
+          {
+            label: "Notifications Preview",
+            description: "Preview app notification styles and types.",
+            action: () => navigate("/developer/notifications"),
+          },
+          {
+            label: "UI Components Showcase",
+            description: "Showcase of custom Material UI component variants.",
+            action: () => navigate("/developer/ui-demo"),
+          },
+          {
+            label: "Error Boundary Test",
+            description: "Trigger runtime errors to test recovery screens.",
+            action: () => navigate("/developer/error-test"),
+          },
+        ].map((route, idx) => (
+          <ListItem
+            key={idx}
+            sx={{
+              mb: 1.2,
+              borderRadius: 3,
+              transition: "all 0.2s ease",
+              "&:hover": {
+                bgcolor: alpha(theme.palette.primary.main, 0.06),
+                transform: "scale(1.01)",
+              },
+            }}
+            onClick={route.action}
+          >
+            <ListItemText
+              primary={route.label}
+              secondary={route.description}
+              primaryTypographyProps={{
+                fontWeight: 600,
+                color: theme.palette.text.primary,
+              }}
+              secondaryTypographyProps={{
+                color: theme.palette.text.secondary,
+                fontSize: "0.85rem",
+              }}
+            />
+            <KeyboardArrowRightIcon
+              sx={{ color: theme.palette.text.secondary }}
+            />
+          </ListItem>
+        ))}
+      </List>
+    </Box> */}
+
+    {/* Footer */}
+    <Typography
+      variant="caption"
+      align="center"
+      sx={{
+        display: "block",
+        mt: 5,
+        color: theme.palette.text.disabled,
+      }}
+    >
+      Developer Utilities © {new Date().getFullYear()} BunkMates Labs
+    </Typography>
+  </Container>
+)}
+
+
 </Drawer>
 
 {/* Logout Confirm Dialog */}
@@ -4360,6 +4794,137 @@ sx={{
     </Button>
   </DialogActions>
 </Dialog>
+
+<Dialog
+  open={showDevDialog}
+  onClose={() => setShowDevDialog(false)}
+  PaperProps={{
+    sx: {
+      borderRadius: 4,
+      p: 2,
+      background: mode === "dark"
+        ? "linear-gradient(180deg, #0a0a0a55 0%, #1212124b 100%)"
+        : "linear-gradient(180deg, #fafafa96 0%, #f0f0f09d 100%)",
+      boxShadow: "none",
+      backdropFilter: "blur(20px)",
+      width: "100%",
+      maxWidth: 400,
+    },
+  }}
+  TransitionProps={{
+    timeout: 400,
+  }}
+>
+  {/* Header */}
+  <DialogTitle
+    sx={{
+      textAlign: "center",
+      fontWeight: 700,
+      letterSpacing: 0.4,
+      fontSize: "1.25rem",
+      color: theme.palette.primary.main,
+      mb: 1,
+    }}
+  >
+    Enter Developer Passkey
+  </DialogTitle>
+
+  {/* Subtitle */}
+  <Typography
+    variant="body2"
+    sx={{
+      textAlign: "center",
+      color: theme.palette.text.secondary,
+      mb: 2,
+      mx: 2,
+    }}
+  >
+    This access is restricted to authorized developers only.
+  </Typography>
+
+  {/* Input Field */}
+  <DialogContent>
+    <TextField
+      autoFocus
+      margin="dense"
+      label="Developer Key"
+      type="text"
+      variant="outlined"
+      fullWidth
+      value={enteredKey}
+      onChange={(e) => setEnteredKey(e.target.value)}
+      sx={{
+        "& .MuiOutlinedInput-root": {
+          borderRadius: 3,
+          "&:hover fieldset": {
+            borderColor: theme.palette.primary.main,
+          },
+          "&.Mui-focused fieldset": {
+            borderColor: theme.palette.primary.main,
+            boxShadow: "none",
+          },
+        },
+        input: {
+          color: theme.palette.text.primary,
+          letterSpacing: 0.5,
+        },
+      }}
+    />
+  </DialogContent>
+
+  {/* Action Buttons */}
+  <DialogActions
+    sx={{
+      display: "flex",
+      justifyContent: "space-between",
+      px: 3,
+      pb: 2,
+    }}
+  >
+    <Button
+      onClick={() => setShowDevDialog(false)}
+      sx={{
+        borderRadius: 3,
+        textTransform: "none",
+        fontWeight: 500,
+        color: theme.palette.text.secondary,
+        "&:hover": {
+          color: theme.palette.primary.main,
+          backgroundColor:
+            mode === "dark"
+              ? "rgba(255,255,255,0.05)"
+              : "rgba(0,0,0,0.04)",
+        },
+      }}
+    >
+      Cancel
+    </Button>
+    <Button
+      variant="contained"
+      onClick={handleVerifyDevKey}
+      sx={{
+        borderRadius: 3,
+        textTransform: "none",
+        fontWeight: 600,
+        px: 3,
+        py: 0.8,
+        background: theme.palette.primary.main,
+        boxShadow: mode === "dark"
+          ? "0 0 15px rgba(0,255,200,0.4)"
+          : "0 0 15px rgba(25,118,210,0.4)",
+        "&:hover": {
+          background: theme.palette.primary.dark,
+          transform: "scale(1.03)",
+          transition: "0.25s ease",
+        },
+      }}
+    >
+      Verify
+    </Button>
+  </DialogActions>
+</Dialog>
+
+
 </>
 </ThemeProvider>
     );
