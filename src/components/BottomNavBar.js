@@ -1,141 +1,228 @@
 // src/components/BottomNavBar.js
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   HomeOutlined,
-  Notifications,
-  NotificationsOutlined,
-  Note,
-  NoteOutlined,
-  Map,
-  MapOutlined,
-  Explore,
   StickyNote2Outlined,
   StickyNote2,
+  ExploreOutlined,
+  Explore,
+  SearchOutlined,
+  Search,
+  ChatBubbleOutline,
 } from "@mui/icons-material";
-import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
-import SearchIcon from '@mui/icons-material/Search';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import { Typography, Box, Button } from "@mui/material";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
-import { Typography } from "@mui/material";
 
 const BottomNavBar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
-
-  // Prefer app theme from ThemeToggleContext, fallback to system preference
-  const themeToggle = useThemeToggle?.();
-  const systemPrefersDark =
-    typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const [visible, setVisible] = useState(true);
+  const [lastScroll, setLastScroll] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   const navItems = [
     { label: "Home", path: "/", icon: <HomeOutlined />, activeIcon: <Home /> },
-    {
-      label: "Search",
-      path: "/search",
-      icon: <SearchOutlinedIcon />,
-      activeIcon: <SearchIcon />,
-    },
-    {
-      label: "Notes",
-      path: "/notes",
-      icon: <StickyNote2Outlined />,
-      activeIcon: <StickyNote2 />,
-    },
-    {
-      label: "Trips",
-      path: "/trips",
-      icon: <ExploreOutlinedIcon />,
-      activeIcon: <Explore />,
-    },
+    { label: "Search", path: "/search", icon: <SearchOutlined />, activeIcon: <Search /> },
+    { label: "Notes", path: "/notes", icon: <StickyNote2Outlined />, activeIcon: <StickyNote2 /> },
+    { label: "Trips", path: "/trips", icon: <ExploreOutlined />, activeIcon: <Explore /> },
   ];
 
+  // Hide/show on scroll
+useEffect(() => {
+  // Only activate scroll hide/show on search page
+  if (window.location.pathname !== "/search") {
+    setVisible(true); // Always visible on non-search pages
+    return; // Exit early, don’t attach the scroll listener
+  }
+
+  const handleScroll = () => {
+    const currentScroll = window.scrollY;
+    if (currentScroll > lastScroll && currentScroll > 50) {
+      setVisible(false);
+    } else {
+      setVisible(true);
+    }
+    setLastScroll(currentScroll);
+  };
+
+  window.addEventListener("scroll", handleScroll);
+  return () => window.removeEventListener("scroll", handleScroll);
+}, [lastScroll]);
+
+
+  // Active index detection
+  useEffect(() => {
+    const index = navItems.findIndex((i) => location.pathname === i.path);
+    setActiveIndex(index === -1 ? 0 : index);
+  }, [location.pathname]);
+
   return (
-    <div
-      style={{
+    <Box
+      sx={{
         position: "fixed",
-        bottom: "8px",
+        bottom: visible ? 0 : -80,
         left: "50%",
         transform: "translateX(-50%)",
+        width: "100%",
+        maxWidth: 500,
         display: "flex",
-        justifyContent: "space-around",
+        justifyContent: "center",
         alignItems: "center",
-        width: "95%",
-        maxWidth: "400px",
-        padding: "12px 0px",
-        borderRadius: "26px",
-        backdropFilter: "blur(15px)",
-        background:
-          mode === "dark"
-            ? "rgba(25, 25, 25, 0.77)"
-            : "rgba(255, 255, 255, 0.4)",
-        transition: "all 0.3s ease",
+        py: 1.2,
+        px: 1,
         zIndex: 999,
+        transition: "all 0.5s cubic-bezier(.4,0,.2,1)",
+        overflow: "hidden",
+        background: "linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0), rgba(0, 0, 0, 0.95))",
       }}
     >
-      {navItems.map((item) => {
-        const isActive = location.pathname === item.path;
-        return (
-          <Link
-            key={item.label}
-            to={item.path}
-            style={{
-              textDecoration: "none",
-              color: isActive
-                  ? theme.palette.primary.maintxt
-                  : mode === "dark"
-                    ? "#ccc"
-                    : "#555",
-
-              transition: "all 0.3s ease",
-              transform: isActive ? "scale(1.1)" : "scale(1)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-            }}
-          >
-            <div
+      {/* Navigation items in row */}
+      <Box
+      sx={{
+        mb: 0.6,
+        width: "70%",
+        borderRadius: "50px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        py: 1,
+        px: 1,
+        zIndex: 999,
+        backdropFilter: "blur(14px) saturate(1.4)",
+        background:
+          mode === "dark"
+            ? "linear-gradient(135deg, rgba(20,20,20,0.85), rgba(40,40,40,0.6))"
+            : "linear-gradient(135deg, rgba(255,255,255,0.7), rgba(240,240,240,0.5))",
+        border: mode === "dark"
+          ? "1px solid rgba(255,255,255,0.08)"
+          : "1px solid rgba(0,0,0,0.08)",
+        transition: "all 0.5s cubic-bezier(.4,0,.2,1)",
+        overflow: "hidden",
+      }}
+      >
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-around",
+          alignItems: "center",
+          flex: 1,
+          gap: 1,
+        }}
+      >
+        {navItems.map((item, index) => {
+          const isActive = activeIndex === index;
+          return (
+            <Link
+              key={item.label}
+              to={item.path}
               style={{
-                fontSize: "26px",
-                transition: "transform 0.3s ease, opacity 0.3s ease",
-                backgroundColor: isActive
-                    ? theme.palette.primary.select
-                    : "transparent",
-                height: "30px",
-                width: "60px",
+                textDecoration: "none",
+                position: "relative",
+                zIndex: 1,
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                borderRadius: "30px",
+                flex: 1,
+                transition: "transform 0.3s ease",
               }}
             >
-              {isActive ? item.activeIcon : item.icon}
-            </div>
-                <Typography
-                    variant="caption"
-                    sx={{
-                        fontSize: '12px',
-                        marginTop: '2px',
-                        fontWeight: isActive ? 500 : 200,
-                        color: isActive 
-                          ? theme.palette.primary.maintxt 
-                          : mode === "dark" 
-                            ? "#fff" 
-                            : "#000",
-
-                    }}
+              <Box
+                sx={{
+                  height: 44,
+                  width: 60,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transform: isActive ? "scale(1.15)" : "scale(1)",
+                  backgroundColor: isActive
+                    ? theme.palette.primary.main + "2d"
+                    : "transparent",
+                  borderRadius: 8,
+                  color: isActive
+                    ? theme.palette.primary.maintxt
+                    : mode === "dark"
+                      ? "#bcbcbc"
+                      : "#333",
+                  transition: "color 0.3s ease, transform 0.3s ease",
+                  "&:hover": {
+                    color: theme.palette.primary.maintxt,
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    fontSize: 24,
+                    mt: 0.4,
+                    animation: isActive ? "pop 0.4s ease" : "none",
+                    "@keyframes pop": {
+                      "0%": { transform: "scale(0.9)", opacity: 0.7 },
+                      "50%": { transform: "scale(1.1)", opacity: 1 },
+                      "100%": { transform: "scale(1)", opacity: 1 },
+                    },
+                  }}
                 >
-                    {item.label}
-                </Typography>
-          </Link>
-        );
-      })}
-    </div>
+                  {isActive ? item.activeIcon : item.icon}
+                </Box>
+              </Box>
+
+              {/* <Typography
+                variant="caption"
+                sx={{
+                  fontSize: "11.5px",
+                  mt: 0.2,
+                  fontWeight: isActive ? 600 : 400,
+                  color: isActive
+                    ? theme.palette.primary.maintxt
+                    : mode === "dark"
+                      ? "#e5e5e59e"
+                      : "#333b",
+                  opacity: isActive ? 1 : 0.7,
+                  transition: "color 0.3s ease, opacity 0.3s ease",
+                }}
+              >
+                {item.label}
+              </Typography> */}
+            </Link>
+          );
+        })}
+      </Box>
+      </Box>
+      {/* Chat Button (inline at right edge) */}
+
+      <Button
+        onClick={() => navigate("/chats")}
+        sx={{
+          ml: 1,
+          mr: 0.8,
+          mb: 0.6,
+          width: 65,
+          px: 1,
+          py: 1,
+          height: 65,
+          borderRadius: "20px",
+          background: theme.palette.primary.main + "7d",
+          color: mode === "dark" ? "#fff" : "#000",
+          backdropFilter: "blur(10px)",
+          border: mode === "dark"
+            ? "1px solid rgba(255,255,255,0.07)"
+            : "1px solid rgba(0,0,0,0.07)",
+          transition: "all 0.3s ease",
+          "&:hover": {
+            transform: "scale(1.08)",
+            background: theme.palette.primary.main + "7d",
+          },
+        }}
+      >
+        <ChatBubbleOutline sx={{ fontSize: 22 }} />
+      </Button>
+
+    </Box>
   );
 };
 

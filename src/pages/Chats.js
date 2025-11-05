@@ -1202,18 +1202,20 @@ const combinedChats = [
   onClick={() => setAddUserDialog(true)}
   sx={{
     position: 'fixed',
-    bottom: 20,
+    bottom: 90,
     right: 20,
-    width: '70px',
-    height: '70px',
-    background: theme.palette.primary.bg,
-    borderRadius: '20px',
+    minWidth: '40px',
+    width: '50px',
+    height: '50px',
+    backdropFilter: "blur(10px)",
+    background: theme.palette.primary.main + "7d",
+    borderRadius: '15px',
     fontSize: '38px',
-    color: theme.palette.primary.maintxt,
+    color: theme.palette.text.primary,
     boxShadow: "none",
   }}
 >
-  +
+  <AddIcon />
 </IconButton>
 
 </Box>
@@ -1562,8 +1564,8 @@ const combinedChats = [
       Cancel
     </Button>
 
-        <Button
-        fullWidth
+    <Button
+      fullWidth
       variant="contained"
       disabled={selectedGroupMembers.length === 0}
       onClick={() => {
@@ -1609,7 +1611,7 @@ const combinedChats = [
 <Box
   sx={{
     mt: 2,
-    mb: 4,
+    mb: 10,
     alignContent: "center",
     alignItems: "center",
     textAlign: "center",

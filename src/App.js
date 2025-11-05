@@ -78,7 +78,7 @@ function AppContent() {
   const location = useLocation();
 
   // Define the exact paths where the BottomNavBar should be visible
-  const ALLOWED_BOTTOM_BAR_PATHS = ["/", "/search", "/notes", "/trips"];
+  const ALLOWED_BOTTOM_BAR_PATHS = ["/", "/search", "/notes", "/trips", "/chats"];
   
   // showBottomBar is true only if the current path is exactly in the allowed list
   const showBottomBar = ALLOWED_BOTTOM_BAR_PATHS.includes(location.pathname);
