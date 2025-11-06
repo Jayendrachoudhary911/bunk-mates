@@ -42,7 +42,10 @@ import {
   Zoom,
   Fade,
   Card,
-  ButtonGroup
+  ButtonGroup,
+  Chip,
+  Stack,
+  Paper
 } from '@mui/material';
 import { format, isToday, isYesterday } from 'date-fns';
 
@@ -60,6 +63,9 @@ import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import QrCode2OutlinedIcon from '@mui/icons-material/QrCode2Outlined';
 import MessageOutlinedIcon from '@mui/icons-material/MessageOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
@@ -114,7 +120,7 @@ function Chats({ onlyList }) {
   const [addUserDialog, setAddUserDialog] = useState(false);
   const [groupDialog, setGroupDialog] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
-  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]); 
   const [searchUsername, setSearchUsername] = useState('');
   const [foundUsers, setFoundUsers] = useState([]);
   const [groupName, setGroupName] = useState('');
@@ -144,6 +150,16 @@ function Chats({ onlyList }) {
     severity: "success", // can be "success", "error", "info", etc.
   });
 
+  const [selectedUserProfile, setSelectedUserProfile] = useState(null);
+  const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
+
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const [isRequestReceived, setIsRequestReceived] = useState(false);
+  const [requestId, setRequestId] = useState(null);
+  const [isCurrentUserFriend, setIsCurrentUserFriend] = useState(false);
+  const [loadingRequestState, setLoadingRequestState] = useState(true);
+
+
   const [profilePicOpen, setProfilePicOpen] = useState(false);
   const [selectedProfileData, setSelectedProfileData] = useState(null); // To hold the data of the clicked user
   const [viewMode, setViewMode] = useState('avatar');
@@ -153,11 +169,46 @@ function Chats({ onlyList }) {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  const handleAvatarClick = (e, chatData) => {
+const handleAvatarClick = (e, chatData) => {
   e.stopPropagation(); // Prevents navigating to the chat screen
   setSelectedProfileData(chatData);
   setProfilePicOpen(true);
 };
+
+
+useEffect(() => {
+  if (!currentUser || !selectedUserProfile) return;
+
+  const notificationsRef = collection(db, "notifications");
+  const unsubscribe = onSnapshot(notificationsRef, (snapshot) => {
+    const requests = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const sent = requests.find(
+      (r) =>
+        r.type === "friend_request" &&
+        r.senderId === currentUser.uid &&
+        r.uid === selectedUserProfile.uid &&
+        (r.status === "pending" || r.status === "accepted")
+    );
+    const received = requests.find(
+      (r) =>
+        r.type === "friend_request" &&
+        r.senderId === selectedUserProfile.uid &&
+        r.uid === currentUser.uid &&
+        r.status === "pending"
+    );
+
+    setHasPendingRequest(!!sent);
+    setIsRequestReceived(!!received);
+    setRequestId(received ? received.id : sent ? sent.id : null);
+    setLoadingRequestState(false);
+    if (sent?.status === "accepted" || received?.status === "accepted") {
+      setIsCurrentUserFriend(true);
+    }
+  });
+
+  return () => unsubscribe();
+}, [selectedUserProfile, currentUser]);
+
 
 // --- Copy these handlers from your previous implementation ---
 const handleShare = async () => {
@@ -697,26 +748,166 @@ useEffect(() => {
 }, [searchTerm, currentUser, friends]);
 
 // Add friend logic
-const handleAddFriend = async (userToAdd) => {
-  if (!userToAdd || !userToAdd.uid) return;
-  // Add each other as friends
-  const userRef = doc(db, "users", currentUser.uid);
-  const friendRef = doc(db, "users", userToAdd.uid);
+// --- Enhanced Friend Logic (visibility + requests) ---
+const handleAddFriend = async (targetUser) => {
+  try {
+    if (!auth.currentUser) {
+      setSnackbar({ open: true, message: "You must be logged in to add friends", severity: "info" });
+      return;
+    }
 
-  await updateDoc(userRef, {
-    friends: [...friends, userToAdd.uid]
+    const currentUid = auth.currentUser.uid;
+    if (targetUser.uid === currentUid) {
+      setSnackbar({ open: true, message: "You cannot add yourself!", severity: "warning" });
+      return;
+    }
+
+    const currentUserRef = doc(db, "users", currentUid);
+    const targetUserRef = doc(db, "users", targetUser.uid);
+    const [currentSnap, targetSnap] = await Promise.all([
+      getDoc(currentUserRef),
+      getDoc(targetUserRef),
+    ]);
+
+    if (!currentSnap.exists() || !targetSnap.exists()) {
+      setSnackbar({ open: true, message: "User not found", severity: "error" });
+      return;
+    }
+
+    const currentUserData = currentSnap.data();
+    const targetUserData = targetSnap.data();
+    const visibility = targetUserData.privacy?.profileVisibility || "public";
+    const currentUserName = currentUserData.name || "A user";
+    const currentUserPic = currentUserData.photoURL || "";
+
+    if (visibility === "public") {
+      // 🔓 Public: Add directly
+      await Promise.all([
+        updateDoc(currentUserRef, { friends: arrayUnion(targetUser.uid) }),
+        updateDoc(targetUserRef, { friends: arrayUnion(currentUid) }),
+      ]);
+
+      await Promise.all([
+        addDoc(collection(db, "notifications"), {
+          content: `${currentUserName} added you as a friend.`,
+          pic: currentUserPic,
+          seen: false,
+          senderId: currentUid,
+          timestamp: new Date(),
+          title: "New Friend Added",
+          type: "friend_added",
+          uid: targetUser.uid,
+        }),
+        addDoc(collection(db, "notifications"), {
+          content: `You are now friends with ${targetUser.displayName || targetUser.name}.`,
+          pic: targetUser.photoURL || "",
+          seen: false,
+          senderId: targetUser.uid,
+          timestamp: new Date(),
+          title: "Friendship Confirmed",
+          type: "friend_added_self",
+          uid: currentUid,
+        }),
+      ]);
+
+      setSnackbar({ open: true, message: `You and ${targetUser.displayName || targetUser.name} are now friends!`, severity: "success" });
+    } else {
+      // 🔒 Private: Send friend request
+      await addDoc(collection(db, "notifications"), {
+        content: `${currentUserName} sent you a friend request.`,
+        pic: currentUserPic,
+        seen: false,
+        senderId: currentUid,
+        timestamp: new Date(),
+        title: "Friend Request Received",
+        type: "friend_request",
+        uid: targetUser.uid,
+        status: "pending",
+      });
+
+      setSnackbar({ open: true, message: "Friend request sent!", severity: "info" });
+    }
+  } catch (err) {
+    console.error("Error adding friend:", err);
+    setSnackbar({ open: true, message: "Something went wrong.", severity: "error" });
+  }
+};
+
+const [friendRequests, setFriendRequests] = useState([]);
+const [loadingRequests, setLoadingRequests] = useState(true);
+
+useEffect(() => {
+  if (!currentUser) return;
+  const notificationsRef = collection(db, "notifications");
+
+  const unsubscribe = onSnapshot(notificationsRef, (snapshot) => {
+    const reqs = snapshot.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter(
+        (r) =>
+          r.type === "friend_request" &&
+          (r.uid === currentUser.uid || r.senderId === currentUser.uid)
+      );
+    setFriendRequests(reqs);
+    setLoadingRequests(false);
   });
 
-  // Also add current user to the other user's friends
-  const friendDoc = await getDoc(friendRef);
-  const friendFriends = friendDoc.exists() ? (friendDoc.data().friends || []) : [];
-  await updateDoc(friendRef, {
-    friends: [...friendFriends, currentUser.uid]
-  });
+  return () => unsubscribe();
+}, [currentUser]);
 
-  setFriends(prev => [...prev, userToAdd.uid]);
-  setAddUserDialog(false);
-  setSearchTerm('');
+
+const handleAcceptRequest = async () => {
+  if (!requestId || !selectedUserProfile?.uid || !currentUser) return;
+  try {
+    const requestRef = doc(db, "notifications", requestId);
+    await updateDoc(requestRef, { status: "accepted" });
+
+    await Promise.all([
+      updateDoc(doc(db, "users", currentUser.uid), {
+        friends: arrayUnion(selectedUserProfile.uid),
+      }),
+      updateDoc(doc(db, "users", selectedUserProfile.uid), {
+        friends: arrayUnion(currentUser.uid),
+      }),
+    ]);
+
+    await addDoc(collection(db, "notifications"), {
+      content: `${userData.name || "A user"} accepted your friend request.`,
+      pic: userData.photoURL || "",
+      seen: false,
+      senderId: currentUser.uid,
+      timestamp: new Date(),
+      title: "Friend Request Accepted",
+      type: "friend_accept",
+      uid: selectedUserProfile.uid,
+      status: "accepted",
+    });
+
+    setSnackbar({ open: true, message: "Friend request accepted!", severity: "success" });
+  } catch (err) {
+    console.error("Error accepting request:", err);
+  }
+};
+
+const handleRejectRequest = async () => {
+  if (!requestId) return;
+  try {
+    await updateDoc(doc(db, "notifications", requestId), { status: "rejected" });
+    await addDoc(collection(db, "notifications"), {
+      content: `${userData.name || "A user"} rejected your friend request.`,
+      pic: userData.photoURL || "",
+      seen: false,
+      senderId: currentUser.uid,
+      timestamp: new Date(),
+      title: "Friend Request Rejected",
+      type: "friend_reject",
+      uid: selectedUserProfile.uid,
+      status: "rejected",
+    });
+    setSnackbar({ open: true, message: "Friend request rejected.", severity: "info" });
+  } catch (err) {
+    console.error("Error rejecting request:", err);
+  }
 };
 
 useEffect(() => {
@@ -1265,44 +1456,111 @@ const combinedChats = [
         />
 
         <Box sx={{ overflowY: "auto", flex: 1 }}>
-          {searchResults.map((user) => (
-            <Box
-              key={user.uid}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                bgcolor: "#1a1a1a3a",
-                borderRadius: 2,
-                px: 2,
-                py: 1.5,
-                mb: 1,
-              }}
-            >
-              <Box display="flex" alignItems="center">
-                <Avatar src={user.photoURL} sx={{ width: 40, height: 40, mr: 2 }} />
-                <Typography color="white">{user.username}</Typography>
-              </Box>
+{searchResults.map((user) => {
+  const existingFriend = friends.includes(user.uid);
+  const sentRequest = friendRequests.some(
+    (r) =>
+      r.senderId === currentUser.uid &&
+      r.uid === user.uid &&
+      r.status === "pending"
+  );
+  const receivedRequest = friendRequests.find(
+    (r) =>
+      r.senderId === user.uid &&
+      r.uid === currentUser.uid &&
+      r.status === "pending"
+  );
 
-              <Button
-                variant="outlined"
-                size="small"
-                sx={{
-                  color: buttonWeatherBg,
-                  borderColor: buttonWeatherBg,
-                  bgcolor: WeatherBgdrop,
-                  borderRadius: 2,
-                  px: 2,
-                }}
-                onClick={() => handleAddFriend(user)}
-              >
-                <PersonAddIcon sx={{ mr: 1 }} fontSize="small" />
-                Add
-              </Button>
-            </Box>
-          ))}
+  return (
+    <Box
+      key={user.uid}
+      onClick={() => {
+        setSelectedUserProfile(user);
+        setProfileDrawerOpen(true);
+      }}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        bgcolor: "#1a1a1a3a",
+        borderRadius: 2,
+        px: 2,
+        py: 1.5,
+        mb: 1,
+      }}
+    >
+      <Box display="flex" alignItems="center">
+        <Avatar src={user.photoURL} sx={{ width: 40, height: 40, mr: 2 }} />
+        <Typography color="white">{user.username}</Typography>
+      </Box>
+
+      {existingFriend ? (
+        <Chip label="Friend" color="success" size="small" />
+      ) : receivedRequest && (
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="contained"
+            color="success"
+            size="small"
+            onClick={() => handleAcceptRequest(receivedRequest)}
+          >
+            Accept
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            onClick={() => handleRejectRequest(receivedRequest)}
+          >
+            Reject
+          </Button>
+        </Stack>
+      )}
+    </Box>
+  );
+})}
+
         </Box>
       </>
+
+<SwipeableDrawer
+  anchor="bottom"
+  open={profileDrawerOpen}
+  onClose={() => setProfileDrawerOpen(false)}
+  PaperProps={{
+    sx: {
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      background: mode === "dark"
+        ? "rgba(15,15,15,0.8)"
+        : "rgba(255,255,255,0.85)",
+      backdropFilter: "blur(40px)",
+      overflowY: "auto",
+      maxHeight: "92vh",
+      p: 3,
+      boxShadow: "0px -10px 25px rgba(0,0,0,0.3)",
+    },
+  }}
+>
+  {selectedUserProfile && (
+    <ProfileDrawerContent
+      user={selectedUserProfile}
+      currentUser={currentUser}
+      friends={friends}
+      isCurrentUserFriend={isCurrentUserFriend}
+      isRequestReceived={isRequestReceived}
+      hasPendingRequest={hasPendingRequest}
+      loadingRequestState={loadingRequestState}
+      handleAcceptRequest={handleAcceptRequest}
+      handleRejectRequest={handleRejectRequest}
+      handleAddFriend={handleAddFriend}
+      navigate={navigate}
+      mode={mode}
+      theme={theme}
+    />
+  )}
+</SwipeableDrawer>
+
 </Drawer>
 
 <Drawer
@@ -1632,3 +1890,508 @@ const combinedChats = [
 }
 
 export default Chats;
+
+
+const ProfileDrawerContent = ({
+  user,
+  currentUser,
+  friends,
+  isCurrentUserFriend,
+  isRequestReceived,
+  hasPendingRequest,
+  loadingRequestState,
+  handleAcceptRequest,
+  handleRejectRequest,
+  handleAddFriend,
+  navigate,
+  mode,
+  theme,
+}) => {
+  const [mutualTrips, setMutualTrips] = useState([]);
+  const [mutualGroups, setMutualGroups] = useState([]);
+  const [mutualFriends, setMutualFriends] = useState([]);
+
+  // mini quick-view overlay state
+  const [miniOpen, setMiniOpen] = useState(false);
+  const [miniPerson, setMiniPerson] = useState(null);
+
+const isSelf = currentUser?.uid === user?.uid;
+
+// Determine whether the profile should be visible
+const isPrivate = user.privacy?.profileVisibility === "private";
+
+// Show private overlay only if profile is private AND current user is NOT a friend or self
+const showPrivateOverlay = isPrivate && !isCurrentUserFriend && !isSelf;
+
+
+  // 🔁 Fetch mutual data (skip when viewing self)
+  useEffect(() => {
+    if (!currentUser || !user?.uid || isSelf) return;
+
+    (async () => {
+      try {
+        // Trips (shared)
+        const tripsSnap = await getDocs(
+          query(collection(db, "trips"), where("members", "array-contains", currentUser.uid))
+        );
+        const tripsData = tripsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setMutualTrips(tripsData.filter((t) => t.members?.includes(user.uid)));
+
+        // Groups (shared)
+        const groupsSnap = await getDocs(
+          query(collection(db, "groupChats"), where("members", "array-contains", currentUser.uid))
+        );
+        const groupsData = groupsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setMutualGroups(groupsData.filter((g) => g.members?.includes(user.uid)));
+
+        // Friends (mutual)
+        const usersSnap = await getDocs(collection(db, "users"));
+        const allUsers = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const currentFriends = allUsers.find((u) => u.uid === currentUser.uid)?.friends || [];
+        const targetFriends  = allUsers.find((u) => u.uid === user.uid)?.friends || [];
+        const mutuals = allUsers.filter(
+          (u) => currentFriends.includes(u.uid) && targetFriends.includes(u.uid)
+        );
+        setMutualFriends(mutuals);
+      } catch (err) {
+        console.error("Error fetching mutual data:", err);
+      }
+    })();
+  }, [currentUser, user, isSelf]);
+
+  // handlers for quick-view mini overlay
+  const openMiniFor = (person) => {
+    setMiniPerson(person);
+    setMiniOpen(true);
+  };
+  const closeMini = () => setMiniOpen(false);
+
+  const handleMiniMessage = () => {
+    if (!miniPerson?.uid) return;
+    navigate(`/chat/${miniPerson.uid}`);
+    closeMini();
+  };
+  const handleMiniViewProfile = () => {
+    if (!miniPerson?.uid) return;
+    navigate(`/profile/${miniPerson.uid}`);
+    closeMini();
+  };
+
+  // top/bottom message actions
+  const goMessage = () => navigate(`/chat/${user.uid}`);
+
+  return (
+    <Box sx={{ position: "relative" }}>
+      {/* Header */}
+      <Stack alignItems="center" spacing={1.25} sx={{ mb: 2.25 }}>
+        <Avatar
+          src={user.photoURL}
+          sx={{
+            width: 120,
+            height: 120,
+            mb: 1,
+            boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+            border: `3px solid ${
+              user.privacy?.profileVisibility === "private"
+                ? "#ffb74d"
+                : theme.palette.primary.main
+            }`,
+          }}
+        >
+          {user.displayName?.[0] || user.name?.[0] || "U"}
+        </Avatar>
+
+        <Typography
+          variant="h5"
+          fontWeight={800}
+          sx={{
+            textAlign: "center",
+            letterSpacing: 0.2,
+            background:
+              mode === "dark"
+                ? "linear-gradient(90deg,#fff,#cfcfcf)"
+                : "linear-gradient(90deg,#101010,#6a6a6a)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          {isSelf ? "You" : user.displayName || user.name || "User"}
+        </Typography>
+
+        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+          @{user.username || "unknown_user"}
+        </Typography>
+
+        <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+          {isSelf && <Chip label="This is You" color="info" size="small" />}
+          {isCurrentUserFriend && !isSelf && (
+            <Chip label="Friend" color="success" size="small" />
+          )}
+          <Chip
+            label={
+              (user.privacy?.profileVisibility || "Public")
+                .replace(/^\w/, (c) => c.toUpperCase())
+            }
+            color={user.privacy?.profileVisibility === "private" ? "warning" : "info"}
+            size="small"
+          />
+        </Stack>
+
+        {/* compact header "Send Message" if friend */}
+        {isCurrentUserFriend && !isSelf && (
+          <Button
+            onClick={goMessage}
+            startIcon={<ChatBubbleOutlineIcon />}
+            variant="contained"
+            sx={{
+              mt: 1,
+              borderRadius: 8,
+              px: 2.25,
+              py: 1,
+              boxShadow: "none",
+            }}
+          >
+            Send Message
+          </Button>
+        )}
+      </Stack>
+
+      {/* Bio */}
+      {user.bio && !showPrivateOverlay && (
+        <Box
+          sx={{
+            textAlign: "center",
+            px: 2.5,
+            mb: 2.5,
+            py: 1.5,
+            borderRadius: 4,
+            bgcolor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+            fontStyle: "italic",
+          }}
+        >
+          “{user.bio}”
+        </Box>
+      )}
+
+      {/* Private Blur Overlay */}
+      {showPrivateOverlay && (
+        <Box
+          sx={{
+            inset: 0,
+            background:
+              "linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.85) 100%)",
+            backdropFilter: "blur(6px)",
+            zIndex: 2,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            px: 3,
+            textAlign: "center",
+          }}
+        >
+          <Box>
+            <Typography variant="h6" fontWeight={800} sx={{ color: "#fff", mb: 0.75 }}>
+              🔒 Private Profile
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#eaeaea" }}>
+              Send a friend request to view full details about this user.
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
+      {/* About / Info Section (shows for self or friends even if private) */}
+      {!showPrivateOverlay && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2.5,
+            mb: 2.25,
+            borderRadius: 5,
+            background: mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+          }}
+        >
+          <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+            About
+          </Typography>
+          <Stack spacing={1.1}>
+            <InfoRow label="Email" value={user.email || "Hidden"} />
+            <InfoRow
+              label="Joined"
+              value={
+                user.createdAt
+                  ? new Date(
+                      user.createdAt.seconds ? user.createdAt.seconds * 1000 : user.createdAt
+                    ).toLocaleDateString()
+                  : "Unknown"
+              }
+            />
+            {user.location && <InfoRow label="Location" value={user.location} />}
+            {user.occupation && <InfoRow label="Occupation" value={user.occupation} />}
+            {Array.isArray(user.hobbies) && user.hobbies.length > 0 && (
+              <InfoRow label="Hobbies" value={user.hobbies.join(", ")} />
+            )}
+            {user.gender && <InfoRow label="Gender" value={user.gender} />}
+            {user.dateOfBirth && <InfoRow label="DOB" value={user.dateOfBirth} />}
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Mutuals (only when not self and not blocked by privacy) */}
+      {!isSelf && !showPrivateOverlay && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2.5,
+            borderRadius: 5,
+            background: mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+          }}
+        >
+          <Typography variant="h6" fontWeight={700} sx={{ mb: 1.5 }}>
+            Mutual Info
+          </Typography>
+
+          {mutualFriends.length === 0 && mutualTrips.length === 0 && mutualGroups.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No mutual connections yet.
+            </Typography>
+          ) : (
+            <Stack spacing={2}>
+              {mutualFriends.length > 0 && (
+                <MutualSection
+                  title={`Mutual Friends (${mutualFriends.length})`}
+                  items={mutualFriends}
+                  onItemClick={(p) => openMiniFor(p)}
+                  showMessageBadge
+                />
+              )}
+              {mutualTrips.length > 0 && (
+                <MutualSection title={`Shared Trips (${mutualTrips.length})`} items={mutualTrips} />
+              )}
+              {mutualGroups.length > 0 && (
+                <MutualSection
+                  title={`Common Groups (${mutualGroups.length})`}
+                  items={mutualGroups}
+                />
+              )}
+            </Stack>
+          )}
+        </Paper>
+      )}
+
+      {/* Bottom Actions */}
+      {!isSelf && (
+        <Stack direction="row" spacing={2} sx={{ mt: 2.5 }}>
+          {isCurrentUserFriend ? (
+            <Button
+              variant="contained"
+              onClick={goMessage}
+              startIcon={<MessageOutlinedIcon />}
+              fullWidth
+              sx={{ borderRadius: 10, py: 1.25 }}
+            >
+              Message
+            </Button>
+          ) : isRequestReceived ? (
+            <>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleAcceptRequest}
+                fullWidth
+                sx={{ borderRadius: 10, py: 1.25 }}
+              >
+                Accept
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={handleRejectRequest}
+                fullWidth
+                sx={{ borderRadius: 10, py: 1.25 }}
+              >
+                Reject
+              </Button>
+            </>
+          ) : hasPendingRequest ? (
+            <Button variant="outlined" color="warning" disabled fullWidth sx={{ borderRadius: 10, py: 1.25 }}>
+              Requested
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              startIcon={<PersonAddIcon />}
+              onClick={() => handleAddFriend(user)}
+              disabled={loadingRequestState}
+              fullWidth
+              sx={{ borderRadius: 10, py: 1.25 }}
+            >
+              {user.privacy?.profileVisibility === "private" ? "Send Friend Request" : "Add Friend"}
+            </Button>
+          )}
+        </Stack>
+      )}
+
+      {/* Floating mini-profile quick view (Instagram-style) */}
+      <MiniProfileOverlay
+        open={miniOpen}
+        onClose={closeMini}
+        person={miniPerson}
+        onMessage={handleMiniMessage}
+        onViewProfile={handleMiniViewProfile}
+        mode={mode}
+        theme={theme}
+      />
+    </Box>
+  );
+};
+
+// 🧩 Reusable Components
+// small reusable info row
+const InfoRow = ({ label, value }) => (
+  <Stack direction="row" justifyContent="space-between">
+    <Typography color="text.secondary">{label}</Typography>
+    <Typography fontWeight={600}>{value}</Typography>
+  </Stack>
+);
+
+// Mutuals with message badge indicator (for friends)
+const MutualSection = ({ title, items, onItemClick, showMessageBadge = false }) => (
+  <Box>
+    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+      {title}
+    </Typography>
+    <Stack direction="row" spacing={1.25} flexWrap="wrap">
+      {items.slice(0, 8).map((item) => (
+        <Box
+          key={item.id || item.uid}
+          onClick={() => onItemClick && onItemClick(item)}
+          sx={{
+            position: "relative",
+            cursor: onItemClick ? "pointer" : "default",
+            "&:hover": { transform: onItemClick ? "translateY(-2px)" : "none" },
+            transition: "transform .15s ease",
+          }}
+        >
+          <Avatar
+            src={item.photoURL || item.iconURL || ""}
+            sx={{ width: 40, height: 40, boxShadow: "0 0 8px rgba(0,0,0,0.2)" }}
+          />
+          {showMessageBadge && (
+            <Box
+              sx={{
+                position: "absolute",
+                right: -2,
+                bottom: -2,
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                bgcolor: "primary.main",
+                display: "grid",
+                placeItems: "center",
+                boxShadow: "0 0 0 2px rgba(0,0,0,0.2)",
+              }}
+            >
+              <MessageOutlinedIcon sx={{ fontSize: 12, color: "#000" }} />
+            </Box>
+          )}
+        </Box>
+      ))}
+      {items.length > 8 && (
+        <Chip label={`+${items.length - 8}`} size="small" sx={{ ml: 0.5 }} />
+      )}
+    </Stack>
+  </Box>
+);
+
+// Instagram-style floating mini profile overlay
+const MiniProfileOverlay = ({ open, onClose, person, onMessage, onViewProfile, mode, theme }) => {
+  if (!open || !person) return null;
+
+  return (
+    <>
+      {/* dim background */}
+      <Box
+        onClick={onClose}
+        sx={{
+          position: "fixed",
+          inset: 0,
+          bgcolor: "rgba(0,0,0,0.35)",
+          zIndex: 9999,
+        }}
+      />
+      {/* floating card */}
+      <Box
+        sx={{
+          position: "fixed",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 320,
+          maxWidth: "90vw",
+          borderRadius: 16,
+          zIndex: 10000,
+          background: mode === "dark" ? "rgba(20,20,20,0.82)" : "rgba(255,255,255,0.9)",
+          backdropFilter: "blur(18px)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+          overflow: "hidden",
+        }}
+      >
+        <Stack direction="row" alignItems="center" sx={{ p: 2 }}>
+          <Avatar src={person.photoURL} sx={{ width: 56, height: 56, mr: 1.5 }}>
+            {(person.displayName || person.name || "U")[0]}
+          </Avatar>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="subtitle1" fontWeight={700} noWrap>
+              {person.displayName || person.name || "User"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" noWrap>
+              @{person.username || "unknown_user"}
+            </Typography>
+          </Box>
+          <IconButton onClick={onClose} size="small">
+            <CloseRoundedIcon />
+          </IconButton>
+        </Stack>
+
+        {person.bio && (
+          <Typography
+            variant="body2"
+            sx={{
+              px: 2,
+              pb: 1.5,
+              color: "text.secondary",
+              maxHeight: 72,
+              overflow: "hidden",
+            }}
+          >
+            “{person.bio}”
+          </Typography>
+        )}
+
+        <Stack direction="row" spacing={1.25} sx={{ px: 2, pb: 2 }}>
+          <Button
+            fullWidth
+            startIcon={<MessageOutlinedIcon />}
+            onClick={onMessage}
+            variant="contained"
+            sx={{ borderRadius: 8, py: 1 }}
+          >
+            Message
+          </Button>
+          <Button
+            fullWidth
+            startIcon={<OpenInNewIcon />}
+            onClick={onViewProfile}
+            variant="outlined"
+            sx={{ borderRadius: 8, py: 1 }}
+          >
+            View Profile
+          </Button>
+        </Stack>
+      </Box>
+    </>
+  );
+};

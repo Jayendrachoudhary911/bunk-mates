@@ -17,7 +17,7 @@ import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 // Import placesData (assuming path is correct relative to Home.js)
 import placesData from '../data/data.json';
-
+import { motion, AnimatePresence } from "framer-motion";
 
 import {
   AppBar,
@@ -290,6 +290,32 @@ const Home = () => {
   const [liveAlerts, setLiveAlerts] = useState({ upcoming: [], ongoing: [], reminders: [] });
   const [expandedGroups, setExpandedGroups] = useState({ upcoming: true, reminders: true });
   const [openUpcoming, setOpenUpcoming] = useState(false);
+
+  const [scrolled, setScrolled] = useState(false);
+  const [showAppBar, setShowAppBar] = useState(true);
+  const lastScrollY = useRef(0);
+
+
+useEffect(() => {
+  const handleScroll = () => {
+    const currentScroll = window.scrollY;
+
+    // Frosted effect toggle
+    setScrolled(currentScroll > 10);
+
+    // Hide on scroll down, show on scroll up
+    if (currentScroll > lastScrollY.current && currentScroll > 100) {
+      setShowAppBar(false); // scrolling down → hide
+    } else {
+      setShowAppBar(true); // scrolling up → show
+    }
+
+    lastScrollY.current = currentScroll;
+  };
+
+  window.addEventListener("scroll", handleScroll);
+  return () => window.removeEventListener("scroll", handleScroll);
+}, []);
 
   const toggleGroup = (group) => {
     setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
@@ -805,30 +831,96 @@ useEffect(() => {
               color: mode === "dark" ? "#fff" : "#000",
             }}
           >
-            <AppBar position="fixed" elevation={0} sx={{ backgroundColor: "transparent", backdropFilter: "blur(10px)", boxShadow: "none", MarginTop: 'env(safe-area-inset-top)' }}>
-              <Toolbar sx={{ justifyContent: 'space-between', py: 1, px: 3, backgroundColor: 'transparent' }}>
-                <Typography variant="h6" sx={{ userSelect: 'none', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 'bold', color: mode === "dark" ? "#f1f1f1" : "#333" }}>
-                  BunkMates
-                  {userType && (
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        backgroundColor: mode === "dark" ? "#f1f1f141" : "#4848484d",
-                        color: mode === "dark" ? "#fff" : "#000",
-                        px: 1.5,
-                        py: 0.2,
-                        borderRadius: 2.5,
-                        fontWeight: 'bold',
-                        fontSize: '0.7rem',
-                      }}
-                    >
-                      {userType}
-                    </Typography>
-                  )}
-                </Typography>
-                  <ProfilePic />
-              </Toolbar>
-            </AppBar>
+<AppBar
+  position="fixed"
+  elevation={0}
+  sx={{
+    top: showAppBar ? 0 : "-80px", // ⬆ hides smoothly
+    transition: "all 0.45s cubic-bezier(.4,0,.2,1)",
+    background: scrolled
+      ? mode === "dark"
+        ? "linear-gradient(to bottom, rgba(0, 0, 0, 0.64), transparent)"
+        : "linear-gradient(to bottom, rgba(255,255,255,0.5), transparent)"
+      : "transparent",
+    backdropFilter: scrolled ? "blur(14px) saturate(1.8)" : "none",
+    WebkitBackdropFilter: scrolled ? "blur(14px) saturate(1.8)" : "none",
+    boxShadow: "none",
+    py: 0,
+    px: 0,
+    zIndex: 1200,
+  }}
+>
+  <Toolbar
+    sx={{
+      justifyContent: "space-between",
+      alignItems: "center",
+      px: 3,
+      py: 1,
+      minHeight: 64,
+      transition: "padding 0.3s ease, background 0.3s ease",
+    }}
+  >
+    {/* App Title */}
+    <Typography
+      variant="h6"
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        fontWeight: 700,
+        letterSpacing: 0.3,
+        color: mode === "dark" ? "#f5f5f5" : "#222",
+        userSelect: "none",
+      }}
+    >
+      <Box
+        component="span"
+        sx={{
+          transition: "all 0.3s ease",
+          color: scrolled
+            ? mode === "dark"
+              ? "#f1f1f1"
+              : "#111"
+            : mode === "dark"
+              ? "#f1f1f1"
+              : "#111",
+        }}
+      >
+        BunkMates
+      </Box>
+
+      {userType && (
+        <Typography
+          variant="caption"
+          sx={{
+            ml: 1,
+            px: 1.4,
+            py: 0.2,
+            borderRadius: 2.5,
+            backgroundColor: mode === "dark"
+              ? "rgba(255,255,255,0.1)"
+              : "rgba(0,0,0,0.08)",
+            color: mode === "dark" ? "#fff" : "#000",
+            fontWeight: 600,
+            fontSize: "0.7rem",
+          }}
+        >
+          {userType}
+        </Typography>
+      )}
+    </Typography>
+
+    {/* Right-side profile icon */}
+    <Box
+      sx={{
+        transition: "transform 0.3s ease",
+        "&:hover": { transform: "scale(1.05)" },
+      }}
+    >
+      <ProfilePic />
+    </Box>
+  </Toolbar>
+</AppBar>
 
             <Box sx={{ height: { xs: 0, sm: 77 } }} />
             {notLoggedIn ? (
