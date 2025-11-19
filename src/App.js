@@ -35,6 +35,7 @@ import ResetPassword from "./components/ResetPassword";
 import SearchPage from "./pages/Search";
 import HourlyForecast from "./components/Weather/WeatherPage";
 import WeatherDebugPage from "./components/Weather/WeatherMap";
+import AccountDeletionPolicy from "./components/AccountDeletionPolicy";
 import { ThemeToggleProvider, useThemeToggle } from './contexts/ThemeToggleContext';
 
 import BottomNavBar from './components/BottomNavBar'; 
@@ -156,6 +157,7 @@ function App() {
            <Route path="/notifications" element={<Notifications />} />
            <Route path="/forgot-password" element={<ForgotPassword />} />
            <Route path="/reset-password" element={<ResetPassword />} />
+           <Route path="/account-deletion-policy" element={<AccountDeletionPolicy />} />
 
              {/* <Route
     path="/developer"
