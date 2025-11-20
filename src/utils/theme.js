@@ -9,7 +9,7 @@ const theme = createTheme({
       main: grey[500], // Minimal and soft color for the primary action
     },
     secondary: {
-      main: indigo[500], // Secondary action color
+      main: orange[500], // Secondary action color
     },
     background: {
       default: grey[50], // Light background for minimal look

@@ -1817,7 +1817,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
         
           <Button
             size="medium"
-            sx={{ ml: 2, backgroundColor: theme.palette.primary.bg + "7d", backdropFilter: "blur(20px)", minWidth: "40px", width: "50px", height: "50px", color: "#000", borderRadius: "15px", boxShadow: "none", position: "fixed", bottom: 90, right: 20, zIndex: 999 }}
+            sx={{ ml: 2, backgroundColor: theme.palette.primary.bg + "7d", backdropFilter: "blur(20px)", minWidth: "40px", width: "50px", height: "50px", color: mode === "dark" ? "#fff" : "#000", borderRadius: "15px", boxShadow: "none", position: "fixed", bottom: 90, right: 20, zIndex: 999 }}
             onClick={() => setDrawerOpen(true)}
           > 
             <AddIcon sx={{ px: 0 }} />

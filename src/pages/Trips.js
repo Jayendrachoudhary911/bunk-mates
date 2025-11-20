@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Box,
   Typography,
@@ -50,6 +50,7 @@ import {
   updateDoc,
   onSnapshot,
   getDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import ProfilePic from "../components/Profile";
@@ -116,6 +117,9 @@ export default function Trips() {
   const [latestTripId, setLatestTripId] = useState(null);
 
   // Cropping state
+  const [imageDrawer, setImageDrawer] = useState(false);
+  const [imageDataUri, setImageDataUri] = useState("");
+  const [imageFile, setImageFile] = useState(null);
   const [cropDrawerOpen, setCropDrawerOpen] = useState(false);
   const [uploadedImageSrc, setUploadedImageSrc] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -129,6 +133,7 @@ export default function Trips() {
   const user = auth.currentUser;
   const history = useNavigate();
   const [randomNatureImage, setRandomNatureImage] = useState("");
+  const saveTimerRef = useRef(null);
 
   useEffect(() => {
     if (createDialogOpen && !newTrip.iconDataUri) {
@@ -145,10 +150,26 @@ export default function Trips() {
     if (!createDialogOpen) setRandomNatureImage("");
   }, [createDialogOpen, newTrip.iconDataUri]);
 
-  useEffect(() => {
-  const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-  if (saved) {
-    setNewTrip(JSON.parse(saved));
+useEffect(() => {
+  try {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+
+      // If an iconDataUri was stored previously and is huge, drop it to avoid quota issues
+      if (
+        parsed.iconDataUri &&
+        typeof parsed.iconDataUri === "string" &&
+        parsed.iconDataUri.startsWith("data:") &&
+        parsed.iconDataUri.length > 100_000
+      ) {
+        parsed.iconDataUri = "";
+      }
+
+      setNewTrip(prev => ({ ...prev, ...parsed }));
+    }
+  } catch (e) {
+    console.warn("Failed to read saved trip from localStorage", e);
   }
 }, []);
 
@@ -156,6 +177,28 @@ useEffect(() => {
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newTrip));
 }, [newTrip]);
 
+useEffect(() => {
+  const compact = {
+    name: newTrip.name || "",
+    from: newTrip.from || "",
+    to: newTrip.to || "",
+    location: newTrip.location || "",
+    startDate: newTrip.startDate || "",
+    endDate: newTrip.endDate || "",
+  };
+
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(compact));
+  } catch (e) {
+    console.warn("Saving trip to localStorage failed (quota?), removing key:", e);
+    try {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    } catch (remErr) {
+      console.warn("Failed to remove localStorage key:", remErr);
+    }
+  }
+  // only watch the textual/date fields to reduce writes and avoid saving images
+}, [newTrip.name, newTrip.from, newTrip.to, newTrip.location, newTrip.startDate, newTrip.endDate]);
 
   // Fetch trips on mount
   useEffect(() => {
@@ -251,26 +294,84 @@ const handleIconUpload = (e) => {
     setCrop({ x: 0, y: 0 });
     setZoom(1);
     setCroppedAreaPixels(null);
+    setImageFile(file);           // <- ensure file ref is kept
   };
   reader.readAsDataURL(file);
 };
 
+const handleImageUpload = (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    setUploadedImageSrc(reader.result);
+    setCropDrawerOpen(true);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    setImageFile(file);
+  };
+  reader.readAsDataURL(file);
+};
+
+async function handleSendImage() {
+  if (!imageDataUri) return;
+  try {
+    const targetChat = latestTripId || null;
+    if (targetChat) {
+      await addDoc(collection(db, "groupChat", targetChat, "messages"), {
+        senderId: user?.uid,
+        type: "image",
+        dataUri: imageDataUri,
+        timestamp: serverTimestamp(),
+        status: "sent",
+        read: false,
+      });
+    } else {
+      // fallback: store image info into a generic collection if no trip created yet
+      await addDoc(collection(db, "tripImages"), {
+        uploader: user?.uid || null,
+        dataUri: imageDataUri,
+        createdAt: serverTimestamp(),
+      });
+    }
+
+    setImageDrawer(false);
+    setImageDataUri("");
+    setImageFile(null);
+  } catch (err) {
+    console.error("Failed to send image:", err);
+    // keep states so user can retry
+  }
+}
 
   // When cropping complete, update croppedAreaPixels
-  const onCropComplete = useCallback((_, croppedAreaPixels) => {
-    setCroppedAreaPixels(croppedAreaPixels);
-  }, []);
+const onCropComplete = useCallback((_, croppedAreaPixels) => {
+  setCroppedAreaPixels(croppedAreaPixels);
+}, []);
 
   // Create group icon only from cropped portion (data uri)
-  const handleContinueCrop = async () => {
-    if (!uploadedImageSrc || !croppedAreaPixels) {
-      alert("Please complete cropping.");
-      return;
-    }
+const handleContinueCrop = async () => {
+  if (!uploadedImageSrc || !croppedAreaPixels) {
+    alert("Please complete cropping.");
+    return;
+  }
+  try {
     const dataUri = await getCroppedImg(uploadedImageSrc, croppedAreaPixels);
+
+    // store cropped data in both the trip form and the image preview state
     setNewTrip(prev => ({ ...prev, iconDataUri: dataUri }));
+    setImageDataUri(dataUri);        // <- keep a separate preview/send state
+    setUploadedImageSrc(null);
+    setImageFile(null);
+
+    // close crop drawer and keep create dialog open
     setCropDrawerOpen(false);
-  };
+  } catch (err) {
+    console.error("Crop failed:", err);
+    alert("Failed to crop image");
+  }
+};
 
   // User search for member autocomplete
   const handleSearchUsers = async input => {
@@ -766,6 +867,7 @@ const handleIconUpload = (e) => {
 </Box>
 
           {/* Form Fields */}
+          <input type="hidden" name="iconDataUri" value={newTrip.iconDataUri || ""} />
           <TextField
             label="Trip Name"
             fullWidth
@@ -1504,7 +1606,7 @@ const handleIconUpload = (e) => {
 
           <Button
             size="medium"
-            sx={{ ml: 2, backgroundColor: theme.palette.primary.bg + "7d", backdropFilter: "blur(20px)", minWidth: "40px", width: "50px", height: "50px", color: "#000", borderRadius: "15px", boxShadow: "none", position: "fixed", bottom: 90, right: 20, zIndex: 999 }}
+            sx={{ ml: 2, backgroundColor: theme.palette.primary.bg + "7d", backdropFilter: "blur(20px)", minWidth: "40px", width: "50px", height: "50px", color: mode === "dark" ? "#fff" : "#000", borderRadius: "15px", boxShadow: "none", position: "fixed", bottom: 90, right: 20, zIndex: 999 }}
             onClick={() => setCreateDialogOpen(true)}
           > 
             <AddIcon sx={{ px: 0 }} />
