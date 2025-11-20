@@ -17,7 +17,6 @@ import {
   Snackbar,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import GoogleIcon from "@mui/icons-material/Google";
 import { auth, googleProvider, db } from "../firebase";
 import {
   createUserWithEmailAndPassword,
@@ -35,6 +34,17 @@ import {
 
 const transition = (props) => <Slide direction="up" {...props} />;
 
+/**
+ * 🎨 Generate an abstract gradient avatar via DiceBear
+ * Using the `gradient` style with a random or UID-based seed
+ */
+const getGradientAvatar = (seed) => {
+  const s = seed || Math.random().toString(36).substring(2, 10);
+  return `https://api.dicebear.com/9.x/glass/svg?seed=${encodeURIComponent(
+    s
+  )}&backgroundType=gradientLinear&radius=50&size=150`;
+};
+
 const Signup = () => {
   const [formData, setFormData] = useState({
     name: "",
@@ -49,7 +59,11 @@ const Signup = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -63,7 +77,11 @@ const Signup = () => {
   const handleSignup = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      setSnackbar({ open: true, message: "Passwords do not match", severity: "error" });
+      setSnackbar({
+        open: true,
+        message: "Passwords do not match",
+        severity: "error",
+      });
       return;
     }
 
@@ -75,8 +93,19 @@ const Signup = () => {
     }
 
     try {
-      const userCred = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      await updateProfile(userCred.user, { displayName: formData.name });
+      const userCred = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+
+      // 🎨 Generate gradient avatar based on UID (unique & consistent)
+      const avatarUrl = getGradientAvatar(userCred.user.uid);
+
+      await updateProfile(userCred.user, {
+        displayName: formData.name,
+        photoURL: avatarUrl,
+      });
 
       await setDoc(doc(db, "users", userCred.user.uid), {
         name: formData.name,
@@ -84,11 +113,15 @@ const Signup = () => {
         mobile: formData.mobile,
         email: formData.email,
         type: "Regular",
-        photoURL: userCred.user.photoURL || "https://via.placeholder.com/150",
+        photoURL: avatarUrl,
       });
 
-      setSnackbar({ open: true, message: "Signup successful!", severity: "success" });
-      setTimeout(() => window.location.href = "/", 1200);
+      setSnackbar({
+        open: true,
+        message: "Signup successful!",
+        severity: "success",
+      });
+      setTimeout(() => (window.location.href = "/"), 1200);
     } catch (err) {
       setSnackbar({ open: true, message: err.message, severity: "error" });
     }
@@ -98,19 +131,29 @@ const Signup = () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
+
+      // Use Google photoURL or generate gradient avatar
+      const avatarUrl = user.photoURL || getGradientAvatar(user.uid);
       const usernameExists = await checkUsernameExists(user.displayName);
 
       if (!usernameExists) {
+        if (!user.photoURL)
+          await updateProfile(user, { photoURL: avatarUrl });
+
         await setDoc(doc(db, "users", user.uid), {
           name: user.displayName,
           username: user.displayName,
           mobile: "",
           email: user.email,
           type: "Regular",
-          photoURL: user.photoURL || "https://via.placeholder.com/150",
+          photoURL: avatarUrl,
         });
-        setSnackbar({ open: true, message: "Signed up with Google!", severity: "success" });
-        setTimeout(() => window.location.href = "/", 1200);
+        setSnackbar({
+          open: true,
+          message: "Signed up with Google!",
+          severity: "success",
+        });
+        setTimeout(() => (window.location.href = "/"), 1200);
       } else {
         setErrorMessage("Username already taken. Try another.");
         setOpenDialog(true);
@@ -122,14 +165,18 @@ const Signup = () => {
 
   const handleCreateUsername = async (newUsername) => {
     const user = auth.currentUser;
+    if (!user) return;
+    const avatarUrl = user.photoURL || getGradientAvatar(user.uid);
+
     await setDoc(doc(db, "users", user.uid), {
       name: user.displayName,
       username: newUsername,
       mobile: "",
       email: user.email,
       type: "Regular",
-      photoURL: user.photoURL || "https://via.placeholder.com/150",
+      photoURL: avatarUrl,
     });
+    if (!user.photoURL) await updateProfile(user, { photoURL: avatarUrl });
     setOpenDialog(false);
     window.location.href = "/";
   };
@@ -147,7 +194,11 @@ const Signup = () => {
         },
       }}
     >
-      <Typography variant="h4" align="center" sx={{ color: "#fff", fontWeight: 600, mb: 3 }}>
+      <Typography
+        variant="h4"
+        align="center"
+        sx={{ color: "#fff", fontWeight: 600, mb: 3 }}
+      >
         Create Account
       </Typography>
 
@@ -163,7 +214,11 @@ const Signup = () => {
               onChange={handleChange}
               variant="outlined"
               InputProps={{
-                style: { color: "#fff", borderRadius: '12px', border: '2px solid #6f6f6f' },
+                style: {
+                  color: "#fff",
+                  borderRadius: "12px",
+                  border: "2px solid #6f6f6f",
+                },
               }}
               InputLabelProps={{
                 style: { color: "#B0BEC5", letterSpacing: "0.05em" },
@@ -171,7 +226,6 @@ const Signup = () => {
             />
           ))}
 
-          {/* Password Fields */}
           <TextField
             name="password"
             label="Password"
@@ -181,12 +235,19 @@ const Signup = () => {
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton onClick={() => setShowPassword((prev) => !prev)} edge="end">
+                  <IconButton
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    edge="end"
+                  >
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
                 </InputAdornment>
               ),
-              style: { color: "#fff", borderRadius: '12px', border: '2px solid #6f6f6f' },
+              style: {
+                color: "#fff",
+                borderRadius: "12px",
+                border: "2px solid #6f6f6f",
+              },
             }}
             InputLabelProps={{
               style: { color: "#B0BEC5", letterSpacing: "0.05em" },
@@ -201,12 +262,19 @@ const Signup = () => {
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton onClick={() => setShowConfirm((prev) => !prev)} edge="end">
+                  <IconButton
+                    onClick={() => setShowConfirm((prev) => !prev)}
+                    edge="end"
+                  >
                     {showConfirm ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
                 </InputAdornment>
               ),
-              style: { color: "#fff", borderRadius: '12px', border: '2px solid #6f6f6f' },
+              style: {
+                color: "#fff",
+                borderRadius: "12px",
+                border: "2px solid #6f6f6f",
+              },
             }}
             InputLabelProps={{
               style: { color: "#B0BEC5", letterSpacing: "0.05em" },
@@ -233,26 +301,11 @@ const Signup = () => {
             Sign Up
           </Button>
 
-          {/* <Button
-            fullWidth
-            onClick={handleGoogleSignup}
-            startIcon={<GoogleIcon />}
-            sx={{
-              border: "1px solid #696969ff",
-              color: "#fff",
-              backgroundColor: "#1e1e1e00",
-              borderRadius: 14,
-              py: 1.5,
-              "&:hover": {
-                backgroundColor: "#2C2C2C",
-                transform: "scale(1.03)",
-              },
-            }}
+          <Typography
+            variant="body2"
+            align="center"
+            sx={{ color: "#ffffffff", mt: 2 }}
           >
-            Continue with Google
-          </Button> */}
-
-          <Typography variant="body2" align="center" sx={{ color: "#ffffffff", mt: 2 }}>
             Already have an account?{" "}
             <Link href="/login" underline="hover" color="#00BFA6">
               Login
@@ -261,25 +314,32 @@ const Signup = () => {
         </Stack>
       </Box>
 
-      {/* Username Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} TransitionComponent={transition}>
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        TransitionComponent={transition}
+      >
         <DialogTitle>{errorMessage}</DialogTitle>
         <DialogContent>
           <TextField
             label="Enter New Username"
             fullWidth
-            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, username: e.target.value })
+            }
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={() => handleCreateUsername(formData.username)} color="primary">
+          <Button
+            onClick={() => handleCreateUsername(formData.username)}
+            color="primary"
+          >
             Create
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
