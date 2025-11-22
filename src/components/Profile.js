@@ -4610,6 +4610,11 @@ sx={{
             description: "Standalone weather information page.",
             action: () => navigate("/developer/weather"),
           },
+          {
+            label: "For Fun...😜",
+            description: "This feature is just for fun and won't go live for public and BETA Testers.",
+            action: () => navigate("/developer/bunkmates/social"),
+          },
         ].map((feature, index) => (
           <ListItem
             key={index}

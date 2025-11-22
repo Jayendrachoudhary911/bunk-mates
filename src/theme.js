@@ -30,13 +30,13 @@ const accents = {
     shades: ["#E8F5E9", "#A5D6A7", "#66BB6A", "#43A047", "#1B5E20"],
   },
   orange: {
-    main: "#f4cc9aff",
+    main: "#f4cc9a",
     maintxt: "#f9971f",
     mainbg: "#f9971f60",
     select: "#f9971f30",
     bg: "#ffdeb6",
-    bgr: "#ffeed9ff",
-    card: "#d7c7b4ff",
+    bgr: "#ffeed9",
+    card: "#d7c7b4",
     shades: ["#FFF3E0", "#FFCC80", "#FFA726", "#FB8C00", "#E65100"],
   },
   turquoise: {

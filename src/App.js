@@ -37,6 +37,7 @@ import HourlyForecast from "./components/Weather/WeatherPage";
 import WeatherDebugPage from "./components/Weather/WeatherMap";
 import AccountDeletionPolicy from "./components/AccountDeletionPolicy";
 import { ThemeToggleProvider, useThemeToggle } from './contexts/ThemeToggleContext';
+import BunkMatesSocialFeed from "./components/BunkMatesSocialFeed";
 
 import BottomNavBar from './components/BottomNavBar'; 
 import SwipeableRoutes from './components/SwipeableRoutes';
@@ -158,6 +159,7 @@ function App() {
            <Route path="/forgot-password" element={<ForgotPassword />} />
            <Route path="/reset-password" element={<ResetPassword />} />
            <Route path="/account-deletion-policy" element={<AccountDeletionPolicy />} />
+           <Route path="/developer/bunkmates/social" element={<BunkMatesSocialFeed />} />
 
              {/* <Route
     path="/developer"
