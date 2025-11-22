@@ -13,7 +13,7 @@ export default function BunkMatesSocialFeed() {
     script.async = true;
     script.charset = "UTF-8";
     script.src =
-      "https://cdn.curator.io/published/339a0326-4af1-4a3a-9d8a-584b088ccd5c_e631v0dg.js";
+      "https://cdn.curator.io/published/339a0326-4af1-4a3a-9d8a-584b088ccd5c.js";
 
     document.body.appendChild(script);
   }, []);
