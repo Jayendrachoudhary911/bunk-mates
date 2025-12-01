@@ -1255,7 +1255,7 @@ useEffect(() => {
                                   sx={{
                                     background: tripGroupsMap[tripInfo.id]?.iconURL
                                       ? `url(${tripGroupsMap[tripInfo.id].iconURL})`
-                                      : mode === "dark" ? "#1717175d" : "#fff",
+                                      : mode === "dark" ? "#17171791" : "#fff",
                                     backgroundSize: "cover",
                                     backgroundPosition: "center",
                                     backgroundRepeat: "no-repeat",
@@ -1271,7 +1271,7 @@ useEffect(() => {
                                 >
                                   <CardContent
                                     sx={{
-                                      backgroundColor: mode === "dark" ? "#00000000" : "#ffffffa1",
+                                      backgroundColor: mode === "dark" ? "#0000005b" : "#ffffffa1",
                                       backdropFilter: "blur(12px)",
                                       borderBottomLeftRadius: 8,
                                       borderBottomRightRadius: 8,
