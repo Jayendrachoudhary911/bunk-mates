@@ -234,6 +234,14 @@ const handleCopyLink = async () => {
     }
 };
 
+const handleOpenProfileDrawer = () => {
+  if (!selectedProfileData || selectedProfileData.type !== 'user') {
+    return;
+  }
+  navigate(`/chat/${selectedProfileData.id}?profile`);
+  setProfileDrawerOpen(true);
+};
+
 const handleSnackbarClose = () => {
   setSnackbar({ ...snackbar, open: false });
 };
@@ -1339,9 +1347,9 @@ const combinedChats = [
               ? handleSelect(selectedProfileData?.id)
               : handleGroupClick(selectedProfileData?.id),
         }, {
-          label: "Info",
+          label: "Profile Info",
           icon: <InfoOutlinedIcon />,
-          onClick: handleCopyLink,
+          onClick: handleOpenProfileDrawer,
         }].map(({ label, icon, onClick }, index) => (
           <Zoom key={label} in={profilePicOpen} style={{ transitionDelay: `${index * 200}ms` }}>
             <Button

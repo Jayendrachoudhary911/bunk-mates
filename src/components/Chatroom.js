@@ -1,14 +1,14 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
- Box, Button, Avatar, Typography, TextField, IconButton, CircularProgress,
- AppBar, Toolbar, Paper, Menu, MenuItem, Slide, Dialog, Divider, SwipeableDrawer, Stack, Chip, useTheme, keyframes, createTheme,
- ThemeProvider,
- Card,
- CardActionArea,
- CardContent,
- Grid, List, ListItemText, ListItemAvatar, LinearProgress, InputAdornment, Drawer, CardMedia,
- Zoom,
- Collapse
+  Box, Button, Avatar, Typography, TextField, IconButton, CircularProgress,
+  AppBar, Toolbar, Paper, Menu, MenuItem, Slide, Dialog, Divider, SwipeableDrawer, Stack, Chip, useTheme, keyframes, createTheme,
+  ThemeProvider,
+  Card,
+  CardActionArea,
+  CardContent,
+  Grid, List, ListItemText, ListItemAvatar, LinearProgress, InputAdornment, Drawer, CardMedia,
+  Zoom,
+  Collapse
 } from '@mui/material';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { X, Phone, Video, MoreVertical, ArrowDownToDotIcon } from 'lucide-react';
@@ -27,12 +27,13 @@ import ReplyIcon from '@mui/icons-material/Reply';
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
+import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useSwipeable } from "react-swipeable";
 import {
- collection, addDoc, query, orderBy, onSnapshot,
- serverTimestamp, doc, updateDoc, getDoc, getDocs, where, deleteDoc, setDoc, arrayUnion, arrayRemove
+  collection, addDoc, query, orderBy, onSnapshot,
+  serverTimestamp, doc, updateDoc, getDoc, getDocs, where, deleteDoc, setDoc, arrayUnion, arrayRemove
 } from "firebase/firestore";
 import { db, auth } from '../firebase';
 import { onAuthStateChanged } from "firebase/auth";
@@ -49,10 +50,10 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import CropIcon from "@mui/icons-material/Crop";
 import RotateRightIcon from "@mui/icons-material/RotateRight";
 import BlockIcon from '@mui/icons-material/Block';
-import PersonOffIcon from '@mui/icons-material/PersonOff'; 
+import PersonOffIcon from '@mui/icons-material/PersonOff';
 
 import {
- LocationOn, AccessTime,
+  LocationOn, AccessTime,
 } from "@mui/icons-material";
 import { v4 as uuidv4 } from 'uuid'; // For notification message id
 import { messaging } from "../firebase";
@@ -65,29 +66,36 @@ import ColorThief from 'colorthief';
 import { FastAverageColor } from "fast-average-color";
 
 function showLocalNotification(title, options) {
- if (Notification.permission === "granted") {
-   if (document.hasFocus()) {
-     // Show notification in foreground
-     new Notification(title, options);
-   } else if (navigator.serviceWorker && navigator.serviceWorker.ready) {
-     // Show notification via Service Worker in background
-     navigator.serviceWorker.ready.then(registration => {
-       registration.showNotification(title, options);
-     });
-   }
- }
+  if (Notification.permission === "granted") {
+    if (document.hasFocus()) {
+      // Show notification in foreground
+      new Notification(title, options);
+    } else if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      // Show notification via Service Worker in background
+      navigator.serviceWorker.ready.then(registration => {
+        registration.showNotification(title, options);
+      });
+    }
+  }
 }
 
- const fadeIn = keyframes`
-   from {
-     opacity: 0;
-     transform: translateY(20px);
-   }
-   to {
-     opacity: 1;
-     transform: translateY(0);
-   }
- `;
+  const fadeIn = keyframes`
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  `;
+
+// --- NEW CONSTANT FOR BACKDROP BLUR STYLE ---
+const backdropBlurStyle = {
+  backdropFilter: 'blur(10px)',
+  WebkitBackdropFilter: 'blur(10px)', // For Safari support
+};
+// --------------------------------------------
 
 const getMessageShape = (messages, index, currentUserId) => {
   const msg = messages[index];
@@ -147,98 +155,166 @@ const shouldShowTimestamp = (messages, index) => {
   // ✅ Hide timestamp if next message is from same sender in the same minute
   return !(sameSender && sameMinute);
 };
-
-
- 
+  
 function ChatRoom() {
- const { friendId } = useParams();
- const [currentUser, setCurrentUser] = useState(null);
- const [authLoading, setAuthLoading] = useState(true);
- const [messages, setMessages] = useState([]);
- const [input, setInput] = useState('');
- const [isSending, setIsSending] = useState(false);
- const [friendDetails, setFriendDetails] = useState({ name: 'Loading...', photoURL: '', status: 'offline' });
- const [editMessageId, setEditMessageId] = useState(null);
- const [anchorEl, setAnchorEl] = useState(null);
- const [selectedMsg, setSelectedMsg] = useState(null);
- const [showProfile, setShowProfile] = useState(false);
- const [commonGroups, setCommonGroups] = useState([]);
- const [commonTrips, setCommonTrips] = useState([]);
- const [replyingTo, setReplyingTo] = useState(null);
- const [selectedReplyMessage, setSelectedReplyMessage] = useState(null);
- const controls = useAnimation();
- const [isAtBottom, setIsAtBottom] = useState(true);
- const [newMessagesCount, setNewMessagesCount] = useState(0);
- const [reactionAnchorEl, setReactionAnchorEl] = useState(null);
- const [reactionMsg, setReactionMsg] = useState(null);
- const [showEmojiPicker, setShowEmojiPicker] = useState(false);
- const [nickname, setNickname] = useState('');
- const [editNickname, setEditNickname] = useState(false);
- const [addNicknameDrawerOpen, setAddNicknameDrawerOpen] = useState(false);
- const [sharedBudgets, setSharedBudgets] = useState([]);
- const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
- const theme = getTheme(mode, accent);
- const muiTheme = useTheme();
- const [groupMembersInfo, setGroupMembersInfo] = useState({});
- const [allCommonGroupsDrawerOpen, setAllCommonGroupsDrawerOpen] = useState(false);
- const [groupSearch, setGroupSearch] = useState("");
- const [checklist, setChecklist] = useState([]);
- const [timelineStatsMap, setTimelineStatsMap] = useState([]);
- const [showAllTripsDrawer, setShowAllTripsDrawer] = useState(false);
- const [tripSearch, setTripSearch] = useState("");
- const visibleTrips = commonTrips.slice(0, 1);
- const moreCount = commonTrips.length - 1;
- const messageRefs = useRef({});
- const [highlightedMsgId, setHighlightedMsgId] = useState(null);
- const [draggedMsgId, setDraggedMsgId] = useState(null);
- const [isFriendTyping, setIsFriendTyping] = useState(false);
- 
- const typingTimeoutRef = useRef(null);
+  const { friendId } = useParams();
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [friendDetails, setFriendDetails] = useState({ name: 'Loading...', photoURL: '', status: 'offline' });
+  const [editMessageId, setEditMessageId] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedMsg, setSelectedMsg] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [commonGroups, setCommonGroups] = useState([]);
+  const [commonTrips, setCommonTrips] = useState([]);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [selectedReplyMessage, setSelectedReplyMessage] = useState(null);
+  const controls = useAnimation();
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
+  const [reactionAnchorEl, setReactionAnchorEl] = useState(null);
+  const [reactionMsg, setReactionMsg] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [nickname, setNickname] = useState('');
+  const [editNickname, setEditNickname] = useState(false);
+  const [addNicknameDrawerOpen, setAddNicknameDrawerOpen] = useState(false);
+  const [sharedBudgets, setSharedBudgets] = useState([]);
+  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const theme = getTheme(mode, accent);
+  const muiTheme = useTheme();
+  const [groupMembersInfo, setGroupMembersInfo] = useState({});
+  const [allCommonGroupsDrawerOpen, setAllCommonGroupsDrawerOpen] = useState(false);
+  const [groupSearch, setGroupSearch] = useState("");
+  const [checklist, setChecklist] = useState([]);
+  const [timelineStatsMap, setTimelineStatsMap] = useState([]);
+  const [showAllTripsDrawer, setShowAllTripsDrawer] = useState(false);
+  const [tripSearch, setTripSearch] = useState("");
+  const visibleTrips = commonTrips.slice(0, 1);
+  const moreCount = commonTrips.length - 1;
+  const messageRefs = useRef({});
+  const [highlightedMsgId, setHighlightedMsgId] = useState(null);
+  const [draggedMsgId, setDraggedMsgId] = useState(null);
+  const [isFriendTyping, setIsFriendTyping] = useState(false);
+  const [mutualFriendsCount, setMutualFriendsCount] = useState(0);
 
- const scrollContainerRef = useRef(null);
- const chatId = currentUser && friendId ? [currentUser.uid, friendId].sort().join('_') : null;
+  // === START OF NEW/MODIFIED STATE AND LOGIC FOR MUTUAL FRIENDS ===
+  const [mutualFriends, setMutualFriends] = useState([]);
+  const [mutualFriendsDrawerOpen, setMutualFriendsDrawerOpen] = useState(false);
 
- const history = useNavigate();
- const messagesEndRef = useRef(null);
+  const fetchMutualFriends = useCallback(async (currentUserId, friendId) => {
+    if (!currentUserId || !friendId) return;
 
- const [notification, setNotification] = useState(null);
+    // 1. Get current user's friends list
+    const currentUserDoc = await getDoc(doc(db, "users", currentUserId));
+    const currentUserFriends = currentUserDoc.exists() ? (currentUserDoc.data().friends || []) : [];
 
- const [chatFontSize, setChatFontSize] = useState(parseInt(localStorage.getItem('bunkmate_fontSize'), 10) || 16);
- const [chatWallpaper, setChatWallpaper] = useState(localStorage.getItem('bunkmate_chatWallpaper') || 'default');
- const [effectiveChatTheme, setEffectiveChatTheme] = useState('dark'); // 'light' or 'dark'
- const [imageDrawer, setImageDrawer] = useState(false);
- const [imageDataUri, setImageDataUri] = useState("");
- const [imageFile, setImageFile] = useState(null);
- const [openViewer, setOpenViewer] = useState(false);
- const [showViewerControls, setShowViewerControls] = useState(true);
- 
- // Memoize the images array to prevent re-calculation on every render
- const images = React.useMemo(() => 
-    messages.filter(msg => msg.type === "image").map(msg => msg.dataUri), 
- [messages]);
+    // 2. Get friend's friends list
+    const friendDoc = await getDoc(doc(db, "users", friendId));
+    const friendFriends = friendDoc.exists() ? (friendDoc.data().friends || []) : [];
 
- const [selectedIndex, setSelectedIndex] = useState(0);
- const [selectedImage, setSelectedImage] = useState(null);
- const [text, setText] = useState(""); // Store overlay text
- const [cropMode, setCropMode] = useState(false); // Track crop mode active
- const [crop, setCrop] = useState({ x: 0, y: 0 });
- const [zoom, setZoom] = useState(1);
- const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
- const [showCropper, setShowCropper] = useState(false);
- const [headerColor, setHeaderColor] = useState(mode === "dark" ? "linear-gradient(to bottom, #00000000, #00000030, #000000a0, #000000f9)" : "linear-gradient(to bottom, #ffffff00, #ffffff30, #ffffffa0, #fffffff9");
- const [headerBg, setHeaderBg] = useState(mode === "dark" ? "linear-gradient(to top, #00000000, #00000030, #000000a0, #000000f9)" : "linear-gradient(to top, #ffffff00, #ffffff30, #ffffffa0, #fffffff9)");
- const [headerTextColor, setHeaderTextColor] = useState(mode === "dark" ? "#fff" : "#000");
- const rgbaFromArray = (arr, alpha = 0.85) => `rgba(${arr[0]}, ${arr[1]}, ${arr[2]}, ${alpha})`;
+    // 3. Find intersection (mutual friends UIDs)
+    const mutualUids = currentUserFriends.filter(uid => friendFriends.includes(uid));
 
- const [blockedUids, setBlockedUids] = useState([]);
+    // 4. Fetch mutual friend details
+    if (mutualUids.length > 0) {
+      const mutualFriendsDetails = await Promise.all(
+        mutualUids.map(async (uid) => {
+          const userSnap = await getDoc(doc(db, "users", uid));
+          return userSnap.exists() ? { id: uid, ...userSnap.data() } : null;
+        })
+      );
+      const filteredMutualFriends = mutualFriendsDetails.filter(Boolean).filter(mf => mf.id !== currentUserId);
+      setMutualFriendsCount(filteredMutualFriends.length);
+      setMutualFriends(filteredMutualFriends);
+    } else {
+      setMutualFriendsCount(0);
+      setMutualFriends([]);
+    }
+  }, []);
 
- const messageVariants = {
-   hidden: { opacity: 0, y: 20 },
-   visible: { opacity: 1, y: 0 },
-   exit: { opacity: 0, y: 20, transition: { duration: 0.2 } },
- };
+  useEffect(() => {
+    if (currentUser?.uid && friendId) {
+      fetchMutualFriends(currentUser.uid, friendId);
+    }
+  }, [currentUser, friendId, fetchMutualFriends]);
+  // === END OF NEW/MODIFIED STATE AND LOGIC FOR MUTUAL FRIENDS ===
 
- useEffect(() => {
+  const typingTimeoutRef = useRef(null);
+
+  const scrollContainerRef = useRef(null);
+  const chatId = currentUser && friendId ? [currentUser.uid, friendId].sort().join('_') : null;
+
+  const history = useNavigate();
+  const messagesEndRef = useRef(null);
+
+  const [notification, setNotification] = useState(null);
+
+  const [chatFontSize, setChatFontSize] = useState(parseInt(localStorage.getItem('bunkmate_fontSize'), 10) || 16);
+  const [chatWallpaper, setChatWallpaper] = useState(localStorage.getItem('bunkmate_chatWallpaper') || 'default');
+  const [effectiveChatTheme, setEffectiveChatTheme] = useState('dark'); // 'light' or 'dark'
+  const [imageDrawer, setImageDrawer] = useState(false);
+  const [imageDataUri, setImageDataUri] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [openViewer, setOpenViewer] = useState(false);
+  const [showViewerControls, setShowViewerControls] = useState(true);
+  
+  // Memoize the images array to prevent re-calculation on every render
+  const images = React.useMemo(() => 
+      messages.filter(msg => msg.type === "image").map(msg => msg.dataUri), 
+  [messages]);
+
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [text, setText] = useState(""); // Store overlay text
+  const [cropMode, setCropMode] = useState(false); // Track crop mode active
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [showCropper, setShowCropper] = useState(false);
+  const [headerColor, setHeaderColor] = useState(mode === "dark" ? "linear-gradient(to bottom, #00000000, #00000030, #000000a0, #000000f9)" : "linear-gradient(to bottom, #ffffff00, #ffffff30, #ffffffa0, #fffffff9");
+  const [headerBg, setHeaderBg] = useState(mode === "dark" ? "linear-gradient(to top, #00000000, #00000030, #000000a0, #000000f9)" : "linear-gradient(to top, #ffffff00, #ffffff30, #ffffffa0, #fffffff9}");
+  const [headerTextColor, setHeaderTextColor] = useState(mode === "dark" ? "#fff" : "#000");
+  const rgbaFromArray = (arr, alpha = 0.85) => `rgba(${arr[0]}, ${arr[1]}, ${arr[2]}, ${alpha})`;
+
+  const [blockedUids, setBlockedUids] = useState([]);
+  const [dominantColor, setDominantColor] = useState(null); 
+
+  const location = useLocation();
+
+  const handleOpenProfile = () => {
+    history({ search: `?profile` });
+  };
+
+  const handleCloseProfile = () => {
+    history({ search: `` });
+  };
+  
+  // Handler to open the mutual friends drawer
+  const handleOpenMutualFriendsDrawer = () => {
+    setMutualFriendsDrawerOpen(true);
+  };
+  
+  // Handler to close the mutual friends drawer
+  const handleCloseMutualFriendsDrawer = () => {
+    setMutualFriendsDrawerOpen(false);
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const isProfileOpen = params.get('profile') !== null;
+    setOpenProfile(isProfileOpen);
+  }, [location.search]);
+
+  const messageVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: 20, transition: { duration: 0.2 } },
+  };
+
+  useEffect(() => {
   const fetchBlocked = async () => {
     if (!auth.currentUser) return;
     const userRef = doc(db, "users", auth.currentUser.uid);
@@ -274,22 +350,27 @@ const toggleBlockFriend = async () => {
   }
 };
 
-   const getWallpaperUrl = () => {
-     const selectedWallpaper = localStorage.getItem('bunkmate_chatWallpaper') || 'default';
-     if (selectedWallpaper === 'none') {
-         return effectiveChatTheme === 'dark'
-           ? 'url(/assets/images/chatbg/dark.png)'
-           : 'url(/assets/images/chatbg/light.png)';
-     }
-     if (selectedWallpaper === 'default') {
-         // Use default light/dark wallpaper based on the effective theme
-         return effectiveChatTheme === 'dark'
-           ? 'url(/assets/images/chatbg/dark.png)'
-           : 'url(/assets/images/chatbg/light.png)';
-     }
-     // If it's not 'default' or 'none', it's a custom URL
-     return `url(${selectedWallpaper})`;
-   };
+
+  // Removed the old fetchMutualFriendsCount and using the new unified fetchMutualFriends now.
+  // The useEffect that called fetchMutualFriendsCount is now removed as well, 
+  // as the new one is more comprehensive.
+
+    const getWallpaperUrl = () => {
+      const selectedWallpaper = localStorage.getItem('bunkmate_chatWallpaper') || 'default';
+      if (selectedWallpaper === 'none') {
+          return effectiveChatTheme === 'dark'
+            ? 'url(/assets/images/chatbg/dark.png)'
+            : 'url(/assets/images/chatbg/light.png)';
+      }
+      if (selectedWallpaper === 'default') {
+          // Use default light/dark wallpaper based on the effective theme
+          return effectiveChatTheme === 'dark'
+            ? 'url(/assets/images/chatbg/dark.png)'
+            : 'url(/assets/images/chatbg/light.png)';
+      }
+      // If it's not 'default' or 'none', it's a custom URL
+      return `url(${selectedWallpaper})`;
+    };
 
   useEffect(() => {
     const fac = new FastAverageColor();
@@ -310,143 +391,143 @@ const toggleBlockFriend = async () => {
       });
   }, [getWallpaperUrl, effectiveChatTheme]);
 
-   useEffect(() => {
-       const savedThemeSetting = localStorage.getItem('bunkmate_chatTheme') || 'system';
-       if (savedThemeSetting !== 'system') {
-           setEffectiveChatTheme(savedThemeSetting);
-           return;
-       }
-       const applyAppTheme = () => {
-           const globalAppTheme = localStorage.getItem('theme') || 'dark';
-           setEffectiveChatTheme(globalAppTheme);
-       };
+    useEffect(() => {
+        const savedThemeSetting = localStorage.getItem('bunkmate_chatTheme') || 'system';
+        if (savedThemeSetting !== 'system') {
+            setEffectiveChatTheme(savedThemeSetting);
+            return;
+        }
+        const applyAppTheme = () => {
+            const globalAppTheme = localStorage.getItem('theme') || 'dark';
+            setEffectiveChatTheme(globalAppTheme);
+        };
 
-       applyAppTheme();
+        applyAppTheme();
 
-       const handleStorageChange = (event) => {
-           if (event.key === 'theme') {
-               applyAppTheme();
-           }
-       };
+        const handleStorageChange = (event) => {
+            if (event.key === 'theme') {
+                applyAppTheme();
+            }
+        };
 
-       window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('storage', handleStorageChange);
 
-       // Cleanup the listener when the component unmounts
-       return () => {
-           window.removeEventListener('storage', handleStorageChange);
-       };
-   }, []);
+        // Cleanup the listener when the component unmounts
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, []);
 
-   useEffect(() => {
-       const handleStorageChange = (event) => {
-           if (event.key === 'bunkmate_fontSize') {
-               setChatFontSize(parseInt(event.newValue, 10) || 16);
-           }
-           if (event.key === 'bunkmate_chatWallpaper') {
-               setChatWallpaper(event.newValue || 'default');
-           }
-           if (event.key === 'bunkmate_chatTheme') {
-               // For theme, we just reload to apply all changes consistently
-               window.location.reload();
-           }
-       };
+    useEffect(() => {
+        const handleStorageChange = (event) => {
+            if (event.key === 'bunkmate_fontSize') {
+                setChatFontSize(parseInt(event.newValue, 10) || 16);
+            }
+            if (event.key === 'bunkmate_chatWallpaper') {
+                setChatWallpaper(event.newValue || 'default');
+            }
+            if (event.key === 'bunkmate_chatTheme') {
+                // For theme, we just reload to apply all changes consistently
+                window.location.reload();
+            }
+        };
 
-       window.addEventListener('storage', handleStorageChange);
-       return () => window.removeEventListener('storage', handleStorageChange);
-   }, []);
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
 
- useEffect(() => {
- // Request notification permission and FCM token
- async function requestPermission() {
-   if (Notification.permission !== "granted") {
-     await Notification.requestPermission();
-   }
-   if (Notification.permission === "granted") {
-     await getToken(messaging, { vapidKey: "BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs" });
-   }
- }
- requestPermission();
+useEffect(() => {
+  // Request notification permission and FCM token
+  async function requestPermission() {
+    if (Notification.permission !== "granted") {
+      await Notification.requestPermission();
+    }
+    if (Notification.permission === "granted") {
+      await getToken(messaging, { vapidKey: "BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs" });
+    }
+  }
+  requestPermission();
 
- // Listen for foreground FCM messages
- const unsubscribe = onMessage(messaging, (payload) => {
-   if (payload?.notification) {
-     showLocalNotification(payload.notification.title, {
-       body: payload.notification.body,
-       icon: "/logo192.png",
-     });
-   }
- });
+  // Listen for foreground FCM messages
+  const unsubscribe = onMessage(messaging, (payload) => {
+    if (payload?.notification) {
+      showLocalNotification(payload.notification.title, {
+        body: payload.notification.body,
+        icon: "/logo192.png",
+      });
+    }
+  });
 
- return () => {
-   // No unsubscribe needed for onMessage in v9 modular
- };
+  return () => {
+    // No unsubscribe needed for onMessage in v9 modular
+  };
 }, []);
 
 // --- In your onSnapshot for messages, show notification for new messages, reactions, or nickname edits ---
 useEffect(() => {
- if (!chatId || !currentUser) return;
+  if (!chatId || !currentUser) return;
 
- const q = query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "asc"));
- const unsubscribe = onSnapshot(q, (querySnapshot) => {
-   const msgs = [];
-   querySnapshot.forEach((doc) => {
-     const msg = doc.data();
-     msg.id = doc.id;
-     msgs.push(msg);
-   });
-   setMessages(msgs);
+  const q = query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "asc"));
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const msgs = [];
+    querySnapshot.forEach((doc) => {
+      const msg = doc.data();
+      msg.id = doc.id;
+      msgs.push(msg);
+    });
+    setMessages(msgs);
 
-   // Notification for new message from friend
-   const lastMessage = msgs[msgs.length - 1];
-   if (
-     lastMessage &&
-     lastMessage.senderId !== currentUser.uid &&
-     !lastMessage.isRead &&
-     !lastMessage.system
-   ) {
-     showLocalNotification("New Message", {
-       body: lastMessage.text || "Sent an image",
-       icon: "/logo192.png",
-     });
-   }
+    // Notification for new message from friend
+    const lastMessage = msgs[msgs.length - 1];
+    if (
+      lastMessage &&
+      lastMessage.senderId !== currentUser.uid &&
+      !lastMessage.isRead &&
+      !lastMessage.system
+    ) {
+      showLocalNotification("New Message", {
+        body: lastMessage.text || "Sent an image",
+        icon: "/logo192.png",
+      });
+    }
 
-   // Notification for system messages (nickname edits, etc)
-   if (
-     lastMessage &&
-     lastMessage.system &&
-     lastMessage.senderId !== currentUser.uid &&
-     lastMessage.notificationType === "nickname"
-   ) {
-     showLocalNotification("Nickname Changed", {
-       body: lastMessage.text,
-       icon: "/logo192.png",
-     });
-   }
+    // Notification for system messages (nickname edits, etc)
+    if (
+      lastMessage &&
+      lastMessage.system &&
+      lastMessage.senderId !== currentUser.uid &&
+      lastMessage.notificationType === "nickname"
+    ) {
+      showLocalNotification("Nickname Changed", {
+        body: lastMessage.text,
+        icon: "/logo192.png",
+      });
+    }
 
-   // Notification for reactions
-   if (
-     lastMessage &&
-     lastMessage.reactions &&
-     Array.isArray(lastMessage.reactions) &&
-     lastMessage.reactions.some(r => r.user !== currentUser.uid)
-   ) {
-     showLocalNotification("New Reaction", {
-       body: "Someone reacted to a message!",
-       icon: "/logo192.png",
-     });
-   }
+    // Notification for reactions
+    if (
+      lastMessage &&
+      lastMessage.reactions &&
+      Array.isArray(lastMessage.reactions) &&
+      lastMessage.reactions.some(r => r.user !== currentUser.uid)
+    ) {
+      showLocalNotification("New Reaction", {
+        body: "Someone reacted to a message!",
+        icon: "/logo192.png",
+      });
+    }
 
-   const lastMsg = msgs[msgs.length - 1];
-   if (lastMsg && lastMsg.senderId !== currentUser?.uid && !lastMsg.isRead) {
-     updateDoc(doc(db, "chats", chatId, "messages", lastMsg.id), {
-       isRead: true
-     });
-   }
- });
- return () => unsubscribe();
+    const lastMsg = msgs[msgs.length - 1];
+    if (lastMsg && lastMsg.senderId !== currentUser?.uid && !lastMsg.isRead) {
+      updateDoc(doc(db, "chats", chatId, "messages", lastMsg.id), {
+        isRead: true
+      });
+    }
+  });
+  return () => unsubscribe();
 }, [chatId, currentUser]);
 
- useEffect(() => {
+  useEffect(() => {
     if (!chatId || !friendId) return;
   
     const chatDocRef = doc(db, "chats", chatId);
@@ -465,138 +546,162 @@ useEffect(() => {
   }, [chatId, friendId]);
 
 
- const getGroupedReactions = (msg) => {
-   if (!msg.reactions) return {};
-   const grouped = {};
-   msg.reactions.forEach(r => {
-     if (!grouped[r.emoji]) grouped[r.emoji] = [];
-     grouped[r.emoji].push(r.user);
-   });
-   return grouped;
- };
+  const getGroupedReactions = (msg) => {
+    if (!msg.reactions) return {};
+    const grouped = {};
+    msg.reactions.forEach(r => {
+      if (!grouped[r.emoji]) grouped[r.emoji] = [];
+      grouped[r.emoji].push(r.user);
+    });
+    return grouped;
+  };
 
- useEffect(() => {
-   const fetchNickname = async () => {
-     if (!currentUser || !friendId) return;
-     const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-     if (userDoc.exists()) {
-       const nicknames = userDoc.data().nicknames || {};
-       setNickname(nicknames[friendId] || '');
-     }
-   };
-   fetchNickname();
- }, [currentUser, friendId]);
+  useEffect(() => {
+    const fetchNickname = async () => {
+      if (!currentUser || !friendId) return;
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      if (userDoc.exists()) {
+        const nicknames = userDoc.data().nicknames || {};
+        setNickname(nicknames[friendId] || '');
+      }
+    };
+    fetchNickname();
+  }, [currentUser, friendId]);
 
- // --- Remove user from friends ---
- const handleRemoveFriend = async () => {
-   if (!window.confirm("Are you sure you want to remove this user from your friends?")) return;
-   const userRef = doc(db, "users", currentUser.uid);
-   const userDoc = await getDoc(userRef);
-   const friends = userDoc.exists() ? (userDoc.data().friends || []) : [];
-   await updateDoc(userRef, {
-     friends: friends.filter(uid => uid !== friendId)
-   });
-   const friendRef = doc(db, "users", friendId);
-   const friendDoc = await getDoc(friendRef);
-   const friendFriends = friendDoc.exists() ? (friendDoc.data().friends || []) : [];
-   await updateDoc(friendRef, {
-     friends: friendFriends.filter(uid => uid !== currentUser.uid)
-   });
-   setNotification("Removed from friends.");
-   setOpenProfile(false);
-   history('/chats');
- };
+  // --- Remove user from friends ---
+  const handleRemoveFriend = async () => {
+    if (!window.confirm("Are you sure you want to remove this user from your friends?")) return;
+    const userRef = doc(db, "users", currentUser.uid);
+    const userDoc = await getDoc(userRef);
+    const friends = userDoc.exists() ? (userDoc.data().friends || []) : [];
+    await updateDoc(userRef, {
+      friends: friends.filter(uid => uid !== friendId)
+    });
+    const friendRef = doc(db, "users", friendId);
+    const friendDoc = await getDoc(friendRef);
+    const friendFriends = friendDoc.exists() ? (friendDoc.data().friends || []) : [];
+    await updateDoc(friendRef, {
+      friends: friendFriends.filter(uid => uid !== currentUser.uid)
+    });
+    setNotification("Removed from friends.");
+    setOpenProfile(false);
+    history('/chats');
+  };
 
- // --- Clear chat history ---
- const handleClearChat = async () => {
-   if (!window.confirm("Clear all chat messages with this user?")) return;
-   const msgsQuery = query(collection(db, "chats", chatId, "messages"));
-   const msgsSnapshot = await getDocs(msgsQuery);
-   const batch = [];
-   msgsSnapshot.forEach(docSnap => {
-     batch.push(deleteDoc(doc(db, "chats", chatId, "messages", docSnap.id)));
-   });
-   await Promise.all(batch);
-   setNotification("Chat cleared.");
- };
+  const getGradientStyle = useCallback((position) => {
+    if (!dominantColor) {
+      // Fallback for when color is loading or not found
+      const fallbackColor = effectiveChatTheme === 'dark' ? '17, 17, 17' : '255, 255, 255';
+      const fallbackColorEnd = effectiveChatTheme === 'dark' ? '0, 0, 0' : '255, 255, 255';
+      return position === 'top' 
+        ? `linear-gradient(to bottom, rgba(${fallbackColorEnd}, 0.9), rgba(${fallbackColor}, 0.6), rgba(${fallbackColor}, 0.0))` 
+        : `linear-gradient(to top, rgba(${fallbackColor}, 0.9), rgba(${fallbackColor}, 0.6), rgba(${fallbackColor}, 0.0))`;
+    }
 
- // --- Edit nickname ---
- const handleSaveNickname = async () => {
-   const userRef = doc(db, "users", currentUser.uid);
-   const userDoc = await getDoc(userRef);
-   const nicknames = userDoc.exists() ? (userDoc.data().nicknames || {}) : {};
-   nicknames[friendId] = nickname;
-   await updateDoc(userRef, { nicknames });
-   setEditNickname(false);
+    const colorString = `${dominantColor[0]}, ${dominantColor[1]}, ${dominantColor[2]}`;
+    
+    // Gradient for AppBar (top to bottom)
+    if (position === 'top') {
+      return `linear-gradient(to bottom, rgba(${colorString}, 0.9), rgba(${colorString}, 0.6), rgba(${colorString}, 0.0))`;
+    } 
+    // Gradient for bottom input field (bottom to top)
+    else if (position === 'bottom') {
+      return `linear-gradient(to top, rgba(${colorString}, 0.9), rgba(${colorString}, 0.6), rgba(${colorString}, 0.0))`;
+    }
+    return 'transparent';
+  }, [dominantColor, effectiveChatTheme]);
 
-   await addDoc(collection(db, "chats", chatId, "messages"), {
-     text: `${currentUser.displayName || "A user"} set a nickname for you: "${nickname}"`,
-     senderId: currentUser.uid,
-     timestamp: serverTimestamp(),
-     isRead: false,
-     system: true,
-     notificationType: "nickname"
-   });
- };
 
- function handleImageUpload(e) {
- const file = e.target.files[0];
- const reader = new FileReader();
- reader.onloadend = () => {
-   setImageDataUri(reader.result);
-   setImageDrawer(true);
- };
- reader.readAsDataURL(file);
+  // --- Clear chat history ---
+  const handleClearChat = async () => {
+    if (!window.confirm("Clear all chat messages with this user?")) return;
+    const msgsQuery = query(collection(db, "chats", chatId, "messages"));
+    const msgsSnapshot = await getDocs(msgsQuery);
+    const batch = [];
+    msgsSnapshot.forEach(docSnap => {
+      batch.push(deleteDoc(doc(db, "chats", chatId, "messages", docSnap.id)));
+    });
+    await Promise.all(batch);
+    setNotification("Chat cleared.");
+  };
+
+  // --- Edit nickname ---
+  const handleSaveNickname = async () => {
+    const userRef = doc(db, "users", currentUser.uid);
+    const userDoc = await getDoc(userRef);
+    const nicknames = userDoc.exists() ? (userDoc.data().nicknames || {}) : {};
+    nicknames[friendId] = nickname;
+    await updateDoc(userRef, { nicknames });
+    setEditNickname(false);
+
+    await addDoc(collection(db, "chats", chatId, "messages"), {
+      text: `${currentUser.displayName || "A user"} set a nickname for you: "${nickname}"`,
+      senderId: currentUser.uid,
+      timestamp: serverTimestamp(),
+      isRead: false,
+      system: true,
+      notificationType: "nickname"
+    });
+  };
+
+  function handleImageUpload(e) {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    setImageDataUri(reader.result);
+    setImageDrawer(true);
+  };
+  reader.readAsDataURL(file);
 }
 
- function handleSendImage() {
- if (imageDataUri) {
-   addDoc(collection(db, 'chats', chatId, 'messages'), {
-     senderId: currentUser.uid,
-     type: 'image',
-     dataUri: imageDataUri,
-     timestamp: serverTimestamp(),
-   });
-   setImageDrawer(false);
-   setImageDataUri("");
- }
+  function handleSendImage() {
+  if (imageDataUri) {
+    addDoc(collection(db, 'chats', chatId, 'messages'), {
+      senderId: currentUser.uid,
+      type: 'image',
+      dataUri: imageDataUri,
+      timestamp: serverTimestamp(),
+    });
+    setImageDrawer(false);
+    setImageDataUri("");
+  }
 }
 
 function downloadImage(dataUri, id) {
- const link = document.createElement('a');
- link.href = dataUri;
- link.download = `chat-image-${id}.jpg`;
- document.body.appendChild(link);
- link.click();
- document.body.removeChild(link);
+  const link = document.createElement('a');
+  link.href = dataUri;
+  link.download = `chat-image-${id}.jpg`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
- async function handleSendMessage(e) {
-   e.preventDefault();
-   setIsSending(true);
-   if (imageDataUri) {
-     await addDoc(collection(db, "chats", chatId, "messages"), {
-       senderId: currentUser.uid,
-       type: "image",
-       dataUri: imageDataUri,
-       timestamp: serverTimestamp(),
-     });
-     setImageDrawer(false);
-     setImageDataUri("");
-     setImageFile(null);
-   } else if (input.trim()) {
-     await addDoc(collection(db, "chats", chatId, "messages"), {
-       senderId: currentUser.uid,
-       type: "text",
-       text: input.trim(),
-       timestamp: serverTimestamp(),
-     });
-     setInput("");
-   }
-   setIsSending(false);
- }
+  async function handleSendMessage(e) {
+    e.preventDefault();
+    setIsSending(true);
+    if (imageDataUri) {
+      await addDoc(collection(db, "chats", chatId, "messages"), {
+        senderId: currentUser.uid,
+        type: "image",
+        dataUri: imageDataUri,
+        timestamp: serverTimestamp(),
+      });
+      setImageDrawer(false);
+      setImageDataUri("");
+      setImageFile(null);
+    } else if (input.trim()) {
+      await addDoc(collection(db, "chats", chatId, "messages"), {
+        senderId: currentUser.uid,
+        type: "text",
+        text: input.trim(),
+        timestamp: serverTimestamp(),
+      });
+      setInput("");
+    }
+    setIsSending(false);
+  }
 
- const handleInputChange = (e) => {
+  const handleInputChange = (e) => {
     const value = e.target.value;
     setInput(value);
   
@@ -638,48 +743,48 @@ function downloadImage(dataUri, id) {
   };
 
 
- const handlePrev = () => {
-   setSelectedIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
- };
+  const handlePrev = () => {
+    setSelectedIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
 
- const handleNext = () => {
-   setSelectedIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
- };
+  const handleNext = () => {
+    setSelectedIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
 
- const swipeHandlers = useSwipeable({
-   onSwipedLeft: handleNext,
-   onSwipedRight: handlePrev,
-   preventDefaultTouchmoveEvent: true,
-   trackMouse: true,
- });
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: handleNext,
+    onSwipedRight: handlePrev,
+    preventDefaultTouchmoveEvent: true,
+    trackMouse: true,
+  });
 
- const imageSrc = images[selectedIndex] || images[0];
+  const imageSrc = images[selectedIndex] || images[0];
 
- const handleBudgetClick = (budgetId) => {
-   history(`/budgets/${budgetId}`);
- };
+  const handleBudgetClick = (budgetId) => {
+    history(`/budgets/${budgetId}`);
+  };
 
- const Transition = React.forwardRef(function Transition(props, ref) {
-   return <Slide direction="up" ref={ref} {...props} />;
- });
+  const Transition = React.forwardRef(function Transition(props, ref) {
+    return <Slide direction="up" ref={ref} {...props} />;
+  });
 
- const [openProfile, setOpenProfile] = useState(false);
+  const [openProfile, setOpenProfile] = useState(false);
 
- const [drawerOpen, setDrawerOpen] = useState(false);
- const toggleDrawer = (open) => (event) => {
-   if (event && event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) return;
-   setDrawerOpen(open);
- };
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const toggleDrawer = (open) => (event) => {
+    if (event && event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) return;
+    setDrawerOpen(open);
+  };
 
- useEffect(() => {
-   if (messages.length > 0) {
-     if (isAtBottom) {
-       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-     } else {
-       setNewMessagesCount(prev => prev + 1);
-     }
-   }
- }, [messages]);
+  useEffect(() => {
+    if (messages.length > 0) {
+      if (isAtBottom) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        setNewMessagesCount(prev => prev + 1);
+      }
+    }
+  }, [messages]);
 
 const handleAddText = () => {
   const canvas = document.createElement("canvas");
@@ -748,188 +853,188 @@ const handleRotateImage = () => {
   };
 };
 
- const bottomRef = useRef(null);
+  const bottomRef = useRef(null);
 
-   useEffect(() => {
-     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-   }, [messages]);
+    useEffect(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
 
 
- useEffect(() => {
-   const unsubscribe = onAuthStateChanged(auth, (user) => {
-     setCurrentUser(user);
-     setAuthLoading(false);
-   });
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setAuthLoading(false);
+    });
 
-   return () => unsubscribe();
- }, []);
+    return () => unsubscribe();
+  }, []);
 
 
 const fetchCommonGroupsAndTrips = async (currentUser, friendId) => {
- if (!currentUser?.uid || !friendId) return;
+  if (!currentUser?.uid || !friendId) return;
 
- const groupQuery = query(
-   collection(db, 'groupChats'),
-   where('members', 'array-contains', currentUser.uid)
- );
- const groupSnapshot = await getDocs(groupQuery);
+  const groupQuery = query(
+    collection(db, 'groupChats'),
+    where('members', 'array-contains', currentUser.uid)
+  );
+  const groupSnapshot = await getDocs(groupQuery);
 
- const matchedGroups = groupSnapshot.docs
-   .filter(doc => {
-     const members = doc.data().members || [];
-     return members.map(String).includes(String(friendId));
-   })
-   .map(doc => ({
-     id: doc.id,
-     name: doc.data().name ?? "",
-     iconURL: doc.data().iconURL ?? "",
-     emoji: doc.data().emoji ?? "",
-     members: doc.data().members || [],
-   }));
+  const matchedGroups = groupSnapshot.docs
+    .filter(doc => {
+      const members = doc.data().members || [];
+      return members.map(String).includes(String(friendId));
+    })
+    .map(doc => ({
+      id: doc.id,
+      name: doc.data().name ?? "",
+      iconURL: doc.data().iconURL ?? "",
+      emoji: doc.data().emoji ?? "",
+      members: doc.data().members || [],
+    }));
 
- setCommonGroups(matchedGroups);
+  setCommonGroups(matchedGroups);
 
- const tripQuery = query(
-   collection(db, 'trips'),
-   where('members', 'array-contains', currentUser.uid)
- );
- const tripSnapshot = await getDocs(tripQuery);
+  const tripQuery = query(
+    collection(db, 'trips'),
+    where('members', 'array-contains', currentUser.uid)
+  );
+  const tripSnapshot = await getDocs(tripQuery);
 
- const matchedTrips = tripSnapshot.docs
-   .filter(doc => {
-     const members = doc.data().members || [];
-     return members.map(String).includes(String(friendId));
-   })
-   .map(doc => ({
-     id: doc.id,
-     name: doc.data().name ?? "",
-     from: doc.data().from ?? "",
-     location: doc.data().location ?? "",
-     startDate: doc.data().startDate ?? "",
-     endDate: doc.data().endDate ?? "",
-     iconURL: doc.data().iconURL ?? ""
-   }));
+  const matchedTrips = tripSnapshot.docs
+    .filter(doc => {
+      const members = doc.data().members || [];
+      return members.map(String).includes(String(friendId));
+    })
+    .map(doc => ({
+      id: doc.id,
+      name: doc.data().name ?? "",
+      from: doc.data().from ?? "",
+      location: doc.data().location ?? "",
+      startDate: doc.data().startDate ?? "",
+      endDate: doc.data().endDate ?? "",
+      iconURL: doc.data().iconURL ?? ""
+    }));
 
- setCommonTrips(matchedTrips);
+  setCommonTrips(matchedTrips);
 };
 
 useEffect(() => {
- if (currentUser && friendDetails?.uid) {
-   fetchCommonGroupsAndTrips({
-     currentUser,
-     friendDetails,
-     setCommonGroups,
-     setCommonTrips,
-   });
- }
+  if (currentUser && friendDetails?.uid) {
+    fetchCommonGroupsAndTrips({
+      currentUser,
+      friendDetails,
+      setCommonGroups,
+      setCommonTrips,
+    });
+  }
 }, [currentUser, friendDetails]);
 
 useEffect(() => {
- const allUids = [...new Set(commonGroups.flatMap(g => g.members || []))];
- if (allUids.length === 0) {
-   setGroupMembersInfo({});
-   return;
- }
- const fetchMembers = async () => {
-   const map = {};
-   await Promise.all(
-     allUids.map(async uid => {
-       const snap = await getDoc(doc(db, "users", uid));
-       if (snap.exists()) map[uid] = snap.data();
-     })
-   );
-   setGroupMembersInfo(map);
- };
- fetchMembers();
+  const allUids = [...new Set(commonGroups.flatMap(g => g.members || []))];
+  if (allUids.length === 0) {
+    setGroupMembersInfo({});
+    return;
+  }
+  const fetchMembers = async () => {
+    const map = {};
+    await Promise.all(
+      allUids.map(async uid => {
+        const snap = await getDoc(doc(db, "users", uid));
+        if (snap.exists()) map[uid] = snap.data();
+      })
+    );
+    setGroupMembersInfo(map);
+  };
+  fetchMembers();
 }, [commonGroups]);
 
 useEffect(() => {
- if (!commonTrips || commonTrips.length === 0) return;
+  if (!commonTrips || commonTrips.length === 0) return;
 
- setTimelineStatsMap({});
+  setTimelineStatsMap({});
 
- commonTrips.forEach(async (trip) => {
-   const snap = await getDocs(collection(db, "trips", trip.id, "timeline"));
-   const events = snap.docs.map(d => d.data());
-   const total = events.length || 1;
-   const completed = events.filter(e => e.completed === true).length;
-   const percent = Math.round((completed / total) * 100);
-   setTimelineStatsMap(prev => ({
-     ...prev,
-     [trip.id]: { completed, total, percent }
-   }));
- });
+  commonTrips.forEach(async (trip) => {
+    const snap = await getDocs(collection(db, "trips", trip.id, "timeline"));
+    const events = snap.docs.map(d => d.data());
+    const total = events.length || 1;
+    const completed = events.filter(e => e.completed === true).length;
+    const percent = Math.round((completed / total) * 100);
+    setTimelineStatsMap(prev => ({
+      ...prev,
+      [trip.id]: { completed, total, percent }
+    }));
+  });
 }, [commonTrips]);
 
 
 useEffect(() => {
- const fetchSharedBudgets = async () => {
-   if (!currentUser?.uid || !friendId) return;
+  const fetchSharedBudgets = async () => {
+    if (!currentUser?.uid || !friendId) return;
 
-   const q = collection(db, "budgets");
-   const snap = await getDocs(q);
+    const q = collection(db, "budgets");
+    const snap = await getDocs(q);
 
-   const shared = snap.docs
-     .filter(doc => {
-       const contributors = Array.isArray(doc.data().contributors) ? doc.data().contributors : [];
-       const contributorUids = contributors
-         .map(c => typeof c === "object" && c && c.uid ? String(c.uid) : null)
-         .filter(Boolean);
-       return contributorUids.includes(String(currentUser.uid)) &&
-              contributorUids.includes(String(friendId));
-     })
-     .map(doc => ({
-       id: doc.id,
-       name: doc.data().name || doc.data().tripName,
-       total: doc.data().total || "N/A",
-       contributors: doc.data().contributors || [],
-     }));
+    const shared = snap.docs
+      .filter(doc => {
+        const contributors = Array.isArray(doc.data().contributors) ? doc.data().contributors : [];
+        const contributorUids = contributors
+          .map(c => typeof c === "object" && c && c.uid ? String(c.uid) : null)
+          .filter(Boolean);
+        return contributorUids.includes(String(currentUser.uid)) &&
+               contributorUids.includes(String(friendId));
+      })
+      .map(doc => ({
+        id: doc.id,
+        name: doc.data().name || doc.data().tripName,
+        total: doc.data().total || "N/A",
+        contributors: doc.data().contributors || [],
+      }));
 
-   setSharedBudgets(shared);
- };
- fetchSharedBudgets();
+    setSharedBudgets(shared);
+  };
+  fetchSharedBudgets();
 }, [currentUser, friendId]);
 
 useEffect(() => {
- if (currentUser && friendId) {
-   fetchCommonGroupsAndTrips(currentUser, friendId);
- }
+  if (currentUser && friendId) {
+    fetchCommonGroupsAndTrips(currentUser, friendId);
+  }
 }, [currentUser, friendId]);
 
 
- useEffect(() => {
-   const fetchUserDetails = async () => {
-     const userDoc = await getDoc(doc(db, "users", friendId));
-     if (userDoc.exists()) setFriendDetails(userDoc.data());
-   };
-   fetchUserDetails();
- }, [friendId]);
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      const userDoc = await getDoc(doc(db, "users", friendId));
+      if (userDoc.exists()) setFriendDetails(userDoc.data());
+    };
+    fetchUserDetails();
+  }, [friendId]);
 
- useEffect(() => {
-   if (!chatId) return;
- 
-   const q = query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "asc"));
-   const unsubscribe = onSnapshot(q, (querySnapshot) => {
-     const msgs = [];
-     querySnapshot.forEach((doc) => {
-       const msg = doc.data();
-       msg.id = doc.id;
-       msgs.push(msg);
-     });
-     setMessages(msgs);
- 
-     const lastMessage = msgs[msgs.length - 1];
-     if (lastMessage && lastMessage.senderId !== currentUser?.uid && !lastMessage.isRead) {
-       updateDoc(doc(db, "chats", chatId, "messages", lastMessage.id), {
-         isRead: true
-       });
-     }
-   });
- 
-   return () => unsubscribe();
- }, [chatId, currentUser]);
- 
+  useEffect(() => {
+    if (!chatId) return;
+  
+    const q = query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "asc"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const msgs = [];
+      querySnapshot.forEach((doc) => {
+        const msg = doc.data();
+        msg.id = doc.id;
+        msgs.push(msg);
+      });
+      setMessages(msgs);
+  
+      const lastMessage = msgs[msgs.length - 1];
+      if (lastMessage && lastMessage.senderId !== currentUser?.uid && !lastMessage.isRead) {
+        updateDoc(doc(db, "chats", chatId, "messages", lastMessage.id), {
+          isRead: true
+        });
+      }
+    });
+  
+    return () => unsubscribe();
+  }, [chatId, currentUser]);
+  
 const sendMessage = async (e) => {
   e.preventDefault();
   if (!input.trim() && !selectedImage) return;
@@ -1028,81 +1133,125 @@ const sendMessage = async (e) => {
   setIsSending(false);
 };
 
- const handleEdit = (msg) => {
-   setInput(msg.text || "");
-   setEditMessageId(msg.id);
- };
+  const handleEdit = (msg) => {
+    setInput(msg.text || "");
+    setEditMessageId(msg.id);
+  };
 
- const handleDelete = async (msgId) => {
-   await deleteDoc(doc(db, "chats", chatId, "messages", msgId));
- };
+  const handleDelete = async (msgId) => {
+    await deleteDoc(doc(db, "chats", chatId, "messages", msgId));
+  };
 
- const handleContextMenu = (event, msg) => {
-   event.preventDefault();
-   if (msg.senderId === currentUser.uid || msg.senderId === friendId) {
-     setAnchorEl(event.currentTarget);
-     setSelectedMsg(msg);
-   }
- };
+  const handleContextMenu = (event, msg) => {
+    event.preventDefault();
+    if (msg.senderId === currentUser.uid || msg.senderId === friendId) {
+      setAnchorEl(event.currentTarget);
+      setSelectedMsg(msg);
+    }
+  };
 
- const handleMenuClose = () => {
-   setAnchorEl(null);
-   setSelectedMsg(null);
- };
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedMsg(null);
+  };
 
- const handleReaction = async (emoji, msg = reactionMsg || selectedMsg) => {
-   if (!msg) return;
-   const reactions = msg.reactions || [];
-   const userId = currentUser.uid;
+  const handleReaction = async (emoji, msg = reactionMsg || selectedMsg) => {
+    if (!msg) return;
+    const reactions = msg.reactions || [];
+    const userId = currentUser.uid;
 
-   let updated = reactions.filter(r => r.user !== userId);
+    let updated = reactions.filter(r => r.user !== userId);
 
-   updated.push({ emoji, user: userId });
+    updated.push({ emoji, user: userId });
 
-   await updateDoc(doc(db, "chats", chatId, "messages", msg.id), {
-     reactions: updated
-   });
+    await updateDoc(doc(db, "chats", chatId, "messages", msg.id), {
+      reactions: updated
+    });
 
-   setShowEmojiPicker(false);
-   setReactionAnchorEl(null);
-   setReactionMsg(null);
-   handleMenuClose();
- };
+    setShowEmojiPicker(false);
+    setReactionAnchorEl(null);
+    setReactionMsg(null);
+    handleMenuClose();
+  };
 
 const removeUserReaction = async (msg, emoji) => {
- if (!msg || !msg.reactions) return;
- const userId = currentUser.uid;
- const updated = msg.reactions.filter(
-   r => !(r.emoji === emoji && r.user === userId)
- );
- await updateDoc(doc(db, "chats", chatId, "messages", msg.id), {
-   reactions: updated
- });
+  if (!msg || !msg.reactions) return;
+  const userId = currentUser.uid;
+  const updated = msg.reactions.filter(
+    r => !(r.emoji === emoji && r.user === userId)
+  );
+  await updateDoc(doc(db, "chats", chatId, "messages", msg.id), {
+    reactions: updated
+  });
 };
 
- const stackItems = [
+  const stackItems = [
   friendDetails.bio && (
-    <Box key="bio" sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", color: effectiveChatTheme === "dark" ? "#aaa" : "#333", py: 1.4, px: 2, display: 'flex', justifyContent: 'left', gap: 1.5, mt: 1 }}>
+    <Box key="bio" sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", color: effectiveChatTheme === "dark" ? "#aaa" : "#333", py: 1.4, px: 2, display: 'flex', justifyContent: 'left', gap: 1.5, mt: 1, ...backdropBlurStyle }}>
       <Typography variant="body2" textAlign="justify">
         <strong>Bio:</strong> {friendDetails.bio}
       </Typography>
     </Box>
   ),
+  (<IconButton 
+      key="mutual-friends" 
+      onClick={handleOpenMutualFriendsDrawer} // Open the dedicated mutual friends drawer
+      sx={{ 
+        bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", 
+        color: effectiveChatTheme === "dark" ? "#fff" : "#000", 
+        py: 1.4, 
+        px: 2, 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'left', 
+        gap: 1.5, 
+        ...backdropBlurStyle,
+        mt: 1, 
+        borderRadius: '16px', 
+        width: '100%' 
+      }}
+    >
+      
+      <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333", flexGrow: 1, textAlign: 'left' }}>
+        {mutualFriendsCount} Mutual Friends
+      </Typography>
+      {/* Mutal Friend Avatars for quick preview */}
+      <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
+          {mutualFriends.slice(0, 3).map((mf, index) => (
+              <Avatar
+                  key={mf.id}
+                  src={mf.photoURL}
+                  alt={mf.name}
+                  sx={{ 
+                      width: 24, 
+                      height: 24, 
+                      fontSize: '0.7rem',
+                      border: `1.5px solid ${effectiveChatTheme === "dark" ? '#0c0c0c' : '#fff'}`,
+                      ml: index > 0 ? -1 : 0, // Overlap effect
+                      zIndex: 10 - index,
+                      '&:hover': { zIndex: 100 }
+                  }}
+              >
+                  {mf.name?.charAt(0)}
+              </Avatar>
+          ))}
+      </Box>
+    </IconButton>),
   friendDetails.mobile && (
-    <IconButton key="mobile" onClick={() => window.open(`tel:${friendDetails.mobile}`, '_blank')} sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", color: effectiveChatTheme === "dark" ? "#fff" : "#000", py: 1.4, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'left', gap: 1.5 }}>
+    <IconButton key="mobile" onClick={() => window.open(`tel:${friendDetails.mobile}`, '_blank')} sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", color: effectiveChatTheme === "dark" ? "#fff" : "#000", py: 1.4, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'left', gap: 1.5, ...backdropBlurStyle }}>
       <PhoneOutlinedIcon />
       <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
         {friendDetails.mobile}
       </Typography>
     </IconButton>
   ),
-  <IconButton key="message" onClick={() => setOpenProfile(false)} sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", color: effectiveChatTheme === "dark" ? "#fff" : "#000", py: 1.4, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'left', gap: 1.5 }}>
+  <IconButton key="message" onClick={() => setOpenProfile(false)} sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", color: effectiveChatTheme === "dark" ? "#fff" : "#000", py: 1.4, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'left', gap: 1.5, ...backdropBlurStyle }}>
     <PersonOutlineIcon />
     <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
       Profile
     </Typography>
   </IconButton>,
-  <IconButton key="nickname" onClick={() => { setAddNicknameDrawerOpen(true); setEditNickname(true); }} sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", color: effectiveChatTheme === "dark" ? "#fff" : "#000", py: 1.4, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'left', gap: 1.5 }}>
+  <IconButton key="nickname" onClick={() => { setAddNicknameDrawerOpen(true); setEditNickname(true); }} sx={{ bgcolor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#ffffff2d", color: effectiveChatTheme === "dark" ? "#fff" : "#000", py: 1.4, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'left', gap: 1.5, ...backdropBlurStyle }}>
     <TextFieldsIcon />
     <Typography variant="body1" sx={{ fontSize: 16, color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
       Add a Nickname
@@ -1124,7 +1273,8 @@ const actionButtons = [
         alignItems: 'center',
         justifyContent: 'left',
         gap: 1.5,
-        mt: 2
+        mt: 2,
+        ...backdropBlurStyle,
       }}
     >
       <DeleteOutlineIcon />
@@ -1149,6 +1299,7 @@ const actionButtons = [
         alignItems: 'center',
         justifyContent: 'flex-start',
         gap: 1.5,
+        ...backdropBlurStyle,
       }}
     >
       {isBlocked ? <PersonOffIcon sx={{ color: '#ff6767' }} /> : <BlockIcon sx={{ color: '#ff6767' }} />}
@@ -1172,6 +1323,7 @@ const actionButtons = [
         alignItems: 'center',
         justifyContent: 'flex-start',
         gap: 1.5,
+        ...backdropBlurStyle,
       }}
     >
       <RemoveCircleOutlineIcon sx={{ color: '#ff6767' }} />
@@ -1193,33 +1345,32 @@ const getMessageDate = (timestamp) => {
   return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
 };
 
+  const goBack = () => {
+    history(-1);
+  };
 
- const goBack = () => {
-   history(-1);
- };
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
- useEffect(() => {
-   if (messagesEndRef.current) {
-     messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-   }
- }, [messages]);
-
- if (authLoading || !currentUser) {
-   return (
-     <Box sx={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
-       <CircularProgress color="inherit" />
-     </Box>
-   );
- }
- 
- return (
-   <ThemeProvider theme={theme}>
-         <Box
+  if (authLoading || !currentUser) {
+    return (
+      <Box sx={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: effectiveChatTheme === "dark" ? "#fff" : "#000" }}>
+        <CircularProgress color="inherit" />
+      </Box>
+    );
+  }
+  
+  return (
+    <ThemeProvider theme={theme}>
+        <Box
           sx={{
             backgroundImage: getWallpaperUrl() === 'none' ? effectiveChatTheme === 'dark' ? '/assets/images/chatbg/dark.png' : '/assets/images/chatbg/light.png' : getWallpaperUrl(),
             backgroundColor: getWallpaperUrl() === 'none'
-               ? (effectiveChatTheme === 'dark' ? '#0c0c0c' : '#f0f2f5')
-               : 'transparent',
+                ? (effectiveChatTheme === 'dark' ? '#0c0c0c' : '#f0f2f5')
+                : 'transparent',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
@@ -1229,17 +1380,12 @@ const getMessageDate = (timestamp) => {
             color: effectiveChatTheme === "dark" ? "#fff" : "#000"
           }}
         >
-     
+        
     <AppBar
       position="fixed"
       sx={{
-        backgroundImage: getWallpaperUrl(),
-        backgroundColor: getWallpaperUrl() === "none"
-          ? (effectiveChatTheme === "dark" ? "#0c0c0c" : "#f0f2f5")
-          : "transparent",
+        background: getGradientStyle('top'),
         backgroundRepeat: "no-repeat",
-        backdropFilter: "blur(0px)",
-        WebkitBackdropFilter: "blur(0px)",
         padding: "16px 14px 12px",
         zIndex: 1100,
         boxShadow: "none",
@@ -1251,40 +1397,54 @@ const getMessageDate = (timestamp) => {
     >
       <Box display={"flex"} justifyContent={"space-between"} alignItems={"center"}>
         <Box display={"flex"} alignItems={"center"}>
-          <IconButton onClick={goBack} sx={{ mr: 1, color: headerTextColor }}>
+          <IconButton onClick={goBack} sx={{ mr: 1, color: headerTextColor, backgroundColor: "#5e5e5e4f", border: "2px solid #f1f1f111", ...backdropBlurStyle }}>
             <ArrowBackIcon />
           </IconButton>
-          <Avatar
-            src={friendDetails.photoURL}
-            alt={friendDetails.name}
-            sx={{ mr: 2, height: "35px", width: "35px" }}
-          />
-          <Box onClick={() => setOpenProfile(true)}>
-            <Typography variant="h6" color={headerTextColor} fontSize="16px">
-              {nickname ? nickname : friendDetails.name}
-            </Typography>
-            <Typography variant="h6" color={headerTextColor} fontSize="12px">
+
+          {/* This Box is the new clickable area */}
+          <Box 
+            onClick={handleOpenProfile} // QUICK OPEN PROFILE DRAWER
+            sx={{ 
+              mr: 1, 
+              px: 1, 
+              borderRadius: 8, 
+              backgroundColor: "#5e5e5e4f", 
+              border: "2px solid #f1f1f111", 
+              ...backdropBlurStyle,
+              cursor: 'pointer', // Indicate it's clickable
+              display: "flex",
+              alignItems: "center",
+              flexShrink: 1,
+              overflow: 'hidden'
+            }}
+          >
+            <Avatar
+              src={friendDetails.photoURL}
+              alt={friendDetails.name}
+              sx={{ mr: 2, height: "35px", width: "35px" }}
+            />
+            <Box sx={{ pr: 2, flexGrow: 1 }}>
+              <Typography variant="h6" color={headerTextColor} fontSize="16px" noWrap>
+                {nickname ? nickname : friendDetails.name}
+              </Typography>
+              <Typography variant="h6" color={headerTextColor} fontSize="12px">
               @{friendDetails.username}
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: friendDetails.status === "online" ? "#AEEA00" : "#BDBDBD" }}
-            >
-              {friendDetails.status}
-            </Typography>
+              </Typography>
+            </Box>
           </Box>
         </Box>
         <IconButton
           sx={{
             color: headerTextColor,
-            backgroundColor: effectiveChatTheme === "dark" ? "#1818182d" : "#d6d6d62f",
-            backdropFilter: "blur(80px)",
+            backgroundColor: effectiveChatTheme === "dark" ? "#5e5e5e4f" : "#d6d6d62f",
+            ...backdropBlurStyle, // <-- APPLIED BLUR
             borderRadius: 8,
             py: 1,
             px: 1,
             display: "flex",
             alignItems: "center",
             mr: 2,
+            border: "2px solid #f1f1f111"
           }}
           onClick={() => window.open(`tel:${friendDetails.mobile}`, "_blank")}
           disabled={!friendDetails.mobile}
@@ -1296,134 +1456,134 @@ const getMessageDate = (timestamp) => {
 
     <Box
       sx={{
-         overflowY: 'auto',
+          overflowY: 'auto',
       }}
     >
-     <Box
-       ref={scrollContainerRef}
-       sx={{
-         flex: 1,
-         px: 2,
-         pt: '80px',
-         pb: '80px',
-         display: 'flex',
-         flexDirection: 'column',
-         mt: 2
-       }}
-     >
-       <AnimatePresence initial={false}>
-         {messages.map((msg, index) => {
-           const isOwn = msg.senderId === currentUser.uid;
-           const showDate =
-             index === 0 ||
-             getMessageDate(msg.timestamp) !== getMessageDate(messages[index - 1].timestamp);
+      <Box
+        ref={scrollContainerRef}
+        sx={{
+          flex: 1,
+          px: 2,
+          pt: '80px',
+          pb: '80px',
+          display: 'flex',
+          flexDirection: 'column',
+          mt: 2
+        }}
+      >
+        <AnimatePresence initial={false}>
+          {messages.map((msg, index) => {
+            const isOwn = msg.senderId === currentUser.uid;
+            const showDate =
+              index === 0 ||
+              getMessageDate(msg.timestamp) !== getMessageDate(messages[index - 1].timestamp);
 
-           if (msg.system) {
-             return (
-               <motion.div
-                 key={msg.id}
-                 initial={{ opacity: 0, y: 20 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 exit={{ opacity: 0, y: 20, transition: { duration: 0.2 } }}
-                 transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                 style={{
-                   display: 'flex',
-                   justifyContent: 'center',
-                   margin: '10px 0' ,
-                 }}
-               >
-                 <Box
-                   elevation={0}
-                   sx={{
-                     px: 1,
-                     py: 1,
-                     bgcolor: effectiveChatTheme === "dark" ? "#00000031" : "#00000011",
-                     backdropFilter: "blur(80px)",
-                     color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-                     borderRadius: '12px',
-                     fontStyle: 'italic',
-                     fontSize: '0.95em',
-                     opacity: 0.85,
-                     boxShadow: 'none',
-                     textAlign: "center"
-                   }}
-                 >
-                   {msg.text}
-                 </Box>
-               </motion.div>
-             );
-           }
+            if (msg.system) {
+              return (
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20, transition: { duration: 0.2 } }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    margin: '10px 0' ,
+                  }}
+                >
+                  <Box
+                    elevation={0}
+                    sx={{
+                      px: 1,
+                      py: 1,
+                      bgcolor: effectiveChatTheme === "dark" ? "#00000031" : "#00000011",
+                      ...backdropBlurStyle, // <-- APPLIED BLUR
+                      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+                      borderRadius: '12px',
+                      fontStyle: 'italic',
+                      fontSize: '0.95em',
+                      opacity: 0.85,
+                      boxShadow: 'none',
+                      textAlign: "center"
+                    }}
+                  >
+                    {msg.text}
+                  </Box>
+                </motion.div>
+              );
+            }
 
-           const { borderRadius, groupIndex, showMeta } = getMessageShape(messages, index, currentUser.uid);
+            const { borderRadius, groupIndex, showMeta } = getMessageShape(messages, index, currentUser.uid);
 
-           return (
-             <motion.div
-               key={msg.id}
-               ref={el => { messageRefs.current[msg.id] = el; }}
-               className={`message-container ${isOwn ? 'own' : ''}`}
-               drag="x"
-               dragConstraints={{ left: 0, right: 0 }}
-               onDragStart={() => setDraggedMsgId(msg.id)}
-               onDragEnd={(event, info) => {
-                 setDraggedMsgId(null);
-                 if (info.offset.x > 100) {
-                   setReplyingTo(msg);
-                 }
-                 controls.start({ x: 0 });
-               }}
-               animate="visible"
-               initial="hidden"
-               exit="exit"
-               variants={messageVariants}
-               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-               style={{ touchAction: 'pan-y',
-               ...(highlightedMsgId === msg.id && {
-                   boxShadow: "none",
-                   paddingX: 2,
-                   borderRadius: 12,
-                   background: theme.palette.primary.mainbg,
-                   transition: "background 1.5s ease-in-out",
-                 })
-               }}
-             >
-               {showDate && (
-                 <motion.div
-                   initial={{ opacity: 0 }}
-                   animate={{ opacity: 1 }}
-                   style={{
-                     width: '100%',
-                     display: 'flex',
-                     justifyContent: 'center',
-                     marginBottom: 10,
-                     marginTop: 15
-                   }}
-                 >
-                   <Typography
-                     variant="caption"
-                     sx={{ color: effectiveChatTheme === "dark" ? "#dededeff" : "#333", backgroundColor: effectiveChatTheme === "dark" ? "#00000041" : "#88888811", backdropFilter: "blur(20px)", px: 1, borderRadius: 8, textAlign: 'center' }}
-                   >
-                     {getMessageDate(msg.timestamp)}
-                   </Typography>
-                 </motion.div>
-               )}
+            return (
+              <motion.div
+                key={msg.id}
+                ref={el => { messageRefs.current[msg.id] = el; }}
+                className={`message-container ${isOwn ? 'own' : ''}`}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                onDragStart={() => setDraggedMsgId(msg.id)}
+                onDragEnd={(event, info) => {
+                  setDraggedMsgId(null);
+                  if (info.offset.x > 100) {
+                    setReplyingTo(msg);
+                  }
+                  controls.start({ x: 0 });
+                }}
+                animate="visible"
+                initial="hidden"
+                exit="exit"
+                variants={messageVariants}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                style={{ touchAction: 'pan-y',
+                  ...(highlightedMsgId === msg.id && {
+                      boxShadow: "none",
+                      paddingX: 2,
+                      borderRadius: 12,
+                      background: theme.palette.primary.mainbg,
+                      transition: "background 1.5s ease-in-out",
+                    })
+                }}
+              >
+                {showDate && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      marginBottom: 10,
+                      marginTop: 15
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{ color: effectiveChatTheme === "dark" ? "#dededeff" : "#333", backgroundColor: effectiveChatTheme === "dark" ? "#00000041" : "#88888811", ...backdropBlurStyle, px: 1, borderRadius: 8, textAlign: 'center' }}
+                    >
+                      {getMessageDate(msg.timestamp)}
+                    </Typography>
+                  </motion.div>
+                )}
 
-               <Box
-                 onContextMenu={(e) => handleContextMenu(e, msg)}
-                 onDoubleClick={() => isOwn && handleEdit(msg)}
-                 sx={{
-                   display: 'flex',
-                   justifyContent: isOwn ? 'flex-end' : 'flex-start',
-                   mb: 0.5,
-                 }}
-               >
-                 <Box
-                   sx={{
-                     display: 'flex',
-                     flexDirection: 'column',
-                     alignItems: isOwn ? 'flex-end' : 'flex-start',
-                     maxWidth: '90%',
-                     position: 'relative',
-                   }}>
+                <Box
+                  onContextMenu={(e) => handleContextMenu(e, msg)}
+                  onDoubleClick={() => isOwn && handleEdit(msg)}
+                  sx={{
+                    display: 'flex',
+                    justifyContent: isOwn ? 'flex-end' : 'flex-start',
+                    mb: 0.5,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: isOwn ? 'flex-end' : 'flex-start',
+                      maxWidth: '90%',
+                      position: 'relative',
+                      }}>
 {msg.replyTo && (
   <Box
     sx={{
@@ -1440,7 +1600,7 @@ const getMessageDate = (timestamp) => {
       maxWidth: "95%",
       minWidth: "70%",
       overflow: "hidden",
-      backdropFilter: "blur(40px)",
+      ...backdropBlurStyle, // <-- APPLIED BLUR
     }}
     onClick={() => {
       const replyId = msg.replyTo.id;
@@ -1533,7 +1693,7 @@ const getMessageDate = (timestamp) => {
       backgroundColor: mode === "dark" ? "#00000048" : "#ffffff95",
       overflow: "hidden",
       backgroundImage: "none",
-      backdropFilter: "blur(10px)",
+      ...backdropBlurStyle, // <-- APPLIED BLUR TO DIALOG BACKGROUND
     },
   }}
 >
@@ -1557,7 +1717,7 @@ const getMessageDate = (timestamp) => {
         bgcolor: "rgba(0,0,0,0.4)",
         color: "white",
         border: "1px solid rgba(255,255,255,0.2)",
-        backdropFilter: "blur(6px)",
+        ...backdropBlurStyle, // <-- APPLIED BLUR TO BUTTON
         transition: "opacity 0.3s ease-in-out",
         opacity: showViewerControls ? 1 : 0,
         pointerEvents: showViewerControls ? "auto" : "none",
@@ -1595,7 +1755,7 @@ const getMessageDate = (timestamp) => {
         p: 1.5,
         bgcolor: "rgba(0, 0, 0, 0.25)",
         borderRadius: 4,
-        backdropFilter: "blur(15px)",
+        ...backdropBlurStyle, // <-- APPLIED BLUR TO THUMBNAIL BAR
         position: "absolute",
         bottom: 20,
         width: "90%",
@@ -1646,16 +1806,18 @@ const getMessageDate = (timestamp) => {
     minWidth: "100px",
     bgcolor: isOwn
       ? effectiveChatTheme === "dark"
-        ? "#005c4b"
+        ? "#005c4b5e"
         : "#d9fdd3"
       : effectiveChatTheme === "dark"
-      ? "#353535"
+      ? "#5e5e5e4f"
       : "#ffffff",
     borderRadius,
     color: effectiveChatTheme === "dark" ? "#fff" : "#000",
     position: 'relative',
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)',
     transition: "border-radius 0.2s ease-in-out",
+        ...backdropBlurStyle,
+    border: "2px solid #f1f1f111"
   }}
 >
   {msg.type === "image" ? (
@@ -1839,14 +2001,14 @@ const getMessageDate = (timestamp) => {
   </Typography>
 )}
 
-                   </Box>
-                 <div ref={messagesEndRef} />
-               </Box> 
+          </Box>
+            <div ref={messagesEndRef} />
+          </Box>  
 
-             </motion.div>
-           );
-         })}
-       </AnimatePresence>
+          </motion.div>
+        );
+          })}
+        </AnimatePresence>
 
         <AnimatePresence>
             {isFriendTyping && (
@@ -1888,12 +2050,12 @@ const getMessageDate = (timestamp) => {
             )}
         </AnimatePresence>
 
-       <div ref={messagesEndRef} />
-     </Box>
+        <div ref={messagesEndRef} />
+      </Box>
     </Box>
 
 
-         <div ref={bottomRef} />
+      <div ref={bottomRef} />
 <Box
   component="form"
   fullWidth
@@ -1905,10 +2067,9 @@ const getMessageDate = (timestamp) => {
     transform: "translateX(-50%)",
     width: "95%",
     borderRadius: "30px 30px 0 0",
-    background: effectiveChatTheme === "dark" ? "#00000013" : "#ffffff39",
+    background: getGradientStyle('bottom'),
     display: "flex",
     flexDirection: "column", // stack reply preview + input area
-    backdropFilter: "blur(30px)",
     justifyContent: "space-between",
     px: 1.2,
     py: 1.2,
@@ -1928,13 +2089,14 @@ const getMessageDate = (timestamp) => {
         borderRadius: "14px",
         background:
           effectiveChatTheme === "dark"
-            ? "linear-gradient(145deg, #1c1c1c20, #10101030)"
+            ? "linear-gradient(145deg, #5e5e5e4f, #5e5e5e4f)"
             : "linear-gradient(145deg, #ffffff2c, #f7f7f73c)",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        backdropFilter: "blur(12px)",
+        ...backdropBlurStyle, // <-- APPLIED BLUR TO REPLY PREVIEW
         boxShadow: "none",
+        border: "2px solid #f1f1f111"
       }}
     >
       {/* Left Section */}
@@ -2037,7 +2199,7 @@ const getMessageDate = (timestamp) => {
       flex: 1,
       bgcolor: mode === "dark" ? "#ffffff1f" : "rgba(0,0,0,0.05)",
       color: "#ff4d4d",
-      backdropFilter: "blur(12px)",
+      ...backdropBlurStyle, // <-- APPLIED BLUR
       borderRadius: "12px",
       py: 1.4,
       px: 1.6,
@@ -2072,7 +2234,7 @@ const getMessageDate = (timestamp) => {
       flex: 1,
       bgcolor: mode === "dark" ? "#ffffff1f" : "rgba(0,0,0,0.05)",
       color: mode === "dark" ? "#fff" : "#000",
-      backdropFilter: "blur(12px)",
+      ...backdropBlurStyle, // <-- APPLIED BLUR
       borderRadius: "12px",
       py: 1.4,
       px: 1.6,
@@ -2110,10 +2272,11 @@ const getMessageDate = (timestamp) => {
     py: 0.2,
     mr: 1,
     borderRadius: "30px",
-    bgcolor: effectiveChatTheme === "dark" ? "#14141439" : "#ffffff39",
-    backdropFilter: "blur(10px)",
+    bgcolor: effectiveChatTheme === "dark" ? "#5e5e5e4f" : "#ffffff39",
+    ...backdropBlurStyle, // <-- APPLIED BLUR TO INPUT WRAPPER
     boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
     width: "100%",
+    border: "2px solid #f1f1f111"
   }}
 >
   {/* Camera Button */}
@@ -2126,7 +2289,7 @@ const getMessageDate = (timestamp) => {
       height: 38,
       width: 42,
       bgcolor: "#ffffff37",
-      backdropFilter: "blur(6px)",
+      ...backdropBlurStyle, // <-- APPLIED BLUR TO BUTTON
       color: effectiveChatTheme === "dark" ? "#fff" : "#000",
       boxShadow: "none",
       transition: "all 0.3s ease",
@@ -2180,7 +2343,7 @@ const getMessageDate = (timestamp) => {
         height: "48px",
         minWidth: "48px",
         borderRadius: 8,
-        backdropFilter: "blur(30px)",
+        ...backdropBlurStyle, // <-- APPLIED BLUR TO BUTTON
       }}
       disabled={isSending}
     >
@@ -2194,25 +2357,25 @@ const getMessageDate = (timestamp) => {
 )}
 </Box>
 
-     <Menu
-      anchorEl={anchorEl}
-      open={Boolean(anchorEl)}
-      onClose={handleMenuClose}
-      PaperProps={{
-        sx: {
-          minWidth: 220,
-          borderRadius: 4,
-          backgroundImage: "none",
-          backgroundColor: "transparent",
-          color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-          boxShadow: "none",
-          p: 1,
-          overflow: 'hidden',
-          transition: "box-shadow 0.3s, background 0.3s",
-        },
-      }}
-     >
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, px: 1, py: 1, backgroundColor: effectiveChatTheme === "dark" ? '#1c1c1c70' : '#ffffff76', backdropFilter: "blur(20px)", borderRadius: 8, boxShadow: "none" }}>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        PaperProps={{
+          sx: {
+            minWidth: 220,
+            borderRadius: 4,
+            backgroundImage: "none",
+            backgroundColor: "transparent",
+            color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+            boxShadow: "none",
+            p: 1,
+            overflow: 'hidden',
+            transition: "box-shadow 0.3s, background 0.3s",
+          },
+        }}
+      >
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, px: 1, py: 1, backgroundColor: effectiveChatTheme === "dark" ? '#1c1c1c70' : '#ffffff76', ...backdropBlurStyle, borderRadius: 8, boxShadow: "none" }}>
         {['❤️', '😂', '👍', '😁', '👌'].map((emoji) => (
           <IconButton
             key={emoji}
@@ -2250,7 +2413,7 @@ const getMessageDate = (timestamp) => {
             borderRadius: 8,
             color: effectiveChatTheme === "dark" ? "#fff" : "#222",
             boxShadow: "none",
-            backdropFilter: effectiveChatTheme === "dark" ? 'blur(10px)' : 'blur(2px)',
+            ...backdropBlurStyle, // <-- APPLIED BLUR TO BUTTON
             transition: 'all 0.18s cubic-bezier(0.4,0,0.2,1)',
             '&:hover': {
               bgcolor: effectiveChatTheme === "dark" ? '#333' : '#e0e0e0',
@@ -2262,57 +2425,107 @@ const getMessageDate = (timestamp) => {
         </IconButton>
       </Box>
       
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column', 
-        backgroundColor: effectiveChatTheme === "dark" ? '#1c1c1c70' : '#ffffff76',
-        backdropFilter: "blur(20px)",
-        borderRadius: 7,
-        boxShadow: "none",
-        px: 0.2,
-        py: 0.5,
-        mt: 1
-      }}
-    >
-      <MenuItem
-        onClick={() => {
-          setReplyingTo(selectedMsg);
-          handleMenuClose();
-        }}
+      <Box
         sx={{
-          fontWeight: 500,
-          fontSize: 15,
-          borderRadius: "25px 25px 8px 8px",
-          mx: 0.5,
-          my: 0.2,
-          backdropFilter: effectiveChatTheme === "dark" ? 'blur(1px)' : 'blur(2px)',
-          color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-          '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#23232358' : '#ffffffff' },
-          transition: 'background 0.2s',
           display: 'flex',
-          alignItems: 'center',
-          gap: 1,
+          flexDirection: 'column', 
+          backgroundColor: effectiveChatTheme === "dark" ? '#1c1c1c70' : '#ffffff76',
+          ...backdropBlurStyle, // <-- APPLIED BLUR TO MENU ITEM GROUP
+          borderRadius: 7,
+          boxShadow: "none",
+          px: 0.2,
+          py: 0.5,
+          mt: 1
         }}
       >
-        <ReplyIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
-        Reply
-      </MenuItem>
-     
-      {selectedMsg?.senderId === currentUser.uid && (
-        <>
+        <MenuItem
+          onClick={() => {
+            setReplyingTo(selectedMsg);
+            handleMenuClose();
+          }}
+          sx={{
+            fontWeight: 500,
+            fontSize: 15,
+            borderRadius: "25px 25px 8px 8px",
+            mx: 0.5,
+            my: 0.2,
+            ...backdropBlurStyle, // <-- APPLIED BLUR TO MENU ITEM
+            color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+            '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#23232358' : '#ffffffff' },
+            transition: 'background 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
+          <ReplyIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
+          Reply
+        </MenuItem>
+        
+        {selectedMsg?.senderId === currentUser.uid && (
+          <>
+            <MenuItem
+              onClick={() => {
+                handleEdit(selectedMsg);
+                handleMenuClose();
+              }}
+              sx={{
+                fontWeight: 500,
+                fontSize: 15,
+                borderRadius: 2,
+                mx: 0.5,
+                my: 0.2,
+                ...backdropBlurStyle, // <-- APPLIED BLUR TO MENU ITEM
+                color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+                '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+            >
+              <EditIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
+              Edit
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleDelete(selectedMsg?.id);
+                handleMenuClose();
+              }}
+              sx={{
+                color: '#ff4444',
+                fontWeight: 500,
+                fontSize: 15,
+                borderRadius: 2,
+                mx: 0.5,
+                my: 0.2,
+                ...backdropBlurStyle, // <-- APPLIED BLUR TO MENU ITEM
+                '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#2a1818' : '#ffe2e2ff' },
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+            >
+              <DeleteOutlineIcon fontSize="small" sx={{ color: '#ff4444' }} />
+              Delete
+            </MenuItem>
+          </>
+        )}
+        
+        {selectedMsg?.text?.length > 10 && (
           <MenuItem
             onClick={() => {
-              handleEdit(selectedMsg);
+              window.open(
+                `https://www.google.com/search?q=${encodeURIComponent(selectedMsg.text)}`,
+                '_blank'
+              );
               handleMenuClose();
             }}
             sx={{
-              fontWeight: 500,
               fontSize: 15,
               borderRadius: 2,
               mx: 0.5,
               my: 0.2,
-              backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+              ...backdropBlurStyle, // <-- APPLIED BLUR TO MENU ITEM
               color: effectiveChatTheme === "dark" ? "#fff" : "#222",
               '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
               display: 'flex',
@@ -2320,49 +2533,23 @@ const getMessageDate = (timestamp) => {
               gap: 1,
             }}
           >
-            <EditIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
-            Edit
+            <SearchIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
+            Search on Google
           </MenuItem>
-          <MenuItem
-            onClick={() => {
-              handleDelete(selectedMsg?.id);
-              handleMenuClose();
-            }}
-            sx={{
-              color: '#ff4444',
-              fontWeight: 500,
-              fontSize: 15,
-              borderRadius: 2,
-              mx: 0.5,
-              my: 0.2,
-              backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
-              '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#2a1818' : '#ffe2e2ff' },
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-            }}
-          >
-            <DeleteOutlineIcon fontSize="small" sx={{ color: '#ff4444' }} />
-            Delete
-          </MenuItem>
-        </>
-      )}
-    
-      {selectedMsg?.text?.length > 10 && (
+        )}
+
         <MenuItem
           onClick={() => {
-            window.open(
-              `https://www.google.com/search?q=${encodeURIComponent(selectedMsg.text)}`,
-              '_blank'
-            );
+            navigator.clipboard.writeText(selectedMsg?.text || '');
+            setNotification('Message copied!');
             handleMenuClose();
           }}
           sx={{
             fontSize: 15,
-            borderRadius: 2,
+            borderRadius: "8px 8px 25px 25px",
             mx: 0.5,
             my: 0.2,
-            backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+            ...backdropBlurStyle, // <-- APPLIED BLUR TO MENU ITEM
             color: effectiveChatTheme === "dark" ? "#fff" : "#222",
             '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
             display: 'flex',
@@ -2370,36 +2557,12 @@ const getMessageDate = (timestamp) => {
             gap: 1,
           }}
         >
-          <SearchIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
-          Search on Google
+          <ContentCopyIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
+          Copy Text
         </MenuItem>
-      )}
-
-      <MenuItem
-        onClick={() => {
-          navigator.clipboard.writeText(selectedMsg?.text || '');
-          setNotification('Message copied!');
-          handleMenuClose();
-        }}
-        sx={{
-          fontSize: 15,
-          borderRadius: "8px 8px 25px 25px",
-          mx: 0.5,
-          my: 0.2,
-          backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
-          color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-          '&:hover': { bgcolor: effectiveChatTheme === "dark" ? '#232323' : '#ffffffff' },
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-        }}
-      >
-        <ContentCopyIcon fontSize="small" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#222" }} />
-        Copy Text
-      </MenuItem>
-    </Box>
-     </Menu>
-     
+      </Box>
+      </Menu>
+      
 <Dialog
   open={imageDrawer}
   onClose={() => setImageDrawer(false)}
@@ -2411,6 +2574,7 @@ const getMessageDate = (timestamp) => {
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
+      ...backdropBlurStyle, // <-- APPLIED BLUR TO DIALOG
     },
   }}
 >
@@ -2503,32 +2667,32 @@ const getMessageDate = (timestamp) => {
   </Box>
 </Dialog>
 
-     
-     <SwipeableDrawer
-      anchor="bottom"
-      open={Boolean(reactionAnchorEl) && !showEmojiPicker}
-      onClose={() => {
-        setReactionAnchorEl(null);
-        setReactionMsg(null);
-      }}
-      onOpen={() => {}}
-      disableSwipeToOpen={false}
-      disableDiscovery={false}
-      PaperProps={{
-        sx: {
-          minWidth: 220,
-          borderRadius: "25px 25px 0 0",
-          bgcolor: effectiveChatTheme === "dark" ? "#00000026" : "#ffffffde",
-          color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-          boxShadow: effectiveChatTheme === "dark" ? "0 12px 32px #000c" : "0 8px 32px #8882",
-          p: 2,
-          backdropFilter: "blur(40px)",
-          border: "none",
-          overflow: 'hidden',
-          transition: "box-shadow 0.3s, background 0.3s",
-        },
-      }}
-     >
+      
+      <SwipeableDrawer
+        anchor="bottom"
+        open={Boolean(reactionAnchorEl) && !showEmojiPicker}
+        onClose={() => {
+          setReactionAnchorEl(null);
+          setReactionMsg(null);
+        }}
+        onOpen={() => {}}
+        disableSwipeToOpen={false}
+        disableDiscovery={false}
+        PaperProps={{
+          sx: {
+            minWidth: 220,
+            borderRadius: "25px 25px 0 0",
+            bgcolor: effectiveChatTheme === "dark" ? "#00000026" : "#ffffffde",
+            color: effectiveChatTheme === "dark" ? "#fff" : "#222",
+            boxShadow: effectiveChatTheme === "dark" ? "0 12px 32px #000c" : "0 8px 32px #8882",
+            p: 2,
+            ...backdropBlurStyle, // <-- APPLIED BLUR TO DRAWER
+            border: "none",
+            overflow: 'hidden',
+            transition: "box-shadow 0.3s, background 0.3s",
+          },
+        }}
+      >
       <Box
         sx={{
           width: 40,
@@ -2577,7 +2741,7 @@ const getMessageDate = (timestamp) => {
                   fontWeight: 500,
                   fontSize: 17,
                   boxShadow: "none",
-                  backdropFilter: effectiveChatTheme === "dark" ? 'blur(8px)' : 'blur(2px)',
+                  ...backdropBlurStyle, // <-- APPLIED BLUR TO MENU ITEM
                   border: "none",
                   transition: "background 0.2s",
                   '&:hover': {
@@ -2597,8 +2761,8 @@ const getMessageDate = (timestamp) => {
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
-                 <Box sx={{ display: "flex", alignItems: "center", flex: 1 }}>
-                   <Avatar
+                  <Box sx={{ display: "flex", alignItems: "center", flex: 1 }}>
+                    <Avatar
                     src={groupMembersInfo?.[uid]?.photoURL}
                     sx={{
                       width: 28,
@@ -2610,58 +2774,58 @@ const getMessageDate = (timestamp) => {
                       fontWeight: 700,
                       fontSize: 18,
                     }}
-                  >
-                    {groupMembersInfo?.[uid]?.photoURL ? "" : groupMembersInfo?.[uid]?.name?.[0] || "?"}
-                  </Avatar>
-                  <Box sx={{ display: "flex", flexDirection: "column", flex: 1 }}>
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      fontWeight: 700,
-                      color: effectiveChatTheme === "dark" ? "#fff" : "#222",
-                      fontSize: 13,
-                      flex: 1,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap"
-                    }}
-                  >
-                    {uid === currentUser?.uid
-                      ? "You"
-                      : groupMembersInfo?.[uid]?.name || "Unknown"}
-                  </Typography>
-     
-                {uid === currentUser?.uid && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: effectiveChatTheme === "dark" ? "#b4b4b4ff" : "#333333ff",
-                      fontWeight: 500,
-                      opacity: 0.8,
-                      fontSize: 10,
-                      letterSpacing: 0.1,
-                      userSelect: "none"
-                    }}
-                  >
-                    Tap to remove reaction
-                  </Typography>
-                )}
-                </Box>
-                 </Box>
-                  <span
-                    style={{
-                      fontSize: 22,
-                      marginLeft: "auto",
-                      marginRight: 2,
-                      filter: "none"
-                    }}
-                  >
-                    {emoji}
-                  </span>
-                </Box>
-              </MenuItem>
+                    >
+                      {groupMembersInfo?.[uid]?.photoURL ? "" : groupMembersInfo?.[uid]?.name?.[0] || "?"}
+                    </Avatar>
+                    <Box sx={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        fontWeight: 700,
+                        color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+                        fontSize: 13,
+                        flex: 1,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      {uid === currentUser?.uid
+                        ? "You"
+                        : groupMembersInfo?.[uid]?.name || "Unknown"}
+                    </Typography>
+      
+                    {uid === currentUser?.uid && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: effectiveChatTheme === "dark" ? "#b4b4b4ff" : "#333333ff",
+                          fontWeight: 500,
+                          opacity: 0.8,
+                          fontSize: 10,
+                          letterSpacing: 0.1,
+                          userSelect: "none"
+                        }}
+                      >
+                        Tap to remove reaction
+                      </Typography>
+                    )}
+                    </Box>
+                  </Box>
+                    <span
+                      style={{
+                        fontSize: 22,
+                        marginLeft: "auto",
+                        marginRight: 2,
+                        filter: "none"
+                      }}
+                    >
+                      {emoji}
+                    </span>
+                  </Box>
+                </MenuItem>
+              ))
             ))
-          ))
         }
         {!reactionMsg && (
           <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#bbb" : "#888", textAlign: "center", py: 2 }}>
@@ -2669,31 +2833,31 @@ const getMessageDate = (timestamp) => {
           </Typography>
         )}
       </Box>
-     </SwipeableDrawer>
-     
-     <Popover
-      open={showEmojiPicker}
-      anchorEl={reactionAnchorEl}
-      onClose={() => setShowEmojiPicker(false)}
-      anchorOrigin={{
-        vertical: 'top',
-        horizontal: 'center',
-      }}
-      transformOrigin={{
-        vertical: 'bottom',
-        horizontal: 'center',
-      }}
-      PaperProps={{
-        sx: {
-          borderRadius: 3,
-          bgcolor: "rgba(24,24,24,0.98)",
-          boxShadow: "0 8px 32px #000b",
-          backdropFilter: 'blur(18px)',
-          border: '1.5px solid #232323',
-          overflow: 'hidden',
-        }
-      }}
-     >
+      </SwipeableDrawer>
+      
+      <Popover
+        open={showEmojiPicker}
+        anchorEl={reactionAnchorEl}
+        onClose={() => setShowEmojiPicker(false)}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center',
+        }}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            bgcolor: "rgba(24,24,24,0.98)",
+            boxShadow: "0 8px 32px #000b",
+            ...backdropBlurStyle, // <-- APPLIED BLUR TO POPOVER
+            border: '1.5px solid #232323',
+            overflow: 'hidden',
+          }
+        }}
+      >
       <EmojiPicker
         onEmojiClick={(emojiData) => {
           handleReaction(emojiData.emoji, reactionMsg);
@@ -2701,98 +2865,102 @@ const getMessageDate = (timestamp) => {
         }}
         theme={ effectiveChatTheme === "dark" ? "dark" : "light" }
       />
-     </Popover>
-     
-          <AnimatePresence>
-            {notification && (
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 50 }}
-                transition={{ duration: 0.3 }}
-                style={{
-                  position: 'fixed',
-                  top: 20,
-                  right: 20,
-                  padding: '10px',
-                  backgroundColor: '#000',
-                  color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-                  borderRadius: '5px',
-                  zIndex: 1000,
-                }}
-              >
-                <Typography variant="body2">{notification}</Typography>
-              </motion.div>
-            )}
-          </AnimatePresence>
+      </Popover>
+      
+        <AnimatePresence>
+          {notification && (
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              transition={{ duration: 0.3 }}
+              style={{
+                position: 'fixed',
+                top: 20,
+                right: 20,
+                padding: '10px',
+                backgroundColor: effectiveChatTheme === "dark" ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)',
+                color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+                borderRadius: '5px',
+                zIndex: 1000,
+                ...backdropBlurStyle, // <-- APPLIED BLUR TO NOTIFICATION
+              }}
+            >
+              <Typography variant="body2">{notification}</Typography>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-     <Box>
-       <motion.div
-         initial={{ y: '100%' }}
-         animate={{ y: 0 }}
-         exit={{ y: '100%' }}
-         transition={{ type: 'spring', stiffness: 100 }}
-       >
+      <Box>
+        <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', stiffness: 100 }}
+        >
 <Drawer
- anchor="bottom"
- open={openProfile}
- onClose={() => setOpenProfile(false)}
- onOpen={() => {}}
- fullHeight
- PaperProps={{
-   sx: {
-     border: 'transparent',
-     backgroundColor: effectiveChatTheme === "dark" ? '#0c0c0c00' : '#ffffffad',
-     backdropFilter: 'blur(70px)',
-     color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-     maxWidth: 470,
-     height: '100vh',
-     mx: 'auto',
-     backgroundImage: "none",
-   },
- }}
+  anchor="bottom"
+  open={openProfile}
+  onClose={handleCloseProfile}
+  onOpen={handleOpenProfile}
+  fullHeight
+  PaperProps={{
+    sx: {
+      border: 'transparent',
+      backgroundColor: effectiveChatTheme === "dark" ? '#0c0c0c9d' : '#ffffffad',
+      ...backdropBlurStyle, // <-- APPLIED BLUR TO DRAWER
+      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+      maxWidth: 470,
+      height: '100vh',
+      mx: 'auto',
+      backgroundImage: "none",
+    },
+  }}
 >
- <Box sx={{ p: 3, position: 'relative', height: '100%', overflowY: 'auto' }}>
+  <Box sx={{ p: 3, position: 'relative', height: '100%', overflowY: 'auto' }}>
 
-   <Button
-     startIcon={<ArrowBackIcon />}
-     onClick={() => setOpenProfile(false)}
-     sx={{
-       mb: 0,
-       borderRadius: 8,
-       color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-       backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
-       '&:hover': { backgroundColor: "#f1f1f121" },
-     }}
-   >
-     Back
-   </Button>
+    <Button
+      startIcon={<ArrowBackIcon />}
+      onClick={goBack}
+      sx={{
+        mb: 0,
+        borderRadius: 8,
+        color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+        backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
+        ...backdropBlurStyle, // <-- APPLIED BLUR TO BUTTON
+        '&:hover': { backgroundColor: "#f1f1f121" },
+      }}
+    >
+      Back
+    </Button>
 
-   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 2 }}>
-     <Avatar src={friendDetails.photoURL} sx={{ width: 90, height: 90, mb: 2 }} />
-     <Typography variant="h6" fontWeight="bold" color={effectiveChatTheme === "dark" ? "#fff" : "#000"}>{nickname || friendDetails.name}</Typography>
-     <Typography variant="subtitle1" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>@{friendDetails.username}</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 2 }}>
+      <Avatar src={friendDetails.photoURL} sx={{ width: 90, height: 90, mb: 2 }} />
+      <Typography variant="h6" fontWeight="bold" color={effectiveChatTheme === "dark" ? "#fff" : "#000"}>{nickname || friendDetails.name}</Typography>
+      <Typography variant="subtitle1" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>@{friendDetails.username}</Typography>
 
-     <Typography
-       variant="body2"
-       sx={{
-         backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
-         px: 2,
-         py: 0.5,
-         borderRadius: 4,
-         color: effectiveChatTheme === "dark" ? "#aaa" : "#333",
-       }}
-     >
-       {friendDetails.name}
-     </Typography>
-   </Box>
+      <Typography
+        variant="body2"
+        sx={{
+          backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
+          px: 2,
+          py: 0.5,
+          borderRadius: 4,
+          color: effectiveChatTheme === "dark" ? "#aaa" : "#333",
+          ...backdropBlurStyle, // <-- APPLIED BLUR
+        }}
+      >
+        {friendDetails.name}
+      </Typography>
+    </Box>
 
-   <Stack spacing={0.5} mt={3} mb={2} sx={{ backgroundColor: "#f1f1f100", borderRadius: 1, p: 1 }}>
+    <Stack spacing={0.5} mt={3} mb={2} sx={{ backgroundColor: "#f1f1f100", borderRadius: 1, p: 1 }}>
   {visibleStackItems.map((item, index) =>
     React.cloneElement(item, {
       sx: {
         ...item.props.sx,
-        borderRadius: getDynamicBorderRadius(index, visibleStackItems.length)
+        borderRadius: getDynamicBorderRadius(index, visibleStackItems.length),
+        ...backdropBlurStyle, // Already in item.props.sx, but ensuring here too.
       }
     })
   )}
@@ -2814,7 +2982,8 @@ const getMessageDate = (timestamp) => {
               color: effectiveChatTheme === "dark" ? "#fff" : "#000",
               borderRadius: getDynamicBorderRadius(index, arr.length + (commonGroups.length > 3 ? 1 : 0)),
               overflow: "hidden",
-              boxShadow: "none"
+              boxShadow: "none",
+              ...backdropBlurStyle, // <-- APPLIED BLUR TO CARD
             }}
           >
             <CardActionArea onClick={() => history(`/group/${group.id}`)}>
@@ -2873,6 +3042,7 @@ const getMessageDate = (timestamp) => {
               ),
               fontWeight: 600,
               boxShadow: "none",
+              ...backdropBlurStyle, // <-- APPLIED BLUR TO BUTTON
             }}
             onClick={() => setAllCommonGroupsDrawerOpen(true)}
           >
@@ -2905,7 +3075,8 @@ const getMessageDate = (timestamp) => {
             color: effectiveChatTheme === "dark" ? "#fff" : "#000",
             borderRadius,
             boxShadow: "none",
-            mb: 0.5
+            mb: 0.5,
+            ...backdropBlurStyle, // <-- APPLIED BLUR TO CARD
           }}
         >
           <CardContent>
@@ -2922,39 +3093,39 @@ const getMessageDate = (timestamp) => {
                 >
                   {timelineStatsMap?.[trip.id] && (
                   <Box>
-           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: '75vw' }}>
-             <Typography variant="h6" noWrap>{trip.name}</Typography>
-             {timelineStatsMap?.[trip.id] && (
-               <Box minWidth={110}>
-                 <Typography variant="caption" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
-                   {timelineStatsMap[trip.id]?.completed} / {timelineStatsMap[trip.id]?.total} complete
-                 </Typography>
-                 <LinearProgress
-                   value={timelineStatsMap[trip.id]?.percent}
-                   variant="determinate"
-                   sx={{
-                     mt: 0.5, borderRadius: 20, height: 7, bgcolor: effectiveChatTheme === "dark" ? "#ffffff36" : "#00000018",
-                     "& .MuiLinearProgress-bar": { bgcolor: effectiveChatTheme === "dark" ? "#ffffff" : "#1e1e1eff" }
-                   }}
-                 />
-               </Box>
-             )}
-           </Box>
-           <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333", display: "flex", flexDirection: "row", alignItems: "center" }}>
-             <LocationOn sx={{ fontSize: 14, mr: 1 }} />
-             {trip.from} → {trip.location}
-           </Typography>
-           <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#ccc" : "#555", display: "flex", flexDirection: "row", alignItems: "center" }}>
-             <AccessTime sx={{ fontSize: 14, mr: 1 }} />
-             {trip.startDate} → {trip.endDate}
-           </Typography>
-                  </Box>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: '75vw' }}>
+                  <Typography variant="h6" noWrap>{trip.name}</Typography>
+                  {timelineStatsMap?.[trip.id] && (
+                    <Box minWidth={110}>
+                      <Typography variant="caption" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
+                        {timelineStatsMap[trip.id]?.completed} / {timelineStatsMap[trip.id]?.total} complete
+                      </Typography>
+                      <LinearProgress
+                        value={timelineStatsMap[trip.id]?.percent}
+                        variant="determinate"
+                        sx={{
+                          mt: 0.5, borderRadius: 20, height: 7, bgcolor: effectiveChatTheme === "dark" ? "#ffffff36" : "#00000018",
+                          "& .MuiLinearProgress-bar": { bgcolor: effectiveChatTheme === "dark" ? "#ffffff" : "#1e1e1eff" }
+                        }}
+                      />
+                    </Box>
                   )}
                 </Box>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
+                <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333", display: "flex", flexDirection: "row", alignItems: "center" }}>
+                  <LocationOn sx={{ fontSize: 14, mr: 1 }} />
+                  {trip.from} → {trip.location}
+                </Typography>
+                <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#ccc" : "#555", display: "flex", flexDirection: "row", alignItems: "center" }}>
+                  <AccessTime sx={{ fontSize: 14, mr: 1 }} />
+                  {trip.startDate} → {trip.endDate}
+                </Typography>
+                      </Box>
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
       );
     })}
 
@@ -2969,7 +3140,8 @@ const getMessageDate = (timestamp) => {
           fontWeight: 600,
           boxShadow: "none",
           py: 1,
-          px: 2
+          px: 2,
+          ...backdropBlurStyle, // <-- APPLIED BLUR TO BUTTON
         }}
         onClick={() => setShowAllTripsDrawer(true)}
       >
@@ -2979,281 +3151,351 @@ const getMessageDate = (timestamp) => {
   </List>
 </Box>
 
-   <Box></Box>
+    <Box></Box>
 
 <Stack spacing={0.5}>
   {actionButtons.filter(Boolean).map((btn, index, arr) =>
     React.cloneElement(btn, {
-      sx: { ...btn.props.sx, borderRadius: getDynamicBorderRadius(index, arr.length) }
+      sx: { ...btn.props.sx, borderRadius: getDynamicBorderRadius(index, arr.length), ...backdropBlurStyle }
     })
   )}
 </Stack>
-   </Stack>
+    </Stack>
 
- </Box>
+  </Box>
 
- <SwipeableDrawer
- anchor="bottom"
- open={allCommonGroupsDrawerOpen}
- onClose={() => setAllCommonGroupsDrawerOpen(false)}
- onOpen={()=>{}}
- PaperProps={{
-   sx: {
-     borderTopLeftRadius: 20, borderTopRightRadius: 20,
-     backgroundColor: effectiveChatTheme === "dark" ? "#0c0c0c0a" : "#f1f1f19a",
-     backdropFilter: 'blur(70px)',
-     color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-     maxWidth: 470, mx: 'auto',
-     p: 2, height: '90vh'
-   }
- }}
->
-
-   <Box sx={{ width: 40, height: 5, bgcolor: '#555', borderRadius: 3, mx: 'auto', mb: 2 }} />
-
- <Box sx={{ mb: 2, position: 'relative' }}>
-   <Typography variant="h6" sx={{ mb: 2, textAlign: "center", fontWeight: 700 }}>All Common Groups</Typography>
-   <TextField
-     value={groupSearch}
-     onChange={e => setGroupSearch(e.target.value)}
-     placeholder="Search groups..."
-     fullWidth
-     size="small"
-     variant="outlined"
-     InputProps={{
-       style: { color: effectiveChatTheme === "dark" ? "#fafafa" : "#0c0c0c", borderRadius: 8 },
-       startAdornment: (
-         <InputAdornment position="start">
-           <SearchIcon sx={{ color: "#777" }} />
-         </InputAdornment>
-       ),
-     }}
-     sx={{ mb: 2 }}
-   />
-   <Box sx={{ maxHeight: "75vh", overflowY: "auto", pr: 1 }}>
-     {commonGroups
-       .filter(g =>
-         !groupSearch.trim() ||
-         g.name?.toLowerCase().includes(groupSearch.toLowerCase()) ||
-         (g.members ?? []).some(uid => (groupMembersInfo[uid]?.name || "").toLowerCase().includes(groupSearch.toLowerCase()))
-       )
-       .map(group => (
-         <Card key={group.id}
-           sx={{ bgcolor: effectiveChatTheme === "dark" ? '#0c0c0c11' : '#ffffff31', color: effectiveChatTheme === "dark" ? "#fff" : "#000", borderRadius: 2, mb: 0.5, boxShadow: "none", overflow: "hidden" }}>
-           <CardActionArea onClick={() => {
-             setAllCommonGroupsDrawerOpen(false);
-             history(`/group/${group.id}`);
-           }}>
-             <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-               <Avatar
-                 src={group.iconURL}
-                 sx={{ bgcolor: effectiveChatTheme === "dark" ? "#fff" : "#000", color: '#111' }}
-               >
-                 {group.emoji || group.name?.charAt(0)}
-               </Avatar>
-               <Box sx={{ minWidth: 0 }}>
-                 <Typography variant="body1" color={effectiveChatTheme === "dark" ? "#fff" : "#000"} fontWeight="regular" noWrap>
-                   {group.name}
-                 </Typography>
-                 <Box
-                   sx={{
-                     minWidth: 0,
-                     overflow: 'hidden',
-                     whiteSpace: 'nowrap',
-                     textOverflow: 'ellipsis',
-                     fontSize: 11,
-                     color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
-                   }}
-                 >
-                   {(group.members ?? [])
-                     .map(uid => groupMembersInfo[uid]?.name)
-                     .filter(Boolean)
-                     .join(", ") ||
-                     <Typography variant="caption" sx={{ color: "#ccc" }}>Loading...</Typography>
-                   }
-                 </Box>
-               </Box>
-             </CardContent>
-           </CardActionArea>
-         </Card>
-       ))}
-   </Box>
- </Box>
- </SwipeableDrawer>
-
+{/* NEW: Mutual Friends List Drawer */}
 <SwipeableDrawer
- anchor="bottom"
- open={showAllTripsDrawer}
- onClose={() => setShowAllTripsDrawer(false)}
- onOpen={() => {}}
- PaperProps={{
-   sx: { borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: effectiveChatTheme === "dark" ? "#0c0c0c0a" : "#f1f1f19a", backdropFilter: 'blur(70px)', color: effectiveChatTheme === "dark" ? "#fff" : "#000", maxWidth: 470, mx: 'auto', p: 2, height: '90vh' }
- }}
+  anchor="bottom"
+  open={mutualFriendsDrawerOpen}
+  onClose={handleCloseMutualFriendsDrawer}
+  onOpen={() => {}}
+  PaperProps={{
+    sx: { 
+      borderTopLeftRadius: 20, 
+      borderTopRightRadius: 20, 
+      backgroundColor: effectiveChatTheme === "dark" ? "#0c0c0c0a" : "#f1f1f19a", 
+      ...backdropBlurStyle,
+      color: effectiveChatTheme === "dark" ? "#fff" : "#000", 
+      maxWidth: 470, 
+      mx: 'auto', 
+      p: 2, 
+      height: '90vh' 
+    }
+  }}
 >
-     <Box sx={{ width: 40, height: 5, bgcolor: '#555', borderRadius: 3, mx: 'auto', mb: 2 }} />
+  <Box sx={{ width: 40, height: 5, bgcolor: '#555', borderRadius: 3, mx: 'auto', mb: 2 }} />
+  <Typography variant="h6" sx={{ mb: 3, textAlign: "center", fontWeight: 700 }}>
+    Mutual Friends ({mutualFriendsCount})
+  </Typography>
 
- <Box>
-   <Typography variant="h6" sx={{ mb: 2, mt: 1, fontWeight: 700, textAlign: "center" }}>All Common Trips</Typography>
-   <TextField
-     value={tripSearch}
-     onChange={e => setTripSearch(e.target.value)}
-     placeholder="Search trips..."
-     fullWidth
-     size="small"
-     variant="outlined"
-     sx={{ mb: 2 }}
-     InputProps={{ style: { borderRadius: 8, color: effectiveChatTheme === "dark" ? "#fafafa" : "#0c0c0c" },
-       startAdornment: (
-         <InputAdornment position="start">
-           <SearchIcon sx={{ color: "#777" }} />
-         </InputAdornment>
-       ),
-     }}
-   />
-   <Box sx={{ maxHeight: "75vh", overflowY: "auto", pr: 1 }}>
-     {commonTrips.filter(trip =>
-       !tripSearch.trim() ||
-       trip.name?.toLowerCase().includes(tripSearch.toLowerCase()) ||
-       (trip.location || "").toLowerCase().includes(tripSearch.toLowerCase())
-     ).map(trip => (
-       <Card key={trip.id} sx={{
-         background: `url(${trip.iconURL})`,
-         backgroundSize: "cover",
-         backgroundPosition: "center",
-         color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-         mb: 1,
-         overflow: "hidden",
-         boxShadow: "none",
-       }}>
-         <CardContent sx={{ backdropFilter: "blur(20px)", borderRadius: 3 }}>
-           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: '100%' }}>
-             <Typography variant="h6" noWrap>{trip.name}</Typography>
-             {timelineStatsMap?.[trip.id] && (
-               <Box minWidth={110}>
-                 <Typography variant="caption" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
-                   {timelineStatsMap[trip.id]?.completed} / {timelineStatsMap[trip.id]?.total} complete
-                 </Typography>
-                 <LinearProgress
-                   value={timelineStatsMap[trip.id]?.percent}
-                   variant="determinate"
-                   sx={{
-                     mt: 0.5, borderRadius: 20, height: 7, bgcolor: effectiveChatTheme === "dark" ? "#ffffff36" : "#00000018",
-                     "& .MuiLinearProgress-bar": { bgcolor: effectiveChatTheme === "dark" ? "#ffffff" : "#1e1e1eff" }
-                   }}
-                 />
-               </Box>
-             )}
-           </Box>
-           <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333", display: "flex", flexDirection: "row", alignItems: "center" }}>
-             <LocationOn sx={{ fontSize: 14, mr: 1 }} />
-             {trip.from} → {trip.location}
-           </Typography>
-           <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#ccc" : "#555", display: "flex", flexDirection: "row", alignItems: "center" }}>
-             <AccessTime sx={{ fontSize: 14, mr: 1 }} />
-             {trip.startDate} → {trip.endDate}
-           </Typography>
-         </CardContent>
-       </Card>
-     ))}
-   </Box>
- </Box>
+  <List sx={{ maxHeight: "calc(90vh - 100px)", overflowY: "auto", pr: 1 }}>
+    {mutualFriends.map((mf) => (
+      <Card key={mf.id} sx={{ 
+        bgcolor: effectiveChatTheme === "dark" ? '#0c0c0c11' : '#ffffff31', 
+        color: effectiveChatTheme === "dark" ? "#fff" : "#000", 
+        borderRadius: 2, 
+        mb: 0.5, 
+        boxShadow: "none", 
+        overflow: "hidden", 
+        ...backdropBlurStyle 
+      }}>
+        <CardActionArea 
+          // You might want to link to their profile or chat here
+          onClick={() => {
+            // Example: close drawer and navigate to friend's profile/chat
+            handleCloseMutualFriendsDrawer();
+            history(`/profile/${mf.id}`);
+          }}
+        >
+          <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Avatar src={mf.photoURL} sx={{ bgcolor: effectiveChatTheme === "dark" ? "#fff" : "#000", color: '#111' }}>
+              {mf.name?.charAt(0)}
+            </Avatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body1" color={effectiveChatTheme === "dark" ? "#fff" : "#000"} fontWeight="regular" noWrap>
+                {mf.name}
+              </Typography>
+              <Typography variant="caption" sx={{ color: effectiveChatTheme === "dark" ? "#ccc" : "#555" }} noWrap>
+                @{mf.username}
+              </Typography>
+            </Box>
+          </CardContent>
+        </CardActionArea>
+      </Card>
+    ))}
+    {mutualFriendsCount === 0 && (
+      <Typography variant="body2" sx={{ textAlign: 'center', py: 3, color: effectiveChatTheme === "dark" ? "#aaa" : "#555" }}>
+        No mutual friends found.
+      </Typography>
+    )}
+  </List>
 </SwipeableDrawer>
 
-               <SwipeableDrawer
-                 anchor="bottom"
-                 open={addNicknameDrawerOpen}
-                 onClose={() => setAddNicknameDrawerOpen(false)}
-                 onOpen={() => {}}
-                 disableSwipeToOpen={true}
-                 disableDiscovery={true}
-                 PaperProps={{
-                   sx: {
-                     borderTopLeftRadius: 20,
-                     borderTopRightRadius: 20,
-                     backgroundColor: effectiveChatTheme === "dark" ? "#00000011" : "#ffffffd1",
-                     backdropFilter: "blur(80px)",
-                     p: 3,
-                     maxWidth: 400,
-                     mx: "auto",
-                   },
-                 }}
-               >
-               <Typography variant="subtitle2" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", mb: 0.5 }}>Add a Nickname</Typography>
-               {editNickname && (
-                 <Box sx={{ display: 'flex', mt: 2, flexDirection: "column", alignItems: 'center', gap: 1 }}>
-                   <TextField
-                     value={nickname}
-                     label={"Nickname"}
-                     onChange={e => setNickname(e.target.value)}
-                     size="small"
-                     fullWidth
-                     variant="outlined"
-                     sx={{ 
-                       borderRadius: 1,
-                       input: { color: effectiveChatTheme === "dark" ? "#fff" : "#000" }
-                     }}
-                     InputProps={{
-                       disableUnderline: true,
-                       sx: {
-                         fontSize: 22,
-                         fontWeight: 600,
-                         color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-                         mb: 1,
-                       },
-                     }}
-                     InputLabelProps={{ 
-                       style: { color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }
-                     }}
-                   />
-                   <Box 
-                   display={"flex"} 
-                   sx={{
-                     width: "100%",
-                     gap: 2,
-                   }}
-                   >
-                     <Button
-                     sx={{ 
-                       backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
-                       fontSize: 14,
-                       color: effectiveChatTheme === "dark" ? "#fff" : "#000",
-                       width: "100vw",
-                       px: 2,
-                       py: 1,
-                       borderRadius: 14, 
-                     }}  
-                     onClick={() => { 
-                       setAddNicknameDrawerOpen(false); 
-                       setNickname(nickname);
-                     }}>
-                       Close
-                     </Button>
-                     <Button 
-                     sx={{ 
-                       backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f1" : "#0c0c0c",
-                       fontSize: 14,
-                       color: effectiveChatTheme === "dark" ? "#000" : "#fff",
-                       width: "100vw",
-                       px: 2,
-                       py: 1,
-                       borderRadius: 14 
-                     }} 
-                     onClick={handleSaveNickname}>
-                       Save
-                     </Button>
-                   </Box>
-                 </Box>
-               )}
-               </SwipeableDrawer>
+<SwipeableDrawer
+  anchor="bottom"
+  open={allCommonGroupsDrawerOpen}
+  onClose={() => setAllCommonGroupsDrawerOpen(false)}
+  onOpen={()=>{}}
+  PaperProps={{
+    sx: {
+      borderTopLeftRadius: 20, borderTopRightRadius: 20,
+      backgroundColor: effectiveChatTheme === "dark" ? "#0c0c0c0a" : "#f1f1f19a",
+      ...backdropBlurStyle, // <-- APPLIED BLUR TO DRAWER
+      color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+      maxWidth: 470, mx: 'auto',
+      p: 2, height: '90vh'
+    }
+  }}
+>
+
+    <Box sx={{ width: 40, height: 5, bgcolor: '#555', borderRadius: 3, mx: 'auto', mb: 2 }} />
+
+  <Box sx={{ mb: 2, position: 'relative' }}>
+    <Typography variant="h6" sx={{ mb: 2, textAlign: "center", fontWeight: 700 }}>All Common Groups</Typography>
+    <TextField
+      value={groupSearch}
+      onChange={e => setGroupSearch(e.target.value)}
+      placeholder="Search groups..."
+      fullWidth
+      size="small"
+      variant="outlined"
+      InputProps={{
+        style: { color: effectiveChatTheme === "dark" ? "#fafafa" : "#0c0c0c", borderRadius: 8 },
+        startAdornment: (
+          <InputAdornment position="start">
+            <SearchIcon sx={{ color: "#777" }} />
+          </InputAdornment>
+        ),
+      }}
+      sx={{ mb: 2 }}
+    />
+    <Box sx={{ maxHeight: "75vh", overflowY: "auto", pr: 1 }}>
+      {commonGroups
+        .filter(g =>
+          !groupSearch.trim() ||
+          g.name?.toLowerCase().includes(groupSearch.toLowerCase()) ||
+          (g.members ?? []).some(uid => (groupMembersInfo[uid]?.name || "").toLowerCase().includes(groupSearch.toLowerCase()))
+        )
+        .map(group => (
+          <Card key={group.id}
+            sx={{ bgcolor: effectiveChatTheme === "dark" ? '#0c0c0c11' : '#ffffff31', color: effectiveChatTheme === "dark" ? "#fff" : "#000", borderRadius: 2, mb: 0.5, boxShadow: "none", overflow: "hidden", ...backdropBlurStyle }}>
+            <CardActionArea onClick={() => {
+              setAllCommonGroupsDrawerOpen(false);
+              history(`/group/${group.id}`);
+            }}>
+              <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Avatar
+                  src={group.iconURL}
+                  sx={{ bgcolor: effectiveChatTheme === "dark" ? "#fff" : "#000", color: '#111' }}
+                >
+                  {group.emoji || group.name?.charAt(0)}
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="body1" color={effectiveChatTheme === "dark" ? "#fff" : "#000"} fontWeight="regular" noWrap>
+                    {group.name}
+                  </Typography>
+                  <Box
+                    sx={{
+                      minWidth: 0,
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
+                      fontSize: 11,
+                      color: effectiveChatTheme === "dark" ? "#ccc" : "#555",
+                    }}
+                  >
+                    {(group.members ?? [])
+                      .map(uid => groupMembersInfo[uid]?.name)
+                      .filter(Boolean)
+                      .join(", ") ||
+                      <Typography variant="caption" sx={{ color: "#ccc" }}>Loading...</Typography>
+                    }
+                  </Box>
+                </Box>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        ))}
+    </Box>
+  </Box>
+</SwipeableDrawer>
+
+<SwipeableDrawer
+  anchor="bottom"
+  open={showAllTripsDrawer}
+  onClose={() => setShowAllTripsDrawer(false)}
+  onOpen={() => {}}
+  PaperProps={{
+    sx: { borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: effectiveChatTheme === "dark" ? "#0c0c0c0a" : "#f1f1f19a", ...backdropBlurStyle, color: effectiveChatTheme === "dark" ? "#fff" : "#000", maxWidth: 470, mx: 'auto', p: 2, height: '90vh' }
+  }}
+>
+      <Box sx={{ width: 40, height: 5, bgcolor: '#555', borderRadius: 3, mx: 'auto', mb: 2 }} />
+
+  <Box>
+    <Typography variant="h6" sx={{ mb: 2, mt: 1, fontWeight: 700, textAlign: "center" }}>All Common Trips</Typography>
+    <TextField
+      value={tripSearch}
+      onChange={e => setTripSearch(e.target.value)}
+      placeholder="Search trips..."
+      fullWidth
+      size="small"
+      variant="outlined"
+      sx={{ mb: 2 }}
+      InputProps={{ style: { borderRadius: 8, color: effectiveChatTheme === "dark" ? "#fafafa" : "#0c0c0c" },
+        startAdornment: (
+          <InputAdornment position="start">
+            <SearchIcon sx={{ color: "#777" }} />
+          </InputAdornment>
+        ),
+      }}
+    />
+    <Box sx={{ maxHeight: "75vh", overflowY: "auto", pr: 1 }}>
+      {commonTrips.filter(trip =>
+        !tripSearch.trim() ||
+        trip.name?.toLowerCase().includes(tripSearch.toLowerCase()) ||
+        (trip.location || "").toLowerCase().includes(tripSearch.toLowerCase())
+      ).map(trip => (
+        <Card key={trip.id} sx={{
+          background: `url(${trip.iconURL})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+          mb: 1,
+          overflow: "hidden",
+          boxShadow: "none",
+          ...backdropBlurStyle, // <-- APPLIED BLUR TO CARD
+        }}>
+          <CardContent sx={{ backdropFilter: "blur(20px)", borderRadius: 3 }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: '100%' }}>
+              <Typography variant="h6" noWrap>{trip.name}</Typography>
+              {timelineStatsMap?.[trip.id] && (
+                <Box minWidth={110}>
+                  <Typography variant="caption" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }}>
+                    {timelineStatsMap[trip.id]?.completed} / {timelineStatsMap[trip.id]?.total} complete
+                  </Typography>
+                  <LinearProgress
+                    value={timelineStatsMap[trip.id]?.percent}
+                    variant="determinate"
+                    sx={{
+                      mt: 0.5, borderRadius: 20, height: 7, bgcolor: effectiveChatTheme === "dark" ? "#ffffff36" : "#00000018",
+                      "& .MuiLinearProgress-bar": { bgcolor: effectiveChatTheme === "dark" ? "#ffffff" : "#1e1e1eff" }
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+            <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#aaa" : "#333", display: "flex", flexDirection: "row", alignItems: "center" }}>
+              <LocationOn sx={{ fontSize: 14, mr: 1 }} />
+              {trip.from} → {trip.location}
+            </Typography>
+            <Typography variant="body2" sx={{ color: effectiveChatTheme === "dark" ? "#ccc" : "#555", display: "flex", flexDirection: "row", alignItems: "center" }}>
+              <AccessTime sx={{ fontSize: 14, mr: 1 }} />
+              {trip.startDate} → {trip.endDate}
+            </Typography>
+          </CardContent>
+        </Card>
+      ))}
+    </Box>
+  </Box>
+</SwipeableDrawer>
+
+        <SwipeableDrawer
+          anchor="bottom"
+          open={addNicknameDrawerOpen}
+          onClose={() => setAddNicknameDrawerOpen(false)}
+          onOpen={() => {}}
+          disableSwipeToOpen={true}
+          disableDiscovery={true}
+          PaperProps={{
+            sx: {
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              backgroundColor: effectiveChatTheme === "dark" ? "#00000011" : "#ffffffd1",
+              ...backdropBlurStyle, // <-- APPLIED BLUR TO DRAWER
+              p: 3,
+              maxWidth: 400,
+              mx: "auto",
+            },
+          }}
+        >
+        <Typography variant="subtitle2" sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", mb: 0.5 }}>Add a Nickname</Typography>
+        {editNickname && (
+          <Box sx={{ display: 'flex', mt: 2, flexDirection: "column", alignItems: 'center', gap: 1 }}>
+            <TextField
+              value={nickname}
+              label={"Nickname"}
+              onChange={e => setNickname(e.target.value)}
+              size="small"
+              fullWidth
+              variant="outlined"
+              sx={{ 
+                borderRadius: 1,
+                input: { color: effectiveChatTheme === "dark" ? "#fff" : "#000" }
+              }}
+              InputProps={{
+                disableUnderline: true,
+                sx: {
+                  fontSize: 22,
+                  fontWeight: 600,
+                  color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+                  mb: 1,
+                },
+              }}
+              InputLabelProps={{ 
+                style: { color: effectiveChatTheme === "dark" ? "#aaa" : "#333" }
+              }}
+            />
+            <Box 
+            display={"flex"} 
+            sx={{
+              width: "100%",
+              gap: 2,
+            }}
+            >
+              <Button
+              sx={{ 
+                backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f111" : "#0c0c0c11",
+                fontSize: 14,
+                color: effectiveChatTheme === "dark" ? "#fff" : "#000",
+                width: "100vw",
+                px: 2,
+                py: 1,
+                borderRadius: 14, 
+                ...backdropBlurStyle, // <-- APPLIED BLUR TO BUTTON
+              }} 
+              onClick={() => { 
+                setAddNicknameDrawerOpen(false); 
+                setNickname(nickname);
+              }}>
+                Close
+              </Button>
+              <Button 
+              sx={{ 
+                backgroundColor: effectiveChatTheme === "dark" ? "#f1f1f1" : "#0c0c0c",
+                fontSize: 14,
+                color: effectiveChatTheme === "dark" ? "#000" : "#fff",
+                width: "100vw",
+                px: 2,
+                py: 1,
+                borderRadius: 14,
+                ...backdropBlurStyle, // <-- APPLIED BLUR TO BUTTON
+              }} 
+              onClick={handleSaveNickname}>
+                Save
+              </Button>
+            </Box>
+          </Box>
+        )}
+        </SwipeableDrawer>
 
 </Drawer>
-       
-
-       </motion.div>
-     </Box>
-     
-   </Box>
-   </ThemeProvider>
- );
+      
+        </motion.div>
+      </Box>
+      
+    </Box>
+    </ThemeProvider>
+  );
 }
 export default ChatRoom;
