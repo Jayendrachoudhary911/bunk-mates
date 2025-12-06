@@ -4,7 +4,7 @@ import {
   Box, AppBar, Avatar, Paper, Typography, IconButton, TextField, Button, Fab,
   List, ListItem, ListItemButton, ListItemText, Menu, MenuItem, Dialog, DialogTitle,
   DialogContent, DialogActions, SwipeableDrawer, Collapse, Divider, Tooltip, Chip, useTheme,
-  CircularProgress
+  CircularProgress, Checkbox // Added Checkbox for Checklist rendering
 } from '@mui/material';
 import {
   Send as SendIcon, ArrowDownward as ArrowDownwardIcon, Close as CloseIcon,
@@ -25,13 +25,13 @@ import { styled } from '@mui/system';
 import { auth, db } from '../../firebase';
 import {
   collection, doc, getDoc, addDoc, updateDoc, arrayUnion, arrayRemove,
-  onSnapshot, serverTimestamp, query, orderBy, deleteDoc, deleteField
+  onSnapshot, serverTimestamp, query, orderBy, deleteDoc, deleteField, getDocs
 } from 'firebase/firestore';
 import { useThemeToggle } from '../../contexts/ThemeToggleContext';
 import { getTheme } from '../../theme';
 import GroupInfoDrawer from '../GroupChat/GroupInfoDrawer'; 
 
-// --- CONSTANTS & UTILITY FUNCTIONS ---
+// --- CONSTANTS & UTILITY FUNCTIONS (Memoized out of main component) ---
 
 const LINK_PREVIEW_API_KEY = '3db616e201708f056ee4d32ddab9839a';
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
@@ -149,25 +149,41 @@ const LinkPreviewCard = React.memo(({ url, onCacheHit }) => {
 });
 
 // 2. MessageBubble (Memoized)
-const MessageBubble = React.memo(({ message, isMe, memberUsers, shape, scrollToMessage, onAction, onToggleReaction, onVote, theme, currentUserId }) => {
+const MessageBubble = React.memo(({ message, isMe, memberUsers, shape, scrollToMessage, onAction, onToggleReaction, onVote, theme, currentUserId, onToggleChecklistItem, checklist, timeline }) => {
     const senderName = memberUsers[message.senderId]?.name || message.senderName || 'Unknown';
     const senderAvatar = memberUsers[message.senderId]?.photoURL;
     const isSingleEmoji = message.text && /^(\p{Emoji}|\s)+$/u.test(message.text.trim()) && message.text.trim().length <= 4;
     const isPoll = message.type === 'poll';
     const isSystem = message.type === 'system';
+    const isChecklist = message.type === 'checklist';
+    const isTimeline = message.type === 'timeline';
     const bubbleColor = isMe ? theme.palette.primary.main : theme.palette.action.selected;
     const textColor = isMe ? theme.palette.primary.contrastText : theme.palette.text.primary;
     const [anchorEl, setAnchorEl] = useState(null);
     const [linkPreviewData, setLinkPreviewData] = useState(null);
     
-    // Memoized text rendering
+    // **FIX: Safely determine poll options as an array**
+    const pollOptions = useMemo(() => {
+        if (!message.options) return [];
+        // If it's an array, use it directly. If it's an object (which Firestore sometimes returns for nested arrays), convert values to an array.
+        return Array.isArray(message.options) 
+            ? message.options 
+            : Object.values(message.options || {});
+    }, [message.options]);
+    
+    const sortedTimeline = useMemo(() => {
+        return [...timeline].sort((a, b) => {
+            const getDate = (event) => event.timestamp?.seconds ? new Date(event.timestamp.seconds * 1000) : (event.datetime ? new Date(event.datetime) : null);
+            return getDate(b) - getDate(a);
+        });
+    }, [timeline]);
+
     const renderTextWithLinks = useMemo(() => {
         if (!message.text) return null;
         return message.text.split(URL_REGEX).map((part, index) => {
             if (part.match(URL_REGEX)) {
                 return <a key={index} href={part} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.info.main }}>{part}</a>;
             }
-            // Simple Mention pattern
             return part.split(/@(\w+)/g).map((subPart, subIndex) => {
                 if (subIndex % 2 === 1) {
                     const mentionedUser = Object.values(memberUsers).find(u => u.username === subPart || u.name === subPart);
@@ -180,7 +196,6 @@ const MessageBubble = React.memo(({ message, isMe, memberUsers, shape, scrollToM
         });
     }, [message.text, theme.palette.info.main, theme.palette.warning.main, memberUsers]);
 
-    // Reactions Grouping
     const reactionsMap = useMemo(() => {
         if (!message.reactions) return {};
         return Object.entries(message.reactions).reduce((acc, [uid, emoji]) => {
@@ -189,7 +204,6 @@ const MessageBubble = React.memo(({ message, isMe, memberUsers, shape, scrollToM
         }, {});
     }, [message.reactions]);
 
-    // Status Icon Logic
     const StatusIcon = useMemo(() => {
         const color = message.status === 'read' ? theme.palette.info.main : theme.palette.text.secondary;
         if (message.status === 'read') return <DoneAllIcon sx={{ fontSize: 14, color }} />;
@@ -259,30 +273,85 @@ const MessageBubble = React.memo(({ message, isMe, memberUsers, shape, scrollToM
                         <img src={message.dataUri} alt="Shared" style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px' }} />
                     ) : null}
                     
-                    {/* Render Text Content */}
-                    <Typography variant="body2" sx={{ wordBreak: 'break-word', color: textColor }}>
-                         {renderTextWithLinks}
-                         {message.edited && <Typography component="span" variant="caption" sx={{ opacity: 0.7, ml: 1 }}>(edited)</Typography>}
-                    </Typography>
+                    {/* Render Content */}
+                    <Box>
+                        {/* Poll rendering logic */}
+                        {isPoll && pollOptions.length > 0 ? (
+                            <Box sx={{ mt: 1 }}>
+                                <Typography variant="subtitle1" fontWeight="bold" mb={1} sx={{ color: textColor }}>📊 {message.question || "Untitled Poll"}</Typography>
+                                {pollOptions.map((option, idx) => {
+                                    const totalVotes = option.votes?.length || 0;
+                                    const hasVoted = (option.votes || []).includes(currentUserId); 
+                                    const userHasVotedInPoll = pollOptions.some(opt => (opt.votes || []).includes(currentUserId));
+                                    
+                                    return (
+                                        <Button 
+                                            key={idx} 
+                                            fullWidth 
+                                            onClick={() => onVote(message.id, idx)} 
+                                            disabled={userHasVotedInPoll} 
+                                            sx={{ 
+                                                mt: 0.5, 
+                                                justifyContent: 'space-between', 
+                                                textTransform: 'none', 
+                                                bgcolor: hasVoted ? theme.palette.warning.main + '40' : 'inherit',
+                                                color: hasVoted ? theme.palette.warning.main : textColor,
+                                            }}
+                                        >
+                                            <Typography sx={{ color: hasVoted ? theme.palette.warning.main : textColor }}>
+                                                {option.text}
+                                            </Typography>
+                                            <Chip label={totalVotes} size="small" />
+                                        </Button>
+                                    );
+                                })}
+                            </Box>
+                        ) : isChecklist ? (
+                            // Checklist Rendering
+                            <Box sx={{ mt: 1, p: 1, border: `1px solid ${theme.palette.divider}`, borderRadius: 2 }}>
+                                <Typography variant="subtitle1" fontWeight="bold">✅ Shared Checklist</Typography>
+                                <List dense>
+                                    {checklist.map((item) => {
+                                        const isChecked = item.checkedBy?.includes(currentUserId);
+                                        return (
+                                            <ListItemButton key={item.id} onClick={() => onToggleChecklistItem(item.id, !isChecked)}>
+                                                <Checkbox edge="start" checked={isChecked} tabIndex={-1} sx={{ color: textColor }} />
+                                                <ListItemText primary={item.text || "Untitled"} sx={{ textDecoration: isChecked ? "line-through" : "none" }} />
+                                            </ListItemButton>
+                                        );
+                                    })}
+                                </List>
+                            </Box>
+                        ) : isTimeline ? (
+                             // Timeline Rendering
+                             <Box sx={{ mt: 1, p: 1, border: `1px solid ${theme.palette.divider}`, borderRadius: 2 }}>
+                                <Typography variant="subtitle1" fontWeight="bold">📅 Shared Timeline</Typography>
+                                <List dense>
+                                    {sortedTimeline.map((event, idx) => {
+                                        const timeStr = event.timestamp?.toDate ? event.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---';
+                                        return (
+                                            <ListItem key={event.id || idx} disableGutters>
+                                                <ListItemText 
+                                                    primary={`${event.completed ? '✅' : '🕒'} ${event.title || event.text}`} 
+                                                    secondary={timeStr} 
+                                                    primaryTypographyProps={{ sx: { fontWeight: 'bold' } }}
+                                                />
+                                            </ListItem>
+                                        );
+                                    })}
+                                </List>
+                            </Box>
+                        ) : (
+                            // Default Text Content
+                            <Typography variant="body2" sx={{ wordBreak: 'break-word', color: textColor }}>
+                                {renderTextWithLinks}
+                                {message.edited && <Typography component="span" variant="caption" sx={{ opacity: 0.7, ml: 1 }}>(edited)</Typography>}
+                            </Typography>
+                        )}
+                    </Box>
 
                     {/* Link Preview (Only display if text is present and preview data is fetched/cached) */}
                     {firstUrl && <LinkPreviewCard url={firstUrl} onCacheHit={setLinkPreviewData} />}
-
-                    {/* Poll rendering logic (Simplified) */}
-                    {isPoll && message.options && (
-                        <Box sx={{ mt: 1 }}>
-                            {message.options.map((option, idx) => {
-                                const totalVotes = option.votes?.length || 0;
-                                const hasVoted = (option.votes || []).includes(currentUserId);
-                                return (
-                                    <Button key={idx} fullWidth onClick={() => onVote(message.id, idx)} disabled={message.options.some(opt => (opt.votes || []).includes(currentUserId))} sx={{ mt: 0.5, justifyContent: 'space-between', textTransform: 'none', bgcolor: hasVoted ? theme.palette.warning.main : 'inherit' }}>
-                                        {option.text}
-                                        <Chip label={totalVotes} size="small" />
-                                    </Button>
-                                );
-                            })}
-                        </Box>
-                    )}
 
                     {/* Time and Status */}
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 0.5 }}>
@@ -310,7 +379,7 @@ const MessageBubble = React.memo(({ message, isMe, memberUsers, shape, scrollToM
 const TypingIndicator = React.memo(({ drafts, memberUsers, theme }) => {
     const typingUsers = useMemo(() => {
         return Object.keys(drafts)
-            .filter(uid => memberUsers[uid]?.name) // Filter to only show users with names
+            .filter(uid => memberUsers[uid]?.name)
             .map(uid => memberUsers[uid]);
     }, [drafts, memberUsers]);
 
@@ -357,20 +426,42 @@ const GroupChatPage = () => {
     const theme = useMemo(() => getTheme(mode, accent), [mode, accent]);
     const currentUserId = auth.currentUser?.uid;
 
-    // --- State Management ---
+    // --- State Management (Integrated from user's request) ---
     const [isLoading, setIsLoading] = useState(true);
     const [groupInfo, setGroupInfo] = useState(null);
-    const [memberUsers, setMemberUsers] = useState({}); // UID -> {name, photoURL, ...}
+    const [memberUsers, setMemberUsers] = useState({});
     const [messages, setMessages] = useState([]);
-    const [drafts, setDrafts] = useState({}); // UID -> text
+    const [drafts, setDrafts] = useState({});
     
+    // Theme/UI State
     const [chatWallpaper, setChatWallpaper] = useState('none');
     const [headerTextColor, setHeaderTextColor] = useState('white');
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+    // Chat Interaction State
     const [replyToMessage, setReplyToMessage] = useState(null);
     const [isEditingMessage, setIsEditingMessage] = useState(null);
+
+    // Group Tools State (Integrated)
+    const [tripInfo, setTripInfo] = useState(null);
+    const [timelineStats, setTimelineStats] = useState(null);
+    const [checklist, setChecklist] = useState([]);
+    const [timeline, setTimeline] = useState([]);
+    const [showMoreMenu, setShowMoreMenu] = useState(false); // Used for Composer's Add button menu
+    
+    // Poll State
     const [pollDialogOpen, setPollDialogOpen] = useState(false);
-    const [profileOpen, setProfileOpen] = useState(false);
+    const [pollQuestion, setPollQuestion] = useState("");
+    const [pollOptions, setPollOptions] = useState(["", ""]);
+    
+    // Drawer/Modal State (Integrated)
+    const [profileOpen, setProfileOpen] = useState(false); // Controls GroupInfoDrawer visibility
+    const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
+    const [membersDrawerOpen, setMembersDrawerOpen] = useState(false);
+    const [inviteDrawerOpen, setInviteDrawerOpen] = useState(false);
+    const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
+    
+    // Image Upload State
     const [imageDataUri, setImageDataUri] = useState(null);
     const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
 
@@ -378,7 +469,79 @@ const GroupChatPage = () => {
     const scrollContainerRef = useRef(null);
     const draftTimeoutRef = useRef(null);
 
-    // --- Data Fetching & Realtime Listeners (Optimized) ---
+    // --- Utility Function Callbacks ---
+
+    const getWallpaperUrl = useCallback((wallpaperKey) => {
+        if (wallpaperKey === 'default') return mode === 'dark' ? '/wallpapers/default-dark.jpg' : '/wallpapers/default-light.jpg';
+        if (wallpaperKey?.startsWith('http')) return wallpaperKey;
+        return null;
+    }, [mode]);
+
+    const scrollToBottom = useCallback(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        setShowScrollToBottom(false);
+    }, []);
+
+    const scrollToMessage = useCallback((messageId) => {
+        const element = document.getElementById(`message-${messageId}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, []);
+
+    const handleScroll = useCallback(() => {
+        const container = scrollContainerRef.current;
+        if (container) {
+            const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 10;
+            setShowScrollToBottom(!isAtBottom);
+        }
+    }, []);
+    
+    // --- Data Handlers ---
+
+    const [groupedMessages, indexById] = useMemo(() => {
+        const grouped = groupMessagesByDate(messages);
+        const indexMap = messages.reduce((acc, msg, index) => { acc[msg.id] = index; return acc; }, {});
+        return [grouped, indexMap];
+    }, [messages]);
+    
+    // Fetch checklist items and toggle handler (Integrated)
+    const handleToggleChecklistItem = useCallback(async (itemId, checked) => {
+        if (!tripInfo?.id || !currentUserId) return;
+        const itemRef = doc(db, "trips", tripInfo.id, "checklist", itemId);
+        await updateDoc(itemRef, {
+            checkedBy: checked
+                ? arrayUnion(currentUserId)
+                : arrayRemove(currentUserId),
+        });
+    }, [tripInfo, currentUserId]);
+
+    const fetchTripTimeline = useCallback(async () => {
+        if (!tripInfo?.id) return [];
+        const timelineSnap = await getDocs(collection(db, "trips", tripInfo.id, "timeline"));
+        return timelineSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(Boolean);
+    }, [tripInfo]);
+
+    const fetchTripChecklist = useCallback(async () => {
+        if (!tripInfo?.id) return [];
+        const checklistSnap = await getDocs(collection(db, "trips", tripInfo.id, "checklist"));
+        return checklistSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(Boolean);
+    }, [tripInfo]);
+    
+    const sendStructuredMessage = useCallback(async (label, items) => {
+        if (!groupName || !currentUserId || !items?.length) return;
+        
+        // This is a minimal implementation, using JSON stringification for the list content
+        const content = items.map(item => item.text || item.title || item.name || 'Untitled item').join('\n - ');
+        const text = `--- ${label} ---\n - ${content}`;
+
+        await sendMessage(text, label.toLowerCase());
+        
+        setShowMoreMenu(false); // Close menu after sending
+    }, [groupName, currentUserId]);
+
+
+    // --- Firestore Listeners ---
 
     // 1. Group Info, Members, and Drafts Listener
     useEffect(() => {
@@ -394,14 +557,11 @@ const GroupChatPage = () => {
             const data = docSnap.data();
             setGroupInfo({ id: docSnap.id, ...data });
             
-            // Update drafts in realtime (excluding current user)
             const activeDrafts = Object.entries(data.drafts || {})
               .filter(([uid, text]) => uid !== currentUserId && text)
               .reduce((acc, [uid, text]) => ({ ...acc, [uid]: text }), {});
             setDrafts(activeDrafts);
 
-
-            // Fetch/Update Member details only if the list changed
             const memberIds = data.members || [];
             if (memberIds.length > Object.keys(memberUsers).length || 
                 memberIds.some(uid => !memberUsers[uid])) {
@@ -427,7 +587,7 @@ const GroupChatPage = () => {
         return unsubscribe;
     }, [groupName, currentUserId, memberUsers]);
 
-    // 2. Messages Listener
+    // 2. Messages Listener (Combined with scroll handling)
     useEffect(() => {
         if (!groupName) return;
         const messagesColRef = collection(db, 'groupChats', groupName, 'messages');
@@ -445,9 +605,8 @@ const GroupChatPage = () => {
 
             setMessages(newMessages);
 
-            // Only auto-scroll if user was near the bottom before the update
             if (isNearBottom || newMessages.length === 1) {
-                setTimeout(scrollToBottom, 10); // Ensure render completes before scrolling
+                setTimeout(scrollToBottom, 10);
             }
             
         }, (error) => {
@@ -457,13 +616,40 @@ const GroupChatPage = () => {
         return unsubscribe;
     }, [groupName]);
 
-    // 3. Theme, Wallpaper, and Color Logic (Cleaned up)
-    const getWallpaperUrl = useCallback((wallpaperKey) => {
-        if (wallpaperKey === 'default') return mode === 'dark' ? '/wallpapers/default-dark.jpg' : '/wallpapers/default-light.jpg';
-        if (wallpaperKey?.startsWith('http')) return wallpaperKey;
-        return null;
-    }, [mode]);
+    // 3. Trip / Checklist / Timeline Listeners (Integrated for related state)
+    useEffect(() => {
+        if (!groupInfo?.tripId) {
+            setTripInfo(null);
+            setChecklist([]);
+            setTimeline([]);
+            setTimelineStats(null);
+            return;
+        }
+        
+        // Fetch trip metadata
+        getDoc(doc(db, "trips", groupInfo.tripId)).then(snap => {
+            if (snap.exists()) setTripInfo({ id: snap.id, ...snap.data() });
+        });
+        
+        // Checklist realtime
+        const unsubChecklist = onSnapshot(collection(db, "trips", groupInfo.tripId, "checklist"), (snap) => {
+            setChecklist(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        });
 
+        // Timeline realtime
+        const unsubTimeline = onSnapshot(collection(db, "trips", groupInfo.tripId, "timeline"), (snap) => {
+            const events = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setTimeline(events);
+            const total = events.length || 1;
+            const completed = events.filter(e => e.completed === true).length;
+            setTimelineStats({ completed, total, percent: Math.round((completed / total) * 100) });
+        });
+        
+        return () => { unsubChecklist(); unsubTimeline(); };
+    }, [groupInfo?.tripId]);
+
+
+    // 4. Theme, Wallpaper, and Color Logic
     useEffect(() => {
         const storedWallpaper = localStorage.getItem('bunkmate_chatWallpaper') || 'none';
         setChatWallpaper(storedWallpaper);
@@ -484,51 +670,22 @@ const GroupChatPage = () => {
           });
     }, [getWallpaperUrl, mode]);
 
-    // --- Message Utilities and Handlers ---
 
-    const [groupedMessages, indexById] = useMemo(() => {
-        const grouped = groupMessagesByDate(messages);
-        const indexMap = messages.reduce((acc, msg, index) => { acc[msg.id] = index; return acc; }, {});
-        return [grouped, indexMap];
-    }, [messages]);
+    // --- Core Message Handlers ---
 
-    const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        setShowScrollToBottom(false);
-    }, []);
-
-    const scrollToMessage = useCallback((messageId) => {
-        const element = document.getElementById(`message-${messageId}`);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    }, []);
-
-    const handleScroll = useCallback(() => {
-        const container = scrollContainerRef.current;
-        if (container) {
-            const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 10; // Tolerance
-            setShowScrollToBottom(!isAtBottom);
-        }
-    }, []);
-    
-    // Auth checks based on groupInfo and current user
+    const senderInfo = useMemo(() => memberUsers[currentUserId] || {}, [memberUsers, currentUserId]);
     const isAdmin = groupInfo?.createdBy === currentUserId || (groupInfo?.admins || []).includes(currentUserId);
     const canSend = groupInfo?.sendAccess === 'all' || isAdmin;
-    const senderInfo = memberUsers[currentUserId] || {};
-
 
     const updateDraft = useCallback((text) => {
         if (!groupName || !currentUserId) return;
         if (draftTimeoutRef.current) clearTimeout(draftTimeoutRef.current);
 
-        // Update draft immediately on input
         const groupDocRef = doc(db, 'groupChats', groupName);
         updateDoc(groupDocRef, { [`drafts.${currentUserId}`]: text });
 
-        // Set timeout to clear draft after 2 seconds of inactivity
         draftTimeoutRef.current = setTimeout(() => {
-            updateDoc(groupDocRef, { [`drafts.${currentUserId}`]: deleteField() }); // Use deleteField for efficiency
+            updateDoc(groupDocRef, { [`drafts.${currentUserId}`]: deleteField() });
         }, 2000);
     }, [groupName, currentUserId]);
 
@@ -553,8 +710,8 @@ const GroupChatPage = () => {
 
             await addDoc(messagesColRef, messageData);
             setReplyToMessage(null);
-            updateDraft(''); // Clear draft state immediately
-            setImageDataUri(null); // Clear image data if sending an image
+            updateDraft('');
+            setImageDataUri(null);
             setImagePreviewOpen(false);
 
         } catch (e) {
@@ -589,12 +746,9 @@ const GroupChatPage = () => {
 
     const handleReaction = useCallback(async (messageId, emoji) => {
         if (!currentUserId || !groupName) return;
-
         const messageRef = doc(db, 'groupChats', groupName, 'messages', messageId);
         const message = messages[indexById[messageId]];
-
         const currentReaction = message?.reactions?.[currentUserId];
-
         const updatePayload = currentReaction === emoji
             ? { [`reactions.${currentUserId}`]: deleteField() }
             : { [`reactions.${currentUserId}`]: emoji };
@@ -604,18 +758,15 @@ const GroupChatPage = () => {
 
     const handlePollVote = useCallback(async (messageId, optionIndex) => {
         if (!currentUserId || !groupName) return;
-
         const messageRef = doc(db, 'groupChats', groupName, 'messages', messageId);
         const message = messages[indexById[messageId]];
         const options = message?.options || [];
-
         const hasVoted = options.some(option => (option.votes || []).includes(currentUserId));
         if (hasVoted) return;
 
         await updateDoc(messageRef, {
             [`options.${optionIndex}.votes`]: arrayUnion(currentUserId),
         });
-
     }, [currentUserId, groupName, messages, indexById]);
     
     // Image Upload Handlers
@@ -627,7 +778,7 @@ const GroupChatPage = () => {
         reader.onloadend = () => {
             setImageDataUri(reader.result);
             setImagePreviewOpen(true);
-            e.target.value = null; // Reset input
+            e.target.value = null;
         };
         reader.readAsDataURL(file);
     };
@@ -742,6 +893,9 @@ const GroupChatPage = () => {
                                             onVote={handlePollVote}
                                             theme={theme}
                                             currentUserId={currentUserId}
+                                            onToggleChecklistItem={handleToggleChecklistItem}
+                                            checklist={checklist}
+                                            timeline={timeline}
                                         />
                                     </ListItem>
                                 ))}
@@ -795,18 +949,43 @@ const GroupChatPage = () => {
                 }}
             >
                 {canSend ? (
-                    <Composer
-                        onSendMessage={sendMessage}
-                        onUpdateMessage={updateMessage}
-                        onTyping={updateDraft}
-                        replyTo={replyToMessage}
-                        onCancelReply={() => setReplyToMessage(null)}
-                        editMessage={isEditingMessage}
-                        onCancelEdit={() => setIsEditingMessage(null)}
-                        memberUsers={memberUsers}
-                        onOpenPollDialog={() => setPollDialogOpen(true)}
-                        handleImageUpload={handleImageUpload}
-                    />
+                    <>
+                        {/* More Actions Menu */}
+                        <Collapse in={showMoreMenu}>
+                            <Paper elevation={3} sx={{ p: 1, mb: 1, bgcolor: theme.palette.background.paper }}>
+                                <MenuItem onClick={() => { setPollDialogOpen(true); setShowMoreMenu(false); }}>
+                                    <PollIcon sx={{ mr: 1 }} /> Create Poll
+                                </MenuItem>
+                                <MenuItem onClick={async () => { 
+                                    const items = await fetchTripTimeline();
+                                    sendStructuredMessage("Timeline", items);
+                                }}>
+                                    <AccessTimeIcon sx={{ mr: 1 }} /> Share Timeline
+                                </MenuItem>
+                                <MenuItem onClick={async () => {
+                                    const items = await fetchTripChecklist();
+                                    sendStructuredMessage("Checklist", items);
+                                }}>
+                                    <CheckIcon sx={{ mr: 1 }} /> Share Checklist
+                                </MenuItem>
+                            </Paper>
+                        </Collapse>
+
+                        <Composer
+                            onSendMessage={sendMessage}
+                            onUpdateMessage={updateMessage}
+                            onTyping={updateDraft}
+                            replyTo={replyToMessage}
+                            onCancelReply={() => setReplyToMessage(null)}
+                            editMessage={isEditingMessage}
+                            onCancelEdit={() => setIsEditingMessage(null)}
+                            memberUsers={memberUsers}
+                            onOpenPollDialog={() => setPollDialogOpen(true)}
+                            handleImageUpload={handleImageUpload}
+                            onToggleMoreMenu={() => setShowMoreMenu(prev => !prev)}
+                            isMoreMenuOpen={showMoreMenu}
+                        />
+                    </>
                 ) : (
                     <Box sx={{ p: 2, textAlign: 'center' }}>
                         <Typography variant="caption" color="text.secondary">Only admins can send messages in this group</Typography>
@@ -846,9 +1025,32 @@ const GroupChatPage = () => {
                 currentUser={auth.currentUser}
                 createdByUser={createdByUser}
                 memberInfo={memberUsers}
-                tripInfo={null} 
-                timelineStats={null}
+                tripInfo={tripInfo}
+                timelineStats={timelineStats} 
+                // Add all the other required props for GroupInfoDrawer...
+                setGroupSettingsOpen={setGroupSettingsOpen}
+                groupSettingsOpen={groupSettingsOpen}
+                membersDrawerOpen={membersDrawerOpen}
+                setMembersDrawerOpen={setMembersDrawerOpen}
+                inviteDrawerOpen={inviteDrawerOpen}
+                setInviteDrawerOpen={setInviteDrawerOpen}
+                addUserDialogOpen={addUserDialogOpen}
+                setAddUserDialogOpen={setAddUserDialogOpen}
                 setNotification={() => {}}
+                // Placeholder props added below to satisfy the component structure expectation
+                handleExitGroup={() => console.log("exit group")}
+                handleRemoveMember={(uid) => console.log("remove member", uid)}
+                handleUpdateGroupInfo={() => console.log("update")}
+                handlePermissionChange={(perm, role) => console.log("perm change", perm, role)}
+                toggleAdminStatus={(uid) => console.log("toggle admin", uid)}
+                handleShare={() => console.log("share link")}
+                searchTerm={""}
+                setSearchTerm={() => {}}
+                searchLoading={false}
+                searchResults={[]}
+                selectedUsers={[]}
+                setSelectedUsers={() => {}}
+                handleBatchAddUsers={() => {}}
             />
         </Box>
     );
@@ -858,7 +1060,7 @@ export default GroupChatPage;
 
 // --- INLINED SUB-COMPONENTS (for full file compliance) ---
 
-const Composer = React.memo(({ onSendMessage, onUpdateMessage, onTyping, replyTo, onCancelReply, editMessage, onCancelEdit, memberUsers, onOpenPollDialog, handleImageUpload }) => {
+const Composer = React.memo(({ onSendMessage, onUpdateMessage, onTyping, replyTo, onCancelReply, editMessage, onCancelEdit, memberUsers, onOpenPollDialog, handleImageUpload, onToggleMoreMenu, isMoreMenuOpen }) => {
     const theme = useTheme();
     const [text, setText] = useState(editMessage ? editMessage.text : '');
     const [mentionsDrawerOpen, setMentionsDrawerOpen] = useState(false);
@@ -874,7 +1076,6 @@ const Composer = React.memo(({ onSendMessage, onUpdateMessage, onTyping, replyTo
         }
     }, [editMessage]);
     
-    // Clear text if replyTo changes to null and we are not editing
     useEffect(() => {
         if (!replyTo && !editMessage) setText('');
     }, [replyTo, editMessage]);
@@ -967,9 +1168,11 @@ const Composer = React.memo(({ onSendMessage, onUpdateMessage, onTyping, replyTo
                     </label>
                 </Tooltip>
 
-                {/* Poll Icon */}
-                <Tooltip title="Create Poll">
-                    <IconButton color="primary" onClick={onOpenPollDialog}><PollIcon /></IconButton>
+                {/* More Actions Toggle Button */}
+                <Tooltip title={isMoreMenuOpen ? "Close Menu" : "More Actions"}>
+                    <IconButton color="primary" onClick={onToggleMoreMenu}>
+                        <AddIcon sx={{ transform: isMoreMenuOpen ? 'rotate(45deg)' : 'rotate(0deg)', transition: 'transform 0.3s' }} />
+                    </IconButton>
                 </Tooltip>
 
                 {/* Text Field */}
