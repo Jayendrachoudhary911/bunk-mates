@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { auth } from '../firebase';
 import { db } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -101,32 +101,46 @@ const MessageContainer = styled(Box)({
     color: '#FFFFFF',
   });
 
-  const getMessageShape = (messages, index, currentuser) => {
+const getMessageShape = (messages, index, currentUserId) => {
   const msg = messages[index];
   const prevMsg = messages[index - 1];
   const nextMsg = messages[index + 1];
-  const isOwn = msg.senderId === currentuser.uid;
+
+  const isOwn = msg.senderId === currentUserId;
 
   const within1Min = (a, b) =>
-    Math.abs(a?.timestamp?.seconds - b?.timestamp?.seconds) < 60;
+    a?.timestamp?.seconds != null &&
+    b?.timestamp?.seconds != null &&
+    Math.abs(a.timestamp.seconds - b.timestamp.seconds) < 60;
 
-  const samePrev = prevMsg && prevMsg.senderId === msg.senderId && within1Min(msg, prevMsg);
-  const sameNext = nextMsg && nextMsg.senderId === msg.senderId && within1Min(msg, nextMsg);
+  const samePrev =
+    prevMsg && prevMsg.senderId === msg.senderId && within1Min(msg, prevMsg);
+  const sameNext =
+    nextMsg && nextMsg.senderId === msg.senderId && within1Min(msg, nextMsg);
 
   let borderRadius;
+
   if (isOwn) {
-    if (samePrev && sameNext) borderRadius = "20px 10px 10px 20px";
-    else if (samePrev && !sameNext) borderRadius = "20px 20px 4px 4px";
-    else if (!samePrev && sameNext) borderRadius = "20px 20px 10px 20px";
-    else borderRadius = "20px 20px 4px 20px";
+    // right side
+    if (samePrev && sameNext) borderRadius = "16px 10px 10px 16px";      // middle
+    else if (samePrev && !sameNext) borderRadius = "16px 16px 4px 16px"; // last
+    else if (!samePrev && sameNext) borderRadius = "16px 10px 10px 16px"; // first
+    else borderRadius = "18px 18px 8px 18px";                             // single
   } else {
-    if (samePrev && sameNext) borderRadius = "10px 20px 20px 10px";
-    else if (samePrev && !sameNext) borderRadius = "10px 20px 20px 4px";
-    else if (!samePrev && sameNext) borderRadius = "20px 20px 20px 10px";
-    else borderRadius = "20px 20px 20px 4px";
+    // left side
+    if (samePrev && sameNext) borderRadius = "10px 16px 16px 10px";
+    else if (samePrev && !sameNext) borderRadius = "10px 16px 16px 4px";
+    else if (!samePrev && sameNext) borderRadius = "16px 16px 16px 10px";
+    else borderRadius = "18px 18px 18px 4px";
   }
-  return { borderRadius };
+
+  return {
+    borderRadius,
+    isGroupedWithPrev: !!samePrev,
+    isGroupedWithNext: !!sameNext,
+  };
 };
+
 
 // Helper function to decide when to show the timestamp
 const shouldShowTimestamp = (messages, index) => {
@@ -468,19 +482,7 @@ useEffect(() => {
   fetchUsers();
 }, []);
 
-useEffect(() => {
-  if (!groupName) return;
 
-  const groupRef = doc(db, "groupChats", groupName);
-
-  const unsubscribe = onSnapshot(groupRef, (docSnap) => {
-    if (docSnap.exists()) {
-      setGroupInfo(docSnap.data()); // ✅ keeps everything in sync
-    }
-  });
-
-  return () => unsubscribe(); // cleanup on unmount
-}, [groupName]);
 
 useEffect(() => {
   const fetchMembers = async () => {
@@ -506,22 +508,86 @@ useEffect(() => {
   fetchMembers();
 }, [groupInfo?.members]);
 
-  useEffect(() => {
-    if (!groupName || !currentUser) return;
-    const groupDocRef = doc(db, "groupChats", groupName);
-    const unsubscribe = onSnapshot(groupDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setGroupInfo(data);
-        const drafts = data.drafts || {};
-        const typing = Object.entries(drafts)
-          .filter(([uid, text]) => uid !== currentUser.uid && text)
-          .map(([uid]) => memberInfo[uid]?.name || "Someone");
-        setTypingMembers(typing);
+useEffect(() => {
+  if (!groupName) return;
+
+  const groupDocRef = doc(db, "groupChats", groupName);
+
+  const unsubscribe = onSnapshot(groupDocRef, async (docSnap) => {
+    if (!docSnap.exists()) {
+      setGroupInfo(null);
+      setMemberUsers([]);
+      setCreatedByUser(null);
+      setTypingMembers([]);
+      return;
+    }
+
+    const data = docSnap.data();
+    setGroupInfo(data);
+
+    // ----- Created By -----
+    if (data.createdBy) {
+      try {
+        const createdByRef = doc(db, "users", data.createdBy);
+        const createdBySnap = await getDoc(createdByRef);
+        setCreatedByUser(createdBySnap.exists() ? createdBySnap.data() : null);
+      } catch (err) {
+        console.error("Error fetching createdBy user:", err);
+        setCreatedByUser(null);
       }
-    });
-    return () => unsubscribe();
-  }, [groupName, currentUser, memberInfo]);
+    } else {
+      setCreatedByUser(null);
+    }
+
+    // ----- Members -----
+    if (Array.isArray(data.members) && data.members.length > 0) {
+      try {
+        const memberDocs = await Promise.all(
+          data.members.map((uid) => getDoc(doc(db, "users", uid)))
+        );
+
+        const members = memberDocs
+          .map((snap, idx) =>
+            snap.exists()
+              ? { uid: data.members[idx], ...snap.data() }
+              : null
+          )
+          .filter(Boolean);
+
+        setMemberUsers(members);
+
+        // optionally keep a map for reactions / typing names
+        const map = {};
+        members.forEach((m) => {
+          map[m.uid] = m;
+        });
+        setMemberInfo(map);
+      } catch (err) {
+        console.error("Error fetching group members:", err);
+        setMemberUsers([]);
+        setMemberInfo({});
+      }
+    } else {
+      setMemberUsers([]);
+      setMemberInfo({});
+    }
+
+    // ----- Typing indicator -----
+    if (currentUser) {
+      const drafts = data.drafts || {};
+      const typingNames = Object.entries(drafts)
+        .filter(([uid, text]) => uid !== currentUser.uid && text)
+        .map(([uid]) => {
+          const user = memberInfo[uid];
+          return user?.name || "Someone";
+        });
+      setTypingMembers(typingNames);
+    }
+  });
+
+  return () => unsubscribe();
+}, [groupName, currentUser?.uid]);
+
 
     const handleInputChange = (e) => {
       const value = e.target.value;
@@ -668,6 +734,14 @@ const handleSendPoll = async () => {
     setNotification("❌ Failed to send poll");
   }
 };
+
+const indexById = useMemo(() => {
+  const map = {};
+  messages.forEach((m, i) => {
+    map[m.id] = i;
+  });
+  return map;
+}, [messages]);
 
 const handleVote = async (msgId, optionIdx) => {
   const msgRef = doc(db, "groupChat", groupName, "messages", msgId);
@@ -1350,9 +1424,16 @@ const renderMessageWithMentions = (text) => {
     </Box>
 
       {/* Messages */}
-      {(groupedMessages?.[date] || []).map((msg, index) => {
-        const { borderRadius, isGroupedWithNext, isGroupedWithPrev } =
-          getMessageShape(messages, index, currentUser.uid);
+{(groupedMessages?.[date] || []).map((msg) => {
+  const flatIndex = indexById[msg.id];
+  const {
+    borderRadius,
+    isGroupedWithPrev,
+    isGroupedWithNext,
+  } = flatIndex != null
+    ? getMessageShape(messages, flatIndex, currentUser.uid)
+    : { borderRadius: undefined, isGroupedWithPrev: false, isGroupedWithNext: false };
+
   // FIX: Use preview from state instead of hook
   const url = extractUrl(msg.text);
   const preview = messagePreviews[msg.id];
@@ -1365,7 +1446,11 @@ const renderMessageWithMentions = (text) => {
                 sx={{
                   px: 1,
                   py: 0.5,
-                  borderRadius: 2,
+    borderRadius:
+      borderRadius ||
+      (msg.senderId === currentUser.uid
+        ? "20px 20px 10px 20px"
+        : "20px 20px 20px 10px"),
                   bgcolor:
                     effectiveChatTheme === "dark"
                       ? "rgba(0, 0, 0, 0.41)"

@@ -4611,6 +4611,11 @@ sx={{
             action: () => navigate("/developer/weather"),
           },
           {
+            label: "New Groups",
+            description: "This feature is just for testing the new group chats page.",
+            action: () => navigate("/grouplists"),
+          },
+          {
             label: "For Fun...😜",
             description: "This feature is just for fun and won't go live for public and BETA Testers.",
             action: () => navigate("/developer/bunkmates/social"),

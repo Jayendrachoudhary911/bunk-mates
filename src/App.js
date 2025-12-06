@@ -39,6 +39,9 @@ import AccountDeletionPolicy from "./components/AccountDeletionPolicy";
 import { ThemeToggleProvider, useThemeToggle } from './contexts/ThemeToggleContext';
 import BunkMatesSocialFeed from "./components/BunkMatesSocialFeed";
 
+import GroupDevChats from "./components/DevBeta/GroupChats";
+import GroupList from "./components/DevBeta/GroupList";
+
 import BottomNavBar from './components/BottomNavBar'; 
 import SwipeableRoutes from './components/SwipeableRoutes';
 import { SWIPEABLE_PATHS } from './components/navItems';
@@ -146,8 +149,10 @@ function App() {
            <Route path="/login" element={<Login />} />
            <Route path="/profile" element={<Profile />} />
            <Route path="/chats" element={<Chats />} />
+           <Route path="/grouplists" element={<GroupList />} />
            <Route path="/chat/:friendId" element={<Chatroom />} />
            <Route path="/group/:groupName" element={<GroupChat />}/>
+           <Route path="/developer/group/:groupName" element={<GroupDevChats />}/>
            <Route path="/trips/:id" element={<TripDetails />} />
            <Route path="/join" element={<JoinTrip />} />
            <Route path="/group-invite/:inviteToken" element={<GroupInvitePage />} />
