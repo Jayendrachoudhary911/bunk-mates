@@ -714,7 +714,7 @@ useEffect(() => {
 
   const handleGroupClick = (groupId) => {
     setGroupUnreadCounts((prev) => ({ ...prev, [groupId]: 0 }));
-    navigate(`/dev/group/${groupId}`);
+    navigate(`/developer/group/${groupId}`);
   };
 
   const formatTimestamp = (date) => {
