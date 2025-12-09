@@ -181,7 +181,18 @@ const sections = [
     ],
   },
   {
-    title: "6. Data Security",
+    title: "6. Media Access & Storage Policy",
+    list: [
+      "Our app provides trip management and chat features that allow users to upload and share photos and videos. The app requests access to your device’s media files only when you tap the option to upload or share media.",
+      "We do not access or store your media files unless you explicitly choose to upload or share them within the app.",
+      "All media files you upload are stored securely using Firebase Storage, which employs strong encryption and security measures to protect your data.",
+      "You can delete any uploaded media files at any time through the app’s interface. Deleting a file will remove it from our servers and prevent further access by other users.",
+      "We do not use your media files for any purpose other than to provide the services you request, such as sharing photos in chats or attaching images to trip itineraries.",
+      "Users can revoke this permission anytime from the device settings.",
+    ],
+  },
+  {
+    title: "7. Data Security",
     list: [
       "Sensitive data is encrypted in transit using HTTPS.",
       "Firebase Authentication and Firestore security rules enforce strict access.",
@@ -190,7 +201,7 @@ const sections = [
     ],
   },
   {
-    title: "7. Your Rights and Data Controls",
+    title: "8. Your Rights and Data Controls",
     list: [
       "Access or correct your profile information through account settings.",
       "Delete your data anytime by deleting your account.",
@@ -198,22 +209,22 @@ const sections = [
     ],
   },
   {
-    title: "8. International Data Transfers",
+    title: "9. International Data Transfers",
     content:
       "Your data may be processed in countries like the United States, where some BunkMates servers are hosted (Vercel & Firebase). These transfers are legally safeguarded and necessary for app functionality.",
   },
   {
-    title: "9. Children's Privacy",
+    title: "10. Children's Privacy",
     content:
       "BunkMates is not intended for children under 13. We do not knowingly collect personal information from minors. If such data is discovered, it will be promptly deleted.",
   },
   {
-    title: "10. Changes to This Policy",
+    title: "11. Changes to This Policy",
     content:
       "We may update this Privacy Policy periodically. Users will be notified of major changes via in-app alerts or email communication.",
   },
   {
-    title: "11. Contact Us",
+    title: "12. Contact Us",
     content:
       "The data controllers responsible for your information are Jayendra Chaudhary, Mohit Sharma, and Sahil Suman. For privacy concerns or questions, contact us at team.bunkmates@gmail.com.",
   },
