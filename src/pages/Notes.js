@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -52,8 +52,9 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import ReactMarkdown from 'react-markdown';
 
-import { db } from "../firebase";
+import { db, auth } from "../firebase";
 import {
   collection,
   addDoc,
@@ -67,7 +68,8 @@ import {
   getDoc,
   setDoc,
   arrayUnion,
-  onSnapshot
+  onSnapshot,
+  serverTimestamp
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { Navigate } from "react-router-dom";
@@ -79,6 +81,7 @@ import DeviceGuard from "../components/DeviceGuard";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import BottomNavBar from "../components/BottomNavBar";
+import NotificationsPage from "../elements/Notifications";
 
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -131,6 +134,24 @@ const fetchUserInfo = async (uid) => {
 
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
 
+const glass = (mode) => ({
+  background:
+    mode === "dark"
+      ? "rgba(30,30,30,0.65)"
+      : "rgba(255,255,255,0.65)",
+  backdropFilter: "blur(22px)",
+  border: "1px solid rgba(255,255,255,0.08)",
+});
+
+const cardHover = {
+  transition: "transform .15s ease, box-shadow .15s ease",
+  "&:hover": {
+    transform: "translateY(-2px)",
+    boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
+  },
+};
+
+
 const Notes = () => {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -166,6 +187,7 @@ const Notes = () => {
   const [sortOption, setSortOption] = useState(() => localStorage.getItem("noteSortOption") || "newest");
   const [viewMode, setViewMode] = useState(() => localStorage.getItem("noteViewMode") || "list");
   const [selectedLabelFilter, setSelectedLabelFilter] = useState(() => localStorage.getItem("noteLabelFilter") || "All");
+  const [isPreview, setIsPreview] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState(null);
 
@@ -184,6 +206,7 @@ const Notes = () => {
   weather && weatherbgColors[weather.main]
     ? weatherbgColors[weather.main]
     : weatherbgColors.Default;
+    
 
 useEffect(() => {
   if (!weather) {
@@ -204,7 +227,7 @@ useEffect(() => {
       setWeather(cachedWeather);
     }
   }
-}, []); // ✅ keep this
+}, []);
 
 
 useEffect(() => {
@@ -232,96 +255,102 @@ useEffect(() => {
 
 
 useEffect(() => {
-  if (!user) {
-    const u = getUserFromStorage();
-    if (u) {
-      setUser(u);
-    }
-  }
-  // Do NOT include `user` in dependencies
-}, []);
-
-
-const fetchNotes = async (currentUser) => {
-  setLoading(true);
-  try {
-    if (!currentUser) {
-      setNotes([]);
-      setLoading(false);
-      return;
-    }
-    const q = query(
-      collection(db, "notes"),
-      where("owners", "array-contains", currentUser.uid)
-    );
-    const querySnapshot = await getDocs(q);
-    const data = [];
-    querySnapshot.forEach((doc) => {
-      const note = { id: doc.id, ...doc.data() };
-      data.push(note);
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+      if (!currentUser) {
+        // Optional: Redirect to login if user is lost
+        // history("/login");
+      }
     });
-    // Sort notes by createdAt descending (most recent first)
-    data.sort((a, b) => {
-      // Handle Firestore Timestamp or JS Date or string
-      const aTime = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
-      const bTime = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
-      return bTime - aTime;
-    });
-    setNotes(data);
-  } catch (err) {
-    setNotes([]);
-    console.error("Error fetching notes:", err); // Debug
-  }
-  setLoading(false);
-};
+    return () => unsubscribe();
+  }, []);
+
 
 useEffect(() => {
-  if (!user || !user.uid) {
-    setNotes([]);
-    return;
-  }
+  if (!user) return;
 
   const q = query(
     collection(db, "notes"),
-    where("owners", "array-contains", user.uid)
+    where("owners", "array-contains", user.uid),
+    orderBy("createdAt", "desc")
   );
 
-  const unsubscribe = onSnapshot(q, (querySnapshot) => {
-    const data = [];
-    querySnapshot.forEach((doc) => {
-      const note = { id: doc.id, ...doc.data() };
-      data.push(note);
-    });
+  const unsubscribe = onSnapshot(
+    q,
+    async (snapshot) => {
+      const fetched = [];
+      const uids = new Set();
 
-    // ✅ Add "shared" label if user is not an owner
-    const processed = data.map((note) => {
-      const isNotOwner = !note.owners?.includes(user.uid);
-      const labelSet = new Set(note.labels || []);
-      if (isNotOwner) labelSet.add("shared");
-      return {
-        ...note,
-        labels: Array.from(labelSet),
-      };
-    });
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
 
-    // ✅ Sort notes by time
-    processed.sort((a, b) => {
-      const aTime = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
-      const bTime = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
-      return bTime - aTime;
-    });
+        const note = {
+          id: docSnap.id,
+          title: data.title || "",
+          content: data.content || "",
+          createdAt: data.createdAt,
+          owners: data.owners || [],
+          pinned: data.pinned ?? false,
+          labels: data.labels || [],
+          sharedWith: data.sharedWith || [],
+        };
 
-    setNotes(processed);
-    setLoading(false);
-  });
+        note.owners.forEach((u) => uids.add(u));
+        note.sharedWith.forEach((u) => uids.add(u));
+
+        fetched.push(note);
+      });
+
+      // 🔹 Add "Shared" label automatically
+      const processed = fetched.map((n) => {
+        const isShared = !n.owners.includes(user.uid);
+        return {
+          ...n,
+          labels: isShared ? [...new Set([...n.labels, "Shared"])] : n.labels,
+        };
+      });
+
+      setNotes(processed);
+      setLoading(false);
+
+      fetchCollaboratorProfiles(Array.from(uids));
+    },
+    (err) => {
+      console.error("Notes listener error:", err);
+      setLoading(false);
+    }
+  );
 
   return () => unsubscribe();
 }, [user]);
 
+
+  const fetchCollaboratorProfiles = async (uids) => {
+    const newInfo = { ...sharedUsersInfo };
+    let hasNewData = false;
+
+    for (const uid of uids) {
+      if (!newInfo[uid]) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", uid));
+          if (userDoc.exists()) {
+            newInfo[uid] = userDoc.data();
+            hasNewData = true;
+          }
+        } catch (e) {
+          console.warn(`Could not fetch profile for ${uid}`);
+        }
+      }
+    }
+    if (hasNewData) setSharedUsersInfo(newInfo);
+  };
+
 useEffect(() => {
+  // Build user-selectable labels; exclude system "Shared" label
   const labelSet = new Set();
   notes.forEach((note) => {
     (note.labels || []).forEach((label) => {
+      if (label === "Shared") return;
       labelSet.add(label);
     });
   });
@@ -433,52 +462,50 @@ const handleAddCollaboratorFromDrawer = async () => {
   };
 
   // --- Pin note logic ---
-  const handlePinNote = async (note) => {  
-    await updateDoc(doc(db, "notes", note.id), {
-      pinned: !note.pinned,
-    });
-    fetchNotes(user);
+  const handlePinNote = async (note) => {
+    await updateDoc(doc(db, "notes", note.id), { pinned: !note.pinned });
+    // onSnapshot will update the list; no additional fetch to reduce reads
   };
 
   const handleAddNote = async () => {
     if (!noteTitle.trim() && !noteContent.trim()) return;
     setSaving(true);
-    await addDoc(collection(db, "notes"), {
-      owners: [user.uid],
-      title: noteTitle,
-      content: noteContent,
-      createdAt: new Date(),
-      sharedWith: collaborators,
-      labels: noteLabels,
-      pinned: false,
-    });
+await addDoc(collection(db, "notes"), {
+  owners: [user.uid],
+  title: noteTitle,
+  content: noteContent,
+  createdAt: serverTimestamp(),
+  sharedWith: collaborators,
+  labels: noteLabels,
+  pinned: false,
+});
     setNoteTitle("");
     setNoteContent("");
     setDrawerOpen(false);
     setSaving(false);
-    fetchNotes(user);
+    // onSnapshot will update notes
   };
-
-  // --- Edit Note ---
-  const handleEditNote = async () => {
-    if (!selectedNote || (!noteTitle.trim() && !noteContent.trim())) return;
-    setSaving(true);
-    await updateDoc(doc(db, "notes", selectedNote.id), {
-      title: noteTitle,
-      content: noteContent,
-      sharedWith: collaborators,
-      labels: noteLabels,
-    });
-    setEditDrawerOpen(false);
-    setSelectedNote(true);
-    setSaving(false);
-    fetchNotes(user);
-  };
-
-  const handleDeleteNote = async (id) => {
-    await deleteDoc(doc(db, "notes", id));
-    fetchNotes(user);
-  };
+ 
+   // --- Edit Note ---
+   const handleEditNote = async () => {
+     if (!selectedNote || (!noteTitle.trim() && !noteContent.trim())) return;
+     setSaving(true);
+     await updateDoc(doc(db, "notes", selectedNote.id), {
+       title: noteTitle,
+       content: noteContent,
+       sharedWith: collaborators,
+       labels: noteLabels,
+     });
+     setEditDrawerOpen(false);
+     setSelectedNote(true);
+     setSaving(false);
+    // onSnapshot will update notes
+   };
+ 
+   const handleDeleteNote = async (id) => {
+     await deleteDoc(doc(db, "notes", id));
+    // onSnapshot will update notes
+   };
 
   const handleMenuOpen = (event, index) => {
     setMenuAnchorEl(event.currentTarget);
@@ -489,6 +516,19 @@ const handleAddCollaboratorFromDrawer = async () => {
     setMenuIndex(null);
   };
 
+  // Open the view drawer for a note
+  const openView = useCallback((note) => {
+    setSelectedNote(note);
+    setViewDrawerOpen(true);
+  }, []);
+
+  // Open the contextual menu for a note (stops event propagation)
+  const openMenu = useCallback((event, index) => {
+    event?.stopPropagation?.();
+    setMenuAnchorEl(event.currentTarget);
+    setMenuIndex(index);
+  }, []);
+  
   const handleShareNote = (note) => {
     setSelectedNote(note);
     setShareDrawerOpen(true);
@@ -511,37 +551,72 @@ const handleAddCollaboratorFromDrawer = async () => {
       });
       setSharedWith((prev) => [...prev, shareUid]);
       setShareUsername("");
-      fetchNotes(user);
+      // rely on onSnapshot to reflect changes; avoid manual fetch to prevent loops & extra reads
     } else {
       setError("User not found!");
     }
   };
 
-const filteredNotes = notes.filter(note => {
-  if (selectedLabelFilter === "All") return true;
+// Memoized filtering (search + label)
+const filteredNotes = useMemo(() => {
+  const s = (searchTerm || "").toLowerCase().trim();
+  return notes.filter(note => {
+    // Search filter
+    if (s) {
+      const inTitle = (note.title || "").toLowerCase().includes(s);
+      const inContent = (note.content || "").toLowerCase().includes(s);
+      if (!inTitle && !inContent) return false;
+    }
 
-  if (selectedLabelFilter === "Pinned") {
-    return note.pinned === true;
+    // Label filter
+    if (selectedLabelFilter === "All") return true;
+    if (selectedLabelFilter === "Pinned") return !!note.pinned;
+    if (selectedLabelFilter === "Shared") return (note.labels || []).includes("Shared");
+    return (note.labels || []).includes(selectedLabelFilter);
+  });
+}, [notes, searchTerm, selectedLabelFilter]);
+
+// Memoized sorting (server-side provides pinned+createdAt ordering by default)
+const sortedNotes = useMemo(() => {
+  const copy = [...filteredNotes];
+  if (sortOption === "title-asc") {
+    copy.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+  } else if (sortOption === "title-desc") {
+    copy.sort((a, b) => (b.title || "").localeCompare(a.title || ""));
+  } else if (sortOption === "oldest") {
+    // reverse server order (server gives newest first)
+    copy.reverse();
   }
+  // default: server order is newest pinned-first
+  return copy;
+}, [filteredNotes, sortOption]);
 
-  if (selectedLabelFilter === "Shared") {
-    // Note is shared with user but user is not an owner
-    return note.sharedWith?.includes(user?.uid) && !note.owners?.includes(user?.uid);
+const pinnedNotes = useMemo(() => sortedNotes.filter(n => n.pinned), [sortedNotes]);
+const unpinnedNotes = useMemo(() => sortedNotes.filter(n => !n.pinned), [sortedNotes]);
+
+
+  const goBack = () => {
+    history(-1);
+ };
+
+ useEffect(() => {
+  if (drawerOpen || editDrawerOpen) {
+    setIsPreview(false);
   }
-
-  // 🔍 Filter by label
-  return note.labels?.includes(selectedLabelFilter);
-});
+}, [drawerOpen, editDrawerOpen]);
 
 
-  const applyFormat = (format) => {
+  // --- Add formatting helper used by toolbar (fixes no-undef) ---
+const applyFormat = useCallback((format) => {
   const textarea = noteContentRef.current;
   if (!textarea) return;
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  let selected = noteContent.slice(start, end);
-  let before = noteContent.slice(0, start);
-  let after = noteContent.slice(end);
+
+  const start = typeof textarea.selectionStart === "number" ? textarea.selectionStart : 0;
+  const end = typeof textarea.selectionEnd === "number" ? textarea.selectionEnd : 0;
+
+  const before = noteContent.slice(0, start);
+  const selected = noteContent.slice(start, end);
+  const after = noteContent.slice(end);
 
   let formatted = selected;
   switch (format) {
@@ -556,21 +631,8 @@ const filteredNotes = notes.filter(note => {
       break;
     case "ul":
       formatted = selected
-        ? selected
-            .split("\n")
-            .map((line) => (line.startsWith("- ") ? line : `- ${line}`))
-            .join("\n")
+        ? selected.split("\n").map(line => (line.startsWith("- ") ? line : `- ${line}`)).join("\n")
         : "- List item";
-      break;
-    case "ol":
-      formatted = selected
-        ? selected
-            .split("\n")
-            .map((line, i) =>
-              /^\d+\.\s/.test(line) ? line : `${i + 1}. ${line}`
-            )
-            .join("\n")
-        : "1. List item";
       break;
     case "code":
       formatted = `\`\`\`\n${selected || "code"}\n\`\`\``;
@@ -578,110 +640,104 @@ const filteredNotes = notes.filter(note => {
     default:
       break;
   }
+
   const newValue = before + formatted + after;
   setNoteContent(newValue);
 
-  // Set cursor after the formatted text
+  // restore focus and put caret after inserted text
   setTimeout(() => {
     textarea.focus();
-    textarea.selectionStart = textarea.selectionEnd =
-      before.length + formatted.length;
+    const pos = before.length + formatted.length;
+    textarea.selectionStart = textarea.selectionEnd = pos;
   }, 0);
-};
-
-const sortedNotes = [...filteredNotes].sort((a, b) => {
-  const aTime = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
-  const bTime = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
-
-  switch (sortOption) {
-    case "title-asc":
-      return a.title?.localeCompare(b.title);
-    case "title-desc":
-      return b.title?.localeCompare(a.title);
-    case "oldest":
-      return aTime - bTime;
-    case "newest":
-    default:
-      return bTime - aTime;
-  }
-});
+}, [noteContent, noteContentRef, setNoteContent]);
 
 
-  const pinnedNotes = sortedNotes.filter(note => note.pinned);
-  const unpinnedNotes = sortedNotes.filter(note => !note.pinned);
+const NoteCard = ({ note, onOpen, onMenu, mode, theme }) => (
+  <Card
+    onClick={onOpen}
+    sx={{
+      ...glass(mode),
+      ...cardHover,
+      borderRadius: 4,
+      cursor: "pointer",
+      position: "relative",
+    }}
+  >
+    <CardContent sx={{ pb: 1.5 }}>
+      <Stack direction="row" justifyContent="space-between">
+        <Box>
+          <Typography fontWeight={700} fontSize={16}>
+            {note.title || "Untitled"}
+            {note.pinned && (
+              <PushPinIcon
+                sx={{ ml: 1, fontSize: 16, color: theme.palette.success.main }}
+              />
+            )}
+          </Typography>
 
-  useEffect(() => {
-    const fetchSharedUsers = async () => {
-      let uids = [];
-      if (viewDrawerOpen && selectedNote?.sharedWith) {
-        uids = selectedNote.sharedWith;
-      } else if (shareDrawerOpen && sharedWith) {
-        uids = sharedWith;
-      }
-      if (!uids || uids.length === 0) {
-        setSharedUsersInfo({});
-        return;
-      }
-      const info = {};
-      await Promise.all(
-        uids.map(async (uid) => {
-          if (!sharedUsersInfo[uid]) {
-            const user = await fetchUserInfo(uid);
-            if (user) info[uid] = user;
-          } else {
-            info[uid] = sharedUsersInfo[uid];
-          }
-        })
-      );
-      setSharedUsersInfo((prev) => ({ ...prev, ...info }));
-    };
-    fetchSharedUsers();
-    // eslint-disable-next-line
-  }, [viewDrawerOpen, shareDrawerOpen, selectedNote, sharedWith]);
+          <Box sx={{ mt: 0.5, opacity: 0.75 }}>
+            <ReactMarkdown
+              components={{
+                p: ({ children }) => <Typography variant="body2" sx={{ display: 'inline' }}>{children}</Typography>,
+                h1: ({ children }) => <Typography variant="body2" sx={{ fontWeight: 'bold', display: 'inline' }}>{children}</Typography>,
+                h2: ({ children }) => <Typography variant="body2" sx={{ fontWeight: 'bold', display: 'inline' }}>{children}</Typography>,
+                h3: ({ children }) => <Typography variant="body2" sx={{ fontWeight: 'bold', display: 'inline' }}>{children}</Typography>,
+                ul: ({ children }) => <Typography variant="body2" sx={{ display: 'inline' }}>{children}</Typography>,
+                ol: ({ children }) => <Typography variant="body2" sx={{ display: 'inline' }}>{children}</Typography>,
+                li: ({ children }) => <Typography variant="body2" sx={{ display: 'inline' }}>{children}</Typography>,
+                code: ({ children }) => <Typography variant="body2" sx={{ fontFamily: 'monospace', display: 'inline' }}>{children}</Typography>,
+                pre: ({ children }) => <Typography variant="body2" sx={{ display: 'inline' }}>{children}</Typography>,
+              }}
+            >
+              {note.content?.slice(0, 80) + (note.content?.length > 80 ? "…" : "")}
+            </ReactMarkdown>
+          </Box>
+        </Box>
 
-  useEffect(() => {
-  // After notes are loaded, fetch all unique sharedWith user info
-  const fetchAllSharedUsers = async () => {
-    const allUids = new Set();
-    notes.forEach(note => {
-      (note.sharedWith || []).forEach(uid => allUids.add(uid));
-      (note.owners || []).forEach(uid => allUids.add(uid));
-    });
-    const info = {};
-    await Promise.all(
-      Array.from(allUids).map(async (uid) => {
-        if (!sharedUsersInfo[uid]) {
-          const user = await fetchUserInfo(uid);
-          if (user) info[uid] = user;
-        }
-      })
-    );
-    if (Object.keys(info).length > 0) {
-      setSharedUsersInfo(prev => ({ ...prev, ...info }));
-    }
-  };
-  if (notes.length > 0) fetchAllSharedUsers();
-  // eslint-disable-next-line
-}, [notes]);
+        <IconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            onMenu(e);
+          }}
+          size="small"
+        >
+          <MoreVertIcon />
+        </IconButton>
+      </Stack>
 
- const goBack = () => {
-    history(-1);
- };
+      {(note.labels?.length > 0 || note.owners?.[0] !== undefined) && (
+        <Stack direction="row" spacing={0.8} mt={1} flexWrap="wrap">
+          {note.labels?.map((label) => (
+            <Chip
+              key={label}
+              size="small"
+              label={label}
+              sx={{
+                fontSize: 11,
+                borderRadius: 2,
+                backgroundColor: mode === "dark" ? "#ffffff20" : "#00000020",
+              }}
+            />
+          ))}
 
- useEffect(() => {
-  if (editDrawerOpen && selectedNote) {
-    setNoteTitle(selectedNote.title || "");
-    setNoteContent(selectedNote.content || "");
-    setCollaborators(selectedNote.sharedWith || []);
-    setNoteLabels(selectedNote.labels || []);
-  }
-  if (!editDrawerOpen) {
-    setNoteTitle("");
-    setNoteContent("");
-    setCollaborators([]);
-    setNoteLabels([]);
-  }
-}, [editDrawerOpen, selectedNote]);
+          {!note.owners == undefined && (
+            <Chip
+              size="small"
+              label="Shared"
+              sx={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: mode === "dark" ? "#ffffffff" : "#000000ff",
+                background: mode === "dark" ? "#ffffff20" : "#00000020",
+              }}
+            />
+          )}
+        </Stack>
+      )}
+    </CardContent>
+  </Card>
+);
 
 
   return (
@@ -707,17 +763,13 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               mb: 2
             }}
           >
-            <Button onClick={goBack} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 8, height: '50px', color: mode === "dark" ?  "#fff" : "#000", backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0" , }}>
-              <ArrowBackIcon />
-            </Button>
-            <ProfilePic />
+            <Typography variant="h4" fontWeight="bold" sx={{ flex: 1, color: mode === "dark" ? "#fff" : "#000" }}>
+              Notes
+            </Typography>
+
+            <NotificationsPage />
           </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", mb: 0 }}>
-          <Typography variant="h4" fontWeight="bold" sx={{ flex: 1, color: mode === "dark" ? "#fff" : "#000" }}>
-            Notes
-          </Typography>
-        </Box>
         <Box 
           sx={{ 
             position: "sticky", 
@@ -743,7 +795,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             sx={{
               width: "100%",
               mb: 2,
-              input: { color: mode === "dark" ? "#aaa" : "#333", borderColor: theme.palette.primary.main },
+              input: { color: mode === "dark" ? "#aaa" : "#333", borderColor: mode === "dark" ? "#fff" : "#000" },
             }}
           />
 
@@ -754,9 +806,9 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
   value={sortOption}
   onChange={(e) => setSortOption(e.target.value)}
   size="small"
-  sx={{ minWidth: 150, color: theme.palette.primary.main }}
-  InputLabelProps={{ color: theme.palette.primary.main, borderRadius: 12 }}
-  InputProps={{ color: theme.palette.primary.main, borderRadius: 12 }}
+  sx={{ minWidth: 150, color: mode === "dark" ? "#000000ff" : "#ffffffff" }}
+  InputLabelProps={{ color: mode === "dark" ? "#000000ff" : "#ffffffff", borderRadius: 12 }}
+  InputProps={{ color: mode === "dark" ? "#000000ff" : "#ffffffff", borderRadius: 12 }}
 >
   <MenuItem value="newest">Newest First</MenuItem>
   <MenuItem value="oldest">Oldest First</MenuItem>
@@ -772,10 +824,10 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
   borderRadius={12}
 >
   <ToggleButton value="list">
-    <ViewListIcon sx={{ color: mode === "dark" ? "#fff" : "#000" }} />
+    <ViewListIcon sx={{ color: mode === "dark" ? "#ffffffff" : "#000000ff" }} />
   </ToggleButton>
   <ToggleButton value="grid">
-    <ViewModuleIcon sx={{ color: mode === "dark" ? "#fff" : "#000" }} />
+    <ViewModuleIcon sx={{ color: mode === "dark" ? "#ffffffff" : "#000000ff" }} />
   </ToggleButton>
 </ToggleButtonGroup>
 </Box>
@@ -792,8 +844,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
       sx={{
         borderRadius: 5,
         backdropFilter: "blur(80px)",
-        color: selectedLabelFilter === label ? theme.palette.primary.main : theme.palette.text.secondary,
-        backgroundColor: selectedLabelFilter === label ? theme.palette.primary.bg : theme.palette.background.paper,
+        color: selectedLabelFilter === label ? mode === "dark" ? "#000000ff" : "#ffffffff" : theme.palette.text.secondary,
+        backgroundColor: selectedLabelFilter === label ? mode === "dark" ? "#ffffffff" : "#000000ff" : theme.palette.background.paper,
       }}
     />
   ))}
@@ -815,334 +867,44 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               </Box>
             ) : (
 <Box>
-  {viewMode === "list" ? (
-    <Stack spacing={1.3}>
-      {[...pinnedNotes, ...unpinnedNotes].map((note, idx) => (
-        <>
-                  <Card
-          key={note.id}
-          sx={{
-            background: mode === "dark" ? "#262626" : "#ffffff00",
-            borderRadius: 5,
-            border: "1px solid #26262648",
-            boxShadow: "none",
-            color: theme.palette.text.primary,
-            cursor: "pointer",
-            transition: "background 0.2s",
-            animation: `${fadeIn} 0.6s ease forwards`,
-            position: "relative",
-          }}
-          onClick={() => {
-            setSelectedNote(note);
-            setViewDrawerOpen(true);
-          }}
-        >
-          <CardContent>
-                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <Box>
-                            <Typography variant="h6" sx={{ mb: 0.5 }}>
-                              {note.title || "Untitled"}
-                              {note.pinned && (
-                                <PushPinIcon fontSize="small" sx={{ ml: 1, color: "#00f721" }} />
-                              )}
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>
-                              {note.content?.slice(0, 60) || ""}
-                              {note.content?.length > 60 ? "..." : ""}
-                            </Typography>
-                          </Box>
-                          <Box>
-                            <IconButton
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleMenuOpen(e, idx);
-                              }}
-                              sx={{ color: mode === "dark" ? "#fff" : "#000" }}
-                            >
-                              <MoreVertIcon />
-                            </IconButton>
-                          </Box>
-                        </Box>
-                        {/* Labels */}
-                        {note.labels && note.labels.length > 0 && (
-                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                            {note.labels.map(label => (
-                              <Chip
-                                key={label}
-                                icon={<LabelIcon sx={{ color: theme.palette.text.primary }} />}
-                                label={label}
-                                size="small"
-                                sx={{
-                                  fontSize: "0.7rem",
-                                  borderRadius: '10px',
-                                  color: theme.palette.text.primary,
-                                  background: mode === "dark" ? "#3a3a3a" : "#bdbdbd83",
-                                }}
-                              />
-                            ))}
-                          </Stack>
-                        )}
-                        {/* Shared users */}
-                        <Box sx={{ mt: 1 }}>
-                          {/* Show "Shared with you" if you are not the creator */}
-                          {note.owners && note.owners[0] !== user?.uid && (
-                            <Chip
-                              label="Shared with you"
-                              size="small"
-                              sx={{
-                                ml: 0,
-                                background: theme.palette.primary.bgr,
-                                color: theme.palette.primary.main,
-                                fontWeight: 600,
-                                fontSize: "0.7rem",
-                                borderRadius: "10px",
-                              }}
-                            />
-                          )}
-                        </Box>
-          </CardContent>
-        </Card>
-
-
-                            <Menu
-                              anchorEl={menuAnchorEl}
-                              open={menuIndex === idx}
-                              onClose={handleMenuClose}
-                              anchorOrigin={{
-                                vertical: "bottom",
-                                horizontal: "right",
-                              }}
-                              transformOrigin={{
-                                vertical: "top",
-                                horizontal: "right",
-                              }}
-                            >
-                              <MenuItem
-                                onClick={() => {
-                                  setSelectedNote(note);
-                                  setNoteTitle(note.title || "");
-                                  setNoteContent(note.content || "");
-                                  setEditDrawerOpen(true);
-                                  setDrawerOpen(true);
-                                  setViewDrawerOpen(false);
-                                  handleMenuClose();    
-                                }}
-                              >
-                                <EditIcon fontSize="small" sx={{ mr: 1 }} />
-                                Edit
-                              </MenuItem>
-                              <MenuItem
-                                onClick={() => {
-                                  handleShareNote(note);
-                                  setAddCollabDrawerOpen(true);
-                                  handleMenuClose();
-                                }}
-                              >
-                                <ShareIcon fontSize="small" sx={{ mr: 1 }} />
-                                Share
-                              </MenuItem>
-                              <MenuItem
-                                onClick={() => {
-                                  handlePinNote(note);
-                                  handleMenuClose();
-                                }}
-                              >
-                                <PushPinIcon fontSize="small" sx={{ mr: 1 }} />
-                                {note.pinned ? "Unpin" : "Pin to Top"}
-                              </MenuItem>
-                              <MenuItem
-                                onClick={() => {
-                                  setNoteToDelete(note);
-                                  setDeleteDialogOpen(true);
-                                  handleMenuClose();
-                                  setViewDrawerOpen(false);
-                                }}
-                                sx={{ color: "#f44336", backgroundColor: "#f443361a" }}
-                              >
-                                <DeleteOutlineIcon fontSize="small" sx={{ mr: 1 }} />
-                                Delete
-                              </MenuItem>
-
-                            </Menu>
-        </>
-        
-      ))}
-    </Stack>
-  ) : (
-    <Box
-      sx={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(30vw, 1fr))",
-        gap: 1,
-      }}
-    >
-      {[...pinnedNotes, ...unpinnedNotes].map((note, idx) => (
-        <>
-                  <Card
-          key={note.id}
-          sx={{
-            background: mode === "dark" ? "#262626" : "#ffffff00",
-            borderRadius: 3,
-            border: "1px solid #26262648",
-            boxShadow: "none",
-            color: theme.palette.text.primary,
-            cursor: "pointer",
-            transition: "background 0.2s",
-            animation: `${fadeIn} 0.6s ease forwards`,
-            position: "relative",
-            height: "100%",
-          }}
-          onClick={() => {
-            setSelectedNote(note);
-            setViewDrawerOpen(true);
-          }}
-        >
-          <CardContent>
-                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <Box>
-                            <Box display={"flex"}>
-                              <Typography variant="h6" sx={{ mb: 0.5 }}>
-                              {note.title?.slice(0, 20) || ""}
-                              {note.title?.length > 20 ? "..." : ""}
-                              {note.pinned && (
-                                <PushPinIcon fontSize="small" sx={{ ml: 1, color: "#00f721" }} />
-                              )}
-                            </Typography>
-                            
-                          <Box>
-                            <IconButton
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleMenuOpen(e, idx);
-                              }}
-                              sx={{ color: mode === "dark" ? "#fff" : "#000" }}
-                            >
-                              <MoreVertIcon />
-                            </IconButton>
-                          </Box>
-                            </Box>
-                            <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>
-                              {note.content?.slice(0, 60) || ""}
-                              {note.content?.length > 60 ? "..." : ""}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        {/* Labels */}
-{(note.labels?.length > 0 || (note.owners && !note.owners.includes(user?.uid))) && (
-  <Stack direction="row" sx={{ mt: 1, flexWrap: "wrap", gap: 0.1 }}>
-    {/* Labels */}
-{note.labels?.map(label => (
-  <Chip
-    key={label}
-    label={label}
-    size="small"
-    icon= {<LabelIcon sx={{ color: theme.palette.text.primary, }} />}
-    sx={{
-      fontSize: "0.7rem",
-      borderRadius: '10px',
-      color: theme.palette.text.primary,
-      background: mode === "dark" ? "#3a3a3a" : "#bdbdbd83",
-    }}
-  />
-))}
-
-
-    {/* Shared Chip */}
-                        <Box sx={{ mt: 1 }}>
-                          {/* Show "Shared with you" if you are not the creator */}
-                          {note.owners && note.owners[0] !== user?.uid && (
-                            <Chip
-                              label="Shared with you"
-                              size="small"
-                              sx={{
-                                marginLeft: 0,
-                                background: theme.palette.primary.bgr,
-                                color: theme.palette.primary.main,
-                                fontWeight: 600,
-                                fontSize: "0.7rem",
-                                borderRadius: "10px",
-                              }}
-                            />
-                          )}
-                        </Box>
+{viewMode === "list" ? (
+  <Stack spacing={1.4}>
+    {[...pinnedNotes, ...unpinnedNotes].map((note, idx) => (
+      <NoteCard
+        key={note.id}
+        note={note}
+        mode={mode}
+        theme={theme}
+        onOpen={() => openView(note)}
+        onMenu={(e) => openMenu(e, idx)}
+      />
+    ))}
   </Stack>
+) : (
+  <Box
+    sx={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(240px,1fr))",
+      gap: 1.5,
+    }}
+  >
+    {[...pinnedNotes, ...unpinnedNotes].map((note, idx) => (
+      <NoteCard
+        key={note.id}
+        note={note}
+        mode={mode}
+        theme={theme}
+        onOpen={() => openView(note)}
+        onMenu={(e) => openMenu(e, idx)}
+      />
+    ))}
+  </Box>
 )}
 
-          </CardContent>
-        </Card>
-
-        
-                            <Menu
-                              anchorEl={menuAnchorEl}
-                              open={menuIndex === idx}
-                              onClose={handleMenuClose}
-                              anchorOrigin={{
-                                vertical: "bottom",
-                                horizontal: "right",
-                              }}
-                              transformOrigin={{
-                                vertical: "top",
-                                horizontal: "right",
-                              }}
-                            >
-                              <MenuItem
-                                onClick={() => {
-                                  setSelectedNote(note);
-                                  setNoteTitle(note.title || "");
-                                  setNoteContent(note.content || "");
-                                  setEditDrawerOpen(true);
-                                  setDrawerOpen(true);
-                                  setViewDrawerOpen(false);
-                                  handleMenuClose();    
-                                }}
-                              >
-                                <EditIcon fontSize="small" sx={{ mr: 1 }} />
-                                Edit
-                              </MenuItem>
-                              <MenuItem
-                                onClick={() => {
-                                  handleShareNote(note);
-                                  setAddCollabDrawerOpen(true);
-                                  handleMenuClose();
-                                }}
-                              >
-                                <ShareIcon fontSize="small" sx={{ mr: 1 }} />
-                                Share
-                              </MenuItem>
-                              <MenuItem
-                                onClick={() => {
-                                  handlePinNote(note);
-                                  handleMenuClose();
-                                }}
-                              >
-                                <PushPinIcon fontSize="small" sx={{ mr: 1 }} />
-                                {note.pinned ? "Unpin" : "Pin to Top"}
-                              </MenuItem>
-                              <MenuItem
-                                onClick={() => {
-                                  setNoteToDelete(note);
-                                  setDeleteDialogOpen(true);
-                                  handleMenuClose();
-                                  setViewDrawerOpen(false);
-                                }}
-                                sx={{ color: "#f44336", backgroundColor: "#f443361a" }}
-                              >
-                                <DeleteOutlineIcon fontSize="small" sx={{ mr: 1 }} />
-                                Delete
-                              </MenuItem>
-                            </Menu>
-        </>
-      ))}
-    </Box>
-  )}
 </Box>
-
-
             )}
           </CardContent>
           </Box>
-
-        
 
         {/* Add Note Drawer */}
         <SwipeableDrawer
@@ -1222,96 +984,89 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
       ))}
     </Stack>
 
+    {/* Preview Toggle */}
+    <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
+      <Button
+        variant={isPreview ? "contained" : "outlined"}
+        onClick={() => setIsPreview(!isPreview)}
+        sx={{
+          borderRadius: 4,
+          color: isPreview ? "#000" : theme.palette.text.primary,
+          backgroundColor: isPreview ? theme.palette.primary.bgr : "transparent",
+          borderColor: mode === "dark" ? "#fff" : "#000",
+        }}
+      >
+        {isPreview ? "Edit" : "Preview"}
+      </Button>
+    </Box>
+
     {/* Content */}
-    <TextField
-      placeholder="Start writing your note..."
-      value={noteContent}
-      onChange={(e) => setNoteContent(e.target.value)}
-      fullWidth
-      multiline
-      minRows={12}
-      variant="standard"
-      inputRef={noteContentRef}
-      InputProps={{
-        disableUnderline: true,
-        sx: { color: mode === "dark" ? "#fff" : "#000", fontFamily: "inherit", fontSize: 16 },
-      }}
-      sx={{ flex: 1, mb: 2 }}
-    />
+    {isPreview ? (
+      <Box sx={{ flex: 1, mb: 2, p: 2, border: `1px solid ${theme.palette.divider}`, borderRadius: 2, minHeight: 300 }}>
+        <ReactMarkdown
+          components={{
+            p: ({ children }) => <Typography variant="body1" sx={{ mb: 2, color: theme.palette.text.primary }}>{children}</Typography>,
+            h1: ({ children }) => <Typography variant="h4" sx={{ mb: 1, fontWeight: 'bold', color: theme.palette.text.primary }}>{children}</Typography>,
+            h2: ({ children }) => <Typography variant="h5" sx={{ mb: 1, fontWeight: 'bold', color: theme.palette.text.primary }}>{children}</Typography>,
+            h3: ({ children }) => <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold', color: theme.palette.text.primary }}>{children}</Typography>,
+            ul: ({ children }) => <Box component="ul" sx={{ pl: 2, mb: 2 }}>{children}</Box>,
+            ol: ({ children }) => <Box component="ol" sx={{ pl: 2, mb: 2 }}>{children}</Box>,
+            li: ({ children }) => <Typography component="li" sx={{ color: theme.palette.text.primary }}>{children}</Typography>,
+            code: ({ children }) => <Box component="code" sx={{ bgcolor: mode === "dark" ? "#333" : "#f5f5f5", p: 0.5, borderRadius: 1, fontFamily: 'monospace' }}>{children}</Box>,
+            pre: ({ children }) => <Box component="pre" sx={{ bgcolor: mode === "dark" ? "#333" : "#f5f5f5", p: 1, borderRadius: 1, overflow: 'auto', mb: 2 }}>{children}</Box>,
+          }}
+        >
+          {noteContent || 'Nothing to preview'}
+        </ReactMarkdown>
+      </Box>
+    ) : (
+      <TextField
+        placeholder="Start writing your note..."
+        value={noteContent}
+        onChange={(e) => setNoteContent(e.target.value)}
+        fullWidth
+        multiline
+        minRows={12}
+        variant="standard"
+        inputRef={noteContentRef}
+        InputProps={{
+          disableUnderline: true,
+          sx: { color: mode === "dark" ? "#fff" : "#000", fontFamily: "inherit", fontSize: 16 },
+        }}
+        sx={{ flex: 1, mb: 2 }}
+      />
+    )}
 
   </Box>
 
     {/* Toolbar */}
-    <Box
-      sx={{ 
-        position: "sticky",
-        bottom: 0,
-        left: 0,
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 1,
-        mb: 2,
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 1,
-        backgroundColor: theme.palette.primary.bgr,
-        borderRadius: 4,
-        backdropFilter: "blur(80px)"
-    }}>
-      
-      {["bold", "italic", "underline", "ul", "code"].map((action) => (
-        <Tooltip title={action.charAt(0).toUpperCase() + action.slice(1)} key={action}>
-          <IconButton onClick={() => applyFormat(action)} size="small" sx={{ color: "#333", backgroundColor: "#ffffff11" }}>
-            {{
-              bold: <FormatBoldIcon />,
-              italic: <FormatItalicIcon />,
-              underline: <FormatUnderlinedIcon />,
-              ul: <FormatListBulletedIcon />,
-              code: <CodeIcon />,
-            }[action]}
-          </IconButton>
-        </Tooltip>
-      ))}
+<Box
+  sx={{
+    position: "sticky",
+    bottom: 0,
+    ...glass(mode),
+    borderRadius: 4,
+    p: 1,
+    display: "flex",
+    justifyContent: "space-between",
+  }}
+>
+  <Stack direction="row" spacing={0.5}>
+    <IconButton onClick={() => applyFormat("bold")}><FormatBoldIcon /></IconButton>
+    <IconButton onClick={() => applyFormat("italic")}><FormatItalicIcon /></IconButton>
+    <IconButton onClick={() => applyFormat("code")}><CodeIcon /></IconButton>
+  </Stack>
 
+  <Stack direction="row" spacing={0.5}>
+    <IconButton onClick={() => setAddCollabDrawerOpen(true)}>
+      <PersonAddIcon />
+    </IconButton>
+    <IconButton onClick={() => setAddLabelDrawerOpen(true)}>
+      <LabelOutlinedIcon />
+    </IconButton>
+  </Stack>
+</Box>
 
-<Tooltip title="Add Collaborator">
-  <IconButton
-    onClick={() => {
-      if (editDrawerOpen) {
-        setAddCollabDrawerOpen(true);
-      } else {
-        setAddCollaboratorDrawerOpen(true);
-      }
-    }}
-    size="small"
-    sx={{
-      color: "#333",
-      borderRadius: 2,
-      px: 0.6,
-      height: 36,
-      backgroundColor: "#ffffff11"
-    }}
-  >
-    <PersonAddIcon />
-  </IconButton>
-</Tooltip>
-
-      <Tooltip title="Add Label">
-        <IconButton
-          onClick={() => setAddLabelDrawerOpen(true)}
-          size="small"
-          sx={{
-            color: "#333",
-            borderRadius: 2,
-            px: 0.6,
-            height: 36,
-            backgroundColor: "#ffffff11"
-          }}
-        >
-          <LabelOutlinedIcon />
-        </IconButton>
-      </Tooltip>
-    </Box>
           </SwipeableDrawer>
 
         <SwipeableDrawer
@@ -1486,10 +1241,10 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
 )}
 
 
-          {selectedNoteLabels && selectedNoteLabels.length > 0 && (
+          {selectedNote?.labels && selectedNote.labels.length > 0 && (
             <Box sx={{ width: "100%", mb: 2 }}>
               <Stack direction="row" display="flex" alignItems="center" spacing={1}>
-                {selectedNoteLabels.map(label => (
+                {selectedNote.labels.map(label => (
                   <Chip
                     key={label}
                     icon={<LabelIcon sx={{ color: theme.palette.text.primary }} />}
@@ -1509,9 +1264,21 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
 
             <Box>
               <Box height={"-webkit-fill-available"}>
-                <Typography variant="body1" sx={{ mb: 2, color: theme.palette.text.primary, whiteSpace: "pre-line" }}>
-                {selectedNote?.content}
-              </Typography>
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <Typography variant="body1" sx={{ mb: 2, color: theme.palette.text.primary }}>{children}</Typography>,
+                    h1: ({ children }) => <Typography variant="h4" sx={{ mb: 1, fontWeight: 'bold', color: theme.palette.text.primary }}>{children}</Typography>,
+                    h2: ({ children }) => <Typography variant="h5" sx={{ mb: 1, fontWeight: 'bold', color: theme.palette.text.primary }}>{children}</Typography>,
+                    h3: ({ children }) => <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold', color: theme.palette.text.primary }}>{children}</Typography>,
+                    ul: ({ children }) => <Box component="ul" sx={{ pl: 2, mb: 2 }}>{children}</Box>,
+                    ol: ({ children }) => <Box component="ol" sx={{ pl: 2, mb: 2 }}>{children}</Box>,
+                    li: ({ children }) => <Typography component="li" sx={{ color: theme.palette.text.primary }}>{children}</Typography>,
+                    code: ({ children }) => <Box component="code" sx={{ bgcolor: mode === "dark" ? "#333" : "#f5f5f5", p: 0.5, borderRadius: 1, fontFamily: 'monospace' }}>{children}</Box>,
+                    pre: ({ children }) => <Box component="pre" sx={{ bgcolor: mode === "dark" ? "#333" : "#f5f5f5", p: 1, borderRadius: 1, overflow: 'auto', mb: 2 }}>{children}</Box>,
+                  }}
+                >
+                  {selectedNote?.content || ''}
+                </ReactMarkdown>
               </Box>
 
 
@@ -1823,7 +1590,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             <AddIcon sx={{ px: 0 }} />
           </Button>
           
-      </Box>
+          </Box>
       </BetaAccessGuard>
       </DeviceGuard>
     </ThemeProvider>

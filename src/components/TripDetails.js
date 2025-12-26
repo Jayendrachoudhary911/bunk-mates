@@ -1,532 +1,784 @@
+// ...existing code...
 import React, { useEffect, useState } from "react";
 import {
-  Box, Typography, Container, AvatarGroup, Avatar, LinearProgress,
-  Button, Card, CardContent, List, ListItem, ListItemIcon, ListItemText,
-  Divider, IconButton, TextField, Dialog, DialogTitle, DialogContent,
-  DialogActions, Snackbar, InputAdornment, Drawer, FormControlLabel,
-  SwipeableDrawer, Paper, Checkbox, Tooltip, Collapse, useTheme
+    Box,
+    Typography,
+    Container,
+    AvatarGroup,
+    Avatar,
+    LinearProgress,
+    Button,
+    Card,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
+    Divider,
+    IconButton,
+    TextField,
+    Snackbar,
+    InputAdornment,
+    Collapse,
+    Tooltip,
+    Checkbox,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Grid,
 } from "@mui/material";
+
 import {
-  LocationOn, AccessTime, CheckCircle, Cancel, Edit, Add, ContentCopy
+    LocationOn,
+    AccessTime,
+    Edit,
+    Add,
+    ContentCopy,
+    Settings as SettingsIcon,
+    Info as InfoIcon,
+    Directions as DirectionsIcon,
+    ArrowBack as ArrowBackIcon,
+    Group as GroupIcon,
+    DeleteOutline as DeleteOutlineIcon,
+    CloseOutlined as CloseOutlinedIcon,
+    ExpandMore as ExpandMoreIcon,
+    LockOutlined as LockOutlinedIcon,
+    Celebration as CelebrationIcon,
+    WarningAmberRounded as WarningAmberRoundedIcon,
+    DriveFolderUpload as DriveFolderUploadIcon,
+    YouTube as YouTubeIcon,
+    PhotoLibrary as PhotoLibraryIcon,
+    Edit as EditIcon,
+    Link as LinkIcon,
+    Cancel as CancelIcon,
+    AddLink as AddLinkIcon,
+    Share as ShareIcon,
 } from "@mui/icons-material";
+
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  getDoc, doc, updateDoc, collection, addDoc, onSnapshot,
-  query, getDocs, deleteDoc, setDoc
+    getDoc,
+    doc,
+    updateDoc,
+    collection,
+    addDoc,
+    onSnapshot,
+    getDocs,
+    deleteDoc,
+    setDoc,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db } from "../firebase";
 import { QRCodeSVG } from "qrcode.react";
-import ShareIcon from "@mui/icons-material/Share";
-import ImageIcon from "@mui/icons-material/Image";
-import DirectionsIcon from "@mui/icons-material/Directions";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import GroupIcon from "@mui/icons-material/Group";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import WhatsAppIcon from '@mui/icons-material/WhatsApp';
-import TelegramIcon from '@mui/icons-material/Telegram';
-import InstagramIcon from '@mui/icons-material/Instagram';
-import TwitterIcon from '@mui/icons-material/Twitter';
-import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import CelebrationIcon from "@mui/icons-material/Celebration";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import CircleIcon from "@mui/icons-material/Circle";
-import AddLinkIcon from "@mui/icons-material/AddLink";
-import DriveFolderUploadIcon from "@mui/icons-material/DriveFolderUpload";
-import YouTubeIcon from "@mui/icons-material/YouTube";
-import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
-import EditIcon from "@mui/icons-material/Edit";
-import LinkIcon from "@mui/icons-material/Link";
-import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
+
+import { motion, AnimatePresence } from "framer-motion";
+
 import { useWeather } from "../contexts/WeatherContext";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
-import { motion, AnimatePresence } from "framer-motion";
+
+// imported sub-components (from attached files)
+import ShareDrawer from "./trips_components/ShareDrawer";
+import ChecklistDrawer from "./trips_components/ChecklistDrawer";
+import TimelineDrawer from "./trips_components/TimelineDrawer";
+import BudgetDrawer from "./trips_components/BudgetDrawer";
+import ExpenseDrawer from "./trips_components/ExpenseDrawer";
+import LinkDrawer from "./trips_components/LinkDrawer";
+import SettingsDrawer from "./trips_components/SettingsDrawer";
+import ConfirmDeleteDialog from "./trips_components/ConfirmDeleteDialog";
+import ChecklistViewAllDrawer from "./trips_components/ChecklistViewAllDrawer";
+import TimelineAllDrawer from "./trips_components/TimelineAllDrawer";
+// ...existing code...
 
 const getCurrentDate = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`; // Format: YYYY-MM-DD
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
 };
 
 const getCurrentTime = () => {
-  const now = new Date();
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`; // Format: HH:MM
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return `${hours}:${minutes}`;
 };
 
 export default function TripDetails() {
-  const { id } = useParams();
-  const navigate = useNavigate();
+    const { id } = useParams();
+    const navigate = useNavigate();
 
-  const auth = getAuth();
-  const currentUser = auth.currentUser;
-  const currentUseruid = currentUser ? currentUser.uid : null;
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    const currentUseruid = currentUser ? currentUser.uid : null;
+    const [groupChatIcon, setGroupChatIcon] = useState("");
+    const [trip, setTrip] = useState(null);
+    const [coverImage, setCoverImage] = useState("");
+    const [editMode, setEditMode] = useState(false);
+    const [editTrip, setEditTrip] = useState({});
+    const [checklist, setChecklist] = useState([]);
+    const [checklistDrawerOpen, setChecklistDrawerOpen] = useState(false);
+    const [newTask, setNewTask] = useState("");
+    const [budget, setBudget] = useState({ total: 0, used: 0, contributors: [], expenses: [] });
+    const [photos, setPhotos] = useState([]);
+    const [snackbar, setSnackbar] = useState({ open: false, message: "" });
+    const [shareDrawerOpen, setShareDrawerOpen] = useState(false);
+    const [timeline, setTimeline] = useState([]);
+    const [timelineDrawerOpen, setTimelineDrawerOpen] = useState(false);
+    const [timelineAllDrawerOpen, setTimelineAllDrawerOpen] = useState(false);
+    const [newEvent, setNewEvent] = useState({ title: "", time: "", note: "" });
+    const [budgetDrawerOpen, setBudgetDrawerOpen] = useState(false);
+    const [editBudget, setEditBudget] = useState({ total: "", contributors: [] });
+    const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+    const { getWeather } = useWeather();
+    const [weather, setWeather] = useState(null);
+    const [checklistDrafts, setChecklistDrafts] = useState([]);
+    const [uploadingBatch, setUploadingBatch] = useState(false);
+    const [checklistViewAllOpen, setChecklistViewAllOpen] = useState(false);
+    const [open, setOpen] = useState(false);
+    const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
 
-  const [trip, setTrip] = useState(null);
-  const [coverImage, setCoverImage] = useState("");
-  const [editMode, setEditMode] = useState(false);
-  const [editTrip, setEditTrip] = useState({});
-  const [checklist, setChecklist] = useState([]);
-  const [checklistDrawerOpen, setChecklistDrawerOpen] = useState(false);
-  const [newTask, setNewTask] = useState("");
-  const [budget, setBudget] = useState(null);
-  const [photos, setPhotos] = useState([]);
-  const [snackbar, setSnackbar] = useState({ open: false, message: "" });
-  const [shareDrawerOpen, setShareDrawerOpen] = useState(false);
-  const [timeline, setTimeline] = useState([]);
-  const [timelineDrawerOpen, setTimelineDrawerOpen] = useState(false);
-  const [timelineAllDrawerOpen, setTimelineAllDrawerOpen] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: "", time: "", note: "" });
-  const [budgetDrawerOpen, setBudgetDrawerOpen] = useState(false);
-  const [editBudget, setEditBudget] = useState({ total: "", contributors: [] });
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const { getWeather } = useWeather();
-  const [weather, setWeather] = useState(null);
-  const [checklistDrafts, setChecklistDrafts] = useState([]);
-  const [uploadingBatch, setUploadingBatch] = useState(false);
-  const [checklistViewAllOpen, setChecklistViewAllOpen] = useState(false);
-  const [open, setOpen] = useState(false);
+    const [tripLinks, setTripLinks] = useState([]);
+    const [newLink, setNewLink] = useState({ title: "", url: "" });
+    const [linkDrawerOpen, setLinkDrawerOpen] = useState(false);
+    const [editingLink, setEditingLink] = useState(null);
+    const [editingExpense, setEditingExpense] = useState(null);
+    const [editingChecklist, setEditingChecklist] = useState(null);
+    const [editingTimeline, setEditingTimeline] = useState(null);
 
-  const unsubTimeline = onSnapshot(collection(db, `trips/${id}/timeline`), (snap) => {
-  const events = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  const sorted = events.sort((a, b) => new Date(a.time) - new Date(b.time));
-    setTimeline(sorted);
-  });
+    const { mode, setMode, accent, setAccent } = useThemeToggle();
+    const theme = getTheme(mode, accent);
 
-  const [tripLinks, setTripLinks] = useState([]);
-  const [newLink, setNewLink] = useState({ title: "", url: "" });
-  const [linkDrawerOpen, setLinkDrawerOpen] = useState(false);
-  const [editingLink, setEditingLink] = useState(null);
+    // expense states
+    const [expenseDrawerOpen, setExpenseDrawerOpen] = useState(false);
+    const [newExpense, setNewExpense] = useState({
+        name: "",
+        amount: "",
+        category: "",
+        date: getCurrentDate(),
+        time: getCurrentTime(),
+        paidBy: currentUseruid,
+        splitMode: "single_payer",
+    });
+    const [expenseContributors, setExpenseContributors] = useState([]);
+    const [showAllExpenses, setShowAllExpenses] = useState(false);
 
-  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
-  const theme = getTheme(mode, accent);
+    const [memberDetails, setMemberDetails] = useState([]);
+    const [timelineDrafts, setTimelineDrafts] = useState([]);
 
-  // New states for expenses drawer
-  const [expenseDrawerOpen, setExpenseDrawerOpen] = useState(false);
-  const [newExpense, setNewExpense] = useState({
-    name: "",
-    amount: "",
-    category: "",
-    date: getCurrentDate(),
-    time: getCurrentTime(),
-    paidBy: currentUseruid,
-    splitMode: 'single_payer',
-  });
-  const [expenseContributors, setExpenseContributors] = useState([]);
-  const [showAllExpenses, setShowAllExpenses] = useState(false);
-  const visibleExpenses = showAllExpenses
-    ? budget?.expenses || []
-    : (budget?.expenses || []).slice(0, 4);
+    const [memberToRemove, setMemberToRemove] = useState(null);
+    const [tripPermissions, setTripPermissions] = useState({
+        canAddMembers: "all",
+        canAddExpenses: "all",
+        canAddChecklists: "all",
+        canAddTimelines: "all",
+        canEditTrip: "admins",
+    });
+    const [displaySettings, setDisplaySettings] = useState({
+     layout: "grid",       // 'grid' | 'list'
+     gridCols: 3,         // number of items per row in grid
+     listCols: 1,         // number of columns in list (if applicable)
+     cardType: "regular", // 'regular' | 'detailed'
+   });
+    const [tripAdmins, setTripAdmins] = useState([]);
 
-  const [memberDetails, setMemberDetails] = useState([]);
-  const [timelineDrafts, setTimelineDrafts] = useState([]);
+    const visibleExpenses = showAllExpenses ? budget?.expenses || [] : (budget?.expenses || []).slice(0, 4);
 
-  const [memberToRemove, setMemberToRemove] = useState(null);
-  
-  
-  const confirmRemoveMember = async () => {
-    await handleRemoveMember(memberToRemove);
-    setMemberToRemove(null);
-  };
-
-
-useEffect(() => {
-  if (!id) return;
-
-  const timelineRef = collection(db, `trips/${id}/timeline`);
-  const unsubTimeline = onSnapshot(timelineRef, async (snapshot) => {
-    const events = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    const now = new Date().toISOString();
-
-    // Auto reveal logic (safe scope)
-    for (const event of events) {
-      if (
-        event.surprise &&
-        event.revealAt &&
-        !event.revealed &&
-        event.revealAt <= now
-      ) {
-        try {
-          const eventRef = doc(db, `trips/${id}/timeline`, event.id);
-          await updateDoc(eventRef, { revealed: true });
-        } catch (err) {
-          console.warn("Auto reveal failed:", err);
+    // subscribe to groupChats/{id} to read iconURL (keeps UI in sync if group chat icon is updated)
+    useEffect(() => {
+      if (!id) return;
+      const gcRef = doc(db, "groupChats", id);
+      const unsub = onSnapshot(
+        gcRef,
+        (snap) => {
+          if (!snap.exists()) {
+            setGroupChatIcon("");
+            return;
+          }
+          const data = snap.data();
+          // support both top-level iconURL and drafts.iconURL
+          const icon = data?.iconURL || data?.drafts?.iconURL || "";
+          setGroupChatIcon(icon || "");
+        },
+        (err) => {
+          console.error("groupChats snapshot error:", err);
         }
-      }
-    }
-
-    // Filter surprise events visibility
-    const visibleEvents = events.filter((event) => {
-      if (!event.surprise) return true;
-      if (event.createdBy === currentUseruid) return true;
-      if (event.revealed) return true;
-      if (event.revealAt && event.revealAt <= now) return true;
-      return false;
-    });
-
-    setTimeline(visibleEvents.sort((a, b) => new Date(a.time) - new Date(b.time)));
-  });
-
-  return () => unsubTimeline();
-}, [id, currentUseruid]);
-
-const revealSurpriseEvent = async (eventId) => {
-  try {
-    const eventRef = doc(db, `trips/${id}/timeline`, eventId);
-    await updateDoc(eventRef, { revealed: true });
-    setSnackbar({ open: true, message: "Surprise revealed to everyone!" });
-  } catch (error) {
-    console.error("Error revealing surprise:", error);
-    setSnackbar({ open: true, message: "Failed to reveal surprise." });
-  }
-};
-
-
-useEffect(() => {
-  if (!id) return;
-
-  // Real-time listener for trip document
-  fetchTripData();
-  const tripDocRef = doc(db, "trips", id);
-  const unsubscribeTrip = onSnapshot(tripDocRef, (docSnap) => {
-    if (docSnap.exists()) {
-      const tripData = docSnap.data();
-
-      setTrip(prev => ({
-        ...prev,
-        ...tripData,
-      }));
-
-      setEditTrip(tripData);
-
-      // Optionally, update cover image if location or name changed
-      const imageQuery = tripData.name || tripData.location || "travel";
-      fetchCoverImage(imageQuery).then(setCoverImage).catch(() => {});
-
-      // Load members if present
-      if (tripData.members?.length) {
-        loadMemberDetails(tripData.members);
-      }
-    }
-  });
-
-  // Existing listeners for checklist, photos, timeline remain unchanged
-
-  const unsubChecklist = onSnapshot(collection(db, `trips/${id}/checklist`), snapshot => {
-    setChecklist(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-  });
-
-  const unsubPhotos = onSnapshot(collection(db, `trips/${id}/photos`), snap => {
-    setPhotos(snap.docs.map(doc => doc.data().url));
-  });
-
-  // Cleanup on unmount or id change
-  return () => {
-    unsubscribeTrip();
-    unsubChecklist();
-    unsubPhotos();
-    unsubTimeline();
-  };
-}, [id]);
-
-useEffect(() => {
-  if (!id) return;
-
-const tripRef = doc(db, "trips", id);
-  const unsub = onSnapshot(tripRef, (snap) => {
-    if (snap.exists()) {
-      const data = snap.data();
-      setTripLinks(data.links || []);
-    }
-  });
-
-  return () => unsub();
-}, [id]);
-
-const handleAddLink = async () => {
-  if (!newLink.url || !newLink.title) {
-    setSnackbar({ open: true, message: "Please fill both fields." });
-    return;
-  }
-
-  try {
-    const tripRef = doc(db, "trips", id);
-    const updatedLinks = [
-      ...tripLinks,
-      {
-        id: crypto.randomUUID(),
-        ...newLink,
-        createdBy: currentUseruid,
-        createdAt: new Date().toISOString(),
-      },
-    ];
-
-    await updateDoc(tripRef, { links: updatedLinks });
-    setSnackbar({ open: true, message: "Link added successfully!" });
-    setLinkDrawerOpen(false);
-    setNewLink({ title: "", url: "" });
-  } catch (error) {
-    console.error("Error adding link:", error);
-    setSnackbar({ open: true, message: "Failed to add link." });
-  }
-};
-
-const handleDeleteLink = async (linkId) => {
-  try {
-    const tripRef = doc(db, "trips", id);
-    const updated = tripLinks.filter((l) => l.id !== linkId);
-    await updateDoc(tripRef, { links: updated });
-    setSnackbar({ open: true, message: "Link removed." });
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-const handleRenameLink = async (linkId, newTitle) => {
-  try {
-    const tripRef = doc(db, "trips", id);
-    const updated = tripLinks.map((l) =>
-      l.id === linkId ? { ...l, title: newTitle } : l
-    );
-    await updateDoc(tripRef, { links: updated });
-    setEditingLink(null);
-    setSnackbar({ open: true, message: "Link renamed successfully!" });
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-const getLinkIcon = (url) => {
-  if (url.includes("drive.google")) return <DriveFolderUploadIcon />;
-  if (url.includes("youtube")) return <YouTubeIcon color="error" />;
-  if (url.includes("photos.google")) return <PhotoLibraryIcon color="info" />;
-  return <LinkIcon />;
-};
-
-
-
-const handleTimelineFileUpload = (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const validTypes = ['text/plain', 'text/markdown', 'text/x-markdown'];
-  if (!validTypes.includes(file.type) && !file.name.match(/\.(txt|md)$/i)) {
-    setSnackbar({ open: true, message: "Please upload a .txt or .md file." });
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const text = e.target.result;
-
-    // Match list-like lines only: starting with -, *, •, or numbers (1., 2.), etc.
-    const lines = text
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => /^([-*•]|\d+\.)\s+.+/.test(l))
-      .map((l) => ({
-        title: l.replace(/^([-*•]|\d+\.)\s*/, '').trim(),
-        time: getCurrentDate() + "T" + getCurrentTime(),
-        note: "",
-      }));
-
-    if (lines.length > 0) {
-      setTimelineDrafts(lines);
-    } else {
-      setSnackbar({ open: true, message: "No valid list items found in file." });
-    }
-  };
-  reader.readAsText(file);
-};
-
-// Add new blank draft
-const addEmptyTimelineDraft = () => {
-  setTimelineDrafts((prev) => [
-    ...prev,
-    { title: "", time: getCurrentDate() + "T" + getCurrentTime(), note: "" },
-  ]);
-};
-
-const revealAllSurprises = async () => {
-  try {
-    const hidden = timeline.filter(
-      (e) =>
-        e.surprise && e.createdBy === currentUseruid && !e.revealed
-    );
-    for (const event of hidden) {
-      const eventRef = doc(db, `trips/${id}/timeline`, event.id);
-      await updateDoc(eventRef, { revealed: true });
-    }
-    setSnackbar({
-      open: true,
-      message: "All surprise events revealed to members!",
-    });
-  } catch (error) {
-    console.error("Error revealing surprises:", error);
-    setSnackbar({
-      open: true,
-      message: "Failed to reveal some surprises.",
-    });
-  }
-};
-
-
-// Update draft
-const updateTimelineDraft = (index, updatedItem) => {
-  setTimelineDrafts((prev) => {
-    const updated = [...prev];
-    updated[index] = updatedItem;
-    return updated;
-  });
-};
-
-// Remove draft
-const removeTimelineDraft = (index) => {
-  setTimelineDrafts((prev) => prev.filter((_, i) => i !== index));
-};
-
-// Save all drafts to Firestore
-const addAllTimelineEvents = async () => {
-  if (timelineDrafts.length === 0) {
-    setSnackbar({ open: true, message: "No timeline events to add." });
-    return;
-  }
-
-  try {
-    await Promise.all(
-      timelineDrafts.map((item) =>
-        addDoc(collection(db, `trips/${id}/timeline`), {
-          ...item,
-          completed: false,
-        })
-      )
-    );
-    setSnackbar({ open: true, message: `${timelineDrafts.length} event(s) added!` });
-    setTimelineDrafts([]);
-    setTimelineDrawerOpen(false);
-  } catch (error) {
-    console.error(error);
-    setSnackbar({ open: true, message: "Failed to add timeline events." });
-  }
-};
-
-  
-const handleChecklistFileUpload = (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const validTypes = ['text/plain', 'text/markdown', 'text/x-markdown'];
-  if (!validTypes.includes(file.type) && !file.name.match(/\.(txt|md)$/i)) {
-    setSnackbar({ open: true, message: "Unsupported file type. Please upload .txt or .md files." });
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const text = e.target.result;
-    // Split lines and filter out empty lines and trim
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    if (lines.length > 0) {
-      setChecklistDrafts(lines);
-    } else {
-      setSnackbar({ open: true, message: "No valid checklist items found in file." });
-    }
-  };
-  reader.readAsText(file);
-};
-
-// Update a single draft checklist item
-const updateChecklistDraft = (index, value) => {
-  setChecklistDrafts(prev => {
-    const updated = [...prev];
-    updated[index] = value;
-    return updated;
-  });
-};
-
-const calculateMemberPayments = (memberUid) => {
-    if (!budget?.expenses) return 0;
-    
-    // Sum payments from all expenses where the member is listed in the 'payers' array
-    return budget.expenses.reduce((totalPaid, exp) => {
-        if (exp.payers && exp.payers.length > 0) {
-            const memberPayment = exp.payers.find(p => p.uid === memberUid);
-            if (memberPayment) {
-                totalPaid += Number(memberPayment.amount) || 0;
-            }
-        } else if (exp.paidBy === memberUid) {
-            // Include support for legacy single-payer expenses (amount paid = total expense amount)
-            totalPaid += Number(exp.amount) || 0;
-        }
-        return totalPaid;
-    }, 0);
-};
-
-// Remove a draft checklist item
-const removeChecklistDraft = (index) => {
-  setChecklistDrafts(prev => prev.filter((_, i) => i !== index));
-};
-
-// Add empty draft checklist item
-const addEmptyChecklistDraft = () => {
-  setChecklistDrafts(prev => [...prev, ""]);
-};
-
-useEffect(() => {
-  if (!id) return;
-
-  const unsubBudget = onSnapshot(doc(db, "budgets", id), (snap) => {
-    if (snap.exists()) {
-      const data = snap.data();
-      const totalUsed = (data.expenses || []).reduce(
-        (sum, exp) => sum + (Number(exp.amount) || 0),
-        0
       );
-      setBudget({
-        total: data.total || 0,
-        used: totalUsed,
-        contributors: data.contributors || [],
-        expenses: data.expenses || [],
-      });
+      return () => unsub();
+    }, [id]);
+
+    // --- Subscriptions & initial load ---
+    useEffect(() => {
+        if (!id) return;
+
+        // trip doc
+        const tripRef = doc(db, "trips", id);
+        const unsubTrip = onSnapshot(tripRef, (snap) => {
+            if (!snap.exists()) return;
+            const data = snap.data();
+            setTrip((prev) => ({ ...prev, ...data }));
+            setEditTrip(data);
+            setTripPermissions(data.permissions || tripPermissions);
+            setTripAdmins(data.admins || [data.createdBy]);
+            setTripLinks(data.links || []);
+            if (data.display) {
+             setDisplaySettings((prev) => ({ ...prev, ...data.display }));
+           }
+            if (data.members?.length) loadMemberDetails(data.members);
+            if (data.location) {
+                fetchCoverImage(data.name || data.location).then(setCoverImage).catch(() => {});
+                getWeather(data.location).then(setWeather).catch(() => {});
+            }
+            if (data.location) {
+                fetchCoverImage(data.name || data.location)
+                  .then((url) => {
+                    if (url) {
+                      setCoverImage(url);
+                      // prefer trip.iconURL if present, else use fetched cover
+                      const iconToSync = data.iconURL || url;
+                      syncGroupChatIcon(iconToSync);
+                    }
+                  })
+                  .catch(() => {});
+                getWeather(data.location).then(setWeather).catch(() => {});
+            }
+            // if trip already has an iconURL, ensure groupChats doc synced
+            if (data.iconURL) {
+              syncGroupChatIcon(data.iconURL);
+            }
+        });
+
+        // checklist
+        const unsubChecklist = onSnapshot(collection(db, `trips/${id}/checklist`), (snap) => {
+            setChecklist(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        });
+
+        // photos
+        const unsubPhotos = onSnapshot(collection(db, `trips/${id}/photos`), (snap) => {
+            setPhotos(snap.docs.map((d) => d.data().url).filter(Boolean));
+        });
+
+        // timeline with auto-reveal logic
+        const timelineRef = collection(db, `trips/${id}/timeline`);
+        const unsubTimeline = onSnapshot(timelineRef, async (snap) => {
+            const events = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            const now = new Date().toISOString();
+
+            // auto reveal scheduled surprises
+            await Promise.all(
+                events
+                    .filter((e) => e.surprise && e.revealAt && !e.revealed && e.revealAt <= now)
+                    .map((e) => updateDoc(doc(db, `trips/${id}/timeline`, e.id), { revealed: true }).catch(() => {}))
+            );
+
+            const visibleEvents = events.filter((event) => {
+                if (!event.surprise) return true;
+                if (event.createdBy === currentUseruid) return true;
+                if (event.revealed) return true;
+                if (event.revealAt && event.revealAt <= now) return true;
+                return false;
+            });
+
+            setTimeline(visibleEvents.sort((a, b) => new Date(a.time) - new Date(b.time)));
+        });
+
+        // budget doc
+        const budgetRef = doc(db, "budgets", id);
+        const unsubBudget = onSnapshot(budgetRef, (snap) => {
+            if (!snap.exists()) {
+                setBudget({ total: 0, used: 0, contributors: [], expenses: [] });
+                return;
+            }
+            const data = snap.data();
+            const used = (data.expenses || []).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+            setBudget({ total: data.total || 0, used, contributors: data.contributors || [], expenses: data.expenses || [] });
+            setEditBudget({ total: data.total || 0, contributors: data.contributors || [] });
+        });
+
+        return () => {
+            unsubTrip();
+            unsubChecklist();
+            unsubPhotos();
+            unsubTimeline();
+            unsubBudget();
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id, currentUseruid]);
+
+    // load trip links separately if needed (kept in trip snapshot above)
+
+    // helper: load member details
+    const loadMemberDetails = (uids) => {
+        if (!Array.isArray(uids) || uids.length === 0) {
+            setMemberDetails([]);
+            return;
+        }
+        const unsubscribes = [];
+        const membersMap = {};
+        uids.forEach((uid) => {
+            const userRef = doc(db, "users", uid);
+            const unsub = onSnapshot(userRef, (snap) => {
+                if (!snap.exists()) return;
+                membersMap[uid] = { uid: snap.id, ...snap.data() };
+                setMemberDetails(Object.values(membersMap));
+            });
+            unsubscribes.push(unsub);
+        });
+        // return cleanup if caller wants it
+        return () => unsubscribes.forEach((u) => u());
+    };
+
+  const updateDisplaySettings = async (partial) => {
+    const next = { ...displaySettings, ...partial };
+    setDisplaySettings(next);
+    if (!id) return;
+    try {
+      await updateDoc(doc(db, "trips", id), { display: next });
+      // also update local trip object for immediate consistency
+      setTrip((t) => (t ? { ...t, display: next } : t));
+    } catch (err) {
+      console.error("Failed to save display settings:", err);
     }
-  });
+  };
 
-  return () => unsubBudget();
-}, [id]);
+  const syncGroupChatIcon = async (iconURL) => {
+    if (!iconURL || !id) return;
+    try {
+        const groupChatRef = doc(db, "groupChats", id);
+        const groupChatSnap = await getDoc(groupChatRef);
+        const groupChatData = groupChatSnap.exists() ? groupChatSnap.data() : null;
 
+        const iconURL = groupChatData?.iconURL || null;
+    } catch (err) {
+      console.error("Failed to sync group chat icon:", err);
+    }
+  };
 
-// Save all draft checklist items to Firestore, then clear and close drawer
-const addAllChecklistItems = async () => {
-  if (checklistDrafts.length === 0) {
-    setSnackbar({ open: true, message: "No checklist items to add." });
-    return;
-  }
-  setUploadingBatch(true);
+    // simple utility functions
+    const canUserDo = (action) => {
+        if (!currentUseruid) return false;
+        if (tripAdmins.includes(currentUseruid)) return true;
+        return tripPermissions[action] === "all";
+    };
+
+    const getMemberName = (uid) => {
+        const member = memberDetails.find((m) => m.uid === uid);
+        if (uid === currentUseruid) return `${member?.name || "You"} (Me)`;
+        return member?.name || "Unknown";
+    };
+
+    const calculateMemberPayments = (memberUid) => {
+        if (!budget?.expenses) return 0;
+        return budget.expenses.reduce((totalPaid, exp) => {
+            if (exp.payers && exp.payers.length > 0) {
+                const m = exp.payers.find((p) => p.uid === memberUid);
+                if (m) return totalPaid + (Number(m.amount) || 0);
+                return totalPaid;
+            } else if (exp.paidBy === memberUid) {
+                return totalPaid + (Number(exp.amount) || 0);
+            }
+            return totalPaid;
+        }, 0);
+    };
+
+    const initializeExpenseContributors = (members, mode) =>
+        members.map((member) => ({
+            uid: member.uid,
+            name: member.name || "Unknown",
+            photoURL: member.photoURL,
+            included: mode === "multiple_payers" ? true : member.uid === currentUseruid,
+            paidAmount: 0,
+        }));
+
+    // --- Actions (trimmed but complete) ---
+    const handleAddLink = async () => {
+        if (!newLink.url || !newLink.title) {
+            setSnackbar({ open: true, message: "Please fill both fields." });
+            return;
+        }
+        try {
+            const tripRef = doc(db, "trips", id);
+            const updatedLinks = [
+                ...(tripLinks || []),
+                { id: crypto.randomUUID(), ...newLink, createdBy: currentUseruid, createdAt: new Date().toISOString() },
+            ];
+            await updateDoc(tripRef, { links: updatedLinks });
+            setNewLink({ title: "", url: "" });
+            setLinkDrawerOpen(false);
+            setSnackbar({ open: true, message: "Link added successfully!" });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to add link." });
+        }
+    };
+
+    const handleDeleteLink = async (linkId) => {
+        try {
+            const tripRef = doc(db, "trips", id);
+            const updated = (tripLinks || []).filter((l) => l.id !== linkId);
+            await updateDoc(tripRef, { links: updated });
+            setSnackbar({ open: true, message: "Link removed." });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to remove link." });
+        }
+    };
+
+    const handleRenameLink = async (linkId, newTitle) => {
+        try {
+            const tripRef = doc(db, "trips", id);
+            const updated = (tripLinks || []).map((l) => (l.id === linkId ? { ...l, title: newTitle } : l));
+            await updateDoc(tripRef, { links: updated });
+            setEditingLink(null);
+            setSnackbar({ open: true, message: "Link renamed successfully!" });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to rename link." });
+        }
+    };
+
+    const getLinkIcon = (url) => {
+        if (!url) return <LinkIcon />;
+        if (url.includes("drive.google")) return <DriveFolderUploadIcon />;
+        if (url.includes("youtube")) return <YouTubeIcon color="error" />;
+        if (url.includes("photos.google")) return <PhotoLibraryIcon color="info" />;
+        return <LinkIcon />;
+    };
+
+    const handleSaveEdit = async () => {
+        if (!id) return;
+        try {
+            const tripRef = doc(db, "trips", id);
+            await updateDoc(tripRef, {
+                name: editTrip.name,
+                location: editTrip.location,
+                startDate: editTrip.startDate,
+                endDate: editTrip.endDate,
+                from: editTrip.from || "",
+                to: editTrip.to || "",
+            });
+            setTrip((prev) => ({ ...prev, ...editTrip }));
+            setEditMode(false);
+            setSnackbar({ open: true, message: "Trip updated successfully!" });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to save changes." });
+        }
+    };
+
+    const handleDeleteTrip = async () => {
+        try {
+            setConfirmDeleteOpen(false);
+            await deleteDoc(doc(db, "trips", id));
+            await deleteDoc(doc(db, "groupChats", id)).catch(() => {});
+            setSnackbar({ open: true, message: "Trip deleted successfully!" });
+            setTimeout(() => navigate("/trips"), 800);
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Error deleting trip." });
+        }
+    };
+
+    const handleRemoveMember = async (memberUid) => {
+        if (!trip?.createdBy || trip.createdBy !== currentUseruid) {
+            setSnackbar({ open: true, message: "Only the trip creator can remove members." });
+            return;
+        }
+        if (memberUid === currentUseruid) {
+            setSnackbar({ open: true, message: "You cannot remove yourself." });
+            return;
+        }
+        try {
+            const tripRef = doc(db, "trips", id);
+            const updatedMembers = (trip.members || []).filter((uid) => uid !== memberUid);
+            await updateDoc(tripRef, { members: updatedMembers });
+            setSnackbar({ open: true, message: "Member removed successfully!" });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to remove member." });
+        }
+    };
+
+    const revealSurpriseEvent = async (eventId) => {
+        try {
+            const eventRef = doc(db, `trips/${id}/timeline`, eventId);
+            await updateDoc(eventRef, { revealed: true });
+            setSnackbar({ open: true, message: "Surprise revealed to everyone!" });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to reveal surprise." });
+        }
+    };
+
+    const revealAllSurprises = async () => {
+        try {
+            const hidden = timeline.filter((e) => e.surprise && e.createdBy === currentUseruid && !e.revealed);
+            await Promise.all(hidden.map((e) => updateDoc(doc(db, `trips/${id}/timeline`, e.id), { revealed: true })));
+            setSnackbar({ open: true, message: "All surprise events revealed to members!" });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to reveal some surprises." });
+        }
+    };
+
+    const addTask = async () => {
+        if (!newTask?.trim()) return;
+        await addDoc(collection(db, `trips/${id}/checklist`), { text: newTask.trim(), completed: false });
+        setNewTask("");
+    };
+
+    const toggleTask = async (task) => {
+        try {
+            await updateDoc(doc(db, `trips/${id}/checklist`, task.id), { completed: !task.completed });
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    // timeline add / update / delete
+    const addTimelineEvent = async () => {
+        if (!newEvent.title || !newEvent.time) {
+            setSnackbar({ open: true, message: "Please fill all required fields." });
+            return;
+        }
+        try {
+            const eventData = {
+                title: newEvent.title,
+                time: newEvent.time,
+                note: newEvent.note || "",
+                completed: false,
+                createdBy: currentUseruid,
+                createdAt: new Date().toISOString(),
+                surprise: newEvent.surprise || false,
+                revealed: !newEvent.surprise,
+                revealAt: newEvent.revealAt || null,
+            };
+            await addDoc(collection(db, `trips/${id}/timeline`), eventData);
+            setNewEvent({ title: "", time: getCurrentDate() + "T" + getCurrentTime(), note: "" });
+            setTimelineDrawerOpen(false);
+            setSnackbar({ open: true, message: eventData.surprise ? "Surprise timeline added secretly!" : "Timeline event added successfully!" });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to add timeline event." });
+        }
+    };
+
+    const deleteTimelineEvent = async (eventId) => {
+        try {
+            await deleteDoc(doc(db, `trips/${id}/timeline`, eventId));
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const toggleEventCompleted = async (event) => {
+        try {
+            await updateDoc(doc(db, `trips/${id}/timeline`, event.id), { completed: !event.completed });
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    // budget / expense functions (saveBudget, addExpense, updateExpense) - implement core flows
+    const saveBudget = async () => {
+        if (!trip) return;
+        try {
+            const budgetRef = doc(db, "budgets", id);
+            const total = Number(editBudget.total) || 0;
+            const contributors = (editBudget.contributors || []).map((c) => ({ ...c, amount: Number(c.amount) || 0 }));
+            await setDoc(budgetRef, { total, contributors, updatedAt: new Date().toISOString(), createdBy: trip.createdBy || currentUseruid, tripId: id }, { merge: true });
+            setSnackbar({ open: true, message: "Budget saved successfully!" });
+            setBudgetDrawerOpen(false);
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to save budget." });
+        }
+    };
+
+    const addExpense = async () => {
+        if (!newExpense.name || !newExpense.amount || !newExpense.date || !newExpense.time) {
+            setSnackbar({ open: true, message: "Please fill all required fields." });
+            return;
+        }
+        try {
+            const budgetRef = doc(db, "budgets", id);
+            const budgetSnap = await getDoc(budgetRef);
+            if (!budgetSnap.exists()) {
+                setSnackbar({ open: true, message: "Please set up the budget first." });
+                return;
+            }
+            const data = budgetSnap.data();
+            const expenses = data.expenses || [];
+
+            let payers = [];
+            if (newExpense.splitMode === "multiple_payers") {
+                payers = (expenseContributors || []).filter((p) => p.included && parseFloat(p.paidAmount) > 0).map((p) => ({ uid: p.uid, name: getMemberName(p.uid), amount: parseFloat(p.paidAmount) }));
+                const totalPaid = payers.reduce((s, p) => s + p.amount, 0);
+                if (totalPaid !== parseFloat(newExpense.amount)) {
+                    setSnackbar({ open: true, message: `Total of payers (${totalPaid}) !== expense total (${newExpense.amount}).` });
+                    return;
+                }
+            } else {
+                if (!newExpense.paidBy) {
+                    setSnackbar({ open: true, message: "Please select who paid." });
+                    return;
+                }
+                payers = [{ uid: newExpense.paidBy, name: getMemberName(newExpense.paidBy), amount: parseFloat(newExpense.amount) }];
+            }
+
+            const expenseDateTime = new Date(`${newExpense.date}T${newExpense.time}`).toISOString();
+            const newExpenseItem = { name: newExpense.name, amount: parseFloat(newExpense.amount), category: newExpense.category || "General", date: newExpense.date, time: newExpense.time, dateTime: expenseDateTime, payers, splitMode: newExpense.splitMode, createdBy: currentUseruid, createdAt: new Date().toISOString() };
+            const updatedExpenses = [...expenses, newExpenseItem];
+            await updateDoc(budgetRef, { expenses: updatedExpenses });
+            setBudget((prev) => ({ ...prev, used: updatedExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0), expenses: updatedExpenses }));
+            setSnackbar({ open: true, message: "Expense added successfully!" });
+            setExpenseDrawerOpen(false);
+            setNewExpense({ name: "", amount: "", category: "", date: getCurrentDate(), time: getCurrentTime(), paidBy: currentUseruid, splitMode: "single_payer" });
+            setExpenseContributors(initializeExpenseContributors(memberDetails, "single_payer"));
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to add expense." });
+        }
+    };
+
+    const updateExpense = async () => {
+        if (!editingExpense) return;
+        try {
+            const budgetRef = doc(db, "budgets", id);
+            const budgetSnap = await getDoc(budgetRef);
+            if (!budgetSnap.exists()) {
+                setSnackbar({ open: true, message: "Budget not found." });
+                return;
+            }
+            const data = budgetSnap.data();
+            const expenses = data.expenses || [];
+
+            let payers = [];
+            if (newExpense.splitMode === "multiple_payers") {
+                payers = (expenseContributors || []).filter((p) => p.included && parseFloat(p.paidAmount) > 0).map((p) => ({ uid: p.uid, name: getMemberName(p.uid), amount: parseFloat(p.paidAmount) }));
+                const totalPaid = payers.reduce((s, p) => s + p.amount, 0);
+                if (totalPaid !== parseFloat(newExpense.amount)) {
+                    setSnackbar({ open: true, message: `Total of payers (${totalPaid}) !== expense total (${newExpense.amount}).` });
+                    return;
+                }
+            } else {
+                payers = [{ uid: newExpense.paidBy, name: getMemberName(newExpense.paidBy), amount: parseFloat(newExpense.amount) }];
+            }
+
+            const expenseDateTime = new Date(`${newExpense.date}T${newExpense.time}`).toISOString();
+            const updatedExpense = { ...editingExpense, name: newExpense.name, amount: parseFloat(newExpense.amount), category: newExpense.category || "General", date: newExpense.date, time: newExpense.time, dateTime: expenseDateTime, payers, splitMode: newExpense.splitMode };
+            const updatedExpenses = expenses.map((exp) => (exp.dateTime === editingExpense.dateTime ? updatedExpense : exp));
+            await updateDoc(budgetRef, { expenses: updatedExpenses });
+            setBudget((prev) => ({ ...prev, used: updatedExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0), expenses: updatedExpenses }));
+            setSnackbar({ open: true, message: "Expense updated successfully!" });
+            setExpenseDrawerOpen(false);
+            setEditingExpense(null);
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to update expense." });
+        }
+    };
+
+    const handleTimelineFileUpload = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target.result || "";
+            const lines = text.split("\n").map((l) => l.trim()).filter((l) => /^([-*•]|\d+\.)\s+.+/.test(l)).map((l) => ({ title: l.replace(/^([-*•]|\d+\.)\s*/, "").trim(), time: getCurrentDate() + "T" + getCurrentTime(), note: "" }));
+            if (lines.length === 0) setSnackbar({ open: true, message: "No valid list items found in file." });
+            else setTimelineDrafts(lines);
+        };
+        reader.readAsText(file);
+    };
+
+    const handleChecklistFileUpload = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target.result || "";
+            const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+            if (lines.length === 0) setSnackbar({ open: true, message: "No valid checklist items found in file." });
+            else setChecklistDrafts(lines);
+        };
+        reader.readAsText(file);
+    };
+
+    const addAllChecklistItems = async () => {
+        if (!checklistDrafts.length) {
+            setSnackbar({ open: true, message: "No checklist items to add." });
+            return;
+        }
+        setUploadingBatch(true);
+        try {
+            await Promise.all(checklistDrafts.map((text) => addDoc(collection(db, `trips/${id}/checklist`), { text, completed: false })));
+            setChecklistDrafts([]);
+            setChecklistDrawerOpen(false);
+            setSnackbar({ open: true, message: `${checklistDrafts.length} checklist item(s) added!` });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to add checklist items." });
+        }
+        setUploadingBatch(false);
+    };
+
+    const addAllTimelineEvents = async () => {
+        if (!timelineDrafts.length) {
+            setSnackbar({ open: true, message: "No timeline events to add." });
+            return;
+        }
+        try {
+            await Promise.all(timelineDrafts.map((item) => addDoc(collection(db, `trips/${id}/timeline`), { ...item, completed: false })));
+            setTimelineDrafts([]);
+            setTimelineDrawerOpen(false);
+            setSnackbar({ open: true, message: `${timelineDrafts.length} event(s) added!` });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to add timeline events." });
+        }
+    };
+
+    const updateChecklistItem = async (itemId, newText) => {
+        if (!newText?.trim()) return;
+        try {
+            await updateDoc(doc(db, `trips/${id}/checklist`, itemId), { text: newText.trim() });
+            setEditingChecklist(null);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const updateTimelineEvent = async (eventId, updatedData) => {
+        if (!updatedData?.title || !updatedData?.time) {
+            setSnackbar({ open: true, message: "Please fill title and time." });
+            return;
+        }
+        try {
+            await updateDoc(doc(db, `trips/${id}/timeline`, eventId), updatedData);
+            setEditingTimeline(null);
+            setSnackbar({ open: true, message: "Timeline event updated!" });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to update timeline event." });
+        }
+    };
+
+const fetchCoverImage = async (location) => {
+  // Combine 'travel' + location for the search query
+  const query = location ? `travel ${trip?.location}` : "travel";
+
   try {
-    const batchPromises = checklistDrafts.map(text =>
-      addDoc(collection(db, `trips/${id}/checklist`), { text, completed: false })
+    const response = await fetch(
+      `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&client_id=MGCA3bsEUNBsSG6XbcqnJXckFB4dDyN5ZPKVBrD0FeQ`
     );
-    await Promise.all(batchPromises);
-    setSnackbar({ open: true, message: `${checklistDrafts.length} checklist item(s) added!` });
-    setChecklistDrafts([]);
-    setChecklistDrawerOpen(false);
+    const data = await response.json();
+    return data?.urls?.regular || "";
   } catch (error) {
-    setSnackbar({ open: true, message: "Failed to add checklist items." });
-    console.error(error);
+    console.error("Failed to fetch cover image:", error);
+    return "";
   }
-  setUploadingBatch(false);
 };
 
 const fetchTripData = async () => {
@@ -566,9 +818,6 @@ const fetchTripData = async () => {
   const imageUrl = await fetchCoverImage(imageQuery);
   setCoverImage(imageUrl);
 
-  // Fetch personal budget
-  fetchBudget(tripData.name);
-
   // Fetch weather
   if (tripData.location) {
     try {
@@ -580,645 +829,249 @@ const fetchTripData = async () => {
   }
 };
 
-const loadMemberDetails = (uids) => {
-  const userDetailsUnsubs = [];
-
-  const members = [];
-
-  uids.forEach(uid => {
-    const userDocRef = doc(db, "users", uid);
-    const unsubscribe = onSnapshot(userDocRef, snapshot => {
-      if (snapshot.exists()) {
-        // update or add member info
-        const userData = { uid: snapshot.id, ...snapshot.data() };
-
-        const index = members.findIndex(m => m.uid === uid);
-        if (index !== -1) {
-          members[index] = userData;
-        } else {
-          members.push(userData);
-        }
-
-        // trigger state update (force new array for react state change detection)
-        setMemberDetails([...members]);
-      }
-    });
-    userDetailsUnsubs.push(unsubscribe);
-  });
-
-  // Optional: return unsubscribe functions to clean up listeners if needed
-  return () => userDetailsUnsubs.forEach(unsub => unsub());
-};
-
-// Fetch trip-based budget (from budgets/{tripId})
-const fetchBudget = async () => {
-  try {
-    const budgetRef = doc(db, "budgets", id);
-    const budgetSnap = await getDoc(budgetRef);
-
-    if (budgetSnap.exists()) {
-      const data = budgetSnap.data();
-      const totalUsed = (data.expenses || []).reduce(
-        (sum, exp) => sum + (Number(exp.amount) || 0),
-        0
-      );
-      setBudget({
-        total: data.total || 0,
-        used: totalUsed,
-        contributors: data.contributors || [],
-        expenses: data.expenses || [],
-      });
-      setEditBudget({
-        total: data.total || 0,
-        contributors: data.contributors || [],
-      });
-    } else {
-      setBudget({ total: 0, used: 0, contributors: [], expenses: [] });
-    }
-  } catch (error) {
-    console.error("Error fetching budget:", error);
-  }
-};
-
-
-  const handleSaveEdit = async () => {
-  if (!trip || !id) return;
-
-  try {
-    const tripRef = doc(db, "trips", id);
-    await updateDoc(tripRef, {
-      name: editTrip.name,
-      location: editTrip.location,
-      startDate: editTrip.startDate,
-      endDate: editTrip.endDate,
-      from: editTrip.from || "",
-      to: editTrip.to || ""
-    });
-
-    setTrip(prev => ({
-      ...prev,
-      name: editTrip.name,
-      location: editTrip.location,
-      startDate: editTrip.startDate,
-      endDate: editTrip.endDate,
-      from: editTrip.from,
-      to: editTrip.to
-    }));
-
-    setSnackbar({ open: true, message: "Trip updated successfully!" });
-    setEditMode(false);
-  } catch (err) {
-    console.error("Error updating trip:", err);
-    setSnackbar({ open: true, message: "Failed to save changes." });
-  }
-};
-
-const handleDeleteTrip = async () => {
-  try {
-    setConfirmDeleteOpen(false);
-
-    // Delete trip document
-    await deleteDoc(doc(db, "trips", id));
-
-    // Delete group chat
-    await deleteDoc(doc(db, "groupChats", id));
-
-    // Remove from all users' budgets
-    const budgetDocs = await getDocs(collection(db, "budgets"));
-    await Promise.all(
-      budgetDocs.docs.map(async (snap) => {
-        const data = snap.data();
-        const updatedItems = (data.items || []).filter(item => item.tripId !== id);
-        if (updatedItems.length !== (data.items || []).length) {
-          await updateDoc(doc(db, "budgets", snap.id), { items: updatedItems });
-        }
-      })
+    const renderExpensePayers = (exp) => {
+    const payers = exp?.payers || [];
+    const maxShown = 3;
+    return (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            {payers.slice(0, maxShown).map((p) => {
+                const member = memberDetails.find((m) => m.uid === p.uid);
+                return (
+                    <Tooltip key={p.uid} title={`${member?.name || p.name} — ₹${p.amount}`}>
+                        <Avatar
+                            src={member?.photoURL}
+                            sx={{ width: 24, height: 24, fontSize: 12 }}
+                        >
+                            {(!member?.photoURL && (member?.name || p.name)) ? (member?.name || p.name)[0] : null}
+                        </Avatar>
+                    </Tooltip>
+                );
+            })}
+            {payers.length > maxShown && (
+                <Typography variant="caption">+{payers.length - maxShown}</Typography>
+            )}
+        </Box>
     );
-
-    setSnackbar({ open: true, message: "Trip deleted successfully!" });
-    setTimeout(() => navigate("/trips"), 1000);
-  } catch (err) {
-    console.error("Failed to delete trip:", err);
-    setSnackbar({ open: true, message: "Error deleting trip." });
-  }
 };
 
-// Remove member from trip (admin only)
-const handleRemoveMember = async (memberUid) => {
-  if (!trip?.createdBy || trip.createdBy !== currentUseruid) {
-    setSnackbar({ open: true, message: "Only the trip creator can remove members." });
-    return;
-  }
-
-  if (memberUid === currentUseruid) {
-    setSnackbar({ open: true, message: "You cannot remove yourself." });
-    return;
-  }
-
-  try {
-    const tripRef = doc(db, "trips", id);
-    const updatedMembers = trip.members.filter((uid) => uid !== memberUid);
-
-    await updateDoc(tripRef, { members: updatedMembers });
-
-    // Optional: Also remove from related group chat
-    // const groupRef = doc(db, "groupChats", id);
-    // await updateDoc(groupRef, { members: updatedMembers });
-
-    setSnackbar({ open: true, message: "Member removed successfully!" });
-  } catch (error) {
-    console.error("Error removing member:", error);
-    setSnackbar({ open: true, message: "Failed to remove member." });
-  }
+    const confirmRemoveMember = async () => {
+    if (!memberToRemove) return;
+    await handleRemoveMember(memberToRemove);
+    setMemberToRemove(null);
 };
 
+    const renderTripLinks = () => {
+      if (!tripLinks || tripLinks.length === 0) {
+        return (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ pb: 2, textAlign: "center" }}
+          >
+            No links added yet.
+          </Typography>
+        );
+      }
 
-const handleEditSave = async () => {
-  if (!currentUseruid) return;
+const cardCommon = (link) => ({
+  onClick: () => window.open(link.url, "_blank"),
+  sx: {
+    cursor: "pointer",
+    p: 2,
+    borderRadius: 3,
+    position: "relative",
+    overflow: "hidden",
 
-  try {
-    const budgetDocRef = doc(db, "budgets", currentUseruid);
-    const budgetSnap = await getDoc(budgetDocRef);
+    background:
+      mode === "dark"
+        ? "linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))"
+        : "linear-gradient(145deg, #ffffff, #f9f9f9)",
 
-    // ✅ FIX: Declare and initialize items and tripBudgetIndex in the main function scope
-    let items = [];
-    let tripBudgetIndex = -1;
+    border:
+      mode === "dark"
+        ? "1px solid rgba(255,255,255,0.08)"
+        : "1px solid rgba(0,0,0,0.06)",
 
-    if (!budgetSnap.exists()) {
-      setSnackbar({ open: true, message: "Budget document not found. Creating a new budget entry." });
-      // If document doesn't exist, items remains []
-    } else {
-      const data = budgetSnap.data();
-      items = data.items || [];
-      // Find the budget item matching current tripId
-      tripBudgetIndex = items.findIndex(item => item.tripId === id);
-    }
-    
-    // The variables items and tripBudgetIndex are now properly defined and accessible here.
+    display: "flex",
+    flexDirection:
+      displaySettings.cardType === "detailed" ? "column" : "row",
+    alignItems:
+      displaySettings.cardType === "detailed" ? "flex-start" : "center",
+    gap: 1.5,
 
-    const updatedItem = {
-      name: trip?.name || "",
-      amount: parseInt(editBudget.total),
-      category: "General",
-      contributors: editBudget.contributors,
-      // Safely access expenses: either existing or an empty array
-      expenses: tripBudgetIndex !== -1 ? (items[tripBudgetIndex]?.expenses || []) : [],
-      tripId: id,
-    };
+    transition: "all 0.25s cubic-bezier(.4,0,.2,1)",
 
-    if (tripBudgetIndex !== -1) {
-      // Update existing item
-      items[tripBudgetIndex] = updatedItem;
-    } else {
-      // Add new item
-      items.push(updatedItem);
-    }
+    "&:hover": {
+      transform: "translateY(-4px)",
+      boxShadow:
+        mode === "dark"
+          ? "0 10px 28px rgba(0,0,0,0.6)"
+          : "0 10px 28px rgba(0,0,0,0.08)",
 
-    // Use setDoc with merge:true for safety, ensuring the doc is created/updated.
-    await setDoc(budgetDocRef, { items }, { merge: true });
-
-    // Recalculate and update local budget state
-    const totalUsed = updatedItem.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    
-    setBudget({
-      total: updatedItem.amount,
-      used: totalUsed,
-      contributors: updatedItem.contributors,
-      expenses: updatedItem.expenses
-    });
-
-    setBudgetDrawerOpen(false);
-    setSnackbar({ open: true, message: "Budget updated successfully!" });
-  } catch (error) {
-    console.error("Error updating budget:", error);
-    setSnackbar({ open: true, message: "Failed to update budget." });
-  }
-};
-
-    // Timeline handlers
-const addTimelineEvent = async () => {
-  if (!newEvent.title || !newEvent.time) {
-    setSnackbar({ open: true, message: "Please fill all required fields." });
-    return;
-  }
-
-  try {
-    const eventData = {
-      title: newEvent.title,
-      time: newEvent.time,
-      note: newEvent.note || "",
-      completed: false,
-      createdBy: currentUseruid,
-      createdAt: new Date().toISOString(),
-      surprise: newEvent.surprise || false,
-      revealed: !newEvent.surprise, // visible immediately if not surprise
-      revealAt: newEvent.revealAt || null,
-    };
-
-    await addDoc(collection(db, `trips/${id}/timeline`), eventData);
-
-    setSnackbar({
-      open: true,
-      message: newEvent.surprise
-        ? "Surprise timeline added secretly!"
-        : "Timeline event added successfully!",
-    });
-
-    setNewEvent({
-      title: "",
-      time: getCurrentDate() + "T" + getCurrentTime(),
-      note: "",
-      surprise: false,
-      revealAt: "",
-    });
-    setTimelineDrawerOpen(false);
-  } catch (error) {
-    console.error("Error adding timeline event:", error);
-    setSnackbar({ open: true, message: "Failed to add timeline event." });
-  }
-};
-
-
-const deleteTimelineEvent = async (eventId) => {
-  try {
-    await deleteDoc(doc(db, `trips/${id}/timeline`, eventId));
-  } catch (error) {
-    console.error("Error deleting timeline event:", error);
-  }
-};
-
-// ✅ Toggle event completion manually by admin
-const toggleEventCompleted = async (event) => {
-  try {
-    const eventRef = doc(db, `trips/${id}/timeline`, event.id);
-    await updateDoc(eventRef, {
-      completed: !event.completed,
-    });
-  } catch (error) {
-    console.error("Failed to toggle event completion:", error);
-  }
-};
-
-
-// Save or update the trip budget in budgets/{tripId}
-const saveBudget = async () => {
-  if (!trip) return;
-
-  try {
-    const budgetRef = doc(db, "budgets", id);
-    const total = Number(editBudget.total) || 0;
-    const contributors = editBudget.contributors.map((c) => ({
-      ...c,
-      amount: Number(c.amount) || 0,
-    }));
-
-    await setDoc(
-      budgetRef,
-      {
-        total,
-        contributors,
-        updatedAt: new Date().toISOString(),
-        createdBy: trip.createdBy || currentUseruid,
-        tripId: id,
+      "& .link-actions": {
+        opacity: 1,
+        transform: "translateY(0)",
       },
-      { merge: true }
-    );
+    },
+  },
+});
 
-    setSnackbar({ open: true, message: "Budget saved successfully!" });
-    await fetchBudget();
-    setBudgetDrawerOpen(false);
-  } catch (error) {
-    console.error("Error saving budget:", error);
-    setSnackbar({ open: true, message: "Failed to save budget." });
-  }
-};
+      // choose layout: for 'grid' use gridCols, for 'list' use listCols (multi-column list)
+      const cols =
+        displaySettings.layout === "grid"
+          ? Math.max(1, Number(displaySettings.gridCols || 1))
+          : Math.max(1, Number(displaySettings.listCols || 1));
 
+      return (
+  <Box
+    sx={{
+      display: "grid",
+      gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+      gap: 2,
+      mt: 1,
+    }}
+  >
+    {tripLinks.map((link) => (
+      <Box key={link.id || link.url} {...cardCommon(link)}>
+        {/* ---------- Icon ---------- */}
+        <Box
+          sx={{
+            width:
+              displaySettings.cardType === "detailed" ? "100%" : 48,
+            height:
+              displaySettings.cardType === "detailed" ? 44 : 48,
 
-// --- Add Expense to budgets/{tripId} (supports multiple payers) ---
-const addExpense = async () => {
-  if (!newExpense.name || !newExpense.amount || !newExpense.date || !newExpense.time) {
-    setSnackbar({ open: true, message: "Please fill all required fields." });
-    return;
-  }
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
 
-  try {
-    const budgetRef = doc(db, "budgets", id);
-    const budgetSnap = await getDoc(budgetRef);
+            borderRadius: 2,
+            flexShrink: 0,
 
-    if (!budgetSnap.exists()) {
-      setSnackbar({ open: true, message: "Please set up the budget first." });
-      return;
-    }
+            background:
+              mode === "dark"
+                ? "rgba(255,255,255,0.06)"
+                : "rgba(0,0,0,0.04)",
 
-    const existingData = budgetSnap.data();
-    const expenses = existingData.expenses || [];
+            color: "text.primary",
+          }}
+        >
+          {getLinkIcon(link.url)}
+        </Box>
 
-    let payers = [];
-    let totalPaid = 0;
+        {/* ---------- Content ---------- */}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography
+            variant={
+              displaySettings.cardType === "detailed"
+                ? "subtitle1"
+                : "body1"
+            }
+            fontWeight={600}
+            sx={{
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {link.title || link.url}
+          </Typography>
 
-    // --- MULTIPLE PAYERS MODE ---
-    if (newExpense.splitMode === "multiple_payers") {
-      payers = expenseContributors
-        .filter((p) => p.included && parseFloat(p.paidAmount) > 0)
-        .map((p) => ({
-          uid: p.uid,
-          name: getMemberName(p.uid),
-          amount: parseFloat(p.paidAmount),
-        }));
+          {displaySettings.cardType === "detailed" && (
+            <>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  display: "block",
+                  mt: 0.4,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {link.url}
+              </Typography>
 
-      totalPaid = payers.reduce((sum, p) => sum + p.amount, 0);
+              {link.createdBy && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mt: 0.4, display: "block" }}
+                >
+                  Added by {getMemberName(link.createdBy)}
+                </Typography>
+              )}
+            </>
+          )}
+        </Box>
 
-      if (payers.length === 0) {
-        setSnackbar({ open: true, message: "Please enter paid amounts for at least one member." });
-        return;
-      }
+        {/* ---------- Actions ---------- */}
+        {trip?.createdBy === currentUseruid && (
+          <Box
+            className="link-actions"
+            sx={{
+              display: "flex",
+              gap: 0.5,
+              alignItems: "center",
 
-      if (totalPaid !== parseFloat(newExpense.amount)) {
-        setSnackbar({
-          open: true,
-          message: `Total of payers (₹${totalPaid}) does not match expense total (₹${newExpense.amount}).`,
-        });
-        return;
-      }
-    } 
-    // --- SINGLE PAYER MODE ---
-    else {
-      if (!newExpense.paidBy) {
-        setSnackbar({ open: true, message: "Please select who paid." });
-        return;
-      }
+              opacity: 0,
+              transform: "translateY(4px)",
+              transition: "all 0.2s ease",
+            }}
+          >
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingLink(link.id);
+              }}
+              sx={{
+                background:
+                  mode === "dark"
+                    ? "rgba(255,255,255,0.08)"
+                    : "rgba(0,0,0,0.05)",
+              }}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
 
-      payers = [
-        {
-          uid: newExpense.paidBy,
-          name: getMemberName(newExpense.paidBy),
-          amount: parseFloat(newExpense.amount),
-        },
-      ];
-      totalPaid = parseFloat(newExpense.amount);
-    }
-
-    // --- Prepare expense item ---
-    const expenseDateTime = new Date(`${newExpense.date}T${newExpense.time}`).toISOString();
-    const newExpenseItem = {
-      name: newExpense.name,
-      amount: parseFloat(newExpense.amount),
-      category: newExpense.category || "General",
-      date: newExpense.date,
-      time: newExpense.time,
-      dateTime: expenseDateTime,
-      payers: payers,
-      splitMode: newExpense.splitMode,
-      createdBy: currentUseruid,
-      createdAt: new Date().toISOString(),
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteLink(link.id);
+              }}
+              sx={{
+                background:
+                  mode === "dark"
+                    ? "rgba(255,0,0,0.15)"
+                    : "rgba(255,0,0,0.08)",
+              }}
+            >
+              <CancelIcon color="error" fontSize="small" />
+            </IconButton>
+          </Box>
+        )}
+      </Box>
+    ))}
+  </Box>
+      );
     };
 
-    // --- Push expense to Firestore ---
-    const updatedExpenses = [...expenses, newExpenseItem];
-
-    await updateDoc(budgetRef, { expenses: updatedExpenses });
-
-    // --- Update UI state locally ---
-    const totalUsed = updatedExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-    setBudget((prev) => ({
-      ...prev,
-      used: totalUsed,
-      expenses: updatedExpenses,
-    }));
-
-    setSnackbar({ open: true, message: "Expense added successfully!" });
-
-    // --- Reset states ---
-    setExpenseDrawerOpen(false);
-    setNewExpense({
-      name: "",
-      amount: "",
-      category: "",
-      date: getCurrentDate(),
-      time: getCurrentTime(),
-      paidBy: currentUseruid,
-      splitMode: "single_payer",
-    });
-    setExpenseContributors(initializeExpenseContributors(memberDetails, "single_payer"));
-  } catch (error) {
-    console.error("Error adding expense:", error);
-    setSnackbar({ open: true, message: "Failed to add expense." });
-  }
-};
-
-
-
-const getMemberName = (uid) => {
-  const member = memberDetails.find(m => m.uid === uid);
-  // Prioritize showing 'You (Me)' for the current user for clarity
-  if (uid === currentUseruid) return `${member?.name || 'You'} (Me)`;
-  return member?.name || 'Unknown User';
-};
-
-const initializeExpenseContributors = (members, mode) => {
-  return members.map(member => ({
-    uid: member.uid,
-    name: member.name || 'Unknown',
-    photoURL: member.photoURL,
-    // When initializing, set 'included' to true only for the current user in 'single_payer' mode,
-    // but keep track of who paid (paidAmount: 0).
-    // In 'multiple_payers' mode, all are included.
-    included: mode === 'multiple_payers' ? true : (member.uid === currentUseruid),
-    paidAmount: 0, // This will hold how much this member actually paid for the total expense
-  }));
-};
-
-  const addTask = async () => {
-    if (!newTask) return;
-    await addDoc(collection(db, `trips/${id}/checklist`), {
-      text: newTask,
-      completed: false,
-    });
-    setNewTask("");
-  };
-
-  const toggleTask = async (task) => {
-    await updateDoc(doc(db, `trips/${id}/checklist`, task.id), {
-      completed: !task.completed
-    });
-  };
-
-const fetchCoverImage = async (location) => {
-  // Combine 'travel' + location for the search query
-  const query = location ? `travel ${trip?.location}` : "travel";
-
-  try {
-    const response = await fetch(
-      `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&client_id=MGCA3bsEUNBsSG6XbcqnJXckFB4dDyN5ZPKVBrD0FeQ`
-    );
-    const data = await response.json();
-    return data?.urls?.regular || "";
-  } catch (error) {
-    console.error("Failed to fetch cover image:", error);
-    return "";
-  }
-};
-
-const generateSharePoster = async () => {
-  try {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    const width = 1080;
-    const height = 1920;
-
-    canvas.width = width;
-    canvas.height = height;
-
-    // Gradient background
-    const gradient = ctx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, mode === "dark" ? "#000000" : "#ffffff");
-    gradient.addColorStop(1, mode === "dark" ? "#101010" : "#f3f3f3");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-
-    // Title
-    ctx.fillStyle = mode === "dark" ? "#ffffff" : "#000000";
-    ctx.font = "bold 70px Poppins";
-    ctx.textAlign = "center";
-    ctx.fillText(trip?.name || "Trip", width / 2, 200);
-
-    // Route
-    ctx.font = "40px Poppins";
-    ctx.fillText(`${trip?.from || "Origin"} → ${trip?.to || "Destination"}`, width / 2, 300);
-
-    // Date Range
-    ctx.font = "35px Poppins";
-    ctx.fillText(
-      `${trip?.startDate || "Start"} - ${trip?.endDate || "End"}`,
-      width / 2,
-      370
-    );
-
-    // QR Code (from QRCodeSVG)
-    const qrCanvas = document.createElement("canvas");
-    const qrSvg = document.querySelector("svg").outerHTML;
-    const blob = new Blob([qrSvg], { type: "image/svg+xml;charset=utf-8" });
-    const qrUrl = URL.createObjectURL(blob);
-    const qrImg = new Image();
-    await new Promise((res) => {
-      qrImg.onload = () => {
-        ctx.drawImage(qrImg, width / 2 - 180, 450, 360, 360);
-        URL.revokeObjectURL(qrUrl);
-        res();
-      };
-      qrImg.src = qrUrl;
-    });
-
-    // Footer Text
-    ctx.font = "28px Poppins";
-    ctx.fillStyle = mode === "dark" ? "#cccccc" : "#444444";
-    ctx.fillText("Join our trip on BunkMate!", width / 2, 950);
-
-    // Branding
-    ctx.font = "bold 40px Poppins";
-    ctx.fillStyle = mode === "dark" ? "#ffffff" : "#000000";
-    ctx.fillText("✨ BunkMate", width / 2, height - 100);
-
-    // Convert to blob and share/download
-    canvas.toBlob(async (blob) => {
-      const file = new File([blob], `${trip?.name || "trip"}.png`, {
-        type: "image/png",
-      });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: `${trip?.name || "Trip"} Poster`,
-          text: `Join our trip "${trip?.name}" on BunkMate!`,
-          files: [file],
-        });
-      } else {
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(file);
-        link.download = `${trip?.name || "trip"}_poster.png`;
-        link.click();
-        setSnackbar({ open: true, message: "Poster downloaded successfully!" });
-      }
-    });
-  } catch (error) {
-    console.error("Error generating poster:", error);
-    setSnackbar({ open: true, message: "Failed to generate poster." });
-  }
-};
-
-
-// --- Helper: Render Expense Payers ---
-const renderExpensePayers = (expense) => {
-  let payerUids = [];
-  if (expense.payers && expense.payers.length > 0) {
-    payerUids = expense.payers.map((p) => p.uid);
-  } else if (expense.paidBy) {
-    payerUids = [expense.paidBy];
-  }
-
-  const payersDetails = payerUids
-    .map((uid) => memberDetails.find((m) => m.uid === uid))
-    .filter(Boolean);
-
-  if (payersDetails.length === 0) return null;
-
-  if (payersDetails.length > 1) {
+    const goBack = () => navigate(-1);
+    const inviteLink = `${window.location.origin}/join?trip=${id}`;
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(trip?.from || "")}&destination=${encodeURIComponent(trip?.to || "")}`;
+    const now = new Date();
+    const upcomingIndex = timeline.findIndex((item) => new Date(item.time) > now);
+    const displayIconURL = trip?.iconURL || groupChatIcon || coverImage || "";
+    // --- Render ---
     return (
-      <AvatarGroup
-        max={3}
-        total={payersDetails.length}
-        sx={{
-          '& .MuiAvatar-root': {
-            width: 18,
-            height: 18,
-            fontSize: 10,
-            border: `1px solid ${mode === 'dark' ? '#fff' : '#000'}`,
-          },
-        }}
-      >
-        {payersDetails.map((detail, idx) => (
-          <Tooltip title={getMemberName(detail.uid)} key={idx}>
-            <Avatar alt={detail.name} src={detail.photoURL} />
-          </Tooltip>
-        ))}
-      </AvatarGroup>
-    );
-  } else {
-    const singlePayer = payersDetails[0];
-    return (
-      <Tooltip title={`Paid by: ${getMemberName(singlePayer.uid)}`}>
-        <Avatar
-          alt={singlePayer.name}
-          src={singlePayer.photoURL}
-          sx={{
-            width: 18,
-            height: 18,
-            fontSize: 10,
-            border: `1px solid ${mode === 'dark' ? '#fff' : '#000'}`,
-          }}
-        />
-      </Tooltip>
-    );
-  }
-};
+        <Box sx={{ color: mode === "dark" ? "#fff" : "#000", minHeight: "100vh" }}>
+            <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2, borderRadius: 2, position: "absolute", top: 16, left: 16 }}>
+                Back
+            </Button>
 
-
-
-  const inviteLink = `${window.location.origin}/join?trip=${id}`;
-
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-    trip?.from || ""
-  )}&destination=${encodeURIComponent(trip?.to || "")}`;
-
-  const goBack = () => {
-    navigate(-1);  
-  };
-
-  const now = new Date();
-  const upcomingIndex = timeline.findIndex(item => new Date(item.time) > now);
-
-  return (
-    <ThemeProvider theme={theme}>
-      <Box sx={{ color: mode === "dark" ? "#fff" : "#000", minHeight: "100vh" }}>
         <Button
           startIcon={<ArrowBackIcon />}
           onClick={goBack}
@@ -1230,7 +1083,7 @@ const renderExpensePayers = (expense) => {
             top: 16,
             left: 16,
             backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
-            backdropFilter: "blur(180px)",  
+            backdropFilter: "blur(180px)",
           }}
         >
           Back
@@ -1274,19 +1127,69 @@ const renderExpensePayers = (expense) => {
             >
               <GroupIcon />
             </Button>
+
+              {currentUseruid === trip?.createdBy ? (
+    <Button
+      onClick={() => setSettingsDrawerOpen(true)}
+      sx={{
+        mb: 2,
+        borderRadius: 8,
+        color: mode === "dark" ? "#fff" : "#000",
+        backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
+        backdropFilter: "blur(180px)",
+        border: "none",
+      }}
+    >
+      <SettingsIcon />
+    </Button>
+  ) : (
+    <Button
+      onClick={() => setSettingsDrawerOpen(true)}
+      sx={{
+        mb: 2,
+        borderRadius: 8,
+        color: mode === "dark" ? "#fff" : "#000",
+        backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
+        backdropFilter: "blur(180px)",
+        border: "none",
+      }}
+    >
+      <InfoIcon />
+    </Button>
+  )}
           </Box>
 
-        <Box
-          sx={{
-            backgroundImage: `url(${trip?.iconURL})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundColor: mode === "dark" ? "#1d1d1dff" : "#ffffff",
-            height: { xs: 470, sm: 320 },
-            boxShadow: "none",
-          }}
-        />
-
+          <Box
+            sx={{
+            backgroundImage:  `url(${displayIconURL})`,
+             backgroundSize: "cover",
+             backgroundPosition: "center",
+             backgroundColor: mode === "dark" ? "#1d1d1dff" : "#ffffff",
+             height: { xs: 470, sm: 320 },
+             boxShadow: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+           }}
+         >
+          {!displayIconURL && (
+            <Box
+              sx={{
+                width: 120,
+                height: 120,
+                borderRadius: 2,
+                backgroundColor: mode === "dark" ? "#222" : "#f2f2f2",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: mode === "dark" ? "#fff" : "#000",
+                fontWeight: 600,
+              }}
+            >
+              {trip?.name ? trip.name.charAt(0).toUpperCase() : "T"}
+            </Box>
+          )}
+         </Box>
 
         <Container sx={{ py: 0, px: 0, position: "absolute", top: 250}}>
 
@@ -1387,24 +1290,11 @@ const renderExpensePayers = (expense) => {
     </Typography>
     </Box>
 
-    {/* Footer Detail Line */}
-    {/* <Typography
-      variant="caption"
-      color="text.secondary"
-      sx={{
-        mt: 0.3,
-        textAlign: "right",
-        fontStyle: "italic",
-        opacity: 0.7,
-      }}
-    >
-      Updated {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-    </Typography> */}
   </Box>
 )}
 
           <Container sx={{ borderRadius: 5, backgroundColor: mode === "dark" ? "#00000000" : "#ffffffa3", backdropFilter: "blur(80px)", py: 2 }}>
-            
+
           {/* Title + Edit */}
           <Box display="flex" flexDirection="column" gap={1} px={3} py={2}>
             <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -1416,8 +1306,8 @@ const renderExpensePayers = (expense) => {
   variant="standard"
   sx={{
     mr: 2,
-    fontSize: '2rem',                // approximate size similar to h3
-    fontWeight: 'bold',              // h3 is usually bold
+    fontSize: '2rem',
+    fontWeight: 'bold',
     '& .MuiInputBase-input': {
       fontSize: '2rem',
       fontWeight: 'bold',
@@ -1440,7 +1330,7 @@ const renderExpensePayers = (expense) => {
               ) : (
                 <Typography variant="h3" fontWeight="bold">{trip?.name}</Typography>
               )}
-{trip?.createdBy === currentUseruid && (
+{trip?.createdBy === currentUseruid && canUserDo('canEdit') && (
   <IconButton onClick={() => setEditMode(!editMode)} size="small">
     <Edit fontSize="small" />
   </IconButton>
@@ -1455,8 +1345,8 @@ const renderExpensePayers = (expense) => {
                   onChange={e => setEditTrip({ ...editTrip, location: e.target.value })}
                   variant="standard"
                   sx={{
-                    mr: 2,             // approximate size similar to h3
-                    fontWeight: 'bold',              // h3 is usually bold
+                    mr: 2,
+                    fontWeight: 'bold',
                     '& .MuiInputBase-input': {
                       fontWeight: 'bold',
                       lineHeight: 1.2,
@@ -1555,32 +1445,76 @@ const renderExpensePayers = (expense) => {
 
             </Typography>
 
-            {trip?.from && trip?.to && (
-              <Box mt={2}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Route:
-                </Typography>
-                <Box display="flex" gap={1} mt={0.5} justifyContent={"space-between"}>
-                  <Typography variant="body1" fontWeight="bold" gutterBottom>
-                    {trip.from} → {trip.to}
-                  </Typography>
-                  <Button
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    sx={{
-                      backgroundColor: "#ffffff11",
-                      width: 40,
-                      height: 40,
-                      borderRadius: 8,
-                      color: mode === "dark" ? "#fff" : "#333",
-                    }}
-                  >
-                    <DirectionsIcon />
-                  </Button>
-                </Box>
-              </Box>
-            )}
+{trip?.from && trip?.to && (
+  <Box mt={2}>
+    <Typography variant="subtitle2" color="text.secondary">
+      Route:
+    </Typography>
+    <Box display="flex" gap={1} mt={0.5} justifyContent={"space-between"}>
+      {editMode ? (
+        <Box display="flex" gap={2} alignItems="center" width="100%">
+          <TextField
+            label="From"
+            value={editTrip.from || ""}
+            onChange={(e) => setEditTrip({ ...editTrip, from: e.target.value })}
+            variant="standard"
+            sx={{
+              flex: 1,
+              '& .MuiInput-underline:before': {
+                borderBottom: '1px solid',
+              },
+              '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
+                borderBottom: '2px solid',
+                borderColor: theme.palette.text.primary,
+              },
+              '& .MuiInput-underline:after': {
+                borderBottom: '2px solid',
+              },
+            }}
+          />
+          <Typography>→</Typography>
+          <TextField
+            label="To"
+            value={editTrip.to || ""}
+            onChange={(e) => setEditTrip({ ...editTrip, to: e.target.value })}
+            variant="standard"
+            sx={{
+              flex: 1,
+              '& .MuiInput-underline:before': {
+                borderBottom: '1px solid',
+              },
+              '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
+                borderBottom: '2px solid',
+                borderColor: theme.palette.text.primary,
+              },
+              '& .MuiInput-underline:after': {
+                borderBottom: '2px solid',
+              },
+            }}
+          />
+        </Box>
+      ) : (
+        <Typography variant="body1" fontWeight="bold" gutterBottom>
+          {trip.from} → {trip.to}
+        </Typography>
+      )}
+      <Button
+        href={mapsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{
+          backgroundColor: "#ffffff11",
+          width: 40,
+          height: 40,
+          borderRadius: 8,
+          color: mode === "dark" ? "#fff" : "#333",
+        }}
+      >
+        <DirectionsIcon />
+      </Button>
+    </Box>
+  </Box>
+)}
 
 {editMode && (
   <Button variant="contained" onClick={handleSaveEdit} sx={{ mt: 2, backgroundColor: mode === "dark" ? "#fff" : "#000", color: mode === "dark" ? "#000" : "#fff", borderRadius: 8 }}>
@@ -1593,98 +1527,7 @@ const renderExpensePayers = (expense) => {
     Shared Trip Links
   </Typography>
 
-  {tripLinks.length === 0 ? (
-    <Typography
-      variant="body2"
-      color="text.secondary"
-      sx={{ pb: 2, textAlign: "center" }}
-    >
-      No links added yet.
-    </Typography>
-  ) : (
-    <List
-      sx={{
-        maxHeight: "220px",
-        overflowY: "auto",
-        scrollbarWidth: "none",
-        mb: 1,
-      }}
-    >
-      {tripLinks.map((link) => (
-        <ListItem
-          key={link.id}
-          sx={{
-            backgroundColor:
-              mode === "dark" ? "#1a1a1a" : "#f7f7f7",
-            mb: 1,
-            borderRadius: 3,
-            px: 2,
-            py: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            transition: "0.2s ease",
-            "&:hover": {
-              backgroundColor:
-                mode === "dark" ? "#252525" : "#eeeeee",
-            },
-          }}
-        >
-          <Box display="flex" alignItems="center" gap={1.5}>
-            {getLinkIcon(link.url)}
-            {editingLink === link.id ? (
-              <TextField
-                variant="standard"
-                size="small"
-                value={link.title}
-                onChange={(e) => {
-                  const updated = tripLinks.map((l) =>
-                    l.id === link.id
-                      ? { ...l, title: e.target.value }
-                      : l
-                  );
-                  setTripLinks(updated);
-                }}
-                onBlur={() => handleRenameLink(link.id, link.title)}
-                autoFocus
-              />
-            ) : (
-              <Typography
-                variant="body1"
-                fontWeight="500"
-                onClick={() => window.open(link.url, "_blank")}
-                sx={{
-                  cursor: "pointer",
-                  "&:hover": {
-                    textDecoration: "underline",
-                  },
-                }}
-              >
-                {link.title}
-              </Typography>
-            )}
-          </Box>
-
-          {trip?.createdBy === currentUseruid && (
-            <Box display="flex" alignItems="center" gap={0.5}>
-              <IconButton
-                size="small"
-                onClick={() => setEditingLink(link.id)}
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
-              <IconButton
-                size="small"
-                onClick={() => handleDeleteLink(link.id)}
-              >
-                <Cancel color="error" fontSize="small" />
-              </IconButton>
-            </Box>
-          )}
-        </ListItem>
-      ))}
-    </List>
-  )}
+{renderTripLinks()}
 
   {trip?.createdBy === currentUseruid && (
     <Button
@@ -1729,9 +1572,11 @@ const renderExpensePayers = (expense) => {
                   {trip?.createdBy === currentUseruid && (
                     <Button size="small" color={theme.palette.text.primary} onClick={() => setBudgetDrawerOpen(true)}>Edit</Button>
                   )}
-                  <Button size="small" color={theme.palette.text.primary} onClick={() => setExpenseDrawerOpen(true)} sx={{ ml: 1 }}>
-                    Add Expense
-                  </Button>
+                  {trip?.createdBy === currentUseruid && canUserDo('canAddExpenses') && (
+                    <Button size="small" color={theme.palette.text.primary} onClick={() => setExpenseDrawerOpen(true)} sx={{ ml: 1 }}>
+                      Add Expense
+                    </Button>
+                  )}
                   </>
                 </Box>
               </Box>
@@ -1878,55 +1723,175 @@ const renderExpensePayers = (expense) => {
           Expenses
         </Typography>
 
-        {visibleExpenses.length ? (
-          visibleExpenses.map((exp, idx) => (
-            <Box
-              key={idx}
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                mb: 1,
-                p: 1,
-                borderRadius: 2,
-                backgroundColor:
-                  mode === 'dark' ? 'rgba(255,255,255,0.04)' : '#fff',
-                boxShadow: "none",
-              }}
-            >
-              <Typography
-                variant="body2"
-                fontWeight="bold"
-                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-              >
-                {exp.name || 'Unnamed'} — ₹{exp.amount}
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  {renderExpensePayers(exp)}
-                </Box>
-              </Typography>
+{visibleExpenses.map((exp, idx) => {
+  const canEdit =
+    exp.payers?.some((p) => p.uid === currentUseruid) ||
+    exp.paidBy === currentUseruid;
 
-              <Typography
-                variant="caption"
-                sx={{
-                  px: 1,
-                  py: 0.3,
-                  ml: 1,
-                  borderRadius: 1,
-                  backgroundColor:
-                    mode === 'dark'
-                      ? 'rgba(255,255,255,0.08)'
-                      : 'rgba(0,0,0,0.05)',
-                }}
-              >
-                {exp.category}
-              </Typography>
-            </Box>
-          ))
-        ) : (
-          <Typography color="text.secondary">
-            No expenses added yet.
-          </Typography>
+  const payers = exp.payers?.length
+    ? exp.payers
+    : exp.paidBy
+    ? [{ uid: exp.paidBy, amount: exp.amount }]
+    : [];
+
+  return (
+    <Box
+      key={idx}
+      sx={{
+        p: 1.5,
+        mb: 1.2,
+        borderRadius: 3,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 1.5,
+
+        background:
+          mode === "dark"
+            ? "linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))"
+            : "linear-gradient(145deg, #ffffff, #f8f8f8)",
+
+        border:
+          mode === "dark"
+            ? "1px solid rgba(255,255,255,0.08)"
+            : "1px solid rgba(0,0,0,0.06)",
+
+        transition: "all 0.2s ease",
+
+        "&:hover": {
+          transform: "translateY(-2px)",
+          boxShadow:
+            mode === "dark"
+              ? "0 8px 22px rgba(0,0,0,0.6)"
+              : "0 8px 22px rgba(0,0,0,0.08)",
+        },
+      }}
+    >
+      {/* ---------- Left: Expense Info ---------- */}
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography
+          variant="body1"
+          fontWeight={600}
+          sx={{
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {exp.name || "Unnamed Expense"}
+        </Typography>
+
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", mt: 0.2 }}
+        >
+          ₹{exp.amount}
+        </Typography>
+      </Box>
+
+      {/* ---------- Payers Avatar Group ---------- */}
+      <AvatarGroup
+        max={3}
+        sx={{
+          "& .MuiAvatar-root": {
+            width: 28,
+            height: 28,
+            fontSize: 12,
+            border: "2px solid",
+            borderColor: mode === "dark" ? "#000" : "#fff",
+          },
+        }}
+      >
+        {payers.map((p) => {
+          const member = memberDetails.find((m) => m.uid === p.uid);
+          return (
+            <Tooltip
+              key={p.uid}
+              title={`${member?.name || "Member"} — ₹${p.amount}`}
+            >
+              <Avatar src={member?.photoURL}>
+                {(!member?.photoURL &&
+                  (member?.name || "M")[0]) ||
+                  null}
+              </Avatar>
+            </Tooltip>
+          );
+        })}
+      </AvatarGroup>
+
+      {/* ---------- Right: Meta + Actions ---------- */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          flexShrink: 0,
+        }}
+      >
+        {/* Category Chip */}
+        <Typography
+          variant="caption"
+          sx={{
+            px: 1,
+            py: 0.4,
+            borderRadius: 1.5,
+            background:
+              mode === "dark"
+                ? "rgba(255,255,255,0.1)"
+                : "rgba(0,0,0,0.06)",
+            fontWeight: 500,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {exp.category || "General"}
+        </Typography>
+
+        {/* Edit Action */}
+        {canEdit && (
+          <IconButton
+            size="small"
+            onClick={() => {
+              setEditingExpense(exp);
+              setNewExpense({
+                name: exp.name,
+                amount: exp.amount.toString(),
+                category: exp.category,
+                date: exp.date,
+                time: exp.time,
+                paidBy: exp.paidBy || exp.payers?.[0]?.uid,
+                splitMode: exp.splitMode || "single_payer",
+              });
+              setExpenseContributors(
+                memberDetails.map((member) => ({
+                  uid: member.uid,
+                  name: member.name || "Unknown",
+                  photoURL: member.photoURL,
+                  included:
+                    exp.payers?.some((p) => p.uid === member.uid) ||
+                    exp.paidBy === member.uid,
+                  paidAmount:
+                    exp.payers?.find((p) => p.uid === member.uid)?.amount ||
+                    (exp.paidBy === member.uid ? exp.amount : 0),
+                }))
+              );
+              setExpenseDrawerOpen(true);
+            }}
+            sx={{
+              background:
+                mode === "dark"
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(0,0,0,0.05)",
+            }}
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
         )}
+      </Box>
+    </Box>
+  );
+})}
+
 
         {budget.expenses.length > 4 && (
           <Button
@@ -1976,7 +1941,6 @@ const renderExpensePayers = (expense) => {
   >
 
 {checklist.map((task) => (
-
   <ListItem
     key={task.id}
     onClick={() => toggleTask(task)}
@@ -1999,15 +1963,48 @@ const renderExpensePayers = (expense) => {
       />
     </ListItemIcon>
     <ListItemText
-      primary={task.text}
-      primaryTypographyProps={{
-        sx: {
-          textDecoration: task.completed ? "line-through" : "none",
-          color: task.completed ? "#888" : "inherit",
-          userSelect: "text",
-        },
-      }}
+      primary={
+        editingChecklist === task.id ? (
+          <TextField
+            fullWidth
+            defaultValue={task.text}
+            onBlur={(e) => updateChecklistItem(task.id, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                updateChecklistItem(task.id, e.target.value);
+              }
+            }}
+            autoFocus
+            variant="standard"
+            sx={{
+              '& .MuiInput-underline:before': { borderBottom: '1px solid' },
+              '& .MuiInput-underline:after': { borderBottom: '2px solid' },
+            }}
+          />
+        ) : (
+          <Typography
+            sx={{
+              textDecoration: task.completed ? "line-through" : "none",
+              color: task.completed ? "#888" : "inherit",
+              userSelect: "text",
+            }}
+          >
+            {task.text}
+          </Typography>
+        )
+      }
     />
+    {!editingChecklist && (
+      <IconButton
+        size="small"
+        onClick={(e) => {
+          e.stopPropagation();
+          setEditingChecklist(task.id);
+        }}
+      >
+        <EditIcon fontSize="small" />
+      </IconButton>
+    )}
   </ListItem>
 ))}
   </List>
@@ -2150,168 +2147,217 @@ const renderExpensePayers = (expense) => {
       mb: 1,
     }}
   >
-    {timeline.map((item, index) => {
-      const itemTime = new Date(item.time);
-      const isCompleted = item.completed;
-      const isUpcoming =
-        !isCompleted &&
-        itemTime > new Date() &&
-        timeline.findIndex(
-          (e) => new Date(e.time) > new Date() && !e.completed
-        ) === index;
+{timeline.map((item, index) => {
+  const itemTime = new Date(item.time);
+  const isCompleted = item.completed;
+  const isCreator = trip?.createdBy === currentUseruid; // Add this line
+  const isUpcoming =
+    !isCompleted &&
+    itemTime > new Date() &&
+    timeline.findIndex(
+      (e) => new Date(e.time) > new Date() && !e.completed
+    ) === index;
 
-      // Surprise event conditions
-      const isCreator = item.createdBy === currentUseruid;
-      const isLocked =
-        item.surprise &&
-        !item.revealed &&
-        !isCreator &&
-        (!item.revealAt || new Date(item.revealAt) > new Date());
-      const canReveal =
-        item.surprise && isCreator && !item.revealed;
+  const isLocked =
+    item.surprise &&
+    !item.revealed &&
+    !isCreator &&
+    (!item.revealAt || new Date(item.revealAt) > new Date());
+  const canReveal =
+    item.surprise && isCreator && !item.revealed;
 
-      return (
-        <ListItem
-          key={item.id}
-          sx={{
-            backgroundColor: isLocked
-              ? mode === "dark"
-                ? "#292929"
-                : "#f4f4f4"
-              : isUpcoming
-              ? "#bc751835"
-              : isCompleted
-              ? mode === "dark"
-                ? "#000000"
-                : "#ffffff"
-              : mode === "dark"
-              ? "#1c1c1c"
-              : "#f0f0f0ff",
-            borderRadius: 3,
-            mb: 1,
-            px: 2,
-            py: 1,
-            border: isUpcoming
-              ? "2px solid #bc7518ff"
-              : isLocked
-              ? "1px dashed #888"
-              : "none",
-            boxShadow: isUpcoming
-              ? "0 0 10px #bc751880"
-              : "none",
-            display: "flex",
-            alignItems: "center",
-            transition: "all 0.2s ease",
-          }}
-          secondaryAction={
-            isCompleted &&
-            trip?.createdBy === currentUseruid && (
-              <IconButton onClick={() => deleteTimelineEvent(item.id)}>
-                <Cancel color="error" />
-              </IconButton>
-            )
-          }
-        >
-          {/* Checkbox for visible (non-surprise) or creator view */}
-          {!isLocked && (
-            <ListItemIcon>
-              <Checkbox
-                checked={isCompleted}
-                onChange={() => toggleEventCompleted(item)}
-                sx={{ color: "#999" }}
-              />
-            </ListItemIcon>
-          )}
-
-          <ListItemText
-            primary={
-              <Typography
-                variant="body1"
-                fontWeight={
-                  isLocked
-                    ? "bold"
-                    : isUpcoming
-                    ? "bold"
-                    : isCompleted
-                    ? "normal"
-                    : "medium"
-                }
-                color={
-                  isLocked
-                    ? "text.secondary"
-                    : isCompleted
-                    ? "#888"
-                    : theme.palette.text.primary
-                }
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.8,
-                  textDecoration: isCompleted ? "line-through" : "none",
-                }}
-              >
-                {/* Locked View */}
-                {isLocked ? (
-                  <>
-                    <LockOutlinedIcon
-                      sx={{
-                        fontSize: 18,
-                        color: mode === "dark" ? "#bbb" : "#555",
-                      }}
-                    />
-                    🎁 Surprise Locked
-                  </>
-                ) : (
-                  item.title
-                )}
-              </Typography>
-            }
-            secondary={
-              <>
-                {isLocked ? (
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ fontStyle: "italic" }}
-                  >
-                    Planned secretly by{" "}
-                    <b>{getMemberName(item.createdBy) || "a member"}</b>
-                  </Typography>
-                ) : (
-                  <Typography variant="caption" color="text.secondary">
-                    {itemTime.toLocaleString()}
-                    {item.note && ` — ${item.note}`}
-                  </Typography>
-                )}
-              </>
-            }
+  return (
+    <ListItem
+      key={item.id}
+      sx={{
+        backgroundColor: isLocked
+          ? mode === "dark"
+            ? "#292929"
+            : "#f4f4f4"
+          : isUpcoming
+          ? "#bc751835"
+          : isCompleted
+          ? mode === "dark"
+            ? "#000000"
+            : "#ffffff"
+          : mode === "dark"
+          ? "#1c1c1c"
+          : "#f0f0f0ff",
+        borderRadius: 3,
+        mb: 1,
+        px: 2,
+        py: 1,
+        border: isUpcoming
+          ? "2px solid #bc7518ff"
+          : isLocked
+          ? "1px dashed #888"
+          : "none",
+        boxShadow: isUpcoming
+          ? "0 0 10px #bc751880"
+          : "none",
+        display: "flex",
+        alignItems: "center",
+        transition: "all 0.2s ease",
+      }}
+      secondaryAction={
+        isCompleted &&
+        trip?.createdBy === currentUseruid && (
+          <IconButton onClick={() => deleteTimelineEvent(item.id)}>
+            <CancelIcon color="error" />
+          </IconButton>
+        )
+      }
+    >
+      {!isLocked && (
+        <ListItemIcon>
+          <Checkbox
+            checked={isCompleted}
+            onChange={() => toggleEventCompleted(item)}
+            sx={{ color: "#999" }}
           />
+        </ListItemIcon>
+      )}
 
-          {/* Reveal Button (Creator Only) */}
-          {canReveal && (
-            <Button
-              size="small"
-              variant="outlined"
+      <ListItemText
+        primary={
+          editingTimeline === item.id ? (
+            <Box>
+              <TextField
+                fullWidth
+                label="Title"
+                defaultValue={item.title}
+                onChange={(e) => setEditingTimeline({ ...editingTimeline, title: e.target.value })}
+                sx={{ mb: 1 }}
+              />
+              <TextField
+                fullWidth
+                type="datetime-local"
+                label="Time"
+                defaultValue={item.time}
+                onChange={(e) => setEditingTimeline({ ...editingTimeline, time: e.target.value })}
+                sx={{ mb: 1 }}
+              />
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                label="Note"
+                defaultValue={item.note || ""}
+                onChange={(e) => setEditingTimeline({ ...editingTimeline, note: e.target.value })}
+              />
+              <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+                <Button
+                  size="small"
+                  onClick={() => updateTimelineEvent(item.id, editingTimeline)}
+                >
+                  Save
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => setEditingTimeline(null)}
+                >
+                  Cancel
+                </Button>
+              </Box>
+            </Box>
+          ) : (
+            <Typography
+              variant="body1"
+              fontWeight={
+                isLocked
+                  ? "bold"
+                  : isUpcoming
+                  ? "bold"
+                  : isCompleted
+                  ? "normal"
+                  : "medium"
+              }
+              color={
+                isLocked
+                  ? "text.secondary"
+                  : isCompleted
+                  ? "#888"
+                  : theme.palette.text.primary
+              }
               sx={{
-                ml: 1,
-                borderRadius: 2,
-                textTransform: "none",
-                borderColor:
-                  mode === "dark" ? "#ffffff60" : "#00000060",
-                color: mode === "dark" ? "#fff" : "#000",
-                "&:hover": {
-                  backgroundColor:
-                    mode === "dark" ? "#ffffff20" : "#00000010",
-                },
+                display: "flex",
+                alignItems: "center",
+                gap: 0.8,
+                textDecoration: isCompleted ? "line-through" : "none",
               }}
-              onClick={() => revealSurpriseEvent(item.id)}
             >
-              Reveal Now
-            </Button>
-          )}
-        </ListItem>
-      );
-    })}
+              {isLocked ? (
+                <>
+                  <LockOutlinedIcon
+                    sx={{
+                      fontSize: 18,
+                      color: mode === "dark" ? "#bbb" : "#555",
+                    }}
+                  />
+                  🎁 Surprise Locked
+                </>
+              ) : (
+                item.title
+              )}
+            </Typography>
+          )
+        }
+        secondary={
+          !editingTimeline && (
+            <>
+              {isLocked ? (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontStyle: "italic" }}
+                >
+                  Planned secretly by{" "}
+                  <b>{getMemberName(item.createdBy) || "a member"}</b>
+                </Typography>
+              ) : (
+                <Typography variant="caption" color="text.secondary">
+                  {itemTime.toLocaleString()}
+                  {item.note && ` — ${item.note}`}
+                </Typography>
+              )}
+            </>
+          )
+        }
+      />
+
+      {!editingTimeline && !isLocked && (
+        <IconButton
+          size="small"
+          onClick={() => setEditingTimeline(item)}
+        >
+          <EditIcon fontSize="small" />
+        </IconButton>
+      )}
+
+      {canReveal && (
+        <Button
+          size="small"
+          variant="outlined"
+          sx={{
+            ml: 1,
+            borderRadius: 2,
+            textTransform: "none",
+            borderColor:
+              mode === "dark" ? "#ffffff60" : "#00000060",
+            color: mode === "dark" ? "#fff" : "#000",
+            "&:hover": {
+              backgroundColor:
+                mode === "dark" ? "#ffffff20" : "#00000010",
+            },
+          }}
+          onClick={() => revealSurpriseEvent(item.id)}
+        >
+          Reveal Now
+        </Button>
+      )}
+    </ListItem>
+  );
+})}
   </List>
 )}
 
@@ -2394,7 +2440,7 @@ const renderExpensePayers = (expense) => {
       </Box>
 
       {/* Only show remove button to trip creator */}
-      {trip?.createdBy === currentUseruid && user.uid !== currentUseruid && (
+      {tripAdmins.includes(currentUseruid) && user.uid !== currentUseruid && (
         <Tooltip title="Remove Member">
           <IconButton
             size="small"
@@ -2582,1659 +2628,93 @@ const renderExpensePayers = (expense) => {
           </Container>
         </Container>
 
+            {/* Sub-components (drawers, dialogs) */}
+            <ShareDrawer shareDrawerOpen={shareDrawerOpen} setShareDrawerOpen={setShareDrawerOpen} inviteLink={inviteLink} trip={trip} mode={mode} generateSharePoster={() => {}} setSnackbar={setSnackbar} />
 
-                  {/* Invite Drawer */}
-<SwipeableDrawer
-  anchor="bottom"
-  open={shareDrawerOpen}
-  onClose={() => setShareDrawerOpen(false)}
-  ModalProps={{
-    BackdropProps: {
-      sx: {
-        p: 3,
-        backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-        backdropFilter: "blur(5px)",
-      },
-    },
-  }}
-  PaperProps={{
-    sx: {
-      p: 3,
-      borderTopLeftRadius: 26,
-      borderTopRightRadius: 26,
-      backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
-      boxShadow: "none",
-    },
-  }}
->
-  {/* Drawer Handle */}
-  <Box
-    sx={{
-      width: 40,
-      height: 5,
-      bgcolor: "grey.500",
-      opacity: 0.5,
-      borderRadius: 2.5,
-      mx: "auto",
-      mb: 2,
-      cursor: "grab",
-    }}
-  />
-
-  {/* Header */}
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      mb: 3,
-    }}
-  >
-    <Typography variant="h6" fontWeight="bold">
-      Share Trip Invite
-    </Typography>
-    <IconButton onClick={() => setShareDrawerOpen(false)}>
-      <CloseOutlinedIcon />
-    </IconButton>
-  </Box>
-
-  {/* QR Code */}
-  <Box sx={{ mb: 3, display: "flex", justifyContent: "center" }}>
-    <Box
-      sx={{
-        width: 180,
-        height: 180,
-        backgroundColor: "#fff",
-        p: 2,
-        borderRadius: 4,
-        boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <QRCodeSVG value={inviteLink} size={160} bgColor="#fff" fgColor="#000" />
-    </Box>
-  </Box>
-
-  {/* Invite Link */}
-  <TextField
-    fullWidth
-    multiline
-    value={inviteLink}
-    InputProps={{
-      readOnly: true,
-      endAdornment: (
-        <InputAdornment position="end">
-          <IconButton
-            onClick={() => {
-              navigator.clipboard.writeText(inviteLink);
-              setSnackbar({ open: true, message: "Copied invite link!" });
-            }}
-          >
-            <ContentCopy />
-          </IconButton>
-        </InputAdornment>
-      ),
-    }}
-    sx={{ mb: 3 }}
-  />
-
-  {/* Native Device Share */}
-  {navigator.share && (
-    <Button
-      fullWidth
-      variant="contained"
-      startIcon={<ShareIcon />}
-      onClick={async () => {
-        try {
-          await navigator.share({
-            title: `Join my trip "${trip?.name}" on BunkMate!`,
-            text: `Hey! Join our trip "${trip?.name}" using this invite link.`,
-            url: inviteLink,
-          });
-          setSnackbar({ open: true, message: "Shared successfully!" });
-        } catch (error) {
-          console.log("Share cancelled or failed:", error);
-        }
-      }}
-      sx={{
-        mb: 2,
-        py: 1.3,
-        fontWeight: 600,
-        borderRadius: 10,
-        backgroundColor: mode === "dark" ? "#ffffff" : "#000000",
-        color: mode === "dark" ? "#000" : "#fff",
-        "&:hover": {
-          backgroundColor: mode === "dark" ? "#f1f1f1" : "#111",
-        },
-      }}
-    >
-      Share via Device
-    </Button>
-  )}
-
-  {/* Social Sharing Options */}
-  <Box
-    display="flex"
-    flexWrap="wrap"
-    justifyContent="center"
-    alignItems="center"
-    gap={2}
-  >
-    <Tooltip title="Share on WhatsApp">
-      <IconButton
-        component="a"
-        href={`https://wa.me/?text=${encodeURIComponent(
-          `You're invited to join "${trip?.name}" on BunkMate! 🚀\nTap here: ${inviteLink}`
-        )}`}
-        target="_blank"
-        sx={{
-          backgroundColor: "#25D366",
-          color: "#fff",
-          p: 2,
-          "&:hover": { opacity: 0.8 },
-        }}
-      >
-        <WhatsAppIcon />
-      </IconButton>
-    </Tooltip>
-
-    <Tooltip title="Share on Telegram">
-      <IconButton
-        component="a"
-        href={`https://t.me/share/url?url=${encodeURIComponent(
-          inviteLink
-        )}&text=${encodeURIComponent(
-          `Join our "${trip?.name}" on BunkMate! 🚀`
-        )}`}
-        target="_blank"
-        sx={{
-          backgroundColor: "#229ED9",
-          color: "#fff",
-          p: 2,
-          "&:hover": { opacity: 0.8 },
-        }}
-      >
-        <TelegramIcon />
-      </IconButton>
-    </Tooltip>
-
-    <Tooltip title="Share on X (Twitter)">
-      <IconButton
-        component="a"
-        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
-          `Join my trip "${trip?.name}" on BunkMate! 🌍 ${inviteLink}`
-        )}`}
-        target="_blank"
-        sx={{
-          backgroundColor: "#1DA1F2",
-          color: "#fff",
-          p: 2,
-          "&:hover": { opacity: 0.8 },
-        }}
-      >
-        <TwitterIcon />
-      </IconButton>
-    </Tooltip>
-
-    <Tooltip title="Copy for Instagram Story">
-      <IconButton
-        onClick={() => {
-          navigator.clipboard.writeText(inviteLink);
-          setSnackbar({
-            open: true,
-            message: "Copied! Paste link in your Instagram story caption.",
-          });
-        }}
-        sx={{
-          backgroundColor: "#E1306C",
-          color: "#fff",
-          p: 2,
-          "&:hover": { opacity: 0.8 },
-        }}
-      >
-        <InstagramIcon />
-      </IconButton>
-    </Tooltip>
-
-    <Tooltip title="Share QR Image">
-      <IconButton
-        onClick={async () => {
-          try {
-            const canvas = document.querySelector("svg").outerHTML;
-            const blob = new Blob([canvas], { type: "image/svg+xml" });
-            const file = new File([blob], "trip_qr.svg", { type: "image/svg+xml" });
-
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-              await navigator.share({
-                title: `Trip QR for ${trip?.name}`,
-                text: "Scan this QR to join our trip on BunkMate!",
-                files: [file],
-              });
-            } else {
-              setSnackbar({
-                open: true,
-                message: "QR saved. Your device may not support file sharing.",
-              });
-            }
-          } catch (error) {
-            console.log("QR sharing failed:", error);
-          }
-        }}
-        sx={{
-          backgroundColor: mode === "dark" ? "#555" : "#ddd",
-          color: mode === "dark" ? "#fff" : "#000",
-          p: 2,
-          "&:hover": { opacity: 0.9 },
-        }}
-      >
-        <ShareIcon />
-      </IconButton>
-    </Tooltip>
-    {/* <Button
-  fullWidth
-  variant="contained"
-  startIcon={<ImageIcon />}
-  onClick={generateSharePoster}
-  sx={{
-    mt: 3,
-    py: 1.3,
-    fontWeight: 600,
-    borderRadius: 10,
-    backgroundColor: mode === "dark" ? "#fff" : "#000",
-    color: mode === "dark" ? "#000" : "#fff",
-    "&:hover": {
-      backgroundColor: mode === "dark" ? "#f1f1f1" : "#111",
-    },
-  }}
->
-  Generate Share Poster
-</Button> */}
-
-  </Box>
-</SwipeableDrawer>
-        
-                  {/* Checklist Drawer */}
-      <SwipeableDrawer
-        anchor="bottom"
-        open={checklistDrawerOpen}
-        onClose={() => {
-          setChecklistDrawerOpen(false);
-          setChecklistDrafts([]);
-          setNewTask("");
-        }}
-        ModalProps={{
-          BackdropProps: {
-            sx: {
-              p: 3,
-              backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-              backdropFilter: "blur(5px)",
-            },
-          },
-        }}
-        PaperProps={{
-          sx: {
-            p: 3,
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            maxHeight: "70vh",
-            overflowY: "auto",
-            backgroundColor: mode === "dark" ? "#000000ff" : "#fff",
-            boxShadow: "none"
-          },
-        }}
-      >
-        <Box
-          sx={{
-            width: 40,
-            height: 5,
-            bgcolor: "grey.500",
-            opacity: 0.5,
-            borderRadius: 2.5,
-            mx: "auto",
-            mb: 2,
-            cursor: "grab",
-          }}
-        />
-
-        <Typography variant="h6" mb={2}>
-          Add Checklist Items
-        </Typography>
-
-
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <Button
-            variant="contained"
-            component="label"
-            sx={{
-              mb: 2,
-              boxShadow: "none",
-              color: theme.palette.text.primary,
-              borderRadius: 4,
-              backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010'
-            }}
-          >
-            Upload Checklist
-            <input
-              type="file"
-              accept=".txt,.md,text/plain,text/markdown,text/x-markdown"
-              hidden
-              onChange={handleChecklistFileUpload}
-            />
-          </Button>
-
-          <Button
-            variant="contained"
-            component="label"
-            sx={{
-              mb: 2,
-              boxShadow: "none",
-              color: theme.palette.text.primary,
-              borderRadius: 4,
-              backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010'
-              }}
-            onClick={addEmptyChecklistDraft}
-          >
-              Add Multiple Checklists
-          </Button>
-        </Box>
-
-        {checklistDrafts.length > 0 && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Preview & Edit Items to Add
-            </Typography>
-            {checklistDrafts.map((item, index) => (
-<Box
-  key={index}
-  display="flex"
-  alignItems="center"
-  mb={1}
-  gap={1}
-  sx={{
-    '& .MuiTextField-root': {
-      bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2c2c2c' : '#fff',
-      borderRadius: 1,
-    },
-    '& .MuiButton-root': {
-      minWidth: 90,
-      height: 36,
-      textTransform: 'none',
-    },
-  }}
->
-<TextField
-  fullWidth
-  value={item}
-  onChange={(e) => updateChecklistDraft(index, e.target.value)}
-  placeholder={`Item ${index + 1}`}
-  variant="outlined"
-  size="small"
-  sx={{
-    bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-    borderRadius: 8,
-    boxShadow: "none",
-    '& .MuiInputLabel-root.Mui-focused': {
-      color: mode === "dark" ? "#fff" : "#000",
-    },
-    '& .MuiOutlinedInput-root': {
-      borderRadius: 8,
-      '& fieldset': {
-        borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-      },
-      '&:hover fieldset': {
-        borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-      },
-      '&.Mui-focused fieldset': {
-        borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-        boxShadow: "none",
-        color: mode === "dark" ? "#fff" : "#000"
-      },
-      backgroundColor: 'inherit',
-    },
-    input: {
-      color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-    },
-    label: {
-      color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-    },
-  }}
-/>
-
-
-<Button
-  variant="outlined"
-  color="error"
-  onClick={() => removeChecklistDraft(index)}
-  sx={{
-    maxWidth: 16,
-    height: 36,
-    padding: 0,
-    textTransform: 'none',
-    alignSelf: 'flex-start',
-    borderRadius: 8,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    '&:hover': {
-      backgroundColor: (theme) =>
-        theme.palette.mode === 'dark' ? '#a32e2e33' : '#f4433622',
-    },
-  }}
-  aria-label={`Remove item ${index + 1}`}
->
-  <DeleteOutlineIcon fontSize="small" />
-</Button>
-
-</Box>
-
-            ))}
-       <Box sx={{ mb: 2 }}>
-          <Button variant="contained" component="label" sx={{ mb: 2, boxShadow: "none", color: theme.palette.text.primary, borderRadius: 8, backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010', }} onClick={addEmptyChecklistDraft}>
-            + Add More Items
-          </Button>
-        </Box>
-          </Box>
-        )}
-
-
-
-        {/* If no drafts, show single input */}
-        {checklistDrafts.length === 0 && (
-          <>
-            <TextField
-              fullWidth
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              label="New Checklist Item"
-              variant="outlined"
-              size="small"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newTask.trim()) {
-                  setChecklistDrafts([newTask.trim()]);
-                  setNewTask("");
-                }
-              }}
-              sx={{
-                bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-                borderRadius: 8,
-                mb: 3,
-                mt: 1,
-                boxShadow: "none",
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: mode === "dark" ? "#fff" : "#000",
-                },
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 8,
-                  '& fieldset': {
-                    borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-                  },
-                  '&:hover fieldset': {
-                    borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-                    boxShadow: "none",
-                    color: mode === "dark" ? "#fff" : "#000"
-                  },
-                  backgroundColor: 'inherit',
-                },
-                input: {
-                  color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-                },
-                label: {
-                  color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-                },
-              }}
+            <ChecklistDrawer
+                checklistDrawerOpen={checklistDrawerOpen}
+                setChecklistDrawerOpen={setChecklistDrawerOpen}
+                checklistDrafts={checklistDrafts}
+                setChecklistDrafts={setChecklistDrafts}
+                newTask={newTask}
+                setNewTask={setNewTask}
+                uploadingBatch={uploadingBatch}
+                addTask={addTask}
+                addAllChecklistItems={addAllChecklistItems}
+                addEmptyChecklistDraft={() => setChecklistDrafts((s) => [...s, ""])}
+                updateChecklistDraft={(i, v) => setChecklistDrafts((s) => s.map((it, idx) => (idx === i ? v : it)))}
+                removeChecklistDraft={(i) => setChecklistDrafts((s) => s.filter((_, idx) => idx !== i))}
+                handleChecklistFileUpload={handleChecklistFileUpload}
+                mode={mode}
             />
 
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={addTask}
-              disabled={!newTask.trim()}
-              sx={{
-                mb: 1,
-                backgroundColor: mode === "dark" ? "#fff" : "#000",
-                borderRadius: 8,
-                color: mode === "dark" ? "#000" : "#fff"
-              }}
-            >
-              Add Checklist Item
-            </Button>
-          </>
-        )}
+            <TimelineDrawer
+                timelineDrawerOpen={timelineDrawerOpen}
+                setTimelineDrawerOpen={setTimelineDrawerOpen}
+                timelineDrafts={timelineDrafts}
+                setTimelineDrafts={setTimelineDrafts}
+                newEvent={newEvent}
+                setNewEvent={setNewEvent}
+                addTimelineEvent={addTimelineEvent}
+                addEmptyTimelineDraft={() => setTimelineDrafts((s) => [...s, { title: "", time: getCurrentDate() + "T" + getCurrentTime(), note: "" }])}
+                updateTimelineDraft={(i, item) => setTimelineDrafts((s) => s.map((it, idx) => (idx === i ? item : it)))}
+                removeTimelineDraft={(i) => setTimelineDrafts((s) => s.filter((_, idx) => idx !== i))}
+                handleTimelineFileUpload={handleTimelineFileUpload}
+                mode={mode}
+            />
 
-        {checklistDrafts.length > 0 && (
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={addAllChecklistItems}
-            disabled={uploadingBatch}
-            sx={{
-              backgroundColor: mode === "dark" ? "#fff" : "#000",
-              borderRadius: 8,
-              color: mode === "dark" ? "#000" : "#fff"
-            }}
-          >
-            {uploadingBatch ? "Adding..." : "Add Checklist Item(s)"}
-          </Button>
-        )}
-      </SwipeableDrawer>
+            <BudgetDrawer budgetDrawerOpen={budgetDrawerOpen} setBudgetDrawerOpen={setBudgetDrawerOpen} editBudget={editBudget} setEditBudget={setEditBudget} saveBudget={saveBudget} mode={mode} />
 
-<SwipeableDrawer
-  fullWidth
-  anchor="bottom"
-  open={checklistViewAllOpen}
-  onClose={() => setChecklistViewAllOpen(false)}
-  onOpen={() => setChecklistViewAllOpen(true)}
-  ModalProps={{
-    BackdropProps: {
-      sx: {
-        p: 3,
-        backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-        backdropFilter: "blur(2px)",
-      },
-    },
-  }}
-  sx={{
-    "& .MuiDrawer-paper": {
-      background: mode === "dark" ? "#000000ff" : "#ffffffff",
-      backdropFilter: "blur(14px)",
-      borderTopRightRadius: 16,
-      borderTopLeftRadius: 16,
-      p: 3,
-      boxShadow: "none",
-      border: "none",
-    },
-  }}
->
-<Box sx={{ px: 0, pt: 0, pb: 2 }}>
-  {/* Drag indicator */}
-  <Box
-    sx={{
-      width: 40,
-      height: 5,
-      bgcolor: "grey.500",
-      opacity: 0.5,
-      borderRadius: 2.5,
-      mx: "auto",
-      mb: 1,
-      cursor: "grab",
-    }}
-  />
-  {/* Header row */}
-  <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-    <Typography variant="h6" fontWeight={"bolder"}>Full Checklist</Typography>
-    <Button
-      size="small"
-      onClick={() => setChecklistViewAllOpen(false)}
-      sx={{
-        padding: 1,
-        borderRadius: 4,
-        color: (theme) => theme.palette.text.primary,
-        '&:hover': {
-          backgroundColor: mode === "dark" ? "#000" : "#fff",
-        },
-      }}
-      aria-label="Close checklist view"
-    >
-      <CloseOutlinedIcon fontSize="small" />
-    </Button>
-  </Box>
-</Box>
+            <ExpenseDrawer
+                expenseDrawerOpen={expenseDrawerOpen}
+                setExpenseDrawerOpen={setExpenseDrawerOpen}
+                newExpense={newExpense}
+                setNewExpense={setNewExpense}
+                expenseContributors={expenseContributors}
+                setExpenseContributors={setExpenseContributors}
+                memberDetails={memberDetails}
+                currentUseruid={currentUseruid}
+                getMemberName={getMemberName}
+                initializeExpenseContributors={initializeExpenseContributors}
+                addExpense={addExpense}
+                updateExpense={updateExpense}
+                editingExpense={editingExpense}
+                mode={mode}
+                theme={theme}
+            />
 
+            <LinkDrawer linkDrawerOpen={linkDrawerOpen} setLinkDrawerOpen={setLinkDrawerOpen} newLink={newLink} setNewLink={setNewLink} handleAddLink={handleAddLink} mode={mode} />
+            
+            <SettingsDrawer
+                settingsDrawerOpen={settingsDrawerOpen}
+                setSettingsDrawerOpen={setSettingsDrawerOpen}
+                trip={trip}
+                tripAdmins={tripAdmins}
+                memberDetails={memberDetails}
+                tripPermissions={tripPermissions}
+                updatePermissions={async (p) => { await updateDoc(doc(db, "trips", id), { permissions: p }); setTripPermissions(p); setSnackbar({ open: true, message: "Permissions updated!" }); }}
+                promoteToAdmin={async (uid) => { const newAdmins = [...tripAdmins, uid]; await updateDoc(doc(db, "trips", id), { admins: newAdmins }); setTripAdmins(newAdmins); setSnackbar({ open: true, message: "Member promoted to admin!" }); }}
+                demoteAdmin={async (uid) => { const newAdmins = tripAdmins.filter((a) => a !== uid); await updateDoc(doc(db, "trips", id), { admins: newAdmins }); setTripAdmins(newAdmins); setSnackbar({ open: true, message: "Admin demoted!" }); }}
+                mode={mode}
+                setMode={setMode}
+                accent={accent}
+                setAccent={setAccent}
+                confirmDeleteOpen={confirmDeleteOpen}
+                setConfirmDeleteOpen={setConfirmDeleteOpen}
+                getMemberName={getMemberName}
+                currentUseruid={currentUseruid}
+                displaySettings={displaySettings}
+                updateDisplaySettings={updateDisplaySettings}
+            />
 
-  <List sx={{ maxHeight: "80vh", overflowY: "auto" }}>
-{checklist.map((task) => (
-  <ListItem
-    key={task.id}
-    onClick={() => toggleTask(task)}
-    disableGutters
-    sx={{
-      backgroundColor: task.completed
-        ? (mode === "dark" ? "#00000011" : "transparent")
-        : (mode === "dark" ? "#f1f1f111" : "#0000000d"),
-      mb: 0.5,
-      borderRadius: 2,
-    }}
-  >
-    <ListItemIcon>
-      <Checkbox
-        checked={task.completed}
-        onChange={() => toggleTask(task)}
-        color="success"
-        sx={{ color: task.completed ? undefined : "#999" }}
-        inputProps={{ 'aria-label': 'Toggle checklist item' }}
-      />
-    </ListItemIcon>
-    <ListItemText
-      primary={task.text}
-      primaryTypographyProps={{
-        sx: {
-          textDecoration: task.completed ? "line-through" : "none",
-          color: task.completed ? "#888" : "inherit",
-          userSelect: "text",
-        },
-      }}
-    />
-  </ListItem>
-))}
+            <ConfirmDeleteDialog confirmDeleteOpen={confirmDeleteOpen} setConfirmDeleteOpen={setConfirmDeleteOpen} handleDeleteTrip={handleDeleteTrip} mode={mode} />
 
-    
-    {checklist.length === 0 && (
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: "center" }}>
-        No checklist items yet.
-      </Typography>
-    )}
-  </List>
-</SwipeableDrawer>
-        
-                  {/* Timeline Drawer */}
-<SwipeableDrawer
-  anchor="bottom"
-  open={timelineDrawerOpen}
-  onClose={() => {
-    setTimelineDrawerOpen(false);
-    setTimelineDrafts([]);
-    setNewEvent({ title: "", time: "", note: "" });
-  }}
-  ModalProps={{
-    BackdropProps: {
-      sx: {
-        p: 3,
-        backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-        backdropFilter: "blur(5px)",
-      },
-    },
-  }}
-  PaperProps={{
-    sx: {
-      p: 3,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      maxHeight: "70vh",
-      overflowY: "auto",
-      backgroundColor: mode === "dark" ? "#000000ff" : "#fff",
-      boxShadow: "none",
-    },
-  }}
->
-  <Box
-    sx={{
-      width: 40,
-      height: 5,
-      bgcolor: "grey.500",
-      opacity: 0.5,
-      borderRadius: 2.5,
-      mx: "auto",
-      mb: 2,
-      cursor: "grab",
-    }}
-  />
+            <ChecklistViewAllDrawer checklistViewAllOpen={checklistViewAllOpen} setChecklistViewAllOpen={setChecklistViewAllOpen} checklist={checklist} toggleTask={toggleTask} mode={mode} />
 
-  <Typography variant="h6" mb={2}>
-    Add Timeline Events
-  </Typography>
+            <TimelineAllDrawer timelineAllDrawerOpen={timelineAllDrawerOpen} setTimelineAllDrawerOpen={setTimelineAllDrawerOpen} timeline={timeline} toggleEventCompleted={toggleEventCompleted} mode={mode} />
 
-  <Box sx={{ display: "flex", gap: 1 }}>
-    <Button
-      variant="contained"
-      component="label"
-      sx={{
-        mb: 2,
-        boxShadow: "none",
-        color: theme.palette.text.primary,
-        borderRadius: 4,
-        backgroundColor: mode === "dark" ? "#ffffff10" : "#00000010",
-      }}
-    >
-      Upload Events
-      <input
-        type="file"
-        accept=".txt,.md,text/plain,text/markdown,text/x-markdown"
-        hidden
-        onChange={handleTimelineFileUpload}
-      />
-    </Button>
-
-    <Button
-      variant="contained"
-      onClick={addEmptyTimelineDraft}
-      sx={{
-        mb: 2,
-        boxShadow: "none",
-        color: theme.palette.text.primary,
-        borderRadius: 4,
-        backgroundColor: mode === "dark" ? "#ffffff10" : "#00000010",
-      }}
-    >
-      Add Multiple Events
-    </Button>
-  </Box>
-
-  {/* Drafted timeline preview */}
-  {timelineDrafts.length > 0 && (
-    <>
-      <Typography variant="subtitle1" gutterBottom>
-        Preview & Edit Timeline Events
-      </Typography>
-      {timelineDrafts.map((item, index) => (
-        <Box key={index} display="flex" alignItems="center" mb={1} gap={1}>
-          <TextField
-            fullWidth
-            value={item.title}
-            onChange={(e) =>
-              updateTimelineDraft(index, { ...item, title: e.target.value })
-            }
-            placeholder={`Event ${index + 1} title`}
-            variant="outlined"
-            size="small"
-            sx={{
-              borderRadius: 8,
-              "& .MuiOutlinedInput-root": { borderRadius: 8 },
-            }}
-          />
-          <TextField
-            type="datetime-local"
-            value={item.time}
-            onChange={(e) =>
-              updateTimelineDraft(index, { ...item, time: e.target.value })
-            }
-            size="small"
-            sx={{ width: 200, borderRadius: 8 }}
-          />
-          <IconButton
-            color="error"
-            onClick={() => removeTimelineDraft(index)}
-            size="small"
-          >
-            <DeleteOutlineIcon fontSize="small" />
-          </IconButton>
+            {/* Snackbar */}
+            <Snackbar open={!!snackbar.open} autoHideDuration={3000} message={snackbar.message} onClose={() => setSnackbar({ open: false, message: "" })} />
         </Box>
-      ))}
-      <Button
-        fullWidth
-        variant="contained"
-        onClick={addAllTimelineEvents}
-        sx={{
-          mt: 2,
-          borderRadius: 8,
-          backgroundColor: mode === "dark" ? "#fff" : "#000",
-          color: mode === "dark" ? "#000" : "#fff",
-        }}
-      >
-        Add {timelineDrafts.length} Event(s)
-      </Button>
-    </>
-  )}
-
-  <FormControlLabel
-  control={
-    <Checkbox
-      checked={newEvent.surprise || false}
-      onChange={(e) =>
-        setNewEvent({ ...newEvent, surprise: e.target.checked })
-      }
-    />
-  }
-  label="Mark as Surprise Timeline (hidden from others)"
-  sx={{ mb: 2 }}
-/>
-
-{newEvent.surprise && (
-  <TextField
-    fullWidth
-    type="datetime-local"
-    label="Auto Reveal Time (optional)"
-    value={newEvent.revealAt || ""}
-    onChange={(e) =>
-      setNewEvent({ ...newEvent, revealAt: e.target.value })
-    }
-    helperText="Leave blank to reveal manually later"
-    sx={{ mb: 2 }}
-  />
-)}
-
-
-  {/* Single input mode */}
-  {timelineDrafts.length === 0 && (
-    <>
-      <TextField
-        fullWidth
-        label="Event Title"
-        value={newEvent.title}
-        onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-        sx={{ mb: 2 }}
-      />
-      <TextField
-        fullWidth
-        type="datetime-local"
-        label="Event Time"
-        value={newEvent.time}
-        onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
-        sx={{ mb: 2 }}
-      />
-      <TextField
-        fullWidth
-        multiline
-        rows={2}
-        label="Notes"
-        value={newEvent.note}
-        onChange={(e) => setNewEvent({ ...newEvent, note: e.target.value })}
-        sx={{ mb: 3 }}
-      />
-      <Button
-        fullWidth
-        variant="contained"
-        onClick={addTimelineEvent}
-        disabled={!newEvent.title || !newEvent.time}
-        sx={{
-          borderRadius: 8,
-          backgroundColor: mode === "dark" ? "#fff" : "#000",
-          color: mode === "dark" ? "#000" : "#fff",
-        }}
-      >
-        Add Timeline Event
-      </Button>
-    </>
-  )}
-</SwipeableDrawer>
-
-
-                  <SwipeableDrawer
-                    anchor="bottom"
-                    open={timelineAllDrawerOpen}
-                    onClose={() => setTimelineAllDrawerOpen(false)}
-                    ModalProps={{
-                      BackdropProps: {
-                        sx: {
-                          p: 3,
-                          backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-                          backdropFilter: "blur(2px)",
-                        },
-                      },
-                    }}
-                    PaperProps={{
-                      sx: {
-                        p: 3,
-                        borderTopLeftRadius: 16,
-                        borderTopRightRadius: 16,
-                        backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
-                        boxShadow: "none",
-                      },
-                    }}
-                  >
-                    {/* Drag indicator */}
-                    <Box sx={{ width: 40, height: 5, bgcolor: "grey.500", opacity: 0.5, borderRadius: 2.5, mx: "auto", mb: 2, cursor: "grab" }} />
-
-                    <Typography variant="h6" mb={2}>Full Trip Timeline</Typography>
-                  
-                    {timeline.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
-                        No events added yet.
-                      </Typography>
-                                      ) : (
-                      <List sx={{ maxHeight: "80vh", overflowY: "auto" }}>
-                        {timeline.map(item => {
-                          const itemTime = new Date(item.time);
-                          const isCompleted = item.completed;
-                          return (
-                            <ListItem key={item.id} sx={{
-                              backgroundColor: isCompleted ? (mode === "dark" ? "#00000011" : "transparent") : (mode === "dark" ? "#1c1c1c" : "#f0f0f0ff"),
-                              borderRadius: 2,
-                              mb: 1,
-                              px: 2,
-                              py: 0.5,
-                            }}>
-                              <ListItemIcon>
-                                <Checkbox checked={isCompleted} onChange={() => toggleEventCompleted(item)} sx={{ color: "#999" }} />
-                              </ListItemIcon>
-                              <ListItemText
-                                primary={
-                                  <Typography
-                                    variant="body1"
-                                    fontWeight={isCompleted ? "normal" : "medium"}
-                                    color={isCompleted ? "#888" : theme.palette.text.primary}
-                                    sx={{ textDecoration: isCompleted ? "line-through" : "none" }}
-                                  >
-                                    {item.title}
-                                  </Typography>
-                                }
-                                secondary={
-                                  <Typography variant="caption" color="text.secondary">
-                                    {itemTime.toLocaleString()}
-                                    {item.note && ` — ${item.note}`}
-                                  </Typography>
-                                }
-                              />
-                            </ListItem>
-                          );
-                        })}
-                      </List>
-                    )}
-                  </SwipeableDrawer>
-
-        
-                  {/* Budget Drawer */}
-                  <SwipeableDrawer
-                    anchor="bottom"
-                    open={budgetDrawerOpen}
-                    onClose={() => setBudgetDrawerOpen(false)}
-                    ModalProps={{
-                      BackdropProps: {
-                        sx: {
-                          p: 3,
-                          backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-                          backdropFilter: "blur(2px)",
-                        },
-                      },
-                    }}
-                    PaperProps={{
-                      sx: {
-                        p: 3,
-                        borderTopLeftRadius: 16,
-                        borderTopRightRadius: 16,
-                        backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
-                        boxShadow: "none"
-                      },
-                    }}
-                  >
-
-                  <Box
-                    sx={{
-                      width: 40,
-                      height: 5,
-                      bgcolor: "grey.500",
-                      opacity: 0.5,
-                      borderRadius: 2.5,
-                      mx: "auto",
-                      mb: 2,
-                      cursor: "grab",
-                    }}
-                  />
-
-                    <Typography variant="h6" mb={2}>
-                      Edit Trip Budget
-                    </Typography>
-        
-                    <TextField
-                      fullWidth
-                      label="Total Budget (₹)"
-                      type="number"
-                      value={editBudget.total}
-                      onChange={(e) =>
-                        setEditBudget({ ...editBudget, total: e.target.value })
-                      }
-                      sx={{
-                        bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-                        borderRadius: 8,
-                        boxShadow: "none",
-                        '& .MuiInputLabel-root.Mui-focused': {
-                          color: mode === "dark" ? "#fff" : "#000",
-                        },
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 8,
-                          '& fieldset': {
-                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-                          },
-                          '&:hover fieldset': {
-                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-                          },
-                          '&.Mui-focused fieldset': {
-                            borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-                            boxShadow: "none",
-                            color: mode === "dark" ? "#fff" : "#000"
-                          },
-                          backgroundColor: 'inherit',
-                        },
-                        input: {
-                          color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-                        },
-                        label: {
-                          color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-                        },
-                      }}
-                    />
-        
-                    <Typography variant="subtitle2">Contributors</Typography>
-                    {editBudget.contributors.map((c, i) => (
-                      <Box key={i} display="flex" gap={2} mt={1}>
-                        <TextField
-                          label="Name"
-                          value={c.name}
-                          onChange={(e) => {
-                            const updated = [...editBudget.contributors];
-                            updated[i].name = e.target.value;
-                            setEditBudget({ ...editBudget, contributors: updated });
-                          }}
-                          fullWidth
-                          sx={{
-                            bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-                            borderRadius: 8,
-                            boxShadow: "none",
-                            '& .MuiInputLabel-root.Mui-focused': {
-                              color: mode === "dark" ? "#fff" : "#000",
-                            },
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 8,
-                              '& fieldset': {
-                                borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-                              },
-                              '&:hover fieldset': {
-                                borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-                              },
-                              '&.Mui-focused fieldset': {
-                                borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-                                boxShadow: "none",
-                                color: mode === "dark" ? "#fff" : "#000"
-                              },
-                              backgroundColor: 'inherit',
-                            },
-                            input: {
-                              color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-                            },
-                            label: {
-                              color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-                            },
-                          }}
-                        />
-                        <TextField
-                          label="Amount"
-                          type="number"
-                          value={c.amount}
-                          onChange={(e) => {
-                            const updated = [...editBudget.contributors];
-                            updated[i].amount = e.target.value;
-                            setEditBudget({ ...editBudget, contributors: updated });
-                          }}
-                          sx={{
-                            bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
-                            borderRadius: 8,
-                            boxShadow: "none",
-                            width: 120,
-                            '& .MuiInputLabel-root.Mui-focused': {
-                              color: mode === "dark" ? "#fff" : "#000",
-                            },
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 8,
-                              '& fieldset': {
-                                borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
-                              },
-                              '&:hover fieldset': {
-                                borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
-                              },
-                              '&.Mui-focused fieldset': {
-                                borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
-                                boxShadow: "none",
-                                color: mode === "dark" ? "#fff" : "#000"
-                              },
-                              backgroundColor: 'inherit',
-                            },
-                            input: {
-                              color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
-                            },
-                            label: {
-                              color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
-                            },
-                          }}
-                        />
-                      </Box>
-                    ))}
-        
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      sx={{ mt: 2, p: 1, borderRadius: 8, border: mode === "dark" ? "1px solid #ffffffff" : "1px solid #000000ff", color: mode === "dark" ? "#ffffffff" : "#000000ff" }}
-                      onClick={() => {  
-                        setEditBudget({
-                          ...editBudget,
-                          contributors: [...editBudget.contributors, { name: "", amount: "" }],
-                        });
-                      }}
-                    >
-                      + Add Contributor
-                    </Button>
-        
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      sx={{ mt: 3, p: 1.5, borderRadius: 8, backgroundColor: mode === "dark" ? "#ffffffff" : "#000000ff", color: mode === "dark" ? "#000000ff" : "#ffffffff" }}
-                      onClick={saveBudget}
-                      disabled={!editBudget.total || editBudget.contributors.length === 0}
-                    >
-                      Save Budget
-                    </Button>
-                  </SwipeableDrawer>
-
-        {/* Expense Drawer */}
-<SwipeableDrawer
-  anchor="bottom"
-  open={expenseDrawerOpen}
-  onClose={() => setExpenseDrawerOpen(false)}
-  onOpen={() => {}}
-  disableBackdropTransition={false}
-  ModalProps={{
-    BackdropProps: {
-      sx: {
-        backgroundColor: "rgba(0,0,0,0.2)",
-        backdropFilter: "blur(4px)",
-      },
-    },
-  }}
-  PaperProps={{
-    sx: {
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      background: mode === "dark"
-        ? "rgba(20,20,20,0.9)"
-        : "rgba(255,255,255,0.9)",
-      backdropFilter: "blur(16px)",
-      boxShadow: mode === "dark"
-        ? "0px -6px 20px rgba(0,0,0,0.5)"
-        : "0px -6px 20px rgba(0,0,0,0.1)",
-      p: 3,
-      maxHeight: "85vh",
-      overflowY: "auto",
-      transition: "all 0.3s ease-in-out",
-    },
-  }}
->
-  {/* Drag Handle */}
-  <Box
-    sx={{
-      width: 40,
-      height: 5,
-      bgcolor: "grey.500",
-      opacity: 0.5,
-      borderRadius: 2.5,
-      mx: "auto",
-      mb: 2,
-    }}
-  />
-
-  {/* Header */}
-  <Typography
-    variant="h6"
-    fontWeight="bold"
-    textAlign="center"
-    sx={{
-      mb: 2.5,
-      color: mode === "dark" ? "#fff" : "#000",
-      letterSpacing: 0.5,
-    }}
-  >
-    Add New Expense
-  </Typography>
-
-  {/* Expense Fields Section */}
-  <Box
-    component={motion.div}
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.3 }}
-  >
-    {/* Expense Name */}
-    <TextField
-      fullWidth
-      label="Expense Name"
-      value={newExpense.name}
-      onChange={(e) =>
-        setNewExpense((prev) => ({ ...prev, name: e.target.value }))
-      }
-      sx={{
-        mb: 2,
-        borderRadius: 3,
-        "& .MuiOutlinedInput-root": {
-          borderRadius: 3,
-          backgroundColor: mode === "dark" ? "#1e1e1e" : "#fafafa",
-          "&:hover fieldset": { borderColor: "#888" },
-          "&.Mui-focused fieldset": { borderColor: mode === "dark" ? "#fff" : "#000" },
-        },
-      }}
-    />
-
-    {/* Split Mode Button */}
-    <Button
-      fullWidth
-      variant="outlined"
-      onClick={() => {
-        const newMode =
-          newExpense.splitMode === "single_payer"
-            ? "multiple_payers"
-            : "single_payer";
-        setNewExpense((prev) => ({ ...prev, splitMode: newMode }));
-        setExpenseContributors(
-          initializeExpenseContributors(memberDetails, newMode)
-        );
-      }}
-      sx={{
-        borderRadius: 3,
-        py: 1.5,
-        mb: 2,
-        textTransform: "none",
-        borderColor: theme => theme.palette.divider,
-        color: theme => theme.palette.text.primary,
-        backgroundColor:
-          newExpense.splitMode === "multiple_payers"
-            ? (mode === "dark" ? "#ffffff10" : "#00000008")
-            : "transparent",
-        transition: "all 0.2s ease",
-        "&:hover": {
-          backgroundColor: mode === "dark" ? "#ffffff15" : "#00000010",
-          transform: "translateY(-2px)",
-        },
-      }}
-    >
-      {newExpense.splitMode === "single_payer"
-        ? "Switch to Multiple Contributors"
-        : `Multiple Payers Mode (Total ₹${parseFloat(
-            newExpense.amount || 0
-          ).toFixed(2)})`}
-    </Button>
-
-    {/* Conditional payer inputs */}
-    {newExpense.splitMode === "single_payer" && (
-      <TextField
-        select
-        fullWidth
-        label="Paid By"
-        value={newExpense.paidBy || currentUseruid}
-        onChange={(e) =>
-          setNewExpense((prev) => ({ ...prev, paidBy: e.target.value }))
-        }
-        SelectProps={{ native: true }}
-        sx={{
-          mb: 2,
-          borderRadius: 3,
-          "& .MuiOutlinedInput-root": {
-            borderRadius: 3,
-            backgroundColor: mode === "dark" ? "#1e1e1e" : "#fafafa",
-          },
-        }}
-      >
-        {memberDetails.map((member) => (
-          <option key={member.uid} value={member.uid}>
-            {getMemberName(member.uid)}
-          </option>
-        ))}
-      </TextField>
-    )}
-
-    {newExpense.splitMode === "multiple_payers" && (
-      <Collapse in={true}>
-        <Box
-          sx={{
-            mb: 2,
-            p: 1,
-            borderRadius: 3,
-            backgroundColor:
-              mode === "dark" ? "#ffffff08" : "#00000008",
-          }}
-        >
-          <Typography variant="subtitle2" fontWeight={600} mb={1}>
-            Members Paid:
-          </Typography>
-
-          {expenseContributors.map((c, index) => (
-            <Box
-              key={c.uid}
-              display="flex"
-              alignItems="center"
-              gap={1.5}
-              sx={{
-                p: 1,
-                mb: 1,
-                borderRadius: 2,
-                backgroundColor: c.included
-                  ? mode === "dark"
-                    ? "#ffffff10"
-                    : "#00000010"
-                  : "transparent",
-                transition: "all 0.25s ease",
-              }}
-            >
-              <Checkbox
-                checked={c.included}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setExpenseContributors((prev) =>
-                    prev.map((x, i) =>
-                      i === index
-                        ? { ...x, included: checked, paidAmount: checked ? x.paidAmount : 0 }
-                        : x
-                    )
-                  );
-                }}
-              />
-              <Avatar src={c.photoURL} sx={{ width: 32, height: 32 }} />
-              <Typography sx={{ flexGrow: 1 }}>
-                {getMemberName(c.uid)}
-              </Typography>
-
-              {c.included && (
-                <TextField
-                  size="small"
-                  label="Amount Paid"
-                  type="number"
-                  value={c.paidAmount}
-                  onChange={(e) =>
-                    setExpenseContributors((prev) =>
-                      prev.map((x, i) =>
-                        i === index ? { ...x, paidAmount: e.target.value } : x
-                      )
-                    )
-                  }
-                  sx={{
-                    width: 110,
-                    "& .MuiOutlinedInput-root": { borderRadius: 2 },
-                  }}
-                />
-              )}
-            </Box>
-          ))}
-        </Box>
-      </Collapse>
-    )}
-
-    {/* Other Fields */}
-    {["Amount (₹)", "Category", "Date", "Time"].map((label, idx) => (
-      <TextField
-        key={label}
-        fullWidth
-        label={label}
-        type={label === "Date" ? "date" : label === "Time" ? "time" : label === "Amount (₹)" ? "number" : "text"}
-        InputLabelProps={label === "Date" || label === "Time" ? { shrink: true } : {}}
-        value={
-          label === "Amount (₹)"
-            ? newExpense.amount
-            : label === "Category"
-            ? newExpense.category
-            : label === "Date"
-            ? newExpense.date
-            : newExpense.time
-        }
-        onChange={(e) => {
-          const value = e.target.value;
-          setNewExpense((prev) => ({
-            ...prev,
-            [label === "Amount (₹)"
-              ? "amount"
-              : label === "Category"
-              ? "category"
-              : label === "Date"
-              ? "date"
-              : "time"]: value,
-          }));
-        }}
-        sx={{
-          mb: 2,
-          borderRadius: 3,
-          "& .MuiOutlinedInput-root": {
-            borderRadius: 3,
-            backgroundColor: mode === "dark" ? "#1e1e1e" : "#fafafa",
-          },
-        }}
-      />
-    ))}
-
-    {/* Save Button */}
-    <Button
-      fullWidth
-      variant="contained"
-      onClick={addExpense}
-      sx={{
-        mt: 1,
-        py: 1.4,
-        borderRadius: 3,
-        fontWeight: 600,
-        fontSize: "1rem",
-        letterSpacing: 0.4,
-        backgroundColor: mode === "dark" ? "#fff" : "#000",
-        color: mode === "dark" ? "#000" : "#fff",
-        "&:hover": {
-          transform: "translateY(-2px)",
-          backgroundColor: mode === "dark" ? "#f1f1f1" : "#111",
-        },
-        transition: "all 0.3s ease",
-      }}
-      disabled={
-        !newExpense.name ||
-        !newExpense.amount ||
-        !newExpense.date ||
-        !newExpense.time
-      }
-    >
-      Save Expense
-    </Button>
-  </Box>
-</SwipeableDrawer>
-
-<SwipeableDrawer
-  anchor="bottom"
-  open={linkDrawerOpen}
-  onClose={() => setLinkDrawerOpen(false)}
-  PaperProps={{
-    sx: {
-      p: 3,
-      borderTopLeftRadius: 26,
-      borderTopRightRadius: 26,
-      backgroundColor: mode === "dark" ? "#111" : "#fff",
-    },
-  }}
->
-  <Typography variant="h6" fontWeight="bold" mb={2}>
-    Add Trip Link
-  </Typography>
-  <TextField
-    fullWidth
-    label="Link Title"
-    variant="outlined"
-    sx={{ mb: 2 }}
-    value={newLink.title}
-    onChange={(e) =>
-      setNewLink({ ...newLink, title: e.target.value })
-    }
-  />
-  <TextField
-    fullWidth
-    label="Paste Link (e.g. Google Drive, YouTube, etc.)"
-    variant="outlined"
-    value={newLink.url}
-    onChange={(e) =>
-      setNewLink({ ...newLink, url: e.target.value })
-    }
-  />
-  <Button
-    variant="contained"
-    fullWidth
-    startIcon={<AddLinkIcon />}
-    sx={{
-      mt: 3,
-      py: 1.3,
-      borderRadius: 3,
-      fontWeight: "bold",
-      backgroundColor: mode === "dark" ? "#fff" : "#000",
-      color: mode === "dark" ? "#000" : "#fff",
-      "&:hover": {
-        backgroundColor: mode === "dark" ? "#f3f3f3" : "#111",
-      },
-    }}
-    onClick={handleAddLink}
-  >
-    Add Link
-  </Button>
-</SwipeableDrawer>
-
-
-<AnimatePresence>
-  {confirmDeleteOpen && (
-    <Dialog
-      open={confirmDeleteOpen}
-      onClose={() => setConfirmDeleteOpen(false)}
-      PaperProps={{
-        sx: {
-          background:
-            mode === "dark"
-              ? "linear-gradient(145deg, rgba(20,20,20,0.9), rgba(40,40,40,0.85))"
-              : "linear-gradient(145deg, rgba(255,255,255,0.95), rgba(240,240,240,0.9))",
-          p: 2.5,
-          borderRadius: 4,
-          backdropFilter: "blur(25px)",
-          boxShadow: "none",
-          width: "100%",
-          maxWidth: 420,
-          overflow: "hidden",
-        },
-      }}
-      TransitionProps={{
-        timeout: 300,
-      }}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 10 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
-      >
-        {/* Warning Icon Section */}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-          >
-            <Box
-              sx={{
-                width: 72,
-                height: 72,
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background:
-                  mode === "dark"
-                    ? "rgba(255, 50, 50, 0.1)"
-                    : "rgba(255, 100, 100, 0.15)",
-                boxShadow: "none",
-              }}
-            >
-              <WarningAmberRoundedIcon
-                sx={{
-                  fontSize: 42,
-                  color: "#ff4444",
-                }}
-              />
-            </Box>
-          </motion.div>
-        </Box>
-
-        {/* Title */}
-        <DialogTitle
-          sx={{
-            textAlign: "center",
-            fontWeight: "700",
-            fontSize: "1.25rem",
-            color: mode === "dark" ? "#fff" : "#000",
-            pb: 0.5,
-          }}
-        >
-          Confirm Delete
-        </DialogTitle>
-
-        {/* Message */}
-        <DialogContent>
-          <Typography
-            color="text.secondary"
-            textAlign="center"
-            sx={{
-              px: 2,
-              fontSize: "0.95rem",
-              lineHeight: 1.5,
-            }}
-          >
-            Are you sure you want to permanently delete this trip? <br />
-            <Typography
-              component="span"
-              sx={{
-                color: "#e53935",
-                fontWeight: "600",
-              }}
-            >
-              This action cannot be undone.
-            </Typography>
-          </Typography>
-        </DialogContent>
-
-        {/* Buttons */}
-        <DialogActions
-          sx={{
-            justifyContent: "center",
-            gap: 2,
-            mt: 2,
-            pb: 1,
-          }}
-        >
-          <Button
-            variant="outlined"
-            onClick={() => setConfirmDeleteOpen(false)}
-            sx={{
-              textTransform: "none",
-              borderRadius: 3,
-              px: 3,
-              py: 0.8,
-              fontWeight: 600,
-              borderColor: mode === "dark" ? "#888" : "#aaa",
-              color: mode === "dark" ? "#fff" : "#000",
-              "&:hover": {
-                backgroundColor:
-                  mode === "dark" ? "#2a2a2a" : "#f0f0f0",
-                borderColor: mode === "dark" ? "#bbb" : "#000",
-              },
-            }}
-          >
-            Cancel
-          </Button>
-
-          <motion.div whileTap={{ scale: 0.95 }}>
-            <Button
-              variant="contained"
-              color="error"
-              onClick={handleDeleteTrip}
-              sx={{
-                textTransform: "none",
-                borderRadius: 3,
-                px: 3,
-                py: 0.8,
-                fontWeight: 600,
-                background:
-                  "linear-gradient(135deg, #ff4e4e, #d32f2f)",
-                boxShadow: "none",
-                "&:hover": {
-                  background:
-                    "linear-gradient(135deg, #ff3c3c, #b71c1c)",
-                },
-              }}
-            >
-              Delete
-            </Button>
-          </motion.div>
-        </DialogActions>
-      </motion.div>
-    </Dialog>
-  )}
-</AnimatePresence>
-
-
-      </Box>
-    </ThemeProvider>
-  );
+    );
 }

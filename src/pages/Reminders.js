@@ -53,6 +53,7 @@ import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { motion } from "framer-motion";
 import ProfilePic from "../components/Profile";
+import Notifications from "../elements/Notifications";
 
 // Helper to format date for input type="date" (YYYY-MM-DD)
 const formatDateForInput = (date) => {
@@ -402,7 +403,7 @@ export default function Reminders() {
           whileHover={{ scale: 1.05 }}
           transition={{ duration: 0.2 }}
         >
-          <ProfilePic />
+          <Notifications />
         </motion.div>
       </Toolbar>
     </AppBar>

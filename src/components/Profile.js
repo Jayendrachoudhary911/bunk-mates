@@ -1014,22 +1014,7 @@ const handleUnblockUser = async (userIdToUnblock) => {
 <>
 
   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-    <Badge
-        color="error"
-        variant="dot"
-        badgeContent={unreadCount}
-        sx={{
-            '& .MuiBadge-badge': {
-                right: 8,
-                top: 6,
-            },
-        }}
-    >
-      <NotificationsNoneOutlinedIcon
-        sx={{ fontSize: 28, color: mode === "dark" ? "#fff" : "#333", cursor: "pointer" }}
-        onClick={() => navigate("/notifications")}
-      />
-    </Badge>
+
 
   <Box
 sx={{
@@ -2714,6 +2699,20 @@ sx={{
     >
       Back
     </Button>
+
+    <Box
+      sx={{
+        position: "relative",
+        height: 220,
+        borderRadius: 6,
+        overflow: "hidden",
+        mb: 4,
+        backgroundImage:
+          "url(/assets/images/headers/beta_v2_header.svg)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    />
 
     {/* Header */}
     <Typography

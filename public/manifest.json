@@ -1,6 +1,6 @@
 {
-  "short_name": "BunkMate",
-  "name": "BunkMate - Have a Cool Vibe",
+  "short_name": "BunkMates",
+  "name": "BunkMates - Have a Cool Vibe",
   "icons": [
     {
       "src": "logo.svg",
@@ -22,5 +22,5 @@
   "display": "standalone",
   "theme_color": "#000000",
   "background_color": "#000000",
-  "id": "BunkMate"
+  "id": "BunkMates"
 }

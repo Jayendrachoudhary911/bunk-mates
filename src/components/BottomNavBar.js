@@ -12,11 +12,12 @@ import {
   Search,
   ChatBubbleOutline,
   Chat,
+  ChatBubble,
 } from "@mui/icons-material";
-import { Box, Button, Badge, Zoom, keyframes } from "@mui/material";
+import { Box, Button, Badge, Zoom, keyframes, Typography, CircularProgress } from "@mui/material";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
-import { auth, db } from "../firebase";
+import { db } from "../firebase";
 import {
   doc,
   collection,
@@ -25,7 +26,10 @@ import {
   onSnapshot,
   orderBy,
   limit,
+  getDoc,
 } from "firebase/firestore";
+import ProfilePic from "./Profile";
+import { useAuth } from "../hooks/useAuth";
 
 // 🔥 Keyframes for pulsing animation
 const pulse = keyframes`
@@ -39,26 +43,44 @@ const BottomNavBar = () => {
   const navigate = useNavigate();
   const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
+  const { user: currentUser, loading: authLoading } = useAuth();
 
   const [visible, setVisible] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pulseAnim, setPulseAnim] = useState(false);
   const prevUnread = useRef(0);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [userData, setUserData] = useState({ name: "", username: "" });
+  const [loadingUserData, setLoadingUserData] = useState(true);
 
   const navItems = [
     { label: "Home", path: "/", icon: <HomeOutlined />, activeIcon: <Home /> },
-    { label: "Search", path: "/search", icon: <SearchOutlined />, activeIcon: <Search /> },
     { label: "Notes", path: "/notes", icon: <StickyNote2Outlined />, activeIcon: <StickyNote2 /> },
     { label: "Trips", path: "/trips", icon: <ExploreOutlined />, activeIcon: <Explore /> },
+    { label: "Chats", path: "/chats", icon: <ChatBubbleOutline />, activeIcon: <ChatBubble /> },
   ];
 
-  // 🔒 Detect auth user
+  // Fetch user data
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged((u) => setCurrentUser(u));
-    return () => unsub();
-  }, []);
+    const fetchUserData = async () => {
+      if (authLoading || !currentUser?.uid) {
+        setLoadingUserData(authLoading);
+        return;
+      }
+      setLoadingUserData(true);
+      try {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          setUserData(userDoc.data());
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      } finally {
+        setLoadingUserData(false);
+      }
+    };
+    fetchUserData();
+  }, [currentUser, authLoading]);
 
   // 🔔 Unread count listener (chats + groups)
   useEffect(() => {
@@ -174,47 +196,60 @@ const BottomNavBar = () => {
 
   const isChatActive = location.pathname.startsWith("/chats");
 
-  return (
+return (
+  <Box
+    id="bottom-nav"
+    sx={{
+      position: "fixed",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      py: 1.2,
+      px: 1.5,
+      zIndex: 1010,
+      // Slide in/out only vertically for smoother behavior
+      transform: visible ? "translateY(0)" : "translateY(120%)",
+      transition: "transform 0.5s cubic-bezier(.4,0,.2,1)",
+      background:
+        mode === "dark"
+          ? "linear-gradient(to top, rgba(0,0,0,0.96), rgba(0, 0, 0, 0))"
+          : "linear-gradient(to top, rgba(255,255,255,0.96), rgba(255,255,255,0))",
+      pointerEvents: "none", // container ignores clicks
+    }}
+  >
+    {/* Inner wrapper with maxWidth, re-enables pointer events */}
     <Box
       sx={{
-        position: "fixed",
-        bottom: visible ? 0 : -80,
-        left: "50%",
-        transform: `translateX(-50%) translateY(${visible ? "0" : "120%"} )`,
         width: "100%",
-        maxWidth: 500,
+        maxWidth: 370,
         display: "flex",
-        justifyContent: "center",
         alignItems: "center",
-        py: 1.2,
-        px: 1,
-        zIndex: 999,
-        transition: "all 0.5s cubic-bezier(.4,0,.2,1)",
-        background:
-          mode === "dark"
-            ? "linear-gradient(to bottom, rgba(255,255,255,0), rgba(0,0,0,0.95))"
-            : "linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.95))",
+        justifyContent: "center",
+        pointerEvents: "auto",
       }}
     >
       {/* Nav Buttons */}
       <Box
         sx={{
-          mb: 0.6,
-          width: "70%",
+          flex: 1,
           borderRadius: "50px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          py: 1,
+          py: 0.9,
           px: 1,
           backdropFilter: "blur(14px) saturate(1.4)",
           background:
             mode === "dark"
-              ? "linear-gradient(135deg, rgba(20,20,20,0.85), rgba(40,40,40,0.6))"
-              : "linear-gradient(135deg, rgba(255,255,255,0.7), rgba(240,240,240,0.5))",
-          border: mode === "dark"
-            ? "1px solid rgba(255,255,255,0.08)"
-            : "1px solid rgba(0,0,0,0.08)",
+              ? "linear-gradient(135deg, rgba(20, 20, 20, 0.12), rgba(40, 40, 40, 0))"
+              : "linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(240, 240, 240, 0))",
+          border:
+            mode === "dark"
+              ? "1px solid rgba(255,255,255,0.08)"
+              : "1px solid rgba(0,0,0,0.08)",
         }}
       >
         <Box
@@ -223,7 +258,7 @@ const BottomNavBar = () => {
             justifyContent: "space-around",
             alignItems: "center",
             flex: 1,
-            gap: 1,
+            gap: 0.5,
           }}
         >
           {navItems.map((item, index) => {
@@ -234,7 +269,6 @@ const BottomNavBar = () => {
                 to={item.path}
                 style={{
                   textDecoration: "none",
-                  position: "relative",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
@@ -244,22 +278,24 @@ const BottomNavBar = () => {
               >
                 <Box
                   sx={{
-                    height: 44,
-                    width: 60,
+                    height: 40,
+                    width: 56,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    transform: isActive ? "scale(1.15)" : "scale(1)",
+                    transform: isActive ? "scale(1.1)" : "scale(1)",
                     backgroundColor: isActive
-                      ? theme.palette.primary.main + "2d"
+                      ? mode === "dark" ? "#ffffffd0" : "#000000d0"
                       : "transparent",
-                    borderRadius: 8,
+                    borderRadius: 10,
                     color: isActive
-                      ? theme.palette.primary.maintxt
+                      ? mode === "dark"
+                        ? "#000"
+                        : "#fff"
                       : mode === "dark"
                         ? "#bcbcbc"
                         : "#333",
-                    transition: "all 0.3s ease",
+                    transition: "all 0.25s ease",
                   }}
                 >
                   {isActive ? item.activeIcon : item.icon}
@@ -270,38 +306,25 @@ const BottomNavBar = () => {
         </Box>
       </Box>
 
-      {/* 💬 Chat Button with pulse badge */}
-      <Zoom in>
-        <Badge
-          overlap="circular"
-          badgeContent={unreadCount > 0 ? unreadCount : null}
-          color="error"
-          sx={{
-            "& .MuiBadge-badge": {
-              fontSize: "0.7rem",
-              fontWeight: 600,
-              minWidth: 18,
-              height: 18,
-              boxShadow: "0 0 6px rgba(0,0,0,0.3)",
-              animation: pulseAnim ? `${pulse} 0.8s ease` : "none",
-            },
-          }}
-        >
-          <Button
-            onClick={() => navigate("/chats")}
+          <Box
             sx={{
               ml: 1,
               mr: 0.8,
               mb: 0.6,
-              width: 65,
-              height: 65,
-              borderRadius: "20px",
-              background: isChatActive
-                ? theme.palette.primary.main
-                : theme.palette.primary.main + "7d",
-              color: isChatActive
-                ? theme.palette.primary.maintxt
-                : mode === "dark"
+              width: 56,
+              py: 0,
+              borderRadius: 10,
+              height: 56,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background:
+                mode === "dark"
+                  ? "linear-gradient(135deg, rgba(20, 20, 20, 0.12), rgba(40, 40, 40, 0))"
+                  : "linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(240, 240, 240, 0))",
+              color: 
+                 mode === "dark"
                   ? "#fff"
                   : "#000",
               backdropFilter: "blur(10px)",
@@ -309,23 +332,25 @@ const BottomNavBar = () => {
                 ? "1px solid rgba(255,255,255,0.07)"
                 : "1px solid rgba(0,0,0,0.07)",
               transition: "all 0.3s ease",
-              transform: isChatActive ? "scale(1.05)" : "scale(1)",
+              transform: "scale(1)",
+              cursor: 'pointer',
               "&:hover": {
                 transform: "scale(1.1)",
-                background: theme.palette.primary.main,
+                background: theme.palette.primary.main + "20",
               },
             }}
           >
-            {isChatActive ? (
-              <Chat sx={{ fontSize: 22 }} />
+            {loadingUserData ? (
+              <CircularProgress size={20} />
             ) : (
-              <ChatBubbleOutline sx={{ fontSize: 22 }} />
+              <>
+                <ProfilePic currentUser={currentUser} />
+              </>
             )}
-          </Button>
-        </Badge>
-      </Zoom>
+          </Box>
     </Box>
-  );
+  </Box>
+);
 };
 
 export default BottomNavBar;

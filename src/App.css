@@ -98,12 +98,14 @@ button {
 /* Style all dots */
 .slick-dots.slick-thumb li button:before {
   font-size: 0px;
-  background-color: var(--slick-dot-color, #bbb); /* Inactive dot color */
-  color: var(--slick-dot-color, #bbb);
+  background-color: #bbbbbb41; /* Inactive dot color */
+  color: #bbbbbb41;
   opacity: 1;
-  border-radius: 50%;
-  width: 10px;
-  height: 10px;
+  border-radius: 7px;
+  width: 24px;
+  height: 6px;
+  padding: auto;
+  margin: auto;
   display: inline-block;
   transition: width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.3s, color 0.3s;
 }
@@ -113,6 +115,7 @@ button {
   height: 0px;
   margin: 0px 14px;
   padding: 0px;
+  bottom: 28px;
 }
 
 .highlighted-reply {
@@ -130,7 +133,7 @@ button {
 .slick-dots.slick-thumb li.slick-active button:before {
   background-color: var(--slick-dot-active-color, #1976d2); /* Active dot color */
   width: 24px;
-  height: 10px;
+  height: 6px;
   color: var(--slick-dot-active-color, #1976d2);
   border-radius: 7px;
   transition: width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.3s, color 0.3s;

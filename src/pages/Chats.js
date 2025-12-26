@@ -66,6 +66,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import Notifications from "../elements/Notifications";
 
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
@@ -652,43 +653,45 @@ useEffect(() => {
 
 useEffect(() => {
   if (!currentUser || userGroups.length === 0) return;
-
-  const unsubscribes = userGroups.map((group) => {
+  
+  const unsubscribes = userGroups.map(group => {
     const q = query(
       collection(db, 'groupChat', group.id, 'messages'),
       orderBy('timestamp', 'desc'),
       limit(1)
     );
-
+    
     return onSnapshot(q, (snapshot) => {
-      snapshot.forEach((doc) => {
+      snapshot.forEach(doc => {
         const data = doc.data();
-        const isSystem = data.type === "system";
-
-        const msg = {
-          text: isSystem
-            ? `${data.content}`
-            : data.text || 'No messages yet',
-          senderName: isSystem ? 'System' : data.senderName || 'Unknown',
-        };
-
+        const isSystem = data.type === 'system';
+        const msg = isSystem ? data.content : data.text || 'No messages yet';
+        const senderName = isSystem ? 'System' : data.senderName || 'Unknown';
         const ts = data.timestamp?.toDate?.() || new Date(0);
-        const unread = data.senderId !== currentUser.uid && !data.isRead ? 1 : 0;
-
-        setLatestGroupMessages((prev) => ({ ...prev, [group.id]: msg }));
-        setGroupUnreadCounts((prev) => ({ ...prev, [group.id]: unread }));
-        setLatestGroupTimestamps((prev) => ({ ...prev, [group.id]: ts }));
-
-        if (unread) {
-          setNotification({ user: group.name, message: msg.text });
-          setTimeout(() => setNotification(null), 3000);
-        }
+        
+        // Check if message is unread for current user
+        const unread = data.senderId !== currentUser.uid && 
+                      (!data.read || !data.readBy?.includes(currentUser.uid));
+        
+        setLatestGroupMessages(prev => ({
+          ...prev,
+          [group.id]: msg
+        }));
+        setGroupUnreadCounts(prev => ({
+          ...prev,
+          [group.id]: unread ? 1 : 0
+        }));
+        setLatestGroupTimestamps(prev => ({
+          ...prev,
+          [group.id]: ts
+        }));
       });
     });
   });
-
-  return () => unsubscribes.forEach((unsub) => unsub && unsub());
+  
+  return () => unsubscribes.forEach(unsub => unsub());
 }, [userGroups, currentUser]);
+
 
   const goBack = () => {
     history(-1);
@@ -712,10 +715,59 @@ useEffect(() => {
     navigate(`/chat/${userId}`);
   };
 
-  const handleGroupClick = (groupId) => {
-    setGroupUnreadCounts((prev) => ({ ...prev, [groupId]: 0 }));
-    navigate(`/group/${groupId}`);
-  };
+const handleGroupClick = async (groupId) => {
+  if (!currentUser) return;
+  
+  // Mark messages as read first
+  await markGroupAsRead(groupId);
+  
+  // Update local unread count immediately
+  setGroupUnreadCounts(prev => ({
+    ...prev,
+    [groupId]: 0
+  }));
+  
+  // Navigate to group chat
+  navigate(`/group/${groupId}`);
+};
+
+async function markGroupAsRead(groupId) {
+  const user = auth.currentUser;
+  if (!user?.uid) return;
+  
+  const userId = user.uid;
+  try {
+    const msgsRef = collection(db, 'groupChat', groupId, 'messages');
+    
+    // Query unread messages not sent by this user
+    const unreadQ = query(
+      msgsRef,
+      where('senderId', '!=', userId),
+      where('read', '==', false),
+      orderBy('timestamp', 'desc'),
+      limit(50) // Increased limit for better coverage
+    );
+    
+    const snap = await getDocs(unreadQ);
+    
+    // Batch update all unread messages
+    const updates = snap.docs.map(msgDoc => 
+      updateDoc(doc(db, 'groupChat', groupId, 'messages', msgDoc.id), {
+        read: true,
+        status: 'delivered',
+        readBy: arrayUnion(userId),
+        readAt: serverTimestamp()
+      })
+    );
+    
+    if (updates.length > 0) {
+      await Promise.all(updates);
+    }
+  } catch (e) {
+    console.error('Error marking group as read:', e);
+  }
+}
+
 
   const formatTimestamp = (date) => {
     if (!(date instanceof Date) || isNaN(date)) return '';
@@ -1008,98 +1060,109 @@ const combinedChats = [
 
     if (onlyList) {
     // Only render the combined chats/groups list (no dialogs, no search, no floating button, etc)
-    return (
-      <div>
-        {combinedChats.map((chat) => (
-          <div
-            key={chat.id}
-            onClick={() => chat.type === 'user' ? handleSelect(chat.id) : handleGroupClick(chat.id)}
-            style={{
-              padding: '12px',
-              marginBottom: '10px',
-              borderRadius: '18px',
-              display: 'flex',
-              alignItems: 'center',
-              backgroundColor: chat.unreadCount > 0 ? WeatherBgdrop : '#00000000',
-              cursor: 'pointer',
-              transition: 'background-color 0.3s',
+return (
+  <div>
+    {combinedChats.map((chat) => (
+      <div
+        key={chat.id}
+        onClick={() => {
+          if (chat.type === "group") {
+            handleGroupClick(chat.id)
+          } else {
+            handleSelect(chat.id);
+          }
+        }}
+        onContextMenu={(e) => handleContextMenu(e, chat)}
+        style={{
+          padding: "12px",
+          marginBottom: "10px",
+          borderRadius: "18px",
+          display: "flex",
+          alignItems: "center",
+          backgroundColor:
+            chat.unreadCount > 0 ? WeatherBgdrop : "#00000000",
+          cursor: "pointer",
+          transition: "background-color 0.3s",
+        }}
+      >
+        {chat.type === "group" ? (
+          <Avatar
+            src={chat.iconURL ? chat.iconURL : ""}
+            sx={{
+              bgcolor: "#f0f0f0",
+              color: "#000",
+              fontSize: 28,
+              width: 48,
+              height: 48,
+              marginRight: 2,
             }}
           >
-            {chat.type === 'group' ? (
-              <Avatar
-                src={chat.iconURL ? chat.iconURL : ""}
-                sx={{
-                  bgcolor: '#f0f0f0',
-                  color: '#000',
-                  fontSize: 28,
-                  width: 48,
-                  height: 48,
-                  marginRight: 2,
-                }}
-              >
-                  {(chat.iconURL || chat.emoji || chat.name?.[0]?.toUpperCase() || 'G')}
-              </Avatar>
-            ) : (
-              <Avatar
-                src={chat.photoURL || 'https://via.placeholder.com/50'}
-                alt={chat.name}
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  marginRight: '20px',
-                }}
-              />
-            )}
+            {chat.iconURL || chat.emoji || chat.name?.[0]?.toUpperCase() || "G"}
+          </Avatar>
+        ) : (
+          <Avatar
+            src={chat.photoURL || "https://via.placeholder.com/50"}
+            alt={chat.name}
+            style={{
+              width: "40px",
+              height: "40px",
+              borderRadius: "50%",
+              marginRight: "20px",
+            }}
+          />
+        )}
 
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontWeight: 'bold', color: '#FFFFFF' }}>
-                {chat.name}
-                  {["BM - Beta members", "BM - Dev Beta"].includes(chat.name) && (
-                    <span style={{
-                      marginLeft: 6,
-                      fontSize: 14,
-                      backgroundColor: '#00f72133',
-                      padding: '2px 6px',
-                      borderRadius: 6,
-                      color: '#00f721',
-                    }}>
-                      {chat.name.includes("Dev") ? "🧪 Dev Beta" : "🔒 Beta"}
-                    </span>
-                  )}
-              </p>
-              <p
-                style={{
-                  margin: 0,
-                  color: '#BDBDBD',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  maxWidth: '100%',
-                }}
-              >
-                {(chat.lastMessage?.length > 30
-                  ? chat.lastMessage.slice(0, 14) + '...'
-                  : chat.lastMessage) || 'No messages yet'}
-              </p>
-            </div>
-
-            {chat.unreadCount > 0 && (
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: 0, fontWeight: "bold", color: "#FFFFFF" }}>
+            {chat.name}
+            {["BM - Beta members", "BM - Dev Beta"].includes(chat.name) && (
               <span
                 style={{
-                  backgroundColor: buttonWeatherBg,
-                  color: '#212121',
-                  padding: '4px 8px',
-                  borderRadius: '50%',
+                  marginLeft: 6,
+                  fontSize: 14,
+                  backgroundColor: "#00f72133",
+                  padding: "2px 6px",
+                  borderRadius: 6,
+                  color: "#00f721",
                 }}
               >
-                {chat.unreadCount}
+                {chat.name.includes("Dev") ? "🧪 Dev Beta" : "🔒 Beta"}
               </span>
             )}
-          </div>
-        ))}
+          </p>
+          <p
+            style={{
+              margin: 0,
+              color: "#BDBDBD",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: "100%",
+            }}
+          >
+            {(chat.lastMessage?.length > 30
+              ? chat.lastMessage.slice(0, 14) + "..."
+              : chat.lastMessage) || "No messages yet"}
+          </p>
+        </div>
+
+        {chat.unreadCount > 0 && (
+          <span
+            style={{
+              backgroundColor: buttonWeatherBg,
+              color: "#212121",
+              padding: "4px 8px",
+              borderRadius: "50%",
+            }}
+          >
+            {chat.unreadCount}
+          </span>
+        )}
       </div>
-    );
+    ))}
+  </div>
+);
+
   }
 
 
@@ -1109,13 +1172,10 @@ const combinedChats = [
                   <BetaAccessGuard>
           <div style={{ padding: '20px', backgroundColor: '#02020200' }}>
       <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-      <IconButton onClick={goBack} sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 8, height: '50px', color: mode === "dark" ? "#fff" : "#000", backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", }}>
-        <ArrowBackIcon />
-      </IconButton>
-           <ProfilePic />
+        <Typography variant="h4" style={{ color: theme.palette.text.primary, fontWeight: "bolder", mr: 2 }}>Chats</Typography>
+           <Notifications />
       </div>
 
-      <Typography variant="h4" style={{ color: theme.palette.text.primary, fontWeight: "bolder", marginBottom: 12, mr: 2 }}>Chats</Typography>
 
     <Box
       sx={{
