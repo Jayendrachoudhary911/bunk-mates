@@ -74,6 +74,7 @@ import {
   FlashOffRounded, // Added for AQI
 } from "@mui/icons-material";
 import ProfilePic from "../components/Profile";
+import CardStack from '../components/Stack';
 import Notifications from "../elements/Notifications";
 import Reminders from "./Reminders";
 import DeviceGuard from "../components/DeviceGuard";
@@ -741,6 +742,25 @@ const visibleStack = useMemo(() => {
   ).sort(() => 0.5 - Math.random());
 }, []);
 
+const onPlanTrip = (p) => {
+  const today = new Date();
+  const plus2 = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+  const prefill = {
+    name: p.name || "",
+    from: userData?.city || "My Location",
+    to: `${p.city || ""}, ${p.state || ""}`.trim(),
+    location:
+      p.location ||
+      `${userData?.city || "My Location"} → ${p.city || p.name || ""}`,
+    startDate: today.toISOString().slice(0, 10),
+    endDate: plus2.toISOString().slice(0, 10),
+  };
+
+  openDrawerWithPrefill(prefill);
+};
+
+  const cards = allFlattenedPlaces.map((place, index) => <PlaceCard key={index} place={place} mode={mode} navigate={navigate} onPlanTrip={onPlanTrip} />);
 
 useEffect(() => {
   if (allFlattenedPlaces.length > 0 && stack.length === 0) {
@@ -1063,8 +1083,6 @@ useEffect(() => {
 
 }, [myTrips, reminders]);
 
-
-useEffect(() => {
   const fetchWeather = async (location) => {
     try {
       let url = '';
@@ -1139,6 +1157,8 @@ useEffect(() => {
     }
   };
 
+useEffect(() => {
+
   // Clear any existing watch
   if (watchIdRef.current) {
     navigator.geolocation.clearWatch(watchIdRef.current);
@@ -1156,7 +1176,6 @@ useEffect(() => {
             lon: longitude,
           };
           fetchWeather(location);
-          fetchAQI(latitude, longitude);
         },
         (error) => {
           console.error('Geolocation error:', error);
@@ -1191,23 +1210,28 @@ useEffect(() => {
   };
 }, [settings.locationMode, settings.manualLocation]);
 
-const onPlanTrip = (p) => {
-  const today = new Date();
-  const plus2 = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
-
-  const prefill = {
-    name: p.name || "",
-    from: userData?.city || "My Location",
-    to: `${p.city || ""}, ${p.state || ""}`.trim(),
-    location:
-      p.location ||
-      `${userData?.city || "My Location"} → ${p.city || p.name || ""}`,
-    startDate: today.toISOString().slice(0, 10),
-    endDate: plus2.toISOString().slice(0, 10),
-  };
-
-  openDrawerWithPrefill(prefill);
-};
+// Fetch AQI only once on app refresh
+useEffect(() => {
+  if (settings.locationMode === "auto") {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          fetchAQI(position.coords.latitude, position.coords.longitude);
+        },
+        (error) => {
+          console.error('AQI geolocation error:', error);
+          setAqiLoading(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    } else {
+      setAqiLoading(false);
+    }
+  } else {
+    setAqiData(null);
+    setAqiLoading(false);
+  }
+}, []); // Empty dependency array: only on mount
 
 
 useEffect(() => {
@@ -2769,7 +2793,7 @@ useEffect(() => {
                     
                     {/* Trips Suggestions Card (NEW SECTION) */}
 {/* Trips Suggestions Stack */}
-<Grid item xs={12} sx={{ minWidth: "100%", px: { xs: 3, md: 0 }, mt: 4, mb: 10 }}>
+<Grid item xs={2} sx={{ minWidth: "100px", maxWidth: "80vw", px: { xs: 1, md: 0 }, mt: 4, mb: 10 }}>
   <Typography variant="h6" textAlign="left" mb={3} sx={{ fontWeight: 700 }}>
     Trip Suggestions & Discovery
   </Typography>
@@ -2779,123 +2803,21 @@ useEffect(() => {
       sx={{
         position: "relative",
         height: 420, 
-        width: "100%",
+        width: 320,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        perspective: "1200px", 
+        perspective: "100px", 
       }}
     >
-<AnimatePresence mode="popLayout">
-  {visibleStack.map((place, index) => {
-    const isTop = index === 0;
-    const baseTilt = getCardTilt(place.id);
-
-    return (
-      <motion.div
-        key={place.id}
-        style={{
-          position: "absolute",
-          width: isSmallScreen ? "100%" : 360,
-          zIndex: 100 - index,
-          touchAction: "none",
-          x: isTop ? swipeX : undefined,
-          boxShadow: `
-            0 ${12 + index * 8}px ${30 + index * 20}px
-            rgba(0,0,0,${0.25 - index * 0.05})
-          `,
-        }}
-        animate={
-          isTop
-            ? swipeControls
-            : {
-                x: index * 12 + swipeX.get() * 0.08,
-                y: index * 18,
-                rotateZ: baseTilt - index * 2,
-                scale: 1 - index * 0.06,
-              }
-        }
-        transition={{
-          type: "spring",
-          stiffness: 260,
-          damping: 26,
-        }}
-        drag={isTop ? "x" : false}
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.15}
-        dragDirectionLock
-onDragEnd={(e, info) => {
-  const velocity = info.velocity.x;
-  const offset = info.offset.x;
-
-  if (Math.abs(offset) > SWIPE_THRESHOLD && offset > 0) {
-    // 👉 RIGHT swipe only
-    handleSwipe(1, velocity);
-  } else {
-    // 🧲 SNAP BACK (LEFT swipe OR weak swipe)
-    swipeControls.start({
-      x: 0,
-      rotate: baseTilt,
-      transition: {
-        type: "spring",
-        stiffness: 520,
-        damping: 34,
-      },
-    });
-    swipeX.set(0);
-  }
-}}
-        whileTap={isTop ? { scale: 1.03, cursor: "grabbing" } : {}}
-      >
-<Box
-  sx={{
-    position: "absolute",
-    inset: 0,
-    pointerEvents: "none",
-    zIndex: 300,
-  }}
->
-  <motion.div
-    style={{
-      position: "absolute",
-      left: 24,
-      top: "50%",
-      transform: "translateY(-50%)",
-      fontWeight: 900,
-      letterSpacing: 1,
-      color: "#fff",
-    }}
-    animate={{ opacity: swipeX.get() < -40 ? 1 : 0 }}
-  >
-    PREVIOUS
-  </motion.div>
-
-  <motion.div
-    style={{
-      position: "absolute",
-      right: 24,
-      top: "50%",
-      transform: "translateY(-50%)",
-      fontWeight: 900,
-      letterSpacing: 1,
-      color: "#fff",
-    }}
-    animate={{ opacity: swipeX.get() > 40 ? 1 : 0 }}
-  >
-    NEXT
-  </motion.div>
-</Box>
-
-        <PlaceCard
-          place={place}
-          mode={mode}
-          navigate={navigate}
-          onPlanTrip={onPlanTrip}
-        />
-      </motion.div>
-    );
-  })}
-</AnimatePresence>
+      <CardStack 
+        cards={cards} 
+        sensitivity={100} 
+        randomRotation={true} 
+        sendToBackOnClick={true} 
+        autoplay={false} 
+        pauseOnHover={true} 
+      />
     </Box>
   ) : (
     <Box sx={{ py: 10, textAlign: 'center' }}>

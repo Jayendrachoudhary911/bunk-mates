@@ -71,6 +71,7 @@
     "leaflet": "^1.9.4",
     "lexical": "^0.32.1",
     "lucide-react": "^0.503.0",
+    "motion": "^12.23.26",
     "phosphor-react": "^1.4.1",
     "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
