@@ -1386,7 +1386,7 @@ const getMessageDate = (timestamp) => {
       sx={{
         background: getGradientStyle('top'),
         backgroundRepeat: "no-repeat",
-        padding: "16px 14px 12px",
+        padding: "45px 14px 12px",
         zIndex: 1100,
         boxShadow: "none",
         borderRadius: "0px 0px 0px 0px",

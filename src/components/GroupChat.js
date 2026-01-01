@@ -1122,7 +1122,7 @@ const renderMessageWithMentions = (text) => {
         backgroundRepeat: "no-repeat",
         backdropFilter: "blur(0px)",
         WebkitBackdropFilter: "blur(0px)",
-        padding: "16px 14px 12px",
+        padding: "45px 14px 12px",
         zIndex: 1100,
         boxShadow: "none",
         borderRadius: "0px 0px 0px 0px",
