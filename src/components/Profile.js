@@ -1013,7 +1013,7 @@ const handleUnblockUser = async (userIdToUnblock) => {
   <ThemeProvider theme={theme}>
 <>
 
-  <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 3 }}>
+  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
 
 
   <Box
