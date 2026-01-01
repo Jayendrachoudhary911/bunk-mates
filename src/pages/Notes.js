@@ -752,6 +752,7 @@ const NoteCard = ({ note, onOpen, onMenu, mode, theme }) => (
           Height: "auto",
           maxWidth: 700,
           mx: "auto",
+          mt: 4.5,
         }}
       >
           <Box
@@ -935,7 +936,7 @@ const NoteCard = ({ note, onOpen, onMenu, mode, theme }) => (
       pb: 9, // space for floating button
     }}
   >
-    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, mt: 4.5 }}>
     <Typography variant="h6" fontWeight="bold" color={theme.palette.text.primary}>
       {editDrawerOpen ? "Edit Note" : ""}
     </Typography>
@@ -1194,7 +1195,7 @@ const NoteCard = ({ note, onOpen, onMenu, mode, theme }) => (
             },
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, mt: 4.5 }}>
             <Button
               onClick={() => setViewDrawerOpen(false)}
               sx={{
@@ -1483,6 +1484,7 @@ const NoteCard = ({ note, onOpen, onMenu, mode, theme }) => (
               backgroundColor: mode === "dark" ? "#00000000" : "#ffffffda",
               backdropFilter: "blur(80px)",
               p: 3,
+              pt: 7.5,
               maxWidth: 340,
               width: "85vw", 
               height: "95vh",

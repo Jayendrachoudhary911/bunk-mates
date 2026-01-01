@@ -1170,7 +1170,7 @@ return (
       <ThemeProvider theme={theme}>
         <DeviceGuard>
                   <BetaAccessGuard>
-          <div style={{ padding: '20px', backgroundColor: '#02020200' }}>
+          <div style={{ padding: '20px', backgroundColor: '#02020200', marginTop: 45 }}>
       <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
         <Typography variant="h4" style={{ color: theme.palette.text.primary, fontWeight: "bolder", mr: 2 }}>Chats</Typography>
            <Notifications />
@@ -1494,7 +1494,7 @@ return (
   }}
 >
       <>
-    <Box display="flex" gap={1.5} alignItems="center" mb={2}>
+    <Box display="flex" gap={1.5} alignItems="center" mb={2} mt={7.5}>
       <IconButton onClick={() => setMembDialogOpen(false)} sx={{ bgcolor: mode === "dark" ? "#f1f1f111" : "#1F1F1F11" }}>
         <ArrowBackIcon sx={{ color: mode === "dark" ? "#fff" : "#000" }} />
       </IconButton>
@@ -1740,11 +1740,11 @@ return (
       borderTopLeftRadius: 0,
       borderTopRightRadius: 0,
       height: "100vh",
-      backgroundImage: "none"
+      backgroundImage: "none",
     },
   }}
 >
-  <Box sx={{ p: 3, height: "100%", display: "flex", flexDirection: "column" }}>
+  <Box sx={{ p: 3, height: "100%", display: "flex", flexDirection: "column", pt: 7.5 }}>
     {/* Header */}
     <Box display="flex" gap={1.5} alignItems="center" mb={2}>
       <IconButton onClick={() => setAddUserDialog(false)} sx={{ bgcolor: mode === "dark" ? "#f1f1f111" : "#1F1F1F11" }}>

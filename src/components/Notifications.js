@@ -683,7 +683,7 @@ const groupedNotifications = useMemo(() => {
 
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ flexGrow: 1, bgcolor: 'background.default', minHeight: '100vh', px: 1 }}>
+      <Box sx={{ flexGrow: 1, bgcolor: 'background.default', minHeight: '100vh', px: 1, mt: 5 }}>
         <AppBar position="static" elevation={0} sx={{ bgcolor: 'transparent', color: 'text.primary', mt: 2 }}>
           <Toolbar>
             <IconButton edge="start" color="inherit" onClick={onBack} sx={{ mr: 2 }}>

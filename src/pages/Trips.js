@@ -1044,7 +1044,7 @@ onClick={() => {
 
   return (
     <ThemeProvider theme={theme}>
-      <Container sx={{ pt: 4, pb: 10 }}>
+      <Container sx={{ pt: 7.5, pb: 10 }}>
         <Box
           sx={{
             display: "flex",
@@ -1052,6 +1052,7 @@ onClick={() => {
             gap: 3,
             justifyContent: "space-between",
             mb: 2,
+            px: 1,
           }}
         >
           <Typography
@@ -1141,8 +1142,8 @@ onClick={() => {
   }}
 >
 
-<Box display={"flex"} alignItems={"center"} sx={{ mb: 4 }}>
-  <Typography variant="h5" fontWeight={"bolder"}>Create a trip</Typography>
+<Box display={"flex"} alignItems={"center"} sx={{ mb: 4, mt: 4.5 }}>
+  <Typography variant="h5" fontWeight={"bolder"} pl={2}>Create a trip</Typography>
   {/* 🔻 Close Button */}
   <IconButton
     onClick={() => {
@@ -1152,8 +1153,8 @@ onClick={() => {
     }}
     sx={{
       position: "absolute",
-      top: 12,
-      right: 12,
+      top: 52,
+      right: 25,
       zIndex: 10,
       backgroundColor: "rgba(0,0,0,0.05)",
       "&:hover": { backgroundColor: "rgba(0,0,0,0.1)" }
@@ -1886,6 +1887,7 @@ onClick={() => {
     position: "relative",
     height: 300,
     width: "100%",
+    pt: 4.5,
     borderRadius: 6,
     overflow: "hidden",
     backgroundColor: mode === "dark" ? "#121212" : "#fcfcfca9",

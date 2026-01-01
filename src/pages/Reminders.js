@@ -345,7 +345,7 @@ export default function Reminders() {
         flexGrow: 1,
         bgcolor: "background.default",
         px: isMobile ? 3 : 3,
-        pt: 3,
+        pt: 4.5,
       }}
     >
       {/* Top Bar (AppBar) remains the same */}

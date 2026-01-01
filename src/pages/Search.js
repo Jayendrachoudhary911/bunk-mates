@@ -1112,7 +1112,7 @@ await addDoc(collection(db, "notifications"), {
 
   // Render
   return (
-    <Box sx={{ p: 3, maxWidth: 900, mx: "auto" }}>
+    <Box sx={{ p: 3, maxWidth: 900, mx: "auto", mt: 4.5 }}>
       
 <Box sx={{ position: "fixed", bottom: q.trim() ? 4 : 68, transition: "bottom 0.25s ease", left: 0, right: 0, px: 2, zIndex: 1000 }}>
         <Box sx={{ maxWidth: 330, mx: "auto", pointerEvents: 'auto' }}>

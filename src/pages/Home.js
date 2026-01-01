@@ -74,7 +74,6 @@ import {
   FlashOffRounded, // Added for AQI
 } from "@mui/icons-material";
 import ProfilePic from "../components/Profile";
-import CardStack from '../components/Stack';
 import Notifications from "../elements/Notifications";
 import Reminders from "./Reminders";
 import DeviceGuard from "../components/DeviceGuard";
@@ -522,6 +521,41 @@ const sliderSettings = {
   arrows: false,
 };
 
+const carouselSettings = {
+  dots: true,
+  dotsClass: "slick-dots slick-thumb",
+  infinite: false,
+  speed: 500,
+  slidesToShow: 4,
+  slidesToScroll: 1,
+  swipeToSlide: true,
+  adaptiveHeight: true,
+  arrows: false,
+  responsive: [
+    {
+      breakpoint: 1024,
+      settings: {
+        slidesToShow: 3,
+        slidesToScroll: 1,
+      }
+    },
+    {
+      breakpoint: 600,
+      settings: {
+        slidesToShow: 2,
+        slidesToScroll: 1
+      }
+    },
+    {
+      breakpoint: 480,
+      settings: {
+        slidesToShow: 1,
+        slidesToScroll: 1
+      }
+    }
+  ]
+};
+
 const pickTip = keyframes`
   0% { transform: translateY(0) rotate(0deg); }
   40% { transform: translateY(-6px) rotate(-1deg); }
@@ -541,7 +575,7 @@ const PlaceCard = ({ place, mode, navigate, onPlanTrip }) => {
   }}
   sx={{
     position: "relative",
-    height: 400,
+    height: 410,
     width: "100%",
     borderRadius: 6,
     overflow: "hidden",
@@ -576,6 +610,7 @@ const PlaceCard = ({ place, mode, navigate, onPlanTrip }) => {
       justifyContent: "flex-end",
       color: "#fff",
       p: 3,
+      pb: 6
     }}
   >
     {/* Title & Location */}
@@ -643,6 +678,7 @@ const PlaceCard = ({ place, mode, navigate, onPlanTrip }) => {
       }}
       sx={{
         py: 1.5,
+        mb: 1,
         borderRadius: 4,
         fontWeight: 800,
         textTransform: "none",
@@ -707,23 +743,6 @@ const Home = () => {
 
   const isDesktop = useMediaQuery(muiTheme.breakpoints.up('lg'));
   const isLargeDesktop = useMediaQuery(muiTheme.breakpoints.up('xl'));
-  const [stack, setStack] = useState([]);
-  const swipeControls = useAnimationControls();
-  const isAnimatingRef = useRef(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const PREVIEW_DISTANCE = 80;
-  const swipeX = useMotionValue(0);
-  const MAX_ROTATION = 18;
-
-const visibleStack = useMemo(() => {
-  if (!stack.length) return [];
-
-  return [
-    stack[currentIndex % stack.length],
-    stack[(currentIndex + 1) % stack.length],
-    stack[(currentIndex + 2) % stack.length],
-  ];
-}, [stack, currentIndex]);
 
   const allFlattenedPlaces = useMemo(() => {
   if (!placesData || !placesData.states) return [];
@@ -742,6 +761,9 @@ const visibleStack = useMemo(() => {
   ).sort(() => 0.5 - Math.random());
 }, []);
 
+const carouselPlaces = allFlattenedPlaces.slice(0, 4);
+const remainingPlaces = allFlattenedPlaces.slice(4);
+
 const onPlanTrip = (p) => {
   const today = new Date();
   const plus2 = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
@@ -758,56 +780,6 @@ const onPlanTrip = (p) => {
   };
 
   openDrawerWithPrefill(prefill);
-};
-
-  const cards = allFlattenedPlaces.map((place, index) => <PlaceCard key={index} place={place} mode={mode} navigate={navigate} onPlanTrip={onPlanTrip} />);
-
-useEffect(() => {
-  if (allFlattenedPlaces.length > 0 && stack.length === 0) {
-    setStack(allFlattenedPlaces.slice(0, 10));
-  }
-}, [allFlattenedPlaces]); // Glitch: Missing stack in dependency array
-
-const handleSwipe = async (direction, velocity = 0) => {
-  if (isAnimatingRef.current) return;
-  isAnimatingRef.current = true;
-
-  triggerHaptic(Math.abs(velocity));
-
-  // 👉 RIGHT SWIPE = COMMIT
-  if (direction > 0) {
-    await swipeControls.start({
-      x: 520,
-      rotate: MAX_ROTATION,
-      opacity: 0,
-      transition: { duration: 0.32, ease: "easeInOut" },
-    });
-
-    // 🧠 MEMORY-BASED RESURFACING
-    setStack((prev) => {
-      const next = [...prev];
-      const removed = next[currentIndex % next.length];
-
-      // remove current card
-      next.splice(currentIndex % next.length, 1);
-
-      // reinsert deeper in stack
-      const insertAt = Math.min(4, next.length);
-      next.splice(insertAt, 0, removed);
-
-      return next;
-    });
-
-    setCurrentIndex((i) =>
-      i % Math.max(stack.length - 1, 1)
-    );
-  }
-
-  // 🔁 RESET POSITION (for left swipe & after right swipe)
-  swipeControls.set({ x: 0, rotate: 0, opacity: 1 });
-  swipeX.set(0);
-
-  isAnimatingRef.current = false;
 };
 
 const {
@@ -1499,7 +1471,7 @@ useEffect(() => {
   position="absolute"
   elevation={0}
   sx={{
-    top: 20 , // ⬆ hides smoothly
+    top: 45 , // ⬆ hides smoothly
     transition: "all 0.45s cubic-bezier(.4,0,.2,1)",
     background: "transparent",
     backdropFilter: "none",
@@ -1587,10 +1559,12 @@ useEffect(() => {
     <Box
       sx={{
         transition: "transform 0.3s ease",
-        backgroundColor: mode === "dark" ? "#1e1e1e1f" : "#ffffff24",
+        backgroundColor: mode === "dark" ? "#1e1e1e23" : "#ffffff24",
+        backdropFilter: "blur(120px)",
+        WebkitBackdropFilter: "blur(120px)",
         borderRadius: "50%",
         p: 1.2,
-        border: mode === "dark" ? "1px solid #333" : "1px solid #ddd",
+        border: mode === "dark" ? "1px solid #33333346" : "1px solid #ddd",
         "&:hover": { transform: "scale(1.05)" },
       }}
     >
@@ -1619,8 +1593,8 @@ useEffect(() => {
                 <Container
                   maxWidth="lg"
                   sx={{
-                    pt: 5,
-                    pb: 1,
+                    pt: 10,
+                    pb: 2,
                     position: "relative",
                     zIndex: 3,
                     "&:after": {
@@ -1630,7 +1604,7 @@ useEffect(() => {
                       left: 0,
                       right: 0,
                       bottom: 0,
-                      height: { xs: 30, md: 60 }, 
+                      height: { xs: 60, md: 60 }, 
                       pointerEvents: "none",
                       zIndex: 2,
                     },
@@ -2792,33 +2766,46 @@ useEffect(() => {
 
                     
                     {/* Trips Suggestions Card (NEW SECTION) */}
-{/* Trips Suggestions Stack */}
-<Grid item xs={2} sx={{ minWidth: "100px", maxWidth: "80vw", px: { xs: 1, md: 0 }, mt: 4, mb: 10 }}>
+{/* Trips Suggestions Carousel and List */}
+<Grid item xs={12} sx={{ px: { xs: 1, md: 0 }, mt: 4, mb: 10 }}>
   <Typography variant="h6" textAlign="left" mb={3} sx={{ fontWeight: 700 }}>
     Trip Suggestions & Discovery
   </Typography>
 
-  {stack.length > 0 ? (
-    <Box
-      sx={{
-        position: "relative",
-        height: 420, 
-        width: 320,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        perspective: "100px", 
-      }}
-    >
-      <CardStack 
-        cards={cards} 
-        sensitivity={100} 
-        randomRotation={true} 
-        sendToBackOnClick={true} 
-        autoplay={false} 
-        pauseOnHover={true} 
-      />
-    </Box>
+  {allFlattenedPlaces.length > 0 ? (
+    <>
+      {/* Carousel for first 4 places */}
+      {carouselPlaces.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" textAlign="left" mb={2} sx={{ fontWeight: 600 }}>
+            Featured Places
+          </Typography>
+          <Slider {...carouselSettings}>
+            {carouselPlaces.map((place, index) => (
+              <Box key={index} sx={{ px: 0 }}>
+                <PlaceCard place={place} mode={mode} navigate={navigate} mr={2} onPlanTrip={onPlanTrip} />
+              </Box>
+            ))}
+          </Slider>
+        </Box>
+      )}
+
+      {/* Remaining places in a grid */}
+      {remainingPlaces.length > 0 && (
+        <Box>
+          <Typography variant="h6" textAlign="left" mb={2} sx={{ fontWeight: 600 }}>
+            More Places
+          </Typography>
+          <Grid container spacing={2}>
+            {remainingPlaces.map((place, index) => (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
+                <PlaceCard place={place} mode={mode} navigate={navigate} onPlanTrip={onPlanTrip} />
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      )}
+    </>
   ) : (
     <Box sx={{ py: 10, textAlign: 'center' }}>
        <CircularProgress size={30} />
