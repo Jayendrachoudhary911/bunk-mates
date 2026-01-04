@@ -914,14 +914,14 @@ const handleScroll = useCallback(() => {
   };
 
   return (
-    <Box sx={{ position: 'relative', mb: 0 }}>
+    <Box sx={{ position: 'relative', mb: 0, pt: 10, backgroundColor: "transparent" }}>
       {/* Sticky Month Overlay */}
       <Box sx={{ 
-        position: 'absolute', top: -30, left: 10, zIndex: 10,
-        backdropFilter: 'blur(10px)', borderRadius: 10,
-        color: mode === 'dark' ? '#fff' : '#000'
+        position: 'absolute', top: 50, left: 25, zIndex: 10, borderRadius: 10,
+        color: mode === 'dark' ? '#fff' : '#000',
+        backgroundColor: "transparent"
       }}>
-        <Typography variant="caption" fontWeight={900} sx={{ letterSpacing: 1, textTransform: 'uppercase' }}>
+        <Typography variant="caption" fontWeight={900} sx={{ letterSpacing: 1, textTransform: 'uppercase', backgroundColor: "transparent" }}>
           {activeMonth}
         </Typography>
       </Box>
@@ -931,7 +931,7 @@ const handleScroll = useCallback(() => {
         onClick={snapToToday}
         size="small"
         sx={{ 
-          position: 'absolute', right: 0, top: -35, zIndex: 10,
+          position: 'absolute', right: 25, top: 45, zIndex: 10,
           borderRadius: 20, textTransform: 'none', fontWeight: 800,
           backdropFilter: 'blur(10px)', backgroundColor: mode === 'dark' ? '#ffffff22' : '#00000022',
           color: mode === 'dark' ? '#fff' : '#000',
@@ -1044,7 +1044,7 @@ onClick={() => {
 
   return (
     <ThemeProvider theme={theme}>
-      <Container sx={{ pt: 7.5, pb: 10 }}>
+      <Container sx={{ pt: 7.5, pb: 10, px: 0 }}>
         <Box
           sx={{
             display: "flex",
@@ -1052,7 +1052,7 @@ onClick={() => {
             gap: 3,
             justifyContent: "space-between",
             mb: 2,
-            px: 1,
+            px: 3,
           }}
         >
           <Typography
@@ -1068,17 +1068,18 @@ onClick={() => {
         </Box>
 
 <Box sx={{ 
-  position: 'sticky', mt: 10, top: 0, zIndex: 100, 
-  borderRadius: 3,
+  position: 'sticky', mt: 0, top: 0, zIndex: 100, 
+  borderRadius: "0 0 10px 10px",
   pt: 0, pb: 0, 
-  background: mode === 'dark' ? 'rgba(12,12,12,0.7)' : 'rgba(241,241,241,0.7)',
+  background: mode === 'dark' ? 'rgba(12, 12, 12, 0.4)' : 'rgba(241,241,241,0.7)',
   backdropFilter: 'blur(20px) saturate(180%)',
-  borderBottom: '1px solid rgba(128,128,128,0.1)'
+  borderBottom: '0px solid rgba(128,128,128,0.1)',
+  left: -30, right: 0
 }}>
   <HorizontalInfiniteCalendar trips={trips} mode={mode} />
 </Box>
 
-<Box sx={{ px: 2 }}>
+<Box sx={{ px: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
 
           {/* <Button
