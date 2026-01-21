@@ -13,8 +13,15 @@ import {
   ChatBubbleOutline,
   Chat,
   ChatBubble,
+  ChevronLeft,
+  ChevronRight,
+  Hamburger,
+  Menu,
+  ArrowDropDown as ArrowDropDownIcon,
+  NotificationsOutlined,
+  Notifications,
 } from "@mui/icons-material";
-import { Box, Button, Badge, Zoom, keyframes, Typography, CircularProgress } from "@mui/material";
+import { Box, Button, Badge, Zoom, keyframes, Typography, CircularProgress, Stack, Tooltip, useMediaQuery, IconButton, Avatar } from "@mui/material";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { db } from "../firebase";
@@ -45,6 +52,9 @@ const BottomNavBar = () => {
   const theme = getTheme(mode, accent);
   const { user: currentUser, loading: authLoading } = useAuth();
 
+  const isDesktop = useMediaQuery("(min-width:1024px)");
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const [visible, setVisible] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -58,6 +68,14 @@ const BottomNavBar = () => {
     { label: "Notes", path: "/notes", icon: <StickyNote2Outlined />, activeIcon: <StickyNote2 /> },
     { label: "Trips", path: "/trips", icon: <ExploreOutlined />, activeIcon: <Explore /> },
     { label: "Chats", path: "/chats", icon: <ChatBubbleOutline />, activeIcon: <ChatBubble /> },
+  ];
+
+    const navItemsdesk = [
+    { label: "Home", path: "/", icon: <HomeOutlined />, activeIcon: <Home /> },
+    { label: "Notes", path: "/notes", icon: <StickyNote2Outlined />, activeIcon: <StickyNote2 /> },
+    { label: "Trips", path: "/trips", icon: <ExploreOutlined />, activeIcon: <Explore /> },
+    { label: "Chats", path: "/chats", icon: <ChatBubbleOutline />, activeIcon: <ChatBubble /> },
+    { label: "Notifications", path: "/notifications", icon: <NotificationsOutlined />, activeIcon: <Notifications /> },
   ];
 
   // Fetch user data
@@ -196,6 +214,235 @@ const BottomNavBar = () => {
 
   const isChatActive = location.pathname.startsWith("/chats");
 
+const handleTogglePin = (e) => {
+  e.stopPropagation(); // Prevent trigger conflicts
+  const newPinnedState = !isPinned;
+  setIsPinned(newPinnedState);
+  setIsExpanded(newPinnedState); // If pinning, stay expanded; if unpinning, stay collapsed until hover
+};
+
+const handleMouseEnter = () => {
+  if (!isPinned) setIsExpanded(true);
+};
+
+const handleMouseLeave = () => {
+  if (!isPinned) setIsExpanded(false);
+};
+
+  if (isDesktop) {
+return (
+  <Box
+    onMouseEnter={handleMouseEnter}
+    onMouseLeave={handleMouseLeave}
+    sx={{
+      width: isExpanded ? 225 : 50,
+      height: "95vh",
+      position: "fixed",
+      left: 0,
+      top: 0,
+      display: "flex",
+      flexDirection: "column",
+      transition: "all 0.45s cubic-bezier(0.4, 0, 0.2, 1)",
+      borderRadius: 3,
+      background:
+        mode === "dark"
+          ? "linear-gradient(180deg, #0c0c0c50, #09090956)"
+          : "linear-gradient(180deg, #fafafa49, #f1f1f147)",
+      backdropFilter: "blur(20px) saturate(1.2)",
+      borderRight: `1px solid ${
+        mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"
+      }`,
+      boxShadow:
+        mode === "dark"
+          ? "4px 0 30px rgba(0,0,0,0.6)"
+          : "4px 0 24px rgba(0,0,0,0.08)",
+      zIndex: 1400,
+      px: 2,
+      py: 3,
+    }}
+  >
+
+    {/* ───── Logo Area ───── */}
+    <Box sx={{ display: "flex", alignItems: "center", mb: 6, px: 2, gap: 2 }}>
+    <IconButton
+      onClick={handleTogglePin}
+      sx={{
+        width: "10%",
+        height: "10%",
+        borderRadius: 3,
+        border: `1px solid ${
+          mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"
+        }`,
+        backdropFilter: "blur(8px)",
+        "&:hover": {
+          bgcolor: mode === "dark" ? "#ffffff10" : "#00000008",
+        },
+      }}
+    >
+      {/* {isExpanded ? <ChevronLeft /> : <ChevronRight />} */}
+      <Menu />
+    </IconButton>
+
+      {isExpanded && (
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 500,
+            letterSpacing: "0.04em",
+            color: theme.palette.text.primary,
+            animation: "fadeSlide 0.4s ease",
+            "@keyframes fadeSlide": {
+              from: { opacity: 0, transform: "translateX(-8px)" },
+              to: { opacity: 1, transform: "translateX(0)" },
+            },
+          }}
+        >
+          BunkMate
+        </Typography>
+      )}
+    </Box>
+
+    {/* ───── Navigation ───── */}
+    <Stack spacing={1} sx={{ flexGrow: 1 }}>
+      {navItemsdesk.map((item, index) => {
+        const isActive = activeIndex === index;
+
+        return (
+          <Tooltip
+            key={item.label}
+            title={!isExpanded ? item.label : ""}
+            placement="right"
+          >
+            <Box
+              onClick={() => navigate(item.path)}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                p: 1.5,
+                borderRadius: 4,
+                cursor: "pointer",
+                position: "relative",
+                overflow: "hidden",
+                transition: "all 0.25s ease",
+                bgcolor: isActive
+                  ? mode === "dark"
+                    ? "rgba(255,255,255,0.08)"
+                    : "rgba(0,0,0,0.06)"
+                  : "transparent",
+                color: isActive
+                  ? mode === "dark"
+                    ? "#fff"
+                    : "#000"
+                  : "text.secondary",
+                "&:hover": {
+                  bgcolor:
+                    mode === "dark"
+                      ? "rgba(255,255,255,0.05)"
+                      : "rgba(0,0,0,0.08)",
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  mr: isExpanded ? 2 : 0,
+                  transform: isActive ? "scale(1.15)" : "scale(1)",
+                  transition: "transform 0.2s",
+                }}
+              >
+                {isActive ? item.activeIcon : item.icon}
+              </Box>
+
+              {isExpanded && (
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: isActive ? 700 : 500 }}
+                >
+                  {item.label}
+                </Typography>
+              )}
+            </Box>
+          </Tooltip>
+        );
+      })}
+    </Stack>
+
+    {/* ───── Profile Section ───── */}
+    <Box sx={{ mt: "auto" }}>
+      <Box
+        onClick={() => navigate("?settings=main")}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          px: 1,
+          py: 1.5,
+          borderRadius: 4,
+          cursor: "pointer",
+          transition: "all 0.25s",
+          "&:hover": {
+            bgcolor:
+              mode === "dark"
+                ? "rgba(255,255,255,0.06)"
+                : "rgba(0,0,0,0.06)",
+          },
+        }}
+      >
+        {loadingUserData ? (
+          <CircularProgress size={20} />
+        ) : (
+          <>
+            <Avatar
+              src={userData?.photoURL || ""}
+              sx={{
+                width: 32,
+                height: 32,
+                mr: isExpanded ? 1.5 : 0,
+                border: "2px solid rgba(255,255,255,0.2)",
+                ml: 0
+              }}
+            />
+
+            {isExpanded && (
+              <Box
+                sx={{
+                  ml: "auto",
+                  px: 0,
+                  py: 1,
+                  borderRadius: 2,
+                  background: "transparent",
+                  boxShadow: "none",
+                  animation: "fadeUp 0.35s ease",
+                  "@keyframes fadeUp": {
+                    from: { opacity: 0, transform: "translateY(6px)" },
+                    to: { opacity: 1, transform: "translateY(0)" },
+                  },
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  lineHeight={1.2}
+                  sx={{ color: "text.primary" }}
+                >
+                  {userData?.name || "Username"}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: "text.secondary" }}
+                >
+                  @{userData?.username || "email"}
+                </Typography>
+              </Box>
+            )}
+          </>
+        )}
+      </Box>
+    </Box>
+  </Box>
+);
+
+  }
+
 return (
   <Box
     id="bottom-nav"
@@ -264,43 +511,68 @@ return (
           {navItems.map((item, index) => {
             const isActive = activeIndex === index;
             return (
-              <Link
-                key={item.label}
-                to={item.path}
-                style={{
-                  textDecoration: "none",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flex: 1,
-                }}
-              >
-                <Box
-                  sx={{
-                    height: 40,
-                    width: 56,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transform: isActive ? "scale(1.1)" : "scale(1)",
-                    backgroundColor: isActive
-                      ? mode === "dark" ? "#ffffffd0" : "#000000d0"
-                      : "transparent",
-                    borderRadius: 10,
-                    color: isActive
-                      ? mode === "dark"
-                        ? "#000"
-                        : "#fff"
-                      : mode === "dark"
-                        ? "#bcbcbc"
-                        : "#333",
-                    transition: "all 0.25s ease",
-                  }}
-                >
-                  {isActive ? item.activeIcon : item.icon}
-                </Box>
-              </Link>
+<Box
+  key={item.label}
+  onClick={() => navigate(item.path)}
+  sx={{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
+
+    // 👇 NOT link-like
+    cursor: "default",
+    userSelect: "none",
+
+    // 👇 tap feedback, not navigation cue
+    "&:active": {
+      transform: "scale(0.95)",
+    },
+  }}
+>
+
+<Box
+  sx={{
+    height: 40,
+    width: 56,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+
+    borderRadius: 10,
+
+    transform: isActive ? "scale(1.08)" : "scale(1)",
+    transition: "transform 0.2s ease, background-color 0.2s ease",
+
+    backgroundColor: isActive
+      ? mode === "dark"
+        ? "#ffffffd0"
+        : "#000000d0"
+      : "transparent",
+
+    color: isActive
+      ? mode === "dark"
+        ? "#000"
+        : "#fff"
+      : mode === "dark"
+        ? "#bcbcbc"
+        : "#333",
+
+    // 👇 no hover CTA
+    "&:hover": {
+      backgroundColor: isActive
+        ? undefined
+        : mode === "dark"
+          ? "rgba(255,255,255,0.04)"
+          : "rgba(0,0,0,0.04)",
+    },
+  }}
+>
+  {isActive ? item.activeIcon : item.icon}
+</Box>
+
+              </Box>
             );
           })}
         </Box>

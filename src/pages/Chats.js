@@ -1168,7 +1168,7 @@ return (
 
   return (
       <ThemeProvider theme={theme}>
-        <DeviceGuard>
+        {/* <DeviceGuard> */}
                   <BetaAccessGuard>
           <div style={{ padding: '20px', backgroundColor: '#02020200', marginTop: 45 }}>
       <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
@@ -1952,7 +1952,7 @@ return (
 </Box>
           </div>
         </BetaAccessGuard>
-        </DeviceGuard>
+        {/* </DeviceGuard> */}
     </ThemeProvider>
   );
 }

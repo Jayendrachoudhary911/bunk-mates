@@ -742,7 +742,7 @@ const NoteCard = ({ note, onOpen, onMenu, mode, theme }) => (
 
   return (
     <ThemeProvider theme={theme}>
-      <DeviceGuard>
+      {/* <DeviceGuard> */}
       <BetaAccessGuard>
               <Box
         sx={{
@@ -1594,7 +1594,7 @@ const NoteCard = ({ note, onOpen, onMenu, mode, theme }) => (
           
           </Box>
       </BetaAccessGuard>
-      </DeviceGuard>
+      {/* </DeviceGuard> */}
     </ThemeProvider>
   );
 };

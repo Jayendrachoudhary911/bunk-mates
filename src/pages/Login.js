@@ -61,6 +61,58 @@ function getGreeting() {
   return "Good night";
 }
 
+const GRADIENT_VARIANTS = [
+  // 🔥 Red / Orange dominant
+  `
+    radial-gradient(
+        circle at 70% 10%,
+        #ff8d1a 0%,
+        #ff0000 12%,
+        #000000 38%,
+        #000000 62%,
+        #000000 100%
+      )
+  `,
+
+  // 💜 Purple / Pink
+  `
+    radial-gradient(
+        circle at 70% 10%,
+        #a848ec 0%,
+        #8402ff 12%,
+        #000000 38%,
+        #000000 62%,
+        #000000 100%
+      )
+  `,
+
+  // 🔵 Blue / Cyan
+  `
+    radial-gradient(
+        circle at 70% 10%,
+        #22d3ee 0%,
+        #3b83f6 12%,
+        #000000 38%,
+        #000000 62%,
+        #000000 100%
+      )
+  `,
+
+  // 🌅 Warm sunset (gold / orange)
+  `
+    radial-gradient(circle at 50% 10%,
+      rgba(251,191,36,0.20) 0%,
+      rgba(251,191,36,0.12) 22%,
+      rgba(0,0,0,0) 42%),
+    radial-gradient(circle at 20% 30%,
+      rgba(249,115,22,0.18) 0%,
+      rgba(249,115,22,0.10) 20%,
+      rgba(0,0,0,0) 40%),
+    linear-gradient(180deg,#000000,#000000)
+  `,
+];
+
+
 const Login = () => {
   const navigate = useNavigate();
 
@@ -73,6 +125,16 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   const [fadeIn, setFadeIn] = useState(false);
+  const [bgGradient, setBgGradient] = useState("");
+
+useEffect(() => {
+  const random =
+    GRADIENT_VARIANTS[
+      Math.floor(Math.random() * GRADIENT_VARIANTS.length)
+    ];
+  setBgGradient(random);
+}, []);
+
 
   // Listen for auth state changes and subscribe to Firestore user doc in real-time
   useEffect(() => {
@@ -212,16 +274,22 @@ const Login = () => {
 
   return (
     <ThemeProvider theme={darkTheme}>
-      <Box
-        sx={{
-          background: "transparent",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 2,
-          minHeight: "90vh",
-        }}
-      >
+<Box
+  sx={{
+    minHeight: "96.5vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 2,
+
+    /* --- DARK DOMINANT RADIAL GRADIENT --- */
+    background: bgGradient,
+
+    backgroundSize: "140% 140%",
+    animation: "darkRadialGlow 24s ease-in-out infinite",
+  }}
+>
+
         <Fade in={fadeIn} timeout={100}>
           <Container maxWidth="xs">
             <Stack spacing={4} sx={{ mt: "35vh" }}>
@@ -245,7 +313,56 @@ const Login = () => {
                         fullWidth
                         required
                         onChange={handleChange}
-                        sx={{ borderRadius: 3 }}
+                         sx={{
+    /* --- FIELD BASE --- */
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    backdropFilter: "blur(8px)",
+
+    /* --- INPUT TEXT --- */
+    "& .MuiInputBase-input": {
+      color: "#ffffff",
+      padding: "14px 16px",
+      fontSize: "0.95rem",
+      letterSpacing: "0.02em",
+    },
+
+    /* --- LABEL --- */
+    "& .MuiInputLabel-root": {
+      color: "rgba(255,255,255,0.65)",
+      fontWeight: 500,
+    },
+    "& .MuiInputLabel-root.Mui-focused": {
+      color: "#ffffff",
+    },
+
+    /* --- OUTLINE --- */
+    "& .MuiOutlinedInput-root": {
+      borderRadius: 4,
+
+      "& fieldset": {
+        borderColor: "rgba(255,255,255,0.15)",
+        transition: "border-color 0.3s ease, box-shadow 0.3s ease",
+      },
+
+      "&:hover fieldset": {
+        borderColor: "rgba(255, 255, 255, 0.6)",
+      },
+
+      "&.Mui-focused fieldset": {
+        borderColor: "#ffffff",
+        boxShadow: "0 0 0 2px rgba(255,140,26,0.25)",
+      },
+    },
+
+    /* --- AUTOFILL FIX (Chrome) --- */
+    "& input:-webkit-autofill": {
+      WebkitBoxShadow: "0 0 0 100px #0c0c0c inset",
+      WebkitTextFillColor: "#ffffff",
+      caretColor: "#ffffff",
+      borderRadius: 4,
+    },
+  }}
                       />
                       <TextField
                         name="password"
@@ -254,6 +371,56 @@ const Login = () => {
                         fullWidth
                         required
                         onChange={handleChange}
+                         sx={{
+    /* --- FIELD BASE --- */
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    backdropFilter: "blur(8px)",
+
+    /* --- INPUT TEXT --- */
+    "& .MuiInputBase-input": {
+      color: "#ffffff",
+      padding: "14px 16px",
+      fontSize: "0.95rem",
+      letterSpacing: "0.02em",
+    },
+
+    /* --- LABEL --- */
+    "& .MuiInputLabel-root": {
+      color: "rgba(255,255,255,0.65)",
+      fontWeight: 500,
+    },
+    "& .MuiInputLabel-root.Mui-focused": {
+      color: "#ffffff",
+    },
+
+    /* --- OUTLINE --- */
+    "& .MuiOutlinedInput-root": {
+      borderRadius: 4,
+
+      "& fieldset": {
+        borderColor: "rgba(255,255,255,0.15)",
+        transition: "border-color 0.3s ease, box-shadow 0.3s ease",
+      },
+
+      "&:hover fieldset": {
+        borderColor: "rgba(255, 255, 255, 0.6)",
+      },
+
+      "&.Mui-focused fieldset": {
+        borderColor: "#ffffff",
+        boxShadow: "0 0 0 2px rgba(255,140,26,0.25)",
+      },
+    },
+
+    /* --- AUTOFILL FIX (Chrome) --- */
+    "& input:-webkit-autofill": {
+      WebkitBoxShadow: "0 0 0 100px #0c0c0c inset",
+      WebkitTextFillColor: "#ffffff",
+      caretColor: "#ffffff",
+      borderRadius: 4,
+    },
+  }}
                       />
                       <Box display={"flex"} justifyContent="space-between" alignItems="center">
                         <FormControlLabel
@@ -324,109 +491,158 @@ const Login = () => {
       </Box>
 
       {/* Fullscreen Drawer after successful login */}
-      <Drawer
-        anchor="bottom"
-        open={showDrawer}
-        onClose={() => {}}
-        hideBackdrop
+<Drawer
+  anchor="bottom"
+  open={showDrawer}
+  onClose={() => {}}
+  hideBackdrop
+  sx={{ boxShadow: "none" }}
+>
+  {/* ---------- GRADIENT BACKGROUND ---------- */}
+  <Box
+    sx={{
+      height: "100vh",
+      position: "relative",
+      p: 2,
+
+      background: bgGradient,
+
+      backgroundSize: "160% 160%",
+      animation: "darkRadialGlow 24s ease-in-out infinite",
+    }}
+  >
+    {/* ---------- GLASS CARD ---------- */}
+    <Card
+      sx={{
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        m: 1.5,
+
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        textAlign: "center",
+
+        px: 3,
+        py: 4,
+        pb: 3,
+        mx: 1.5,
+        maxWidth: 480,
+
+        borderRadius: 6,
+        backdropFilter: "blur(60px)",
+        backgroundColor: "rgba(18, 18, 18, 0.41)",
+        boxShadow: "none",
+      }}
+    >
+      {/* ---------- AVATAR ---------- */}
+      <Box
         sx={{
-          boxShadow: "none",
+          mb: 2,
+          p: 0.5,
+          borderRadius: "50%",
+          background: bgGradient,
         }}
       >
-        <Box
-          sx={{
-            background: "url('/assets/images/bg.png') center/cover no-repeat",
-            height: "100vh",
-          }}
-        >
-          <Card
-          fullWidth
-            sx={{
-              position: "absolute",
-              bottom: "0",
-              color: "#fff",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              textAlign: "center",
-              boxShadow: "none",
-              px: 3,
-              py: 4,
-              borderRadius: "16px 16px 0 0",
-              backdropFilter: "blur(40px)",
-              backgroundColor: "#0c0c0c95",
-            }}
-          >
-            <Box
-              sx={{
-                height: 100,
-                mb: 2,
-                p: 0.3,
-                borderRadius: "50%",
-                border: "4px solid #303030ff",
-              }}
-            >
-              <Avatar
-                src={userData?.photoURL || ""}
-                sx={{
-                  width: 100,
-                  height: 100,
-                  mb: 2,
-                }}
-                alt={userData?.displayName || "User"}
-              />
-            </Box>
+        <Avatar
+          src={userData?.photoURL || ""}
+          sx={{ width: 106, height: 106 }}
+          alt={userData?.displayName || "User"}
+        />
+      </Box>
 
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              {getGreeting()}, {userData?.displayName?.split(" ")[0] || "Explorer"}!
-            </Typography>
+      {/* ---------- GREETING ---------- */}
+      <Typography variant="h4" fontWeight={700}>
+        {getGreeting()},{" "}
+        {userData?.displayName?.split(" ")[0] || "Explorer"}!
+      </Typography>
 
-            <Typography variant="body1" color="text.secondary" gutterBottom>
-              You've successfully logged into <b>BunkMate</b>
-            </Typography>
+      <Typography
+        variant="body2"
+        sx={{ opacity: 0.75, mt: 0.5 }}
+      >
+        You’re successfully logged into{" "}
+        <b>BunkMate</b>
+      </Typography>
 
-            <Box
-              sx={{
-                my: 3,
-                textAlign: "center",
-                backgroundColor: "#f1f1f111",
-                p: 1,
-                maxWidth: 400,
-                width: "100%",
-                borderRadius: 2,
-              }}
-            >
-              <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
-                <strong>Email:</strong> {userData?.email || user?.email}
-              </Typography>
-              <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
-                <strong>Login Time:</strong>{" "}
-                {new Date().toLocaleString(undefined, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })}
-              </Typography>
-            </Box>
+      {/* ---------- DETAILS PANEL ---------- */}
+      <Box
+        sx={{
+          mt: 3,
+          px: 2,
+          py: 1.5,
+          width: "100%",
+          maxWidth: 420,
+          borderRadius: 3,
+          backgroundColor: "rgba(255,255,255,0.06)",
+        }}
+      >
+        <Typography variant="caption" sx={{ opacity: 0.8 }}>
+          <strong>Email:</strong>{" "}
+          {userData?.email || user?.email}
+        </Typography>
 
-            <Button
-              variant="contained"
-              size="large"
-              fullWidth
-              onClick={handleContinue}
-              sx={{
-                borderRadius: 50,
-                px: 5,
-                py: 1.5,
-                fontSize: "1rem",
-                boxShadow: "none",
-              }}
-            >
-              Continue
-            </Button>
-          </Card>
-        </Box>
-      </Drawer>
+        <Typography variant="caption" sx={{ opacity: 0.8, display: "block", mt: 0.5 }}>
+          <strong>Login time:</strong>{" "}
+          {new Date().toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}
+        </Typography>
+
+        {userData?.type && (
+          <Typography variant="caption" sx={{ opacity: 0.8, display: "block", mt: 0.5 }}>
+            <strong>Account:</strong> {userData.type}
+          </Typography>
+        )}
+      </Box>
+
+      {/* ---------- SECURITY NOTE ---------- */}
+      <Typography
+        variant="caption"
+        sx={{
+          mt: 2,
+          opacity: 0.6,
+          maxWidth: 360,
+        }}
+      >
+        🔒 This session is secured. If this wasn’t you,
+        please log out immediately.
+      </Typography>
+
+      {/* ---------- CTA ---------- */}
+      <Button
+        variant="contained"
+        size="large"
+        fullWidth
+        onClick={handleContinue}
+        sx={{
+          mt: 3,
+          borderRadius: 3,
+          py: 1.4,
+          fontSize: "1rem",
+          fontWeight: 600,
+          color: "#000",
+          background:
+            "linear-gradient(135deg, #ffffff, #eaeaea)",
+          boxShadow: "none",
+          "&:hover": {
+            background:
+              "linear-gradient(135deg, #ffffff, #ffffff)",
+            transform: "scale(1.03)",
+          },
+          transition: "all 0.25s ease",
+        }}
+      >
+        Continue to BunkMates
+      </Button>
+    </Card>
+  </Box>
+</Drawer>
+
     </ThemeProvider>
   );
 };

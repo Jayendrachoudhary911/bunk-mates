@@ -1,30 +1,37 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { messaging } from './firebase';
 import { getToken, onMessage } from 'firebase/messaging';
-import { Box } from "@mui/material";
+import { Box, useMediaQuery, Typography } from "@mui/material";
 import "./App.css";
 import 'leaflet/dist/leaflet.css';
+
+// Contexts & Hooks
+import { UserProvider } from './contexts/UserContext';
+import { WeatherProvider } from "./contexts/WeatherContext";
+import { SettingsProvider } from "./contexts/SettingsContext";
+import { ThemeToggleProvider, useThemeToggle } from './contexts/ThemeToggleContext';
+import { BackgroundProvider } from "./contexts/BackgroundContext";
+// Pages
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
-import Homepage from "./pages/Homepage";
 import Profile from "./pages/Profile";
 import Chats from "./pages/Chats";
-import Budgetmngr from "./pages/Budget"
+import Budgetmngr from "./pages/Budget";
 import Reminders from "./pages/Reminders";
 import Notes from "./pages/Notes";
 import Waitlist from "./pages/Wishlist";
-import { UserProvider } from './contexts/UserContext';
+import Trips from "./pages/Trips";
+import JoinTrip from "./pages/JoinTrip";
+import SearchPage from "./pages/Search";
+
+// Components
+import BottomNavBar from './components/BottomNavBar';
+import ProtectedRoute from "./components/ProtectedRoute";
 import Chatroom from "./components/Chatroom";
 import GroupChat from "./components/GroupChat";
-
-import Trips from "./pages/Trips";
-import ProtectedRoute from "./components/ProtectedRoute";
-import { WeatherProvider } from "./contexts/WeatherContext";
-import { SettingsProvider } from "./contexts/SettingsContext";
 import TripDetails from "./components/TripDetails";
-import JoinTrip from "./pages/JoinTrip"
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import TermsAndConditions from "./components/TermsAndConditions";
 import CommunityPage from "./components/CommunityPage";
@@ -32,34 +39,22 @@ import GroupInvitePage from "./components/GroupInvitePage";
 import Notifications from "./components/Notifications";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
-import SearchPage from "./pages/Search";
 import HourlyForecast from "./components/Weather/WeatherPage";
 import WeatherDebugPage from "./components/Weather/WeatherMap";
 import AccountDeletionPolicy from "./components/AccountDeletionPolicy";
-import { ThemeToggleProvider, useThemeToggle } from './contexts/ThemeToggleContext';
 import BunkMatesSocialFeed from "./components/BunkMatesSocialFeed";
-
 import GroupDevChats from "./components/DevBeta/GroupChats";
 import GroupList from "./components/DevBeta/GroupList";
 
-import BottomNavBar from './components/BottomNavBar'; 
-import SwipeableRoutes from './components/SwipeableRoutes';
-import { SWIPEABLE_PATHS } from './components/navItems';
+const vapidKey = 'BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs';
 
-const vapidKey = 'BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs'; // From Firebase console
-
-const isPathSwipeable = (pathname) => SWIPEABLE_PATHS.includes(pathname);
-// Removed the unused isPathExcludedFromNavBar function definition
-
+// --- Messaging Logic ---
 export const requestPermission = async () => {
   try {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       const token = await getToken(messaging, { vapidKey });
       console.log('FCM Token:', token);
-      // Save this token to your Firestore to use for sending messages
-    } else {
-      console.log('Notification permission denied');
     }
   } catch (err) {
     console.error('Error getting permission or token:', err);
@@ -68,133 +63,203 @@ export const requestPermission = async () => {
 
 onMessage(messaging, (payload) => {
   console.log('Foreground message received:', payload);
-  // Optional: show custom toast/notification UI here
 });
 
+// --- Theme Style Injection ---
 function BodyBackgroundSetter() {
   const { mode } = useThemeToggle();
   useEffect(() => {
     document.body.style.backgroundColor = mode === "dark" ? "#0c0c0c" : "#f1f1f1";
     document.body.style.setProperty('--slick-dot-color', mode === "dark" ? "#888" : "#bbb");
-    document.body.style.setProperty('--slick-dot-active-color', mode === "dark" ? "#ffffffff" : "#000000ff");
+    document.body.style.setProperty('--slick-dot-active-color', mode === "dark" ? "#ffffff" : "#000000");
   }, [mode]);
   return null;
 }
 
-// Developer-only route guard
+// --- Guard ---
 const DeveloperRoute = ({ children }) => {
   const navigate = useNavigate();
   const isDeveloper = localStorage.getItem("isDeveloper") === "true";
-
   useEffect(() => {
     if (!isDeveloper) {
       alert("🚫 Access denied. Developer Mode required!");
       navigate("/");
     }
   }, [isDeveloper, navigate]);
-
   return isDeveloper ? children : null;
 };
 
-
+// --- Main Three-Column Layout ---
 function AppContent() {
   const location = useLocation();
+  const { mode } = useThemeToggle();
 
-  // Define the exact paths where the BottomNavBar should be visible
-  const ALLOWED_BOTTOM_BAR_PATHS = ["/", "/search", "/notes", "/trips", "/chats"];
-  
-  // showBottomBar is true only if the current path is exactly in the allowed list
-  const showBottomBar = ALLOWED_BOTTOM_BAR_PATHS.includes(location.pathname);
+  const isDesktop = useMediaQuery("(min-width:1024px)");
+  const isWide = useMediaQuery("(min-width:1440px)");
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  /* -------------------------------
+     MOBILE BOTTOM NAV VISIBILITY
+  -------------------------------- */
+
+  // Routes where BottomNav SHOULD appear on mobile
+  const MOBILE_BOTTOM_NAV_ROUTES = [
+    "/",
+    "/search",
+    "/notes",
+    "/trips",
+    "/chats",
+    "/profile",
+  ];
+
+  // Routes where BottomNav should NEVER appear
+  const HIDE_BOTTOM_NAV_PREFIXES = [
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/reset-password",
+    "/chat/",
+    "/group/",
+    "/developer",
+    "/join",
+    "/privacy-policy",
+    "/terms",
+    "/account-deletion-policy",
+  ];
+
+  const isAllowedMobileRoute =
+    MOBILE_BOTTOM_NAV_ROUTES.includes(location.pathname);
+
+  const isExplicitlyHiddenRoute =
+    HIDE_BOTTOM_NAV_PREFIXES.some((path) =>
+      location.pathname.startsWith(path)
+    );
+
+  // Final decision
+  const showBottomNav =
+    !isDesktop && isAllowedMobileRoute && !isExplicitlyHiddenRoute;
+
+  /* -------------------------------
+     RIGHT COLUMN LOGIC
+  -------------------------------- */
+  const showRightCol =
+    isWide && ["/", "/trips"].includes(location.pathname);
 
   return (
-    <>
-      {/* Wrap all routes in SwipeableRoutes. The component will only apply the swipe logic 
-          to the paths defined in SWIPEABLE_PATHS, but it must be an ancestor of all Routes.
-      */}
-      <Box>
-        <Routes>
-          
-          {/* Main swipeable pages */}
-          <Route path="/budget-mngr" element={<Budgetmngr />}/>
-          <Route path="/notes" element={<Notes />} />
-          <Route path="/trips" element={<Trips />} />
-          <Route path="/" element={
-            // <ProtectedRoute>
-            <Home />
-            // </ProtectedRoute>
-          } />
-          {/* End of main swipeable pages */} 		
-        </Routes>
+    <Box sx={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+      
+      {/* MOBILE BOTTOM NAV ONLY */}
+      {showBottomNav && (
+        <BottomNavBar
+          isExpanded={isExpanded}
+          setIsExpanded={setIsExpanded}
+        />
+      )}
+
+      {/* MAIN CONTENT WRAPPER */}
+      <Box
+        sx={{
+          display: "flex",
+          flexGrow: 1,
+          pl: isDesktop ? (isExpanded ? "72px" : "88px") : 0,
+          width: "100%",
+          height: "100%",
+          transition: "margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+      >
+        {/* MAIN COLUMN */}
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            height: "100%",
+            overflowY: "auto",
+            position: "relative",
+            pb: showBottomNav ? "96px" : "40px",
+            scrollbarWidth: "none",
+            "&::-webkit-scrollbar": { display: "none" },
+          }}
+        >
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/notes" element={<Notes />} />
+            <Route path="/trips" element={<Trips />} />
+            <Route path="/chats" element={<Chats />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/profile" element={<Profile />} />
+
+            <Route path="/budget-mngr" element={<Budgetmngr />} />
+            <Route path="/reminders" element={<Reminders />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/grouplists" element={<GroupList />} />
+
+            <Route path="/chat/:friendId" element={<Chatroom />} />
+            <Route path="/group/:groupName" element={<GroupChat />} />
+            <Route path="/developer/group/:groupName" element={<GroupDevChats />} />
+            <Route path="/trips/:id" element={<TripDetails />} />
+
+            <Route path="/join" element={<JoinTrip />} />
+            <Route path="/group-invite/:inviteToken" element={<GroupInvitePage />} />
+            <Route path="/waitlist" element={<Waitlist />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsAndConditions />} />
+            <Route path="/community" element={<CommunityPage />} />
+            <Route path="/notifications" element={<Notifications />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/account-deletion-policy" element={<AccountDeletionPolicy />} />
+            <Route path="/developer/bunkmates/social" element={<BunkMatesSocialFeed />} />
+
+            <Route
+              path="/developer/waether-forecast"
+              element={
+                <DeveloperRoute>
+                  <HourlyForecast />
+                </DeveloperRoute>
+              }
+            />
+            <Route
+              path="/developer/weather"
+              element={
+                <DeveloperRoute>
+                  <WeatherDebugPage />
+                </DeveloperRoute>
+              }
+            />
+          </Routes>
+        </Box>
+
+        {/* RIGHT COLUMN (optional widgets) */}
+        {showRightCol && (
+          <Box sx={{ width: 360, borderLeft: "1px solid #eee" }}>
+            {/* contextual widgets */}
+          </Box>
+        )}
       </Box>
-      {/* Render the BottomNavBar conditionally */}
-      {showBottomBar && <BottomNavBar />}
-    </>
+    </Box>
   );
 }
 
+
+// --- App Root ---
 function App() {
   return (
+  
+  <BackgroundProvider>
     <ThemeToggleProvider>
-    <BodyBackgroundSetter />
-    <SettingsProvider>
-      <WeatherProvider>
-        <Router>
-          {/* AppContent contains the logic for the BottomNavBar visibility based on location.pathname */}
-          <AppContent /> 
-
-          <Routes>
-           <Route path="/search" element={<SearchPage />} />
-           <Route path="/reminders" element={<Reminders />} />
-           <Route path="/signup" element={<Signup />} />
-           <Route path="/login" element={<Login />} />
-           <Route path="/profile" element={<Profile />} />
-           <Route path="/chats" element={<Chats />} />
-           <Route path="/grouplists" element={<GroupList />} />
-           <Route path="/chat/:friendId" element={<Chatroom />} />
-           <Route path="/group/:groupName" element={<GroupChat />}/>
-           <Route path="/developer/group/:groupName" element={<GroupDevChats />}/>
-           <Route path="/trips/:id" element={<TripDetails />} />
-           <Route path="/join" element={<JoinTrip />} />
-           <Route path="/group-invite/:inviteToken" element={<GroupInvitePage />} />
-           <Route path="/waitlist" element={<Waitlist />} />
-           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-           <Route path="/terms" element={<TermsAndConditions />} />
-           <Route path="/community" element={<CommunityPage />} />
-           <Route path="/notifications" element={<Notifications />} />
-           <Route path="/forgot-password" element={<ForgotPassword />} />
-           <Route path="/reset-password" element={<ResetPassword />} />
-           <Route path="/account-deletion-policy" element={<AccountDeletionPolicy />} />
-           <Route path="/developer/bunkmates/social" element={<BunkMatesSocialFeed />} />
-
-             {/* <Route
-    path="/developer"
-    element={
-      <DeveloperRoute>
-        <DeveloperHub />
-      </DeveloperRoute>
-    }
-  /> */}
-  <Route
-    path="/developer/waether-forecast"
-    element={
-      <DeveloperRoute>
-        <HourlyForecast />
-      </DeveloperRoute>
-    }
-  />
-  <Route
-    path="/developer/weather"
-    element={
-      <DeveloperRoute>
-        <WeatherDebugPage />
-      </DeveloperRoute>
-    }
-  />
-          </Routes>
-        </Router>
-      </WeatherProvider>
-    </SettingsProvider>
+      <BodyBackgroundSetter />
+      <SettingsProvider>
+        <WeatherProvider>
+          <UserProvider>
+            <Router>
+              <AppContent />
+            </Router>
+          </UserProvider>
+        </WeatherProvider>
+      </SettingsProvider>
     </ThemeToggleProvider>
+  </BackgroundProvider>
   );
 }
 

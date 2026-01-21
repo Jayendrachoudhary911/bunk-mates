@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { doc, collection, query, where, orderBy, getDoc, onSnapshot, getDocs } from "firebase/firestore";
+import { doc, collection, query, where, orderBy, getDoc, onSnapshot, getDocs, updateDoc, arrayUnion, arrayRemove, increment } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useWeather } from "../contexts/WeatherContext";
@@ -13,6 +13,11 @@ import "slick-carousel/slick/slick-theme.css";
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+// Update this line to include hashString and gradientPresets (if needed)
+import { Backgrounds, hashString, solidPresets } from "../theme/backgroundPresets";
+import { useBackground } from "../contexts/BackgroundContext";
+import { getReadableTextColor } from "../utils/colorUtils";
+import BackgroundLayer from "../elements/BackgroundLayer";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 // Import placesData (assuming path is correct relative to Home.js)
@@ -20,8 +25,9 @@ import placesData from '../data/data.json';
 import {
   motion,
   AnimatePresence,
-  useAnimationControls,
-  useMotionValue
+  useSpring,
+  useTransform,
+  useScroll
 } from "framer-motion";
 import { Drawer, TextField, DialogActions, SwipeableDrawer } from "@mui/material";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
@@ -30,6 +36,10 @@ import { useCreateTripDrawer } from "../hooks/useCreateTripDrawer";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import SearchIcon from "@mui/icons-material/Search";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import BookmarkIcon from "@mui/icons-material/Bookmark";
+import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 
 import {
   AppBar,
@@ -63,7 +73,9 @@ import {
   Chip, // Added Chip for place details
   Divider, // Added Divider for visual separation
   CardMedia, // Added CardMedia for place image
-  Stack
+  Stack,
+  alpha,
+  Checkbox
 } from "@mui/material";
 import {
   LocationOn,
@@ -90,6 +102,7 @@ import LocalGasStationOutlinedIcon from '@mui/icons-material/LocalGasStationOutl
 import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined';
 import LocalAtmOutlinedIcon from '@mui/icons-material/LocalAtmOutlined';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
 import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
@@ -102,13 +115,29 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import CircleIcon from "@mui/icons-material/Circle";
 import LiveTvIcon from "@mui/icons-material/LiveTv";
+import CheckIcon from "@mui/icons-material/Check";
 import BroadcastOnPersonalIcon from "@mui/icons-material/BroadcastOnPersonal";
 import WifiTetheringIcon from "@mui/icons-material/WifiTethering";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import CloseIcon from "@mui/icons-material/Close";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
+import AcUnitIcon from "@mui/icons-material/AcUnit";
+import DownhillSkiingIcon from "@mui/icons-material/DownhillSkiing";
+import StraightenIcon from "@mui/icons-material/Straighten";
+import TerrainIcon from "@mui/icons-material/Terrain";
 import { MapContainer, TileLayer, Polyline, Marker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Confetti from "react-confetti";
 import BlurEffect from "react-progressive-blur";
+import { toggleLikePlace, toggleSavePlace } from "../utils/placeActions";
+import { isTrending } from "../utils/placeRanking";
+import { usePlaceLikes } from "../hooks/usePlaceLikes";
+import PlaceDetailsDialog from "../elements/PlaceDetailsDialog";
+import { usePlaceLikesCount } from "../hooks/usePlaceLikesCount";
+import AnimatedLikeCount from "../elements/AnimatedLikeCount";
+import { useFriendLikesCount } from "../hooks/useFriendLikesCount";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -238,9 +267,6 @@ const saveLikedPlace = (place) => {
   }
 };
 
-
-const SWIPE_THRESHOLD = 120;
-
 // Safe haptics (mobile only, no crashes)
 const triggerHaptic = (velocity = 0.5) => {
   if (!navigator.vibrate) return;
@@ -277,14 +303,19 @@ const PRIORITY_COLORS = {
   },
 };
 
-const getAQIDetails = (aqi) => {
-  if (aqi <= 50) return { label: "Good", color: "#10b981" };
-  if (aqi <= 100) return { label: "Satisfactory", color: "#84cc16" };
-  if (aqi <= 200) return { label: "Moderate", color: "#facc15" };
-  if (aqi <= 300) return { label: "Poor", color: "#f97316" };
-  if (aqi <= 400) return { label: "Very Poor", color: "#ef4444" };
-  return { label: "Severe", color: "#991b1b" };
-};
+// Color-blind safe AQI palette (Okabe–Ito inspired)
+export const AQI_SCALE = [
+  { max: 50,  label: "Good", color: "#ffffff" },   // Blue
+  { max: 100, label: "Moderate", color: "#009E73" }, // Teal
+  { max: 150, label: "Unhealthy", color: "#E69F00" }, // Orange
+  { max: 200, label: "Very Unhealthy", color: "#D55E00" }, // Vermillion
+  { max: 300, label: "Severe", color: "#f0300e" }, // Purple
+  { max: Infinity, label: "Hazardous", color: "#7F0000" }, // Maroon
+];
+
+export const getAQIDetails = (aqi = 0) =>
+  AQI_SCALE.find((d) => aqi <= d.max);
+
 
 function inferPriority(start) {
   const diff = start - new Date();
@@ -563,137 +594,1439 @@ const pickTip = keyframes`
   100% { transform: translateY(0) rotate(0deg); }
 `;
 
-// Helper component for Place Cards
-const PlaceCard = ({ place, mode, navigate, onPlanTrip }) => {
+
+
+const haptic = (pattern = 10) => {
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    navigator.vibrate(pattern);
+  }
+};
+
+
+const DOUBLE_TAP_DELAY = 250;
+const PARTICLES = 8;
+
+const LikeBurst = ({ x = 0, y = 0 }) => {
+  return (
+    <>
+      {Array.from({ length: PARTICLES }).map((_, i) => {
+        const angle = (Math.PI * 2 * i) / PARTICLES;
+        const distance = 18 + Math.random() * 10;
+
+        return (
+          <motion.span
+            key={i}
+            initial={{
+              opacity: 1,
+              scale: 0,
+              x: 0,
+              y: 0,
+            }}
+            animate={{
+              opacity: 0,
+              scale: 1,
+              x: Math.cos(angle) * distance,
+              y: Math.sin(angle) * distance,
+            }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            style={{
+              position: "absolute",
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              backgroundColor: "#ef4444",
+              pointerEvents: "none",
+            }}
+          />
+        );
+      })}
+    </>
+  );
+};
+
+const PlaceCard = ({ place, userData, onPlanTrip,  relatedPlaces = [] }) => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  /* ─── LOCAL UI STATE ─── */
+  const [open, setOpen] = useState(false);
+  const [likeAnim, setLikeAnim] = useState(false);
+  const [saveAnim, setSaveAnim] = useState(false);
+  const [showBurst, setShowBurst] = useState(false);
+
+  const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const friends = userData?.friends ?? [];
+  const friendLikes = useFriendLikesCount(place.id, friends);
+
+  const friendLikeLabel =
+  liked && friendLikes > 0
+    ? `You and ${friendLikes} friend${friendLikes > 1 ? "s" : ""} liked this`
+    : null;
+
+
+  /* 🔥 REAL-TIME GLOBAL LIKE COUNT */
+  const likesCount = usePlaceLikesCount(place.id, place.likesCount);
+
+  /* ─── SYNC USER-SPECIFIC STATE ─── */
+  useEffect(() => {
+    setLiked(userData?.likedTrips?.includes(place.id) ?? false);
+    setSaved(userData?.savedTrips?.includes(place.id) ?? false);
+  }, [userData, place.id]);
+
+  /* ─── ANIMATION HELPER ─── */
+  const animate = (setter) => {
+    setter(true);
+    setTimeout(() => setter(false), 260);
+  };
+
+  /* ─── HANDLERS ─── */
+  const handleLike = (e) => {
+    e.stopPropagation();
+
+    const next = !liked;
+    setLiked(next);
+
+    if (next) {
+      haptic([15, 20, 15]);
+      setLikeAnim(true);
+      setShowBurst(true);
+
+      setTimeout(() => setLikeAnim(false), 220);
+      setTimeout(() => setShowBurst(false), 500);
+    }
+
+    // 🔐 Firestore batch (authoritative)
+    toggleLikePlace(place.id, liked);
+  };
+
+  const handleSave = (e) => {
+    e.stopPropagation();
+    const next = !saved;
+    setSaved(next);
+    animate(setSaveAnim);
+    toggleSavePlace(place.id, saved);
+  };
+  
 
   return (
-<Card
+    <>
+
+<motion.div
+  layoutId={`place-${place.id}`}
+  onClick={() => setOpen(true)}
+  whileTap={{ scale: 0.985 }}   // tactile press, not link
+  transition={{ type: "spring", stiffness: 260, damping: 28 }}
+  style={{
+    borderRadius: 24,
+    overflow: "hidden",
+  }}
+>
+  <Card
+    elevation={0}
+    sx={{
+      position: "relative",
+      height: 360,
+      width: "100%",
+      maxWidth: 410,
+      minWidth: 360,
+      p: 1,
+      mx: "auto",
+
+      // 👇 NOT link-like
+      cursor: "default",
+      userSelect: "none",
+
+      borderRadius: 3,
+      overflow: "hidden",
+      backgroundColor: isDark ? "#131313" : "#ffffff",
+
+      boxShadow: isDark
+        ? "0 16px 34px rgba(0,0,0,0.55)"
+        : "0 14px 30px rgba(0,0,0,0.14)",
+
+      transition: "box-shadow .25s ease, transform .25s ease",
+
+      // 👇 Subtle depth only, not hover CTA
+      "&:hover": {
+        boxShadow: isDark
+          ? "0 20px 42px rgba(0,0,0,0.65)"
+          : "0 18px 36px rgba(0,0,0,0.18)",
+      },
+
+      // 👇 Physical press feedback
+      "&:active": {
+        transform: "scale(0.99)",
+      },
+
+      // 👇 Remove link-like focus ring
+      "&:focus-visible": {
+        outline: "none",
+      },
+    }}
+  >
+    {/* ───── IMAGE HERO ───── */}
+    <Box
+      sx={{
+        height: 260,
+        width: "100%",
+        maxWidth: 348,
+        borderRadius: 4,
+        position: "relative",
+        overflow: "hidden",
+        backgroundImage: `url(${place.images?.[0]})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+
+        // 👇 No hover zoom = not link
+        transition: "transform .35s ease",
+      }}
+    >
+      {/* ───── ACTIONS (GLASS BUTTONS) ───── */}
+      <Stack
+        spacing={1}
+        sx={{
+          position: "absolute",
+          top: 12,
+          right: 12,
+          zIndex: 3,
+        }}
+      >
+        <IconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            handleLike(e);
+          }}
+          sx={{
+            backdropFilter: "blur(14px)",
+            background: alpha(
+              isDark ? theme.palette.common.black : "#000",
+              0.25
+            ),
+            borderRadius: 6,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            color: "#fff",
+
+            transform: likeAnim ? "scale(1.4)" : "scale(1)",
+            transition:
+              "transform 200ms cubic-bezier(.34,1.56,.64,1), background .25s ease",
+
+            "&:hover": {
+              background: alpha(theme.palette.error.main, 0.25),
+            },
+          }}
+        >
+          {liked ? (
+            <FavoriteIcon sx={{ color: theme.palette.error.main }} />
+          ) : (
+            <FavoriteBorderIcon />
+          )}
+
+          <AnimatedLikeCount
+            value={likesCount}
+            sx={{ color: "#fff", fontSize: 8 }}
+          />
+
+          {showBurst && (
+            <Box sx={{ position: "absolute", inset: 0 }}>
+              <LikeBurst />
+            </Box>
+          )}
+        </IconButton>
+
+        <IconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSave(e);
+          }}
+          sx={{
+            backdropFilter: "blur(14px)",
+            background: alpha(
+              isDark ? theme.palette.common.black : "#000",
+              0.25
+            ),
+            color: saved ? "#facc15" : "#fff",
+            transform: saveAnim ? "scale(1.4)" : "scale(1)",
+            transition: "transform 200ms cubic-bezier(.34,1.56,.64,1)",
+          }}
+        >
+          {saved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+        </IconButton>
+      </Stack>
+    </Box>
+
+    {/* ───── CONTENT PANEL ───── */}
+    <Box
+      sx={{
+        px: 1.2,
+        pr: 2.2,
+        py: 2.2,
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.6,
+        backgroundColor: isDark ? "#131313" : "#ffffff",
+      }}
+    >
+      <Typography fontWeight={900} fontSize={16}>
+        {place.name}
+      </Typography>
+
+      <Typography
+        variant="caption"
+        color={theme.palette.text.secondary}
+        sx={{
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}
+      >
+        {place.description}
+      </Typography>
+    </Box>
+  </Card>
+</motion.div>
+
+
+<AnimatePresence>
+  {open && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1600, // higher than blurred content
+      }}
+    >
+      <PlaceDetailsDialog
+        key={place.id}
+        place={place}
+        open={open}
+        onClose={() => setOpen(false)}
+        liked={liked}
+        saved={saved}
+        likesCount={likesCount}
+        onLike={() => handleLike({ stopPropagation: () => {} })}
+        onSave={() => handleSave({ stopPropagation: () => {} })}
+        relatedPlaces={relatedPlaces}
+        onPlanTrip={onPlanTrip}
+        onRedirect={(nextPlace) => {
+          place(nextPlace);
+        }}
+      />
+    </motion.div>
+  )}
+</AnimatePresence>
+
+    </>
+  );
+};
+
+
+const pulseKeyframes = {
+  "@keyframes aqiPulse": {
+    "0%":   { boxShadow: "0 0 0 0 rgba(0,0,0,0)" },
+    "50%":  { boxShadow: "0 0 18px var(--pulse-color)" },
+    "100%": { boxShadow: "0 0 0 0 rgba(0,0,0,0)" },
+  },
+};
+
+const getHealthAdvice = (label) => {
+  switch (label) {
+    case "Good":
+      return "Air quality is satisfactory. Enjoy outdoor activities.";
+    case "Moderate":
+      return "Sensitive individuals should consider reducing prolonged outdoor exertion.";
+    case "Unhealthy":
+      return "People with respiratory conditions should limit outdoor activity.";
+    case "Very Unhealthy":
+      return "Avoid prolonged outdoor exposure. Wear a mask if necessary.";
+    case "Severe":
+    case "Hazardous":
+      return "Health warnings of emergency conditions. Stay indoors.";
+    default:
+      return "";
+  }
+};
+
+function parseAQIDate(dateStr) {
+  if (!dateStr || typeof dateStr !== "string") return null;
+
+  // Expected format: "DD-MM-YYYY HH:MM AM/PM"
+  const match = dateStr.match(
+    /(\d{2})-(\d{2})-(\d{4}) (\d{1,2}):(\d{2}) (AM|PM)/i
+  );
+
+  if (!match) return null;
+
+  let [, dd, mm, yyyy, hh, min, period] = match;
+
+  dd = Number(dd);
+  mm = Number(mm) - 1; // JS months are 0-based
+  yyyy = Number(yyyy);
+  hh = Number(hh);
+  min = Number(min);
+
+  if (period.toUpperCase() === "PM" && hh !== 12) hh += 12;
+  if (period.toUpperCase() === "AM" && hh === 12) hh = 0;
+
+  return new Date(yyyy, mm, dd, hh, min);
+}
+
+
+function AQIDetailsDrawer({ aqiValue, label, color, aqiData, onClose }) {
+  const theme = useTheme();
+  const parsedDate = parseAQIDate(aqiData?.last_update);
+
+  const lastUpdateDate = parsedDate
+    ? parsedDate.toLocaleDateString(undefined, {
+        weekday: "long",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "Unknown date";
+
+  const lastUpdateTime = parsedDate
+    ? parsedDate.toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Just now";
+
+  const textPrimary = theme.palette.text.primary;
+  const textSecondary = theme.palette.text.secondary;
+  const textMuted =
+    theme.palette.mode === "dark"
+      ? "rgba(255,255,255,0.55)"
+      : "rgba(0,0,0,0.55)";
+
+  return (
+    <Box
+      sx={{
+        p: 3,
+        pb: 5,
+        pt: 2,
+        maxWidth: 720,
+        mx: "auto",
+
+        /* Background stays expressive */
+        background: `linear-gradient(
+          145deg,
+          ${color}55,
+          ${color}15,
+          transparent
+        )`,
+      }}
+    >
+      {/* ─── DRAG HANDLE ─── */}
+      <Box
+        sx={{
+          width: 42,
+          height: 4,
+          borderRadius: 999,
+          backgroundColor:
+            theme.palette.mode === "dark"
+              ? "rgba(255,255,255,0.28)"
+              : "rgba(0,0,0,0.25)",
+          mx: "auto",
+          mb: 2,
+        }}
+      />
+
+      {/* ─── HEADER ─── */}
+      <Stack direction="row" alignItems="center" mb={3}>
+        <Box>
+          <Typography
+            variant="h6"
+            fontWeight={900}
+            sx={{ lineHeight: 1.1, color: textPrimary }}
+          >
+            Air Quality Index
+          </Typography>
+
+          <Typography
+            variant="caption"
+            sx={{ color: textMuted, letterSpacing: 0.3 }}
+          >
+            Station: {aqiData?.station || "Unknown Station"}
+          </Typography>
+        </Box>
+      </Stack>
+
+      {/* ─── MAIN AQI ─── */}
+      <Box sx={{ textAlign: "center", mb: 4 }}>
+        <Typography
+          variant="h2"
+          fontWeight={900}
+          sx={{
+            color,
+            letterSpacing: -1,
+          }}
+        >
+          {aqiValue}
+        </Typography>
+
+        <Typography
+          variant="subtitle1"
+          fontWeight={800}
+          sx={{ color, opacity: 0.9 }}
+        >
+          {label}
+        </Typography>
+      </Box>
+
+      {/* ─── LOCATION & TIME ─── */}
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          variant="caption"
+          sx={{
+            textTransform: "uppercase",
+            color: textMuted,
+            fontWeight: 800,
+            letterSpacing: 1,
+          }}
+        >
+          Location Information
+        </Typography>
+
+        <Stack spacing={1.2} mt={1.5}>
+          {[
+            ["City & State", `${aqiData?.city}, ${aqiData?.state}`],
+            ["Last Updated", lastUpdateTime],
+          ].map(([labelText, value]) => (
+            <Stack
+              key={labelText}
+              direction="row"
+              justifyContent="space-between"
+            >
+              <Typography variant="body2" sx={{ color: textMuted }}>
+                {labelText}
+              </Typography>
+              <Typography
+                variant="body2"
+                fontWeight={700}
+                sx={{ color: textPrimary }}
+              >
+                {value}
+              </Typography>
+            </Stack>
+          ))}
+        </Stack>
+      </Box>
+
+      <Divider sx={{ mb: 4 }} />
+
+      {/* ─── POLLUTANTS ─── */}
+      {aqiData?.pollutants && (
+        <Box sx={{ mb: 4 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              textTransform: "uppercase",
+              color: textMuted,
+              fontWeight: 800,
+              letterSpacing: 1,
+            }}
+          >
+            Real-time Pollutants
+          </Typography>
+
+          <Grid container spacing={1.8} mt={1.5}>
+            {Object.entries(aqiData.pollutants).map(([key, pollutant]) => (
+              <Grid item xs={6} sm={4} key={key}>
+                <Box
+                  sx={{
+                    p: 1.6,
+                    borderRadius: 3,
+                    background:
+                      theme.palette.mode === "dark"
+                        ? "rgba(255,255,255,0.06)"
+                        : "rgba(0,0,0,0.04)",
+                    border:
+                      theme.palette.mode === "dark"
+                        ? "1px solid rgba(255,255,255,0.1)"
+                        : "1px solid rgba(0,0,0,0.08)",
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{ color: textMuted }}
+                  >
+                    {key.toUpperCase()}
+                  </Typography>
+
+                  <Typography
+                    variant="body1"
+                    fontWeight={900}
+                    sx={{ color: textPrimary }}
+                  >
+                    {pollutant.value}{" "}
+                    <Box
+                      component="span"
+                      sx={{ fontSize: "0.7em", color: textMuted }}
+                    >
+                      {pollutant.unit}
+                    </Box>
+                  </Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      )}
+
+      {/* ─── HEALTH ADVISORY ─── */}
+      <Box
+        sx={{
+          p: 2.2,
+          borderRadius: 3,
+          background:
+            theme.palette.mode === "dark"
+              ? "rgba(255,255,255,0.05)"
+              : "rgba(0,0,0,0.04)",
+          border:
+            theme.palette.mode === "dark"
+              ? "1px solid rgba(255,255,255,0.1)"
+              : "1px solid rgba(0,0,0,0.08)",
+          mb: 4,
+        }}
+      >
+        <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+          <WbSunnyOutlined sx={{ fontSize: 18, color }} />
+          <Typography
+            variant="subtitle2"
+            fontWeight={800}
+            sx={{ color: textPrimary }}
+          >
+            Health Advisory
+          </Typography>
+        </Stack>
+
+        <Typography
+          variant="body2"
+          sx={{ color: textSecondary, lineHeight: 1.5 }}
+        >
+          {getHealthAdvice(label)}
+        </Typography>
+      </Box>
+
+      {/* ─── FOOTER ─── */}
+      <Typography
+        variant="caption"
+        sx={{
+          display: "block",
+          textAlign: "center",
+          color: textMuted,
+        }}
+      >
+        Data source updated at {lastUpdateTime}
+      </Typography>
+    </Box>
+  );
+}
+
+const weatherBackgrounds = {
+  Clear: {
+    // A bright morning sky transitioning to a soft horizon
+    light: "linear-gradient(180deg, #a9e4ff 0%, #e0f2fe 70%, #f1f1f1 100%)",
+    // Deep midnight blue with a hint of atmospheric depth
+    dark: "linear-gradient(180deg, #15285bcc 0%, #0c0c0c 100%)",
+  },
+  Clouds: {
+    // Soft overcast gray with a hint of blue-white
+    light: "linear-gradient(180deg, #cbd5e1 0%, #e2e8f0 50%, #f8fafc 100%)",
+    // Moody storm clouds
+    dark: "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)",
+  },
+  Rain: {
+    // Cool, wet blue-gray
+    light: "linear-gradient(180deg, #94a3b8 0%, #cbd5e1 60%, #dbeafe 100%)",
+    // Dark rainy night
+    dark: "linear-gradient(180deg, #0f172a 0%, #020617 100%)",
+  },
+  Drizzle: {
+    light: "linear-gradient(180deg, #b1bfd8 0%, #dfe9f3 100%)",
+    dark: "linear-gradient(180deg, #2c3e50 0%, #000000 100%)",
+  },
+  Thunderstorm: {
+    // High contrast purple-blue for electric atmosphere
+    light: "linear-gradient(180deg, #9ca3af 0%, #4b5563 40%, #8b5cf6 100%)",
+    // Deep black with a faint purple lightning tint
+    dark: "linear-gradient(180deg, #020617 0%, #1e1b4b 70%, #000000 100%)",
+  },
+  Snow: {
+    // Crisp, icy white
+    light: "linear-gradient(180deg, #f1f5f9 0%, #ffffff 100%)",
+    // Cold, desaturated winter night
+    dark: "linear-gradient(180deg, #334155 0%, #0f172a 100%)",
+  },
+  Mist: {
+    // Also covers Haze, Fog, and Smoke
+    light: "linear-gradient(180deg, #d1d5db 0%, #f3f4f6 100%)",
+    dark: "linear-gradient(180deg, #374151 0%, #111827 100%)",
+  },
+  Haze: {
+    // Slightly warm tint for dusty/sandy haze
+    light: "linear-gradient(180deg, #e5e7eb 0%, #d1d5db 50%, #fef3c7 100%)",
+    dark: "linear-gradient(180deg, #1f2937 0%, #111827 100%)",
+  },
+  Default: {
+    light: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
+    dark: "linear-gradient(180deg, #020617 0%, #000000 100%)",
+  },
+};
+
+
+function WeatherDetailsDrawer({ weather, open, onClose }) {
+  const theme = useTheme();
+  if (!weather) return null;
+
+  const isDark = theme.palette.mode === "dark";
+  const currentCondition = weather.main || "Default";
+
+  const bgGradient =
+    (weatherBackgrounds[currentCondition] ||
+      weatherBackgrounds.Default)[isDark ? "dark" : "light"];
+
+  const textPrimary = theme.palette.text.primary;
+  const textSecondary = theme.palette.text.secondary;
+  const textMuted = isDark
+    ? "rgba(255,255,255,0.6)"
+    : "rgba(0,0,0,0.55)";
+
+  const formatTime = (unix, offset) =>
+    new Date((unix + offset) * 1000).toISOString().substr(11, 5);
+
+  const SectionTitle = ({ title, index }) => (
+    <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 4, mb: 1.5 }}>
+      <Typography
+        variant="caption"
+        sx={{
+          fontWeight: 900,
+          opacity: 0.4,
+        }}
+      >
+        {index}.
+      </Typography>
+      <Typography
+        variant="caption"
+        sx={{
+          fontWeight: 800,
+          letterSpacing: 1.2,
+          textTransform: "uppercase",
+          color: textMuted,
+        }}
+      >
+        {title}
+      </Typography>
+    </Stack>
+  );
+
+const DataItem = ({ label, value, unit }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
+  return (
+    <Box
+      sx={{
+        p: 2,
+        borderRadius: 3,
+        backdropFilter: "blur(12px)",
+        background: isDark
+          ? "rgba(255,255,255,0.06)"
+          : "rgba(255,255,255,0.8)",
+        border: isDark
+          ? "1px solid rgba(255,255,255,0.14)"
+          : "1px solid rgba(0,0,0,0.08)",
+        transition: "transform 200ms ease, box-shadow 200ms ease",
+        "&:hover": {
+          transform: "translateY(-2px)",
+          boxShadow: isDark
+            ? "0 10px 30px rgba(0,0,0,0.4)"
+            : "0 10px 30px rgba(0,0,0,0.15)",
+        },
+      }}
+    >
+      <Typography
+        variant="caption"
+        sx={{
+          opacity: 0.65,
+          fontWeight: 700,
+          letterSpacing: 0.4,
+        }}
+      >
+        {label}
+      </Typography>
+
+      <Typography
+        variant="h6"
+        fontWeight={900}
+        sx={{ mt: 0.5, lineHeight: 1.2 }}
+      >
+        {value}
+        <Box
+          component="span"
+          sx={{
+            ml: 0.3,
+            opacity: 0.6,
+            fontSize: "0.8em",
+            fontWeight: 600,
+          }}
+        >
+          {unit}
+        </Box>
+      </Typography>
+    </Box>
+  );
+};
+
+
+  return (
+    <SwipeableDrawer
+      anchor="bottom"
+      open={open}
+      onClose={onClose}
+      onOpen={() => {}}
+      PaperProps={{
+        sx: {
+          borderRadius: 6,
+          m: 1,
+          height: "75vh",
+          background: bgGradient,
+          backdropFilter: "blur(22px) saturate(1.4)",
+          transition: "background 800ms ease",
+        },
+      }}
+    >
+      <Box
+        sx={{
+          p: 3,
+          pb: 8,
+          mx: "auto",
+          color: textPrimary,
+        }}
+      >
+        {/* Drag Handle */}
+        <Box
+          sx={{
+            width: 44,
+            height: 4,
+            borderRadius: 999,
+            backgroundColor: isDark
+              ? "rgba(255,255,255,0.3)"
+              : "rgba(0,0,0,0.3)",
+            mx: "auto",
+            mb: 3,
+          }}
+        />
+
+        {/* Header */}
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={4}
+        >
+          <Box>
+            <Typography variant="h5" fontWeight={900}>
+              {weather.city}, {weather.country}
+            </Typography>
+            <Typography variant="caption" sx={{ color: textMuted }}>
+              Station ID: {weather.id} • GMT
+              {weather.timezone / 3600 >= 0 ? "+" : ""}
+              {weather.timezone / 3600}
+            </Typography>
+          </Box>
+        </Stack>
+
+        {/* Hero Temperature */}
+        <Box sx={{ textAlign: "center", mb: 5 }}>
+          <Typography
+            variant="h1"
+            sx={{
+              fontWeight: 900,
+              fontSize: { xs: "4.5rem", sm: "5.5rem" },
+              letterSpacing: -2,
+            }}
+          >
+            {weather.temp}°
+          </Typography>
+          <Typography
+            variant="h6"
+            fontWeight={700}
+            sx={{ opacity: 0.75, textTransform: "capitalize" }}
+          >
+            {weather.desc}
+          </Typography>
+        </Box>
+
+        {/* Sections */}
+        <SectionTitle index="1" title="Meteorological Data" />
+<Grid
+  container
+  spacing={2}
+  sx={{
+    mt: 2,
+  }}
+>
+  {/* ── Temperature Cluster ── */}
+  <Grid item xs={6} sm={4}>
+    <DataItem
+      label="Feels Like"
+      value={weather.feelsLike}
+      unit="°C"
+    />
+  </Grid>
+
+  {/* ── Atmosphere Cluster ── */}
+  <Grid item xs={6} sm={4}>
+    <DataItem
+      label="Pressure"
+      value={weather.pressure}
+      unit=" hPa"
+    />
+  </Grid>
+
+  <Grid item xs={6} sm={4}>
+    <DataItem
+      label="Humidity"
+      value={weather.humidity}
+      unit="%"
+    />
+  </Grid>
+
+  <Grid item xs={6} sm={4}>
+    <DataItem
+      label="Visibility"
+      value={(weather.visibility / 1000).toFixed(1)}
+      unit=" km"
+    />
+  </Grid>
+</Grid>
+
+
+        <SectionTitle index="2" title="Sky & Precipitation" />
+        <Grid container spacing={2}>
+          <Grid item xs={6}><DataItem label="Cloudiness" value={weather.clouds} unit="%" /></Grid>
+          <Grid item xs={6}><DataItem label="Condition" value={weather.main} /></Grid>
+          <Grid item xs={6}><DataItem label="Rain (1h)" value={weather.rain || 0} unit=" mm" /></Grid>
+          <Grid item xs={6}><DataItem label="Snow (1h)" value={weather.snow || 0} unit=" mm" /></Grid>
+        </Grid>
+
+        <SectionTitle index="3" title="Wind & Atmosphere" />
+        <Grid container spacing={2}>
+          <Grid item xs={6}><DataItem label="Wind Speed" value={weather.windSpeed} unit=" m/s" /></Grid>
+          <Grid item xs={6}><DataItem label="Direction" value={weather.windDeg} unit="°" /></Grid>
+          <Grid item xs={6}><DataItem label="Gusts" value={weather.windGust || "—"} unit=" m/s" /></Grid>
+          {/* <Grid item xs={6}><DataItem label="UV Index" value="N/A" /></Grid> */}
+        </Grid>
+
+        {/* <Typography
+          variant="caption"
+          sx={{ mt: 1, display: "block", opacity: 0.5 }}
+        >
+          * UV Index requires One Call API 3.0
+        </Typography> */}
+
+        <SectionTitle index="4" title="Solar & System" />
+        <Grid container spacing={2}>
+          <Grid item xs={6}><DataItem label="Sunrise" value={formatTime(weather.sunrise, 0)} /></Grid>
+          <Grid item xs={6}><DataItem label="Sunset" value={formatTime(weather.sunset, 0)} /></Grid>
+        </Grid>
+      </Box>
+    </SwipeableDrawer>
+  );
+}
+
+const getDueBadge = (dueDate) => {
+  if (!dueDate) return null;
+
+  const today = new Date();
+  const due = new Date(dueDate);
+
+  const diffDays = Math.floor(
+    (due.setHours(0,0,0,0) - today.setHours(0,0,0,0)) / 86400000
+  );
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  return due.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+};
+
+const priorityColors = {
+  high: "#ef4444",
+  medium: "#f59e0b",
+  low: "#10b981",
+};
+
+const SWIPE_THRESHOLD = 80;
+const REMCARD_WIDTH = 140;
+const MAX_VISIBLE = 4;
+
+
+const AnimatedCheck = ({ checked }) => {
+  return (
+    <motion.div
+      initial={false}
+      animate={{
+        scale: checked ? 1 : 0.85,
+        backgroundColor: checked
+          ? "rgba(34,197,94,0.25)"
+          : "rgba(0,0,0,0.08)",
+      }}
+      transition={{ type: "spring", stiffness: 420, damping: 26 }}
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        display: "grid",
+        placeItems: "center",
+      }}
+    >
+      <motion.div
+        initial={false}
+        animate={{
+          scale: checked ? 1 : 0,
+          rotate: checked ? 0 : -45,
+        }}
+        transition={{ type: "spring", stiffness: 420, damping: 30 }}
+      >
+        <CheckIcon
+          sx={{
+            fontSize: 18,
+            color: "#22c55e",
+          }}
+        />
+      </motion.div>
+    </motion.div>
+  );
+};
+
+const ConfettiParticle = ({ x, y, rotate, color }) => (
+  <motion.div
+    initial={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+    animate={{ opacity: 0, scale: 0.6, x, y, rotate }}
+    transition={{ duration: 0.9, ease: "easeOut" }}
+    style={{
+      position: "absolute",
+      width: 6,
+      height: 10,
+      borderRadius: 2,
+      background: color,
+      top: "50%",
+      left: "50%",
+      pointerEvents: "none",
+    }}
+  />
+);
+
+/* ───────── PROGRESS RING ───────── */
+const ProgressRing = ({ progress, color }) => {
+  const radius = 14;
+  const stroke = 3;
+  const normalizedRadius = radius - stroke * 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  const strokeDashoffset =
+    circumference - progress * circumference;
+
+  return (
+    <svg width={radius * 2} height={radius * 2}>
+      <circle
+        stroke="rgba(0,0,0,0.1)"
+        fill="transparent"
+        strokeWidth={stroke}
+        r={normalizedRadius}
+        cx={radius}
+        cy={radius}
+      />
+      <circle
+        stroke={color}
+        fill="transparent"
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={`${circumference} ${circumference}`}
+        style={{ strokeDashoffset }}
+        r={normalizedRadius}
+        cx={radius}
+        cy={radius}
+      />
+    </svg>
+  );
+};
+
+/* ───────── REMINDER CARD ───────── */
+const ReminderCard = ({ rem, mode, onToggleComplete }) => {
+  const theme = useTheme();
+  const navigate = useNavigate();
+
+  /* ───── HOOKS MUST COME FIRST ───── */
+  const prevCompleted = useRef(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  const isCompleted = rem?.completed === true;
+
+  /* 🎉 CONFETTI EFFECT (SAFE) */
+  useEffect(() => {
+    if (!rem) return; // guard INSIDE effect
+
+    if (!prevCompleted.current && isCompleted) {
+      setShowConfetti(true);
+      const t = setTimeout(() => setShowConfetti(false), 900);
+      return () => clearTimeout(t);
+    }
+
+    prevCompleted.current = isCompleted;
+  }, [isCompleted, rem]);
+
+  /* ───── EMPTY STATE (AFTER HOOKS) ───── */
+if (!rem) {
+  return (
+    <Box
+      onClick={() => navigate("/reminders")}
+      sx={{
+        minWidth: 290,
+        height: 160,
+        scrollSnapAlign: "start",
+        borderRadius: 5,
+        p: 2.4,
+        position: "relative",
+        overflow: "hidden",
+        mx: "auto",
+
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 0.8,
+
+        background:
+          mode === "dark"
+            ? `
+              linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
+              repeating-linear-gradient(
+                0deg,
+                rgba(255,255,255,0.04),
+                rgba(255,255,255,0.04) 1px,
+                transparent 1px,
+                transparent 18px
+              ),
+              repeating-linear-gradient(
+                90deg,
+                rgba(255,255,255,0.035),
+                rgba(255,255,255,0.035) 1px,
+                transparent 1px,
+                transparent 18px
+              )
+            `
+            : `
+              linear-gradient(180deg, #ffffff, #f8fafc),
+              repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.035),
+                rgba(0,0,0,0.035) 1px,
+                transparent 1px,
+                transparent 20px
+              ),
+              repeating-linear-gradient(
+                90deg,
+                rgba(0,0,0,0.03),
+                rgba(0,0,0,0.03) 1px,
+                transparent 1px,
+                transparent 20px
+              )
+            `,
+
+        border:
+          mode === "dark"
+            ? "1px dashed rgba(255,255,255,0.18)"
+            : "1px dashed rgba(0,0,0,0.12)",
+
+        boxShadow:
+          mode === "dark"
+            ? "0 10px 26px rgba(0,0,0,0.4)"
+            : "0 10px 22px rgba(0,0,0,0.14)",
+
+        opacity: 0.9,
+        userSelect: "none",
+      }}
+    >
+      {/* 🧠 Watermark icon */}
+      <CalendarMonthIcon
+        sx={{
+          position: "absolute",
+          right: -20,
+          bottom: -20,
+          fontSize: 120,
+          opacity: mode === "dark" ? 0.06 : 0.05,
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* 🔔 Icon bubble */}
+      <Box
+        sx={{
+          width: 42,
+          height: 42,
+          borderRadius: "50%",
+          display: "grid",
+          placeItems: "center",
+          background:
+            mode === "dark"
+              ? "rgba(255,255,255,0.08)"
+              : "rgba(0,0,0,0.06)",
+          boxShadow:
+            mode === "dark"
+              ? "0 0 0 6px rgba(255,255,255,0.04)"
+              : "0 0 0 6px rgba(0,0,0,0.04)",
+        }}
+      >
+        <NotificationsNoneIcon sx={{ fontSize: 22, opacity: 0.55 }} />
+      </Box>
+
+      <Typography
+        sx={{
+          fontWeight: 800,
+          fontSize: 15,
+          opacity: 0.85,
+        }}
+      >
+        No reminders yet
+      </Typography>
+
+      <Typography
+        variant="caption"
+        sx={{
+          maxWidth: 220,
+          textAlign: "center",
+          lineHeight: 1.5,
+          opacity: 0.6,
+        }}
+      >
+        Your upcoming reminders will appear here once you add one.
+      </Typography>
+
+      <Typography
+        variant="caption"
+        sx={{
+          mt: 0.4,
+          fontWeight: 600,
+          letterSpacing: "0.03em",
+          opacity: 0.45,
+        }}
+      >
+        Tap <strong>the card</strong> to create your first reminder
+      </Typography>
+    </Box>
+  );
+}
+
+
+  /* ───── NORMAL CARD LOGIC ───── */
+  const now = Date.now();
+  const dueTime = rem?.dueAt ? new Date(rem.dueAt).getTime() : null;
+  const createdAt = rem?.createdAt
+    ? new Date(rem.createdAt).getTime()
+    : now;
+
+  const isOverdue = !isCompleted && dueTime && dueTime < now;
+  const isUrgent =
+    !isCompleted && dueTime && dueTime - now < 1000 * 60 * 60 * 24;
+
+  const accent = isCompleted
+    ? "#22c55e"
+    : isOverdue
+    ? "#ef4444"
+    : isUrgent
+    ? "#facc15"
+    : "#60a5fa";
+  const progress =
+    isCompleted || !dueTime
+      ? 1
+      : Math.min(
+          Math.max((now - createdAt) / (dueTime - createdAt), 0),
+          1
+        );
+
+  return (
+    <motion.div
+      whileHover={!isCompleted ? { y: -6 } : {}}
+      transition={{ type: "spring", stiffness: 260, damping: 22 }}
+      sx={{ backgroundColor: "transparent" }}
+    >
+      <Box
+        sx={{
+          minWidth: 180,
+          height: 100,
+          borderRadius: 5,
+          p: 2.4,
+          position: "relative",
+          overflow: "hidden",
+
+          background: `
+            linear-gradient(
+              120deg,
+              ${accent}22,
+              ${
+                mode === "dark"
+                  ? "rgba(255,255,255,0.04)"
+                  : "rgba(255,255,255,0.85)"
+              },
+              ${accent}22
+            ),
+            repeating-linear-gradient(
+                0deg,
+                rgba(255,255,255,0.04),
+                rgba(255,255,255,0.04) 1px,
+                transparent 1px,
+                transparent 18px
+              )
+          `,
+          backgroundSize: "300% 300%",
+          animation: isCompleted
+            ? "none"
+            : "gradientShift 8s ease infinite",
+
+          "@keyframes gradientShift": {
+            "0%": { backgroundPosition: "0% 50%" },
+            "50%": { backgroundPosition: "100% 50%" },
+            "100%": { backgroundPosition: "0% 50%" },
+          },
+
+          border:
+            mode === "dark"
+              ? "1px solid rgba(255,255,255,0.14)"
+              : "1px solid rgba(0,0,0,0.08)",
+
+          boxShadow:
+            isOverdue
+              ? "0 0 0 1px rgba(239,68,68,0.4), 0 18px 40px rgba(239,68,68,0.25)"
+              : "none",
+
+          opacity: isCompleted ? 0.7 : 1,
+        }}
+      >
+      <CalendarMonthIcon
+        sx={{
+          position: "absolute",
+          right: -18,
+          bottom: -18,
+          fontSize: 120,
+          opacity: 0.06,
+          pointerEvents: "none",
+        }}
+      />
+
+        {/* 🎉 CONFETTI */}
+        <AnimatePresence>
+          {showConfetti &&
+            [...Array(10)].map((_, i) => (
+              <ConfettiParticle
+                key={i}
+                x={(Math.random() - 0.5) * 120}
+                y={(Math.random() - 1) * 120}
+                rotate={Math.random() * 360}
+                color={accent}
+              />
+            ))}
+        </AnimatePresence>
+
+        {/* HEADER */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 1,
+          }}
+        >
+          <ProgressRing progress={progress} color={accent} />
+
+<IconButton
+  size="small"
   onClick={(e) => {
     e.stopPropagation();
-    onPlanTrip(place);
+    onToggleComplete?.(rem.id, rem.completed);
   }}
   sx={{
-    position: "relative",
-    height: 410,
-    width: "100%",
-    borderRadius: 6,
-    overflow: "hidden",
-    cursor: "pointer",
-    border:
-      mode === "dark"
-        ? "1px solid rgba(255,255,255,0.1)"
-        : "1px solid rgba(0,0,0,0.05)",
-    backgroundImage: `url(${place.images?.[0]})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    boxShadow:
-      mode === "dark"
-        ? "0 20px 40px rgba(0,0,0,0.6)"
-        : "0 15px 35px rgba(0,0,0,0.15)",
-    transition: "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+    p: 0.6,
+    borderRadius: 2.5,
+    height: 25,
+
+    background: rem.completed
+      ? `${accent}22`
+      : mode === "dark"
+      ? "rgba(255,255,255,0.08)"
+      : "rgba(0, 0, 0, 0.01)",
+
+    border: rem.completed
+      ? `1px solid ${accent}55`
+      : mode === "dark"
+      ? "1px solid rgba(255,255,255,0)"
+      : "1px solid rgba(0, 0, 0, 0.11)",
+
+    boxShadow: rem.completed
+      ? `0 0 0 3px ${accent}22`
+      : "0 2px 8px rgba(0,0,0,0)",
+
+    transition:
+      "background .25s ease, box-shadow .25s ease, transform .15s ease",
+
     "&:hover": {
-      transform: "scale(1.01)",
+      background: `${accent}33`,
+      transform: "scale(1.08)",
+    },
+
+    "&:active": {
+      transform: "scale(0.96)",
     },
   }}
 >
-
-  <CardContent
-    sx={{
-      position: "relative",
-      zIndex: 2,
-      background:
-        "linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.55), rgba(0,0,0,0.3), rgba(0,0,0,0))",
-      height: "90%",
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "flex-end",
-      color: "#fff",
-      p: 3,
-      pb: 6
+  <motion.div
+    initial={false}
+    animate={{
+      scale: rem.completed ? 1.05 : 0.9,
+      rotate: rem.completed ? 0 : -20,
     }}
+    transition={{ type: "spring", stiffness: 420, damping: 26 }}
   >
-    {/* Title & Location */}
-    <Typography
-      variant="h5"
+    <CheckIcon
       sx={{
-        fontWeight: 900,
-        mb: 0.5,
-        textShadow: "0 2px 10px rgba(0,0,0,0.4)",
+        fontSize: 18,
+        color: rem.completed ? accent : `${accent}cc`,
+        filter: rem.completed
+          ? "drop-shadow(0 0 6px rgba(34,197,94,0.6))"
+          : "none",
       }}
-    >
-      {place.name}
-    </Typography>
+    />
+  </motion.div>
+</IconButton>
 
-    <Stack direction="row" spacing={0.5} alignItems="center" mb={2}>
-      <LocationOn sx={{ fontSize: 18, color: theme.palette.primary.main }} />
-      <Typography variant="body2" sx={{ fontWeight: 600, opacity: 0.9 }}>
-        {place.city}, {place.state}
-      </Typography>
-    </Stack>
+        </Box>
 
-    {/* Info Chips */}
-    <Stack direction="row" gap={1} flexWrap="wrap" mb={2}>
-      {[place.weather.split(";")[0], place.season].map((text, i) => (
-        <Chip
-          key={i}
-          label={text}
-          size="small"
+        <Typography
           sx={{
-            background: "rgba(255,255,255,0.15)",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: "0.7rem",
-            border: "1px solid rgba(255,255,255,0.1)",
+            fontSize: 15,
+            fontWeight: 800,
+            textDecoration: isCompleted ? "line-through" : "none",
+            mb: 0.6,
           }}
-        />
-      ))}
-    </Stack>
+        >
+          {rem.text}
+        </Typography>
 
-    <Typography
-      variant="body2"
-      sx={{
-        opacity: 0.8,
-        mb: 3,
-        display: "-webkit-box",
-        WebkitLineClamp: 2,
-        WebkitBoxOrient: "vertical",
-        overflow: "hidden",
-        fontSize: "0.85rem",
-        lineHeight: 1.5,
-      }}
-    >
-      {place.description}
-    </Typography>
-
-    {/* Action Button */}
-    <Button
-      variant="contained"
-      fullWidth
-      onClick={(e) => {
-        e.stopPropagation();
-        onPlanTrip(place);
-      }}
-      sx={{
-        py: 1.5,
-        mb: 1,
-        borderRadius: 4,
-        fontWeight: 800,
-        textTransform: "none",
-        fontSize: "1rem",
-        background: "#fff",
-        color: "#000",
-        "&:hover": { background: "#f1f1f1" },
-      }}
-    >
-      Plan this Trip
-    </Button>
-  </CardContent>
-</Card>
+        <Typography variant="caption" sx={{ opacity: 0.7 }}>
+          {rem.date} • {rem.time}
+        </Typography>
+      </Box>
+    </motion.div>
   );
 };
+
+
 
 const Home = () => {
   const navigate = useNavigate();
@@ -723,7 +2056,6 @@ const Home = () => {
   const [timelineStatsMap, setTimelineStatsMap] = useState({});
   const [tripGroupsMap, setTripGroupsMap] = useState({});
   const [sliderIndex, setSliderIndex] = useState(0);
-
   const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
 
@@ -743,6 +2075,95 @@ const Home = () => {
 
   const isDesktop = useMediaQuery(muiTheme.breakpoints.up('lg'));
   const isLargeDesktop = useMediaQuery(muiTheme.breakpoints.up('xl'));
+  const [weatherOpen, setWeatherOpen] = useState(false);
+
+  const [scrollOpacity, setScrollOpacity] = useState(1);
+  const [drawerTransform, setDrawerTransform] = useState(0);
+// 🛎️ Reminders
+const remindersScrollRef = useRef(null);
+const [reminderIndex, setReminderIndex] = useState(0);
+
+// 🌍 Places
+const placesScrollRef = useRef(null);
+const [placeIndex, setPlaceIndex] = useState(0);
+
+    const sortedReminders = useMemo(() => {
+  return [...reminders].sort((a, b) => {
+    const ta = a.createdAt?.toMillis?.() ?? new Date(a.createdAt).getTime();
+    const tb = b.createdAt?.toMillis?.() ?? new Date(b.createdAt).getTime();
+    return tb - ta; // latest first
+  });
+}, [reminders]);
+
+const visibleReminders = sortedReminders.slice(0, MAX_VISIBLE);
+const remainingCount = Math.max(sortedReminders.length - MAX_VISIBLE, 0);
+
+const displayReminders =
+  reminders.length === 0 ? [null] : visibleReminders;
+
+const magneticRef = useRef(null);
+
+const { scrollY } = useScroll();
+
+// ─────────────────────────────────────────────
+// 🧲 MAGNETIC SNAP + iOS RUBBER BAND (FINAL)
+// ─────────────────────────────────────────────
+
+const SNAP_POINT = 96;        // where magnet locks
+const MAX_PULL = 140;        // max elastic distance
+const MAX_BLUR = 22;         // px
+const MAX_SCALE_PULL = 0.985;
+
+// iOS rubber band math (non-linear, resistance grows)
+const rubberBand = (distance, dimension = MAX_PULL, resistance = 0.55) =>
+  (distance * dimension * resistance) /
+  (dimension + resistance * Math.abs(distance));
+
+// 1️⃣ Raw scroll proximity
+const proximity = useTransform(scrollY, (y) =>
+  y < SNAP_POINT ? SNAP_POINT - y : 0
+);
+
+// 2️⃣ Elastic pull (rubber band)
+const elasticPull = useTransform(proximity, (v) =>
+  rubberBand(v)
+);
+
+// 3️⃣ Y translation (magnetic lift)
+const yPull = useSpring(
+  useTransform(elasticPull, [0, MAX_PULL], [0, -28]),
+  { stiffness: 420, damping: 36, mass: 0.6 }
+);
+
+// 4️⃣ Scale compression (feels physical)
+const scalePull = useSpring(
+  useTransform(elasticPull, [0, MAX_PULL], [1, MAX_SCALE_PULL]),
+  { stiffness: 360, damping: 34 }
+);
+
+// 5️⃣ 🧊 BLUR SNAP (NOT linear — locks in)
+const blurPx = useTransform(elasticPull, (v) => {
+  if (v < 12) return 0;
+  if (v > 72) return MAX_BLUR;
+  return (v / 72) * MAX_BLUR;
+});
+
+const blurFilter = useTransform(blurPx, (b) => `blur(${b}px)`);
+
+// 6️⃣ Opacity tightening
+const backdropOpacity = useSpring(
+  useTransform(elasticPull, [0, 80], [1, 0.92]),
+  { stiffness: 300, damping: 30 }
+);
+
+// 7️⃣ 📍 Indicator appears ONLY when magnet active
+const indicatorOpacity = useSpring(
+  useTransform(elasticPull, [24, 56], [0, 1]),
+  { stiffness: 280, damping: 26 }
+);
+
+const CARD_WIDTH = 365 + 16;
+
 
   const allFlattenedPlaces = useMemo(() => {
   if (!placesData || !placesData.states) return [];
@@ -760,6 +2181,33 @@ const Home = () => {
     )
   ).sort(() => 0.5 - Math.random());
 }, []);
+// Inside Home component
+
+const aqiDetails = getAQIDetails(aqiData?.maxAqi || 0);
+// Normalized AQI number (single source of truth)
+const aqiValue = aqiData?.maxAqi ?? 0;
+
+// AQI semantic details
+const { label, color } = getAQIDetails(aqiValue);
+
+// Progress (0–300 scale, clamped)
+const percent = Math.min((aqiValue / 300) * 100, 100);
+const [open, setOpen] = useState(false);
+const pulseStrength =
+  aqiData?.maxAqi >= 200
+    ? "0.8"
+    : aqiData?.maxAqi >= 150
+    ? "0.6"
+    : aqiData?.maxAqi >= 100
+    ? "0.4"
+    : "0";
+
+const triggerHaptic = () => {
+  if (navigator.vibrate) {
+    navigator.vibrate(8); // subtle, not annoying
+  }
+};
+
 
 const carouselPlaces = allFlattenedPlaces.slice(0, 4);
 const remainingPlaces = allFlattenedPlaces.slice(4);
@@ -780,6 +2228,32 @@ const onPlanTrip = (p) => {
   };
 
   openDrawerWithPrefill(prefill);
+};
+
+const handleToggleReminderComplete = async (reminderId, current) => {
+  // 1️⃣ Optimistic UI update
+  setReminders((prev) =>
+    prev.map((r) =>
+      r.id === reminderId ? { ...r, completed: !current } : r
+    )
+  );
+
+  try {
+    // 2️⃣ Firestore update (authoritative)
+    await updateDoc(doc(db, "reminders", reminderId), {
+      completed: !current,
+      completedAt: !current ? new Date() : null,
+    });
+  } catch (err) {
+    console.error("Failed to toggle reminder:", err);
+
+    // 3️⃣ Rollback on failure
+    setReminders((prev) =>
+      prev.map((r) =>
+        r.id === reminderId ? { ...r, completed: current } : r
+      )
+    );
+  }
 };
 
 const {
@@ -1071,6 +2545,28 @@ useEffect(() => {
         desc: data.weather?.[0]?.description || "",
         temp: Math.round(data.main?.temp),
         city: data.name,
+        feelsLike: Math.round(data.main?.feels_like),
+        humidity: data.main?.humidity,
+        wind: Math.round(data.wind?.speed * 3.6), // Convert m/s to km/h
+        pressure: data.main?.pressure,visibility: data.visibility, // in meters
+      
+      // Sky & Precipitation
+      clouds: data.clouds?.all,
+      rain: data.rain?.['1h'] || 0,
+      snow: data.snow?.['1h'] || 0,
+      
+      // Wind
+      windSpeed: data.wind.speed,
+      windDeg: data.wind.deg,
+      windGust: data.wind.gust || 0,
+      
+      // System
+      city: data.name,
+      country: data.sys.country,
+      sunrise: data.sys.sunrise,
+      sunset: data.sys.sunset,
+      timezone: data.timezone,
+      id: data.id
       };
       setWeather(weatherObj);
       setWeatherLoading(false);
@@ -1275,6 +2771,62 @@ useEffect(() => {
         return () => unsubscribe();
     }, []);
 
+const {
+    backgroundType,
+    category,
+    gradientType,
+    presetIndex,
+    animated,
+  } = useBackground();
+
+  // 1. Logic to determine the background style object
+  const backgroundStyle = useMemo(() => {
+    // ─── SOLID ─────────────────────────
+    if (backgroundType === "solid") {
+      const color = Backgrounds.solidByIndex({
+        category,
+        index: presetIndex,
+      });
+      return Backgrounds.composeSolid(color);
+    }
+
+    // ─── MESH (Complex Radial Glows) ───
+    if (backgroundType === "mesh") {
+      const m = Backgrounds.meshByIndex({
+        category, // e.g., 'atmospheric', 'weather'
+        index: presetIndex,
+      });
+      return Backgrounds.composeGradient(m.value);
+    }
+
+    // ─── GRADIENT ──────────────────────
+    if (backgroundType === "gradient") {
+      if (animated) {
+        const g = Backgrounds.animatedGradientByIndex({
+          index: presetIndex,
+        });
+        return Backgrounds.composeGradient(g.value, g.animation);
+      }
+
+      const g = Backgrounds.gradientByIndex({
+        type: gradientType, // 'single' or 'multi'
+        category,
+        index: presetIndex,
+      });
+      return Backgrounds.composeGradient(g.value);
+    }
+
+    // ─── SAFE FALLBACK ─────────────────
+    const defaultMesh = Backgrounds.meshByIndex({ category: "atmospheric", index: 0 });
+    return Backgrounds.composeGradient(defaultMesh.value);
+  }, [backgroundType, category, gradientType, presetIndex, animated]);
+
+  // 2. Logic to determine text color for the AppBar and Greeting
+const textColor = useMemo(
+  () => (mode === "dark" ? "#fff" : "#000"),
+  [mode]
+);
+
   const weatherBg =
     weather && weatherGradients[weather.main]
       ? weatherGradients[weather.main]
@@ -1453,10 +3005,10 @@ useEffect(() => {
     navigate("/login", { replace: true });
     return null;
   }
+  
 
   return (
     <ThemeProvider theme={theme}>
-      <DeviceGuard>
         <BetaAccessGuard>
           <Box
             sx={{
@@ -1467,19 +3019,22 @@ useEffect(() => {
               color: mode === "dark" ? "#fff" : "#000",
             }}
           >
+
+<Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
 <AppBar
   position="absolute"
   elevation={0}
   sx={{
-    top: 45 , // ⬆ hides smoothly
+    top: {xs: 45, lg: 35},
     transition: "all 0.45s cubic-bezier(.4,0,.2,1)",
     background: "transparent",
     backdropFilter: "none",
     WebkitBackdropFilter: "none",
     boxShadow: "none",
     py: 0,
-    px: 0,
     zIndex: 1200,
+    m: 0,
+    borderRadius: 28,
   }}
 >
   <Toolbar
@@ -1501,7 +3056,7 @@ useEffect(() => {
         gap: 1,
         fontWeight: 700,
         letterSpacing: 0.3,
-        color: mode === "dark" ? "#f5f5f5" : "#222",
+        color: textColor,
         userSelect: "none",
       }}
     >
@@ -1512,13 +3067,7 @@ useEffect(() => {
           display: "flex",
           flexDirection: "row",
           gap: 0.6,
-          color: scrolled
-            ? mode === "dark"
-              ? "#f1f1f1"
-              : "#111"
-            : mode === "dark"
-              ? "#f1f1f1"
-              : "#111",
+          color: textColor,
         }}
       >
     <Box>
@@ -1527,7 +3076,7 @@ useEffect(() => {
     sx={{
       fontSize: { xs: "1rem", sm: "1.3rem" },
       letterSpacing: 0.3,
-      color: "text.secondary",
+      color: textColor + "ac",
       display: "flex",
       alignItems: "center",
       gap: 1,
@@ -1544,7 +3093,7 @@ useEffect(() => {
       fontSize: { xs: "1.2rem", sm: "1.3rem" },
       fontWeight: "bold",
       lineHeight: 1.15,
-      color: mode == "dark" ? "#fff" : "#000000ff",
+      color: textColor,
       animation: "nameGlow 2.8s ease-in-out infinite",
     }}
   >
@@ -1555,25 +3104,89 @@ useEffect(() => {
 
     </Typography>
 
+        {!isSmallScreen && (
+          <Button
+            onClick={() => navigate('/search')}
+            startIcon={<SearchIcon />}
+            sx={{
+              width: 400,
+              justifyContent: "flex-start",
+              borderRadius: 8,
+              py: 1,
+              px: 2,
+              backgroundColor: mode === "dark" ? "#ffffff08" : "#00000005",
+              color: "text.secondary",
+              textTransform: "none",
+              border: "1px solid rgba(255,255,255,0.1)",
+              '&:hover': { backgroundColor: mode === "dark" ? "#ffffff12" : "#00000008" }
+            }}
+          >
+            Search Exploration...
+          </Button>
+        )}
+
     {/* Right-side profile icon */}
+    {isSmallScreen && (
     <Box
       sx={{
         transition: "transform 0.3s ease",
-        backgroundColor: mode === "dark" ? "#1e1e1e23" : "#ffffff24",
+        backgroundColor: mode === "dark" ? "#f1f1f102" : "#0c0c0c11",
         backdropFilter: "blur(120px)",
         WebkitBackdropFilter: "blur(120px)",
+        color: textColor,
         borderRadius: "50%",
         p: 1.2,
         border: mode === "dark" ? "1px solid #33333346" : "1px solid #ddd",
         "&:hover": { transform: "scale(1.05)" },
       }}
     >
-      <Notifications />
+      <Notifications sx={{ color: textColor }} />
     </Box>
+  )}
   </Toolbar>
 </AppBar>
 
-            <Box sx={{ height: { xs: 0, sm: 77 } }} />
+<Box
+  sx={{
+    position: "fixed",
+    inset: 0,
+    zIndex: 0,
+    pointerEvents: "none",
+
+    /* Base dynamic background */
+    ...backgroundStyle,
+
+    /* Smooth transitions when background changes */
+    transition: "background 1.2s cubic-bezier(.4,0,.2,1)",
+
+    /* Subtle cinematic depth */
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      inset: 0,
+      background:
+        "radial-gradient(circle at top center, rgba(255,255,255,0.08), transparent 60%)",
+      opacity: 0.6,
+    },
+
+    /* Grain / texture layer */
+    "&::after": {
+      content: '""',
+      position: "absolute",
+      inset: 0,
+      backgroundImage:
+        "url('data:image/svg+xml;utf8,\
+        <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"120\">\
+        <filter id=\"n\"><feTurbulence type=\"fractalNoise\" baseFrequency=\"0.8\" numOctaves=\"4\" stitchTiles=\"stitch\"/></filter>\
+        <rect width=\"120\" height=\"120\" filter=\"url(%23n)\" opacity=\"0.035\"/></svg>')",
+      opacity: 0.35,
+      mixBlendMode: "overlay",
+    },
+  }}
+/>
+
+
+            <Box sx={{ height: { xs: 0, sm: 0 } }} />
             {notLoggedIn ? (
               <Box sx={{ p: 6, textAlign: "center" }}>
                 <Typography variant="h5" color="text.secondary">
@@ -1585,9 +3198,11 @@ useEffect(() => {
                 fullWidth
                 sx={{
                   zIndex: 1,
-                  mb: 1,
-                  background: `linear-gradient(to top, rgba(0,0,0,0) 0%, #00000000 1%, ${theme.palette.primary.mainbg} 100%)`,
-                  transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
+                  position: "relative",
+                  mb: 2,
+color: textColor,
+transition: "all 1.2s cubic-bezier(.4,0,.2,1)",
+borderRadius: "0 0 34px 34px",
                 }}
               >
                 <Container
@@ -1656,6 +3271,7 @@ useEffect(() => {
 >
 <Box
   fullWidth
+  onClick={() => setWeatherOpen(true)}
   sx={{
     display: "flex",
     alignItems: "center",
@@ -1683,7 +3299,7 @@ useEffect(() => {
     <CircularProgress
       size={24}
       sx={{
-        color: mode === "dark" ? "#e5e7eb" : "#111",
+        color: textColor,
       }}
     />
   ) : weather ? (
@@ -1706,7 +3322,7 @@ useEffect(() => {
           sx={{
             fontWeight: 800,
             letterSpacing: 0.2,
-            color: mode === "dark" ? "#fff" : "#111",
+            color: textColor,
           }}
         >
           {weather.temp}°C
@@ -1732,7 +3348,7 @@ useEffect(() => {
   ) : (
     <Typography
       variant="body2"
-      sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}
+      sx={{ color: textColor + "ac", fontWeight: 600 }}
     >
       Weather unavailable
     </Typography>
@@ -1750,122 +3366,112 @@ useEffect(() => {
   </style>
 </Box>
 
-{/* AQI Widget */}
-<Box
-  sx={{
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 1.6,
-    px: 2.4,
-    py: 0.7,
-    borderRadius: 4.5,
-    minWidth: 95,
-    minHeight: 64,
-    position: "relative",
-    overflow: "hidden",
-
-    // Glassmorphism
-    // backdropFilter: "saturate(1.6)",
-    // WebkitBackdropFilter: "saturate(1.6)",
-
-    background: aqiData
-      ? `linear-gradient(
-          180deg,
-          ${getAQIDetails(aqiData.maxAqi).color}32,
-          ${getAQIDetails(aqiData.maxAqi).color}00
-        )`
-      : mode === "dark"
-      ? "rgba(255,255,255,0.06)"
-      : "rgba(0,0,0,0.04)",
-
-    border: "none",
-
-    boxShadow: "none",
-
-    animation: `${fadeIn} 0.6s ease both`,
-    transition: "all 280ms cubic-bezier(0.4,0,0.2,1)",
-
-    "&:hover": {
-      transform: "translateY(-3px) scale(1.02)",
-      boxShadow: "none",
-    },
-
-    "&:active": {
-      transform: "translateY(-1px) scale(0.99)",
-    },
-  }}
->
-  {/* Soft AQI Glow */}
-  {aqiData && (
-    <Box
-      sx={{
-        position: "absolute",
-        inset: -20,
-        background: `radial-gradient(circle at center,
-          ${getAQIDetails(aqiData.maxAqi).color}33,
-          transparent 65%
-        )`,
-        filter: "blur(24px)",
-        opacity: 0.6,
-        pointerEvents: "none",
-      }}
-    />
-  )}
-
-  {aqiLoading ? (
-    <CircularProgress
-      size={26}
-      thickness={4.5}
-      sx={{
-        color: mode === "dark" ? "#e5e7eb" : "#111",
-      }}
-    />
-  ) : aqiData && aqiData.maxAqi != null ? (
-    <Box sx={{ lineHeight: 1.15, zIndex: 1 }}>
-      <Typography
-        variant="h5"
+      <Box
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(true)}
+        onKeyDown={(e) => e.key === "Enter" && setOpen(true)}
         sx={{
-          fontWeight: 900,
-          letterSpacing: -0.4,
-          color: mode === "dark" ? "#fff" : "#111",
-          textAlign: "center",
-        }}
-      >
-        {aqiData.maxAqi}
-      </Typography>
+          width: 130,
+          px: 1,
+          py: 0.5,
+          borderRadius: 4,
+          cursor: "pointer",
+          userSelect: "none",
 
-      <Typography
-        variant="caption"
-        sx={{
-          display: "block",
-          mt: 0.3,
-          textTransform: "capitalize",
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: 0.3,
-          color:
+          background:
             mode === "dark"
-              ? "rgba(255,255,255,0.7)"
-              : "rgba(0,0,0,0.65)",
+              ? "linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0))"
+              : "linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(245, 245, 245, 0))",
+
+          backdropFilter: "blur(10px)",
+          border: `1px solid ${
+            mode === "dark"
+              ? "rgba(255,255,255,0.12)"
+              : "rgba(0,0,0,0.1)"
+          }`,
+
+          boxShadow: "none",
+
+          transition:
+            "transform 0.15s ease, box-shadow 0.15s ease",
+
+          "&:hover": {
+            transform: "translateY(-2px)",
+          },
+          "&:active": {
+            transform: "scale(0.98)",
+          },
+          "&:focus-visible": {
+            outline: `2px solid ${color}`,
+            outlineOffset: 2,
+          },
         }}
       >
-        AQI • {getAQIDetails(aqiData.maxAqi).label}
-      </Typography>
-    </Box>
-  ) : (
-    <Typography
-      variant="body2"
-      sx={{
-        fontWeight: 600,
-        color: theme.palette.text.secondary,
-        zIndex: 1,
-      }}
-    >
-      AQI unavailable
-    </Typography>
-  )}
-</Box>
+        <Stack spacing={1.2} alignContent={"center"}>
+          {/* Header */}
+            <InfoOutlinedIcon sx={{ fontSize: 14, opacity: 0.6, position: "absolute", right: 8, top: 8 }} />
+
+          {/* AQI Value */}
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 900,
+              lineHeight: 1,
+              color,
+              letterSpacing: -0.8,
+              textAlign: "center"
+            }}
+          >
+            {aqiValue}
+          </Typography>
+
+          {/* Status */}
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: 700,
+              letterSpacing: 0.6,
+              color,
+              textAlign: "center",
+              fontSize: 10,
+            }}
+          >
+            AQI • {label}
+          </Typography>
+        </Stack>
+      </Box>
+
+      {/* ─── AQI DETAILS DRAWER ─── */}
+      <SwipeableDrawer
+        anchor="bottom"
+        open={open}
+        onClose={() => setOpen(false)}
+        onOpen={() => setOpen(true)}
+        PaperProps={{
+          sx: {
+            borderRadius: 6,
+            m: 1,
+            background:
+              mode === "dark" ? "#0c0c0c" : "#f1f1f1",
+            backdropFilter: "blur(20px)",
+          },
+        }}
+      >
+        <AQIDetailsDrawer
+          aqiValue={aqiValue}
+          label={label}
+          color={color}
+          aqiData={aqiData}
+          onClose={() => setOpen(false)}
+        />
+      </SwipeableDrawer>
+
+<WeatherDetailsDrawer
+  weather={weather}
+  open={weatherOpen}
+  onClose={() => setWeatherOpen(false)}
+/>
 
 </Box>
 
@@ -1884,11 +3490,11 @@ useEffect(() => {
                   boxShadow: "none",
                   background: 
                     mode === "dark"
-                      ? "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.04))"
-                      : "linear-gradient(135deg, rgba(0,0,0,0.05), rgba(0,0,0,0.02))",
+                      ? "linear-gradient(135deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.04))"
+                      : "linear-gradient(135deg, rgba(189, 189, 189, 0.05), rgba(181, 181, 181, 0.02))",
                   backdropFilter: "blur(15px)",
-                  border: `1.2px solid ${mode === "dark" ? "#35353562" : "#aeaeae49"}`,
-                  color: mode === "dark" ? "#a2a2a2ff" : "#848484ff",
+                  border: `1.2px solid ${mode === "dark" ? "#6666667e" : "#ffffff8d"}`,
+                  color: theme.palette.text.secondary,
                   '&:hover': {
                     backgroundColor: theme.palette.mode === "light" ? "#e0e0e0" : "#3a3a3a4e",
                   },
@@ -2446,8 +4052,6 @@ useEffect(() => {
 </SwipeableDrawer>
   )}
 </AnimatePresence>
-
-
 </>
 
                 </Container>
@@ -2455,8 +4059,43 @@ useEffect(() => {
               </Box>
             )}
             {/* Main Content */}
-            <Box sx={{ display: "flex", flexGrow: 1 }}>
-              {!isSmallScreen && <Sidebar />}
+
+  <Box
+    sx={{
+      top: 0,
+      zIndex: 20,
+      display: "flex",
+      flexGrow: 1,
+
+      borderRadius: "30px 30px 0 0",
+      pt: 2,
+
+      background: `
+        linear-gradient(
+          to top,
+          ${mode === "dark"
+            ? "rgba(12,12,12,0.96)"
+            : "rgba(241,241,241,0.96)"} 40%,
+          ${mode === "dark"
+            ? "rgba(12, 12, 12, 0.92)"
+            : "rgba(241,241,241,0.72)"} 85%,
+          ${mode === "dark"
+            ? "rgba(0, 0, 0, 0.06)"
+            : "rgba(255, 255, 255, 0.08)"} 100%
+        )
+      `,
+
+      transition:
+        "background 600ms cubic-bezier(.4,0,.2,1)",
+
+      "&::after": {
+        content: '""',
+        inset: 0,
+        pointerEvents: "none",
+      },
+    }}
+  >
+
               <Container maxWidth="lg" sx={{ flexGrow: 1, pt: 1, position: "relative" }}>
                 {loading ? (
                   <Box
@@ -2468,6 +4107,7 @@ useEffect(() => {
                     }}
                   >
                     <CircularProgress color={theme.palette.background.main} />
+
                   </Box>
                 ) : (
                   <Grid container spacing={3} justifyContent={"center"}>
@@ -2475,7 +4115,7 @@ useEffect(() => {
                     {/* Trips Display card */}
                     <Grid item xs={12} md={6} lg={4} xl={2.4}>
                       {myTrips && myTrips.length > 0 ? (
-                        <Box sx={{ minWidth: "86vw", px: 0 }}>
+                        <Box sx={{ minWidth: {xs: "86vw", lg: "50vw"}, px: 0 }}>
                           <Typography variant="h6" textAlign="left" mb={1} ml={1.4}>Your Trips</Typography>
                           <Slider {...sliderSettings} slickGoTo={sliderIndex} afterChange={setSliderIndex} >
                             {myTrips.map((tripInfo) => (
@@ -2514,15 +4154,16 @@ useEffect(() => {
                                       position: "absolute",
                                       inset: 0,
                                       pointerEvents: "none",
+                                      height: { xs: 260, lg: 320 },
                                       zIndex: 1,
                                     
-                                      backdropFilter: "blur(14px)",
-                                      WebkitBackdropFilter: "blur(14px)",
+                                      backdropFilter: "blur(10px)",
+                                      WebkitBackdropFilter: "blur(10px)",
                                     
                                       maskImage:
-                                        "linear-gradient(to top, black 0%, black 30%, transparent 80%)",
+                                        "linear-gradient(to top, black 10%, black 30%, transparent 100%)",
                                       WebkitMaskImage:
-                                        "linear-gradient(to top, black 0%, black 30%, transparent 80%)",
+                                        "linear-gradient(to top, black 10%, black 30%, transparent 100%)",
                                     }}
                                   />
 
@@ -2603,192 +4244,355 @@ useEffect(() => {
 
                                         {/* Reminders Glimpse Card */}
 <Container maxWidth="lg" sx={{ mt: 6 }}>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          mb: 2.5,
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <AlarmOutlinedIcon
-            sx={{
-              fontSize: 22,
-              color: theme.palette.text.primary,
-            }}
-          />
-          <Typography variant="h6">
-            Reminders
-          </Typography>
-        </Box>
-      </Box>
+  {/* Header */}
   <Box
     sx={{
-      position: "relative",
-      borderRadius: 5,
-      overflow: "hidden",
-      background:
-        mode === "dark"
-          ? "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))"
-          : "linear-gradient(180deg, #ffffff, #f8fafc)",
-      backdropFilter: "blur(10px)",
-      border:
-        mode === "dark"
-          ? "1px solid rgba(255,255,255,0.08)"
-          : "1px solid rgba(0,0,0,0.06)",
-      boxShadow: "none",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      mb: 2,
     }}
   >
-    <CardContent sx={{ p: 3 }}>
-      {/* Header */}
+    <Typography variant="h6" fontWeight={600}>
+      Reminders
+    </Typography>
 
-      {/* Content */}
-      {remindersLoading ? (
-        <Typography color="text.secondary" fontSize={14}>
-          Loading reminders…
-        </Typography>
-      ) : reminders.length === 0 ? (
-        <Typography color="text.secondary" fontSize={14}>
-          No reminders yet.
-        </Typography>
-      ) : (
-        <Box sx={{ mb: 1.5 }}>
-          {reminders
-            .filter((rem) => !rem.completed)
-            .slice(0, 1)
-            .map((rem) => (
-              <Box
-                key={rem.id}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1.5,
-                  px: 2,
-                  py: 1.25,
-                  borderRadius: 4,
-                  background:
-                    mode === "dark"
-                      ? "rgba(255,255,255,0.06)"
-                      : "rgba(0,0,0,0.04)",
-                  transition: "all 0.25s ease",
-                  "&:hover": {
-                    background:
-                      mode === "dark"
-                        ? "rgba(255,255,255,0.1)"
-                        : "rgba(0,0,0,0.06)",
-                  },
-                }}
-              >
-                {/* Action Icon */}
-                <Box
-                  onClick={() =>
-                    remindersRef.current?.markReminderComplete(rem.id)
-                  }
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderRadius: "50%",
-                    cursor: "pointer",
-                    background:
-                      mode === "dark"
-                        ? "rgba(255,255,255,0.08)"
-                        : "rgba(0,0,0,0.08)",
-                    "&:hover": {
-                      background:
-                        mode === "dark"
-                          ? "rgba(255,255,255,0.15)"
-                          : "rgba(0,0,0,0.15)",
-                    },
-                  }}
-                  title="Mark as completed"
-                >
-                  <NotificationsActiveIcon
-                    sx={{
-                      fontSize: 20,
-                      color:
-                        mode === "dark"
-                          ? "#e5e7eb"
-                          : theme.palette.text.primary,
-                    }}
-                  />
-                </Box>
-
-                {/* Text */}
-                <Typography
-                  sx={{
-                    fontSize: 15,
-                    fontWeight: 500,
-                    lineHeight: 1.4,
-                    flexGrow: 1,
-                  }}
-                >
-                  {rem.text}
-                </Typography>
-              </Box>
-            ))}
-        </Box>
-      )}
-
-      {/* Footer */}
-      <Button
-        size="small"
-        onClick={() => navigate("/reminders")}
-        sx={{
-          mt: 1,
-          px: 1.5,
-          py: 0.6,
-          fontSize: 13,
-          fontWeight: 600,
-          textTransform: "none",
-          borderRadius: 3,
-          color: theme.palette.text.primary,
-          background:
-            mode === "dark"
-              ? "rgba(36, 36, 36, 0.71)"
-              : "rgba(211, 211, 211, 0.2)",
-          "&:hover": {
-            background:
-              mode === "dark"
-                ? "rgba(36, 36, 36, 1)"
-                : "rgba(211, 211, 211, 1)",
-          },
-        }}
-      >
-        View All ({incompleteRemindersCount})
-      </Button>
-    </CardContent>
+    <Button
+      size="small"
+      onClick={() => navigate("/reminders")}
+      sx={{
+        textTransform: "none",
+        fontSize: 13,
+        fontWeight: 600,
+        opacity: 0.7,
+      }}
+    >
+      View all
+    </Button>
   </Box>
+
+  {/* Cards Row */}
+<Box sx={{ position: "relative", mt: 1, backgroundColor: "transparent" }}>
+  {/* ⬅️ LEFT */}
+  {/* {/* <IconButton
+    onClick={() =>
+      remindersScrollRef.current.scrollBy({
+        left: -REMCARD_WIDTH,
+        behavior: "smooth",
+      })
+    }
+    sx={{
+      position: "absolute",
+      left: -12,
+      top: "35%",
+      transform: "translateY(-35%)",
+      zIndex: 3,
+      backdropFilter: "blur(10px)",
+      background: "rgba(0,0,0,0.35)",
+      color: "#fff",
+    }}
+  >
+    <ChevronLeftIcon />
+  </IconButton> */}
+
+  {/* ➡️ RIGHT */}
+  {/* <IconButton
+    onClick={() =>
+      remindersScrollRef.current.scrollBy({
+        left: REMCARD_WIDTH,
+        behavior: "smooth",
+      })
+    }
+    sx={{
+      position: "absolute",
+      right: -12,
+      top: "35%",
+      transform: "translateY(-35%)",
+      zIndex: 3,
+      backdropFilter: "blur(10px)",
+      background: "rgba(0,0,0,0.35)",
+      color: "#fff",
+    }}
+  >
+    <ChevronRightIcon />
+  </IconButton> */}
+
+  {/* SCROLL CONTAINER */}
+  <Box
+    ref={remindersScrollRef}
+    sx={{
+      display: "flex",
+      gap: 1,
+      pl: 1,
+      overflowX: "auto",
+      paddingBottom: 1,
+      scrollSnapType: "x mandatory",
+      backgroundColor: "transparent",
+      background: "transparent"
+    }}
+    onScroll={(e) => {
+      setReminderIndex(
+        Math.round(e.target.scrollLeft / REMCARD_WIDTH)
+      );
+    }}
+  >
+{displayReminders.map((rem, index) => (
+  <motion.div
+    key={rem?.id ?? "empty-reminder"}
+    style={{ scrollSnapAlign: "start" }}
+    initial={{ scale: 0.9, opacity: 0 }}
+    animate={{ scale: 1, opacity: 1 }}
+    whileHover={{ scale: 1.04 }}
+    whileTap={{ scale: 0.96 }}
+    transition={{
+      type: "spring",
+      stiffness: 240,
+      damping: 18,
+      mass: 0.55,
+      delay: index * 0.05,
+    }}
+  >
+    <Box sx={{ backgroundColor: "transparent" }}>
+      <ReminderCard
+        rem={rem}
+        mode={mode}
+        onToggleComplete={handleToggleReminderComplete}
+      />
+    </Box>
+  </motion.div>
+))}
+
+{/* ➕ GROUPED "+N MORE" CARD */}
+{remainingCount > 0 && (
+  <motion.div
+    style={{ scrollSnapAlign: "start" }}
+    initial={{ scale: 0.85, opacity: 0 }}
+    animate={{ scale: 1, opacity: 1 }}
+    whileHover={{ scale: 1.06 }}
+    whileTap={{ scale: 0.95 }}
+    transition={{
+      type: "spring",
+      stiffness: 220,
+      damping: 16,
+      mass: 0.5,
+    }}
+  >
+    <Box
+      onClick={() => navigate("/reminders")}
+      sx={{
+        minWidth: 240,
+        height: 100,
+        borderRadius: 5,
+        p: 2.5,
+        cursor: "pointer",
+        position: "relative",
+        overflow: "hidden",
+        userSelect: "none",
+
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 0.6,
+
+        background:
+          mode === "dark"
+            ? `
+              linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
+              repeating-linear-gradient(
+                0deg,
+                rgba(255,255,255,0.04),
+                rgba(255,255,255,0.04) 1px,
+                transparent 1px,
+                transparent 18px
+              )
+            `
+            : `
+              linear-gradient(180deg, #ffffff, #f8fafc),
+              repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.035),
+                rgba(0,0,0,0.035) 1px,
+                transparent 1px,
+                transparent 18px
+              )
+            `,
+
+        border:
+          mode === "dark"
+            ? "1px dashed rgba(255,255,255,0.18)"
+            : "1px dashed rgba(0,0,0,0.12)",
+
+        boxShadow:
+          mode === "dark"
+            ? "0 10px 26px rgba(0,0,0,0.4)"
+            : "0 10px 22px rgba(0,0,0,0.14)",
+
+        transition: "box-shadow .3s ease",
+      }}
+    >
+      {/* Watermark */}
+      <CalendarMonthIcon
+        sx={{
+          position: "absolute",
+          right: -18,
+          bottom: -18,
+          fontSize: 120,
+          opacity: 0.06,
+          pointerEvents: "none",
+        }}
+      />
+
+      <Typography fontSize={26} fontWeight={900}>
+        +{remainingCount}
+      </Typography>
+
+      <Typography variant="caption" sx={{ opacity: 0.65, fontWeight: 600 }}>
+        more reminders
+      </Typography>
+
+      <Typography variant="caption" sx={{ opacity: 0.45 }}>
+        View all →
+      </Typography>
+    </Box>
+  </motion.div>
+)}
+
+  </Box>
+</Box>
+
 </Container>
 
                     
                     {/* Trips Suggestions Card (NEW SECTION) */}
 {/* Trips Suggestions Carousel and List */}
 <Grid item xs={12} sx={{ px: { xs: 1, md: 0 }, mt: 4, mb: 10 }}>
-  <Typography variant="h6" textAlign="left" mb={3} sx={{ fontWeight: 700 }}>
-    Trip Suggestions & Discovery
-  </Typography>
 
   {allFlattenedPlaces.length > 0 ? (
     <>
       {/* Carousel for first 4 places */}
-      {carouselPlaces.length > 0 && (
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h6" textAlign="left" mb={2} sx={{ fontWeight: 600 }}>
-            Featured Places
-          </Typography>
-          <Slider {...carouselSettings}>
-            {carouselPlaces.map((place, index) => (
-              <Box key={index} sx={{ px: 0 }}>
-                <PlaceCard place={place} mode={mode} navigate={navigate} mr={2} onPlanTrip={onPlanTrip} />
-              </Box>
-            ))}
-          </Slider>
-        </Box>
-      )}
+{carouselPlaces.length > 0 && (
+  <>
+    <Typography
+      variant="h6"
+      textAlign="left"
+      mb={1.5}
+      sx={{ fontWeight: 600, px: 1 }}
+    >
+      Featured Places
+    </Typography>
+
+<Box sx={{ position: "relative" }}>
+  {/* ◀ LEFT */}
+  <IconButton
+    onClick={() =>
+      placesScrollRef.current.scrollBy({
+        left: -CARD_WIDTH,
+        behavior: "smooth",
+      })
+    }
+    sx={{
+      position: "absolute",
+      left: -6,
+      top: "45%",
+      zIndex: 5,
+      backdropFilter: "blur(14px)",
+      background: "rgba(0,0,0,0.35)",
+      color: "#fff",
+    }}
+  >
+    <ChevronLeftIcon />
+  </IconButton>
+
+  {/* ▶ RIGHT */}
+  <IconButton
+    onClick={() =>
+      placesScrollRef.current.scrollBy({
+        left: CARD_WIDTH,
+        behavior: "smooth",
+      })
+    }
+    sx={{
+      position: "absolute",
+      right: -6,
+      top: "45%",
+      zIndex: 5,
+      backdropFilter: "blur(14px)",
+      background: "rgba(0,0,0,0.35)",
+      color: "#fff",
+    }}
+  >
+    <ChevronRightIcon />
+  </IconButton>
+
+  {/* SCROLL AREA */}
+  <Box
+    ref={placesScrollRef}
+    onScroll={(e) => {
+      setPlaceIndex(
+        Math.round(e.target.scrollLeft / CARD_WIDTH)
+      );
+    }}
+    sx={{
+      display: "flex",
+      gap: 2,
+      px: 1,
+      mb: 2,
+      overflowX: "auto",
+      scrollSnapType: "x mandatory",
+      "&::-webkit-scrollbar": { display: "none" },
+    }}
+  >
+    {carouselPlaces.map((place) => (
+      <Box
+        key={place.id}
+        sx={{ width: 365, scrollSnapAlign: "start" }}
+      >
+        <PlaceCard
+          place={place}
+          mode={mode}
+          navigate={navigate}
+          userData={userData}
+          onPlanTrip={onPlanTrip}
+        />
+      </Box>
+    ))}
+  </Box>
+
+  {/* DOTS */}
+  <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
+    {carouselPlaces.map((_, i) => (
+      <Box
+        key={i}
+        onClick={() =>
+          placesScrollRef.current.scrollTo({
+            left: i * CARD_WIDTH,
+            behavior: "smooth",
+          })
+        }
+        sx={{
+          width: i === placeIndex ? 18 : 6,
+          height: 6,
+          borderRadius: 99,
+          cursor: "pointer",
+          transition: "all .3s ease",
+          background:
+            i === placeIndex
+              ? mode === "dark"
+                ? "rgba(255,255,255,0.85)"
+                : "rgba(0,0,0,0.85)"
+              : mode === "dark"
+              ? "rgba(255,255,255,0.25)"
+              : "rgba(0,0,0,0.22)",
+        }}
+      />
+    ))}
+  </Box>
+</Box>
+
+  </>
+)}
+
 
       {/* Remaining places in a grid */}
       {remainingPlaces.length > 0 && (
@@ -2799,7 +4603,7 @@ useEffect(() => {
           <Grid container spacing={2}>
             {remainingPlaces.map((place, index) => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
-                <PlaceCard place={place} mode={mode} navigate={navigate} onPlanTrip={onPlanTrip} />
+                <PlaceCard place={place} mode={mode} navigate={navigate} userData={userData} onPlanTrip={onPlanTrip} />
               </Grid>
             ))}
           </Grid>
@@ -2814,25 +4618,59 @@ useEffect(() => {
   )}
 </Grid>
 
-                    <Box
-                      sx={{
-                        mb: 11,
-                        alignContent: "center",
-                        alignItems: "center",
-                        textAlign: "center",
-                        opacity: 0.5,
-                        fontSize: "0.75rem",
-                        userSelect: "none",
-                      }}
-                    >
-                      <Typography variant="caption" fontWeight={800} color="text.secondary">
-                        BunkMate v{packageJson.version || "N/A"} — Made with ❤️
-                      </Typography>
-                    </Box>
+<Box
+  sx={{
+    mt: 5,
+    mb: 16,
+    textAlign: "center",
+    userSelect: "none",
+
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+
+    opacity: 0.55,
+    transition: "opacity .25s ease",
+
+    "&:hover": {
+      opacity: 0.85,
+    },
+  }}
+>
+  <Typography
+    variant="caption"
+    sx={{
+      fontWeight: 800,
+      letterSpacing: "0.08em",
+      fontSize: "0.72rem",
+
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 0.6,
+
+      color: "text.secondary",
+
+      px: 2.5,
+      py: 1,
+
+      borderRadius: 999,
+      backdropFilter: "blur(10px)",
+      background: "rgba(0,0,0,0.04)",
+
+      boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+    }}
+  >
+    BunkMate v{packageJson.version || "N/A"}
+    <span style={{ opacity: 0.6 }}>—</span>
+    Made with ❤️
+  </Typography>
+</Box>
+
                   </Grid>
                 )}
               </Container>
             </Box>
+
             {/* <Grid
               justifyContent={"right"}
               container
@@ -3601,10 +5439,9 @@ useEffect(() => {
 
 </Box>
 </Drawer>
-
+</Box>
           </Box>
         </BetaAccessGuard>
-      </DeviceGuard>
     </ThemeProvider>
   );
 };

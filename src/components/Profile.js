@@ -45,7 +45,8 @@ import {
   Tab,
   Tabs,
   Snackbar,
-  Badge
+  Badge,
+  Collapse
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -133,6 +134,7 @@ import { useSwipeable } from 'react-swipeable';
 import { toPng } from "html-to-image";
 import { color } from "framer-motion";
 import { alpha } from '@mui/material/styles';
+import BackgroundToggle from "../elements/BackgroundToggle";
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -293,6 +295,7 @@ const ProfilePic = ({currentUser}) => {
   const [viewMode, setViewMode] = useState('avatar'); // 'avatar' or 'qr'
   const [snackbar, setSnackbar] = useState({ open: false, message: '' });
   const [unreadCount, setUnreadCount] = useState(0);
+  const [backgroundOpen, setBackgroundOpen] = useState(false);
 
   // Place this at the top level of your component, with your other hooks
 
@@ -2595,6 +2598,25 @@ sx={{
 </Select>
     </FormControl>
   </ListItem>
+
+
+<ListItem sx={{ pb: 0 }}>
+  <ListItemButton
+    sx={{
+      borderRadius: 3,
+      py: 1.5,
+      px: 0,
+      "&:hover": {
+        bgcolor: mode === "dark" ? "#f1f1f121" : "#e7e7e788",
+      },
+    }}
+  >
+<BackgroundToggle />
+  </ListItemButton>
+</ListItem>
+
+
+
 
     </List>
 

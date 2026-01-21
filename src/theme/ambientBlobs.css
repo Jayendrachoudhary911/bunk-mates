@@ -1,0 +1,17 @@
+@keyframes blobFloat {
+  0% { transform: translate3d(0,0,0) scale(1); }
+  50% { transform: translate3d(40px,-30px,0) scale(1.08); }
+  100% { transform: translate3d(0,0,0) scale(1); }
+}
+
+.ambientBlob {
+  position: absolute;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.35;
+  animation: blobFloat 28s ease-in-out infinite;
+  will-change: transform;
+  pointer-events: none;
+}

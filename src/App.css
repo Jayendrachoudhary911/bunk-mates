@@ -151,3 +151,45 @@ button {
     opacity: 0;
   }
 }
+
+@keyframes darkRadialGlow {
+  0% {
+    background-position: 30% 20%;
+  }
+  50% {
+    background-position: 50% 50%;
+  }
+  75% {
+    background-position: 50% 70%;
+  }
+  100% {
+    background-position: 30% 20%;
+  }
+}
+
+@keyframes headerGradientFloat {
+  0% {
+    background-position:
+      20% 10%,
+      80% 20%,
+      center;
+  }
+  50% {
+    background-position:
+      26% 18%,
+      74% 28%,
+      center;
+  }
+  100% {
+    background-position:
+      20% 10%,
+      80% 20%,
+      center;
+  }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
