@@ -30,16 +30,19 @@ import {
   useScroll
 } from "framer-motion";
 import { Drawer, TextField, DialogActions, SwipeableDrawer } from "@mui/material";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import AddIcon from "@mui/icons-material/Add";
+import { 
+  CloseOutlined,
+  AddIcon,
+  MapOutlinedIcon,
+  CheckCircleOutline,
+  Search,
+  Favorite,
+  FavoriteBorder,
+  Bookmark,
+  BookmarkBorder
+} from "../icons/LucideIcons";
 import { useCreateTripDrawer } from "../hooks/useCreateTripDrawer";
-import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import SearchIcon from "@mui/icons-material/Search";
-import FavoriteIcon from "@mui/icons-material/Favorite";
-import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
-import BookmarkIcon from "@mui/icons-material/Bookmark";
-import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
+
 
 import {
   AppBar,
@@ -82,50 +85,53 @@ import {
   AccessTime,
   WbSunnyOutlined, // Added weather icon
   CalendarTodayOutlined, // Added season icon
-  Cloud as CloudIcon,
+  CloudIcon,
   FlashOffRounded, // Added for AQI
-} from "@mui/icons-material";
+} from "../icons/LucideIcons";
 import ProfilePic from "../components/Profile";
 import Notifications from "../elements/Notifications";
 import Reminders from "./Reminders";
 import DeviceGuard from "../components/DeviceGuard";
 import BetaAccessGuard from "../components/BetaAccessGuard";
-import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
-import RestaurantOutlinedIcon from '@mui/icons-material/RestaurantOutlined';
-import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
-import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
-import LocalMallOutlinedIcon from '@mui/icons-material/LocalMallOutlined';
-import LocalHospitalOutlinedIcon from '@mui/icons-material/LocalHospitalOutlined';
-import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
-import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined';
-import LocalGasStationOutlinedIcon from '@mui/icons-material/LocalGasStationOutlined';
-import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined';
-import LocalAtmOutlinedIcon from '@mui/icons-material/LocalAtmOutlined';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
-import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
-import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
-import AlarmOutlinedIcon from '@mui/icons-material/AlarmOutlined';
-import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import CircleIcon from "@mui/icons-material/Circle";
-import LiveTvIcon from "@mui/icons-material/LiveTv";
-import CheckIcon from "@mui/icons-material/Check";
-import BroadcastOnPersonalIcon from "@mui/icons-material/BroadcastOnPersonal";
-import WifiTetheringIcon from "@mui/icons-material/WifiTethering";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import CloseIcon from "@mui/icons-material/Close";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
-import AcUnitIcon from "@mui/icons-material/AcUnit";
-import DownhillSkiingIcon from "@mui/icons-material/DownhillSkiing";
-import StraightenIcon from "@mui/icons-material/Straighten";
-import TerrainIcon from "@mui/icons-material/Terrain";
+import {
+  CategoryOutlined,
+  RestaurantOutlined,
+  TravelExploreOutlined,
+  HomeOutlined,
+  LocalMallOutlined,
+  LocalHospitalOutlined,
+  SchoolOutlined,
+  EmojiEventsOutlined,
+  LocalGasStationOutlined,
+  MovieOutlined,
+  LocalAtmOutlined,
+  ChevronRight,
+  ChevronLeft,
+  AccountBalanceWalletOutlined,
+  ExploreOutlined,
+  StickyNote2Outlined,
+  AlarmOutlined,
+  NotificationsActive,
+  ChatBubbleOutline,
+  NotificationsNoneOutlined,
+  ExpandMore,
+  ExpandLess,
+  ArrowForwardIos,
+  Circle,
+  LiveTv,
+  Check,
+  BroadcastOnPersonal,
+  WifiTethering,
+  InfoOutlined,
+  Close,
+  CalendarMonth,
+  NotificationsNone,
+  AcUnit,
+  DownhillSkiing,
+  Straighten,
+  Terrain,
+} from "../icons/LucideIcons";
+
 import { MapContainer, TileLayer, Polyline, Marker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -818,9 +824,9 @@ const PlaceCard = ({ place, userData, onPlanTrip,  relatedPlaces = [] }) => {
           }}
         >
           {liked ? (
-            <FavoriteIcon sx={{ color: theme.palette.error.main }} />
+            <Favorite fill={theme.palette.error.main} sx={{ color: theme.palette.error.main }} />
           ) : (
-            <FavoriteBorderIcon />
+            <FavoriteBorder />
           )}
 
           <AnimatedLikeCount
@@ -851,7 +857,7 @@ const PlaceCard = ({ place, userData, onPlanTrip,  relatedPlaces = [] }) => {
             transition: "transform 200ms cubic-bezier(.34,1.56,.64,1)",
           }}
         >
-          {saved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+          {saved ? <Bookmark fill="#facc15" /> : <BookmarkBorder />}
         </IconButton>
       </Stack>
     </Box>
@@ -1595,7 +1601,7 @@ const AnimatedCheck = ({ checked }) => {
         }}
         transition={{ type: "spring", stiffness: 420, damping: 30 }}
       >
-        <CheckIcon
+        <Check
           sx={{
             fontSize: 18,
             color: "#22c55e",
@@ -1755,7 +1761,7 @@ if (!rem) {
       }}
     >
       {/* 🧠 Watermark icon */}
-      <CalendarMonthIcon
+      <CalendarMonth
         sx={{
           position: "absolute",
           right: -20,
@@ -1784,7 +1790,7 @@ if (!rem) {
               : "0 0 0 6px rgba(0,0,0,0.04)",
         }}
       >
-        <NotificationsNoneIcon sx={{ fontSize: 22, opacity: 0.55 }} />
+        <NotificationsNone sx={{ fontSize: 22, opacity: 0.55 }} />
       </Box>
 
       <Typography
@@ -1909,7 +1915,7 @@ if (!rem) {
           opacity: isCompleted ? 0.7 : 1,
         }}
       >
-      <CalendarMonthIcon
+      <CalendarMonth
         sx={{
           position: "absolute",
           right: -18,
@@ -1993,7 +1999,7 @@ if (!rem) {
     }}
     transition={{ type: "spring", stiffness: 420, damping: 26 }}
   >
-    <CheckIcon
+    <Check
       sx={{
         fontSize: 18,
         color: rem.completed ? accent : `${accent}cc`,
@@ -2351,22 +2357,22 @@ useEffect(() => {
   const NAV_ITEMS = [ // <-- NEW CONSTANT ARRAY
     {
       label: "Notes",
-      icon: <StickyNote2OutlinedIcon />,
+      icon: <StickyNote2Outlined />,
       path: "/notes",
     },
     {
       label: "Reminder",
-      icon: <AlarmOutlinedIcon />,
+      icon: <AlarmOutlined />,
       path: "/reminders",
     },
     {
       label: "Trip",
-      icon: <ExploreOutlinedIcon />,
+      icon: <ExploreOutlined />,
       path: "/trips",
     },
     {
       label: "Budget",
-      icon: <AccountBalanceWalletOutlinedIcon />,
+      icon: <AccountBalanceWalletOutlined />,
       path: "/budget-mngr",
     },
   ];
@@ -3107,7 +3113,7 @@ const textColor = useMemo(
         {!isSmallScreen && (
           <Button
             onClick={() => navigate('/search')}
-            startIcon={<SearchIcon />}
+            startIcon={<Search />}
             sx={{
               width: 400,
               justifyContent: "flex-start",
@@ -3410,7 +3416,7 @@ borderRadius: "0 0 34px 34px",
       >
         <Stack spacing={1.2} alignContent={"center"}>
           {/* Header */}
-            <InfoOutlinedIcon sx={{ fontSize: 14, opacity: 0.6, position: "absolute", right: 8, top: 8 }} />
+            <InfoOutlined sx={{ fontSize: 14, opacity: 0.6, position: "absolute", right: 8, top: 8 }} />
 
           {/* AQI Value */}
           <Typography
@@ -3477,7 +3483,7 @@ borderRadius: "0 0 34px 34px",
 
               <Button
                 fullWidth
-                startIcon={<SearchIcon />}
+                startIcon={<Search />}
                 onClick={() => navigate('/search')}
                 sx={{
                   py: 1,
@@ -3597,11 +3603,11 @@ borderRadius: "0 0 34px 34px",
                   }}
                 >
                   {completed ? (
-                    <CheckCircleOutlineIcon
+                    <CheckCircleOutline
                       sx={{ color: "#10b981" }}
                     />
                   ) : (
-                    <WifiTetheringIcon
+                    <WifiTethering
                       sx={{ color: "#ff6b6b" }}
                     />
                   )}
@@ -4292,7 +4298,7 @@ borderRadius: "0 0 34px 34px",
       color: "#fff",
     }}
   >
-    <ChevronLeftIcon />
+    <ChevronLeft />
   </IconButton> */}
 
   {/* ➡️ RIGHT */}
@@ -4314,7 +4320,7 @@ borderRadius: "0 0 34px 34px",
       color: "#fff",
     }}
   >
-    <ChevronRightIcon />
+    <ChevronRight />
   </IconButton> */}
 
   {/* SCROLL CONTAINER */}
@@ -4432,7 +4438,7 @@ borderRadius: "0 0 34px 34px",
       }}
     >
       {/* Watermark */}
-      <CalendarMonthIcon
+      <CalendarMonth
         sx={{
           position: "absolute",
           right: -18,
@@ -4457,6 +4463,7 @@ borderRadius: "0 0 34px 34px",
     </Box>
   </motion.div>
 )}
+
 
   </Box>
 </Box>
@@ -4501,7 +4508,7 @@ borderRadius: "0 0 34px 34px",
       color: "#fff",
     }}
   >
-    <ChevronLeftIcon />
+    <ChevronLeft />
   </IconButton>
 
   {/* ▶ RIGHT */}
@@ -4522,7 +4529,7 @@ borderRadius: "0 0 34px 34px",
       color: "#fff",
     }}
   >
-    <ChevronRightIcon />
+    <ChevronRight />
   </IconButton>
 
   {/* SCROLL AREA */}
@@ -4851,7 +4858,7 @@ borderRadius: "0 0 34px 34px",
       },
     }}
   >
-    <CloseOutlinedIcon fontSize="small" />
+    <CloseOutlined fontSize="small" />
   </IconButton>
 </Box>
 

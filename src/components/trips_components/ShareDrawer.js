@@ -31,17 +31,20 @@ const ShareDrawer = ({
           sx: {
             p: 3,
             backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-            backdropFilter: "blur(5px)",
+            backdropFilter: "blur(10px)",
           },
         },
       }}
       PaperProps={{
         sx: {
           p: 3,
-          borderTopLeftRadius: 26,
-          borderTopRightRadius: 26,
-          backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
+          borderRadius: 8,
+          backgroundColor: mode === "dark" ? "#00000061" : "#ffffff10",
+          backgroundImage: "none",
+          backdropFilter: "blur(40px)",
+          webkitBackdropFilter: "blur(40px)",
           boxShadow: "none",
+          m: 1.2
         },
       }}
     >
@@ -80,8 +83,8 @@ const ShareDrawer = ({
       <Box sx={{ mb: 3, display: "flex", justifyContent: "center" }}>
         <Box
           sx={{
-            width: 180,
-            height: 180,
+            width: 210,
+            height: 210,
             backgroundColor: "#fff",
             p: 2,
             borderRadius: 4,
@@ -91,7 +94,7 @@ const ShareDrawer = ({
             justifyContent: "center",
           }}
         >
-          <QRCodeSVG value={inviteLink} size={160} bgColor="#fff" fgColor="#000" />
+          <QRCodeSVG value={inviteLink} size={200} bgColor="#fff" fgColor="#000" />
         </Box>
       </Box>
 

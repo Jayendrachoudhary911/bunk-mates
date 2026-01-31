@@ -13,8 +13,7 @@ import {
   IconButton,
   Stack,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import TuneIcon from "@mui/icons-material/Tune";
+import { Close as CloseIcon, Straighten as TuneIcon } from "../icons/LucideIcons";
 import {
   useBackground,
   BACKGROUND_TYPES,

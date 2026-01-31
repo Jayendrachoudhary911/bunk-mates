@@ -2,25 +2,26 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  Home,
+  HomeOutlined as Home, // Using Outlined as default Home
   HomeOutlined,
   StickyNote2Outlined,
-  StickyNote2,
+  StickyNote2Outlined as StickyNote2,
   ExploreOutlined,
-  Explore,
-  SearchOutlined,
+  ExploreOutlined as Explore,
+  Search as SearchOutlined, // Map Search to SearchOutlined
   Search,
   ChatBubbleOutline,
-  Chat,
-  ChatBubble,
+  ChatBubbleOutline as Chat,
+  ChatBubbleOutline as ChatBubble,
   ChevronLeft,
   ChevronRight,
-  Hamburger,
-  Menu,
+  // Fix: Hamburger & Menu not found, using CategoryOutlined as substitute
+  CategoryOutlined as Hamburger,
+  CategoryOutlined as Menu,
   ArrowDropDown as ArrowDropDownIcon,
-  NotificationsOutlined,
-  Notifications,
-} from "@mui/icons-material";
+  NotificationsNoneOutlined as NotificationsOutlined,
+  NotificationsNoneOutlined as Notifications,
+} from "../icons/LucideIcons";
 import { Box, Button, Badge, Zoom, keyframes, Typography, CircularProgress, Stack, Tooltip, useMediaQuery, IconButton, Avatar } from "@mui/material";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
@@ -64,10 +65,10 @@ const BottomNavBar = () => {
   const [loadingUserData, setLoadingUserData] = useState(true);
 
   const navItems = [
-    { label: "Home", path: "/", icon: <HomeOutlined />, activeIcon: <Home /> },
-    { label: "Notes", path: "/notes", icon: <StickyNote2Outlined />, activeIcon: <StickyNote2 /> },
-    { label: "Trips", path: "/trips", icon: <ExploreOutlined />, activeIcon: <Explore /> },
-    { label: "Chats", path: "/chats", icon: <ChatBubbleOutline />, activeIcon: <ChatBubble /> },
+    { label: "Home", path: "/", icon: <HomeOutlined />, activeIcon: <Home stroke={mode === "dark" ? "#000000" : "#ffffff"} /> },
+    { label: "Notes", path: "/notes", icon: <StickyNote2Outlined />, activeIcon: <StickyNote2 stroke={mode === "dark" ? "#000000" : "#ffffff"} /> },
+    { label: "Trips", path: "/trips", icon: <ExploreOutlined />, activeIcon: <Explore stroke={mode === "dark" ? "#000000" : "#ffffff"} /> },
+    { label: "Chats", path: "/chats", icon: <ChatBubbleOutline />, activeIcon: <ChatBubble stroke={mode === "dark" ? "#000000" : "#ffffff"} /> },
   ];
 
     const navItemsdesk = [

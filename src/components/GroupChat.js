@@ -49,21 +49,33 @@ import EmojiPicker from 'emoji-picker-react';
 import Popover from '@mui/material/Popover';
 import { fontSize, fontStyle, styled } from '@mui/system';
 import BetaAccessGuard from "../components/BetaAccessGuard";
-import SendIcon from '@mui/icons-material/Send';
-import CloseIcon from '@mui/icons-material/Close';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import EditIcon from "@mui/icons-material/Edit";
-import AddIcon from "@mui/icons-material/Add";
-import SearchIcon from "@mui/icons-material/Search";
-import CheckIcon from '@mui/icons-material/Check';
-import RemoveIcon from '@mui/icons-material/Remove';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import ReplyIcon from '@mui/icons-material/Reply';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import DoneAllIcon from '@mui/icons-material/Done';
-import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
+import { SendHorizontal as SendIcon } from 'lucide-react';
+import {
+  Close as CloseIcon,
+  // Missing ArrowBack: using ChevronLeft
+  ChevronLeft as ArrowBackIcon,
+  // Missing AccountCircle: using InfoOutlined or Broadcast icon
+  InfoOutlined as AccountCircleIcon,
+  // Missing Edit: using StickyNote2Outlined
+  StickyNote2Outlined as EditIcon,
+  Add as AddIcon,
+  Search as SearchIcon,
+  Check as CheckIcon,
+  // Missing Remove: using CloseOutlined
+  CloseOutlined as RemoveIcon,
+  // Missing ContentCopy: using BookmarkBorder
+  BookmarkBorder as ContentCopyIcon,
+  // Missing Reply: using ChevronRight (flipped logic) or Circle
+  ChevronRight as ReplyIcon,
+  // Missing DeleteOutline: using CloseOutlined
+  CloseOutlined as DeleteOutlineIcon,
+  // Missing ArrowDownward: using ExpandMore
+  ExpandMore as ArrowDownwardIcon,
+  // Missing DoneAll: using CheckCircle
+  CheckCircle as DoneAllIcon,
+  // Missing CameraAltOutlined: using MovieOutlined
+  MovieOutlined as CameraAltOutlinedIcon,
+} from "../icons/LucideIcons";
 
 import GroupInfoDrawer from "./GroupChat/GroupInfoDrawer";
 

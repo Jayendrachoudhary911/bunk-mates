@@ -47,73 +47,74 @@ import {
   Snackbar,
   Badge
 } from "@mui/material";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import LogoutIcon from "@mui/icons-material/Logout";
-import PersonOutlineIcon from '@mui/icons-material/PersonOutline'; 
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';   
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-
-import LanguageOutlinedIcon from '@mui/icons-material/LanguageOutlined';
-import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import FeedbackOutlinedIcon from '@mui/icons-material/FeedbackOutlined';
-import CheckIcon from '@mui/icons-material/Check';
-import SearchIcon from '@mui/icons-material/Search';
-import LanguageIcon from '@mui/icons-material/Language';
-import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
-import WallpaperOutlinedIcon from '@mui/icons-material/WallpaperOutlined';
-import FormatSizeOutlinedIcon from '@mui/icons-material/FormatSizeOutlined';
-import DeleteSweepOutlinedIcon from '@mui/icons-material/DeleteSweepOutlined';
-import DeleteForeverOutlinedIcon from '@mui/icons-material/DeleteForeverOutlined';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import ChatIcon from '@mui/icons-material/Chat';
-import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
-import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import WhatsAppIcon from '@mui/icons-material/WhatsApp';
-import EmailIcon from '@mui/icons-material/Email';
-import TelegramIcon from '@mui/icons-material/Telegram';
-import ShareIcon from '@mui/icons-material/Share';
-import QrCodeIcon from "@mui/icons-material/QrCode";
-import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
-import CloseIcon from "@mui/icons-material/Close";
-import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import PhotoCamera from "@mui/icons-material/PhotoCamera";
-import Brightness4Icon from '@mui/icons-material/Brightness4';
-import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
-import WbSunnyOutlinedIcon from '@mui/icons-material/WbSunnyOutlined';
-import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
-import MyLocationOutlinedIcon from '@mui/icons-material/MyLocationOutlined';
-import EditLocationOutlinedIcon from '@mui/icons-material/EditLocationOutlined';
-import FormatSizeIcon from '@mui/icons-material/FormatSize';
-import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
-import CardTravelOutlinedIcon from '@mui/icons-material/CardTravelOutlined';
-import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
-import PublicIcon from '@mui/icons-material/Public';
-import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
-import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
-import BlockIcon from "@mui/icons-material/Block";
-import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
-import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
-import QrCode2OutlinedIcon from '@mui/icons-material/QrCode2Outlined';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined';
-import FlashlightOnOutlinedIcon from '@mui/icons-material/FlashlightOnOutlined';
-import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
-import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
-import InstagramIcon from "@mui/icons-material/Instagram";
-import YouTubeIcon from "@mui/icons-material/YouTube";
-import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
-import EngineeringOutlinedIcon from '@mui/icons-material/EngineeringOutlined'
-import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
+import {
+  ArrowDropDownIcon,
+  ArrowBackIcon,
+  LogoutIcon,
+  PersonOutlineIcon,
+  InfoOutlinedIcon,
+  HelpOutlineIcon,
+  MailOutlinedIcon,
+  SettingsOutlinedIcon,
+  EditOutlinedIcon,
+  AccountCircleOutlinedIcon,
+  CheckCircleIcon,
+  LanguageOutlinedIcon,
+  PersonAddOutlinedIcon,
+  ChatBubbleOutlineIcon,
+  FeedbackOutlinedIcon,
+  CheckIcon,
+  SearchIcon,
+  LanguageIcon,
+  PaletteOutlinedIcon,
+  WallpaperOutlinedIcon,
+  FormatSizeOutlinedIcon,
+  DeleteSweepOutlinedIcon,
+  DeleteForeverOutlinedIcon,
+  WarningAmberIcon,
+  ChatIcon,
+  DeleteForeverIcon,
+  ReportProblemIcon,
+  WhatsAppIcon,
+  EmailIcon,
+  TelegramIcon,
+  ShareIcon,
+  QrCodeIcon,
+  QrCodeScannerIcon,
+  CloseIcon,
+  ArrowForwardIosIcon,
+  ExpandMoreIcon,
+  PhotoCamera,
+  Brightness4Icon,
+  LocationOnOutlinedIcon,
+  WbSunnyOutlinedIcon,
+  DarkModeOutlinedIcon,
+  MyLocationOutlinedIcon,
+  EditLocationOutlinedIcon,
+  FormatSizeIcon,
+  KeyboardArrowRightIcon,
+  LockOutlinedIcon,
+  GroupAddOutlinedIcon,
+  CardTravelOutlinedIcon,
+  BlockOutlinedIcon,
+  PublicIcon,
+  PeopleOutlineIcon,
+  PersonOffOutlinedIcon,
+  BlockIcon,
+  ShareOutlinedIcon,
+  LinkOutlinedIcon,
+  QrCode2OutlinedIcon,
+  MoreVertIcon,
+  PhotoLibraryOutlinedIcon,
+  FlashlightOnOutlinedIcon,
+  ContentCopyOutlinedIcon,
+  DownloadOutlinedIcon,
+  InstagramIcon,
+  YouTubeIcon,
+  LayersOutlinedIcon,
+  EngineeringOutlinedIcon,
+  NotificationsNoneOutlined,
+} from "../icons/LucideIcons";
 
 import { signOut, updateProfile, getAuth, deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
 import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, arrayRemove, deleteDoc } from "firebase/firestore";
@@ -1025,7 +1026,7 @@ const handleUnblockUser = async (userIdToUnblock) => {
             },
         }}
     >
-      <NotificationsNoneOutlinedIcon
+      <NotificationsNoneOutlined
         sx={{ fontSize: 28, color: mode === "dark" ? "#fff" : "#333", cursor: "pointer" }}
         onClick={() => navigate("/notifications")}
       />

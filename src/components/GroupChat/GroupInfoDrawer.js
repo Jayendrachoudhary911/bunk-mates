@@ -486,11 +486,12 @@ const handleShare = async () => {
             PaperProps={{
               sx: {
                 height: "100vh",
-                backgroundColor: mode === "dark" ? "#0c0c0c" : "#f1f1f1",
+                backgroundColor: mode === "dark" ? "#0c0c0c5b" : "#f1f1f1",
                 backdropFilter: "blur(40px)",
                 color: mode === "dark" ? "#fff" : "#000",
                 boxShadow: "none",
                 transition: "transform 0.3s ease",
+                backgroundImage: "none"
               },
             }}
             disableSwipeToOpen={false}
@@ -503,7 +504,7 @@ const handleShare = async () => {
             {/* Main content as per the original code, refactored to use props and local state */}
             {/* Due to length, please place the full content here based on your existing code,
             replacing handlers and state access with props and local state declared above. */}
-            <Box sx={{ p: 3, height: "100%", position: "relative", overflowY: "auto" }}>
+            <Box sx={{ p: 3, height: "100%", position: "relative", overflowY: "auto", mt: 4.5 }}>
               <Box display="flex" alignItems="center">
                 <IconButton
                   onClick={() => setProfileOpen(false)}
@@ -1088,17 +1089,28 @@ const handleShare = async () => {
   open={inviteDrawerOpen}
   onClose={() => setInviteDrawerOpen(false)}
   onOpen={() => {}} // Required for SwipeableDrawer
+  ModalProps={{
+        BackdropProps: {
+          sx: {
+            p: 3,
+            backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
+            backdropFilter: "blur(10px)",
+          },
+        },
+      }}
   PaperProps={{
     sx: {
-      p: { xs: 2, sm: 3 },
-      bgcolor: mode === "dark" ? "#18181821" : "#f7f7f7",
-      backdropFilter: "blur(80px)",
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      boxShadow: "0 -2px 20px rgba(0,0,0,0.6)",
+      p: { xs: 3, sm: 4 },
+      bgcolor: mode === "dark" ? "#00000055" : "#ffffffb9",
+      backdropFilter: "blur(40px)",
+      WebkitBackdropFilter: "blur(40px)",
+      backgroundImage: "none",
+      borderRadius: 6,
+      boxShadow: "none",
       minHeight: "40vh",
       maxWidth: 420,
       mx: "auto",
+      m: 1.2
     },
   }}
 >
@@ -1106,7 +1118,7 @@ const handleShare = async () => {
     sx={{
       width: 40,
       height: 5,
-      backgroundColor: "#8b8b8bff",
+      backgroundColor: "rgba(139, 139, 139, 0.58)",
       borderRadius: 3,
       mx: "auto",
       mb: 2,
@@ -1192,8 +1204,8 @@ const handleShare = async () => {
     />
   </Box>
 
-  <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
-    <Box sx={{ p: 2, backgroundcolor: mode === "dark" ? "#fff" : "#000", borderRadius: 3, boxShadow: "none" }}>
+  <Box sx={{ display: "flex", justifyContent: "center", mb: 3,}}>
+    <Box sx={{ p: 2, backgroundColor: mode === "dark" ? "#fff" : "#ffffff", borderRadius: 3, boxShadow: "none" }}>
       <QRCodeCanvas value={inviteLink} size={180} />
     </Box>
   </Box>
@@ -1206,9 +1218,8 @@ const handleShare = async () => {
       bgcolor: mode === "dark" ? "#fff" : "#000",
       color: mode === "dark" ? "#000" : "#fff",
       fontWeight: 700,
-      borderRadius: 2,
+      borderRadius: 3,
       py: 1.2,
-      mb: 2,
       fontSize: 16,
       boxShadow: "none",
     }}

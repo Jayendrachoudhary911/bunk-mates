@@ -2914,10 +2914,11 @@ const getMessageDate = (timestamp) => {
       height: '100vh',
       mx: 'auto',
       backgroundImage: "none",
+      mt: 4.5
     },
   }}
 >
-  <Box sx={{ p: 3, position: 'relative', height: '100%', overflowY: 'auto' }}>
+  <Box sx={{ p: 3, position: 'relative', height: '100%', overflowY: 'auto', mt: 4.5 }}>
 
     <Button
       startIcon={<ArrowBackIcon />}

@@ -7,14 +7,16 @@ import {
   Paper, Stack, ListItemText, Slide, Fade, Zoom, Alert, AlertTitle
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import SearchIcon from '@mui/icons-material/Search';
-import HistoryIcon from '@mui/icons-material/History';
-import GpsFixedIcon from '@mui/icons-material/GpsFixed';
-import CloudIcon from '@mui/icons-material/Cloud';
-import NewspaperIcon from '@mui/icons-material/Newspaper';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
+import {
+  TrendingUpIcon,
+  SearchIcon,
+  HistoryIcon,
+  GpsFixedIcon,
+  CloudIcon,
+  NewspaperIcon,
+  ArrowBackIcon,
+  MedicalInformationIcon,
+} from '../../icons/LucideIcons';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 

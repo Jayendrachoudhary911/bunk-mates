@@ -1068,9 +1068,6 @@ const cardCommon = (link) => ({
     // --- Render ---
     return (
         <Box sx={{ color: mode === "dark" ? "#fff" : "#000", minHeight: "100vh" }}>
-            <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2, borderRadius: 2, position: "absolute", top: 16, left: 16 }}>
-                Back
-            </Button>
 
         <Button
           startIcon={<ArrowBackIcon />}
@@ -1080,9 +1077,9 @@ const cardCommon = (link) => ({
             borderRadius: 8,
             color: mode === "dark" ? "#fff" : "#000",
             position: "absolute",
-            top: 16,
+            top: 46,
             left: 16,
-            backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
+            backgroundColor: mode === "dark" ? "#00000047" : "#ffffff36",
             backdropFilter: "blur(180px)",
           }}
         >
@@ -1096,7 +1093,7 @@ const cardCommon = (link) => ({
               alignItems: "center",
               gap: 1,
               position: "absolute",
-              top: 16,
+              top: 46,
               right: 16,
             }}
           >
@@ -1106,7 +1103,7 @@ const cardCommon = (link) => ({
                 mb: 2,
                 borderRadius: 8,
                 color: mode === "dark" ? "#fff" : "#000",
-                backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
+                backgroundColor: mode === "dark" ? "#00000047" : "#ffffff36",
                 backdropFilter: "blur(180px)",
                 border: "none",
               }}
@@ -1120,7 +1117,7 @@ const cardCommon = (link) => ({
                 mb: 2,
                 borderRadius: 8,
                 color: mode === "dark" ? "#fff" : "#000",
-                backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
+                backgroundColor: mode === "dark" ? "#00000047" : "#ffffff36",
                 backdropFilter: "blur(180px)",
                 border: "none",
               }}
@@ -1135,7 +1132,7 @@ const cardCommon = (link) => ({
         mb: 2,
         borderRadius: 8,
         color: mode === "dark" ? "#fff" : "#000",
-        backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
+        backgroundColor: mode === "dark" ? "#00000047" : "#ffffff36",
         backdropFilter: "blur(180px)",
         border: "none",
       }}
@@ -1149,7 +1146,7 @@ const cardCommon = (link) => ({
         mb: 2,
         borderRadius: 8,
         color: mode === "dark" ? "#fff" : "#000",
-        backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
+        backgroundColor: mode === "dark" ? "#00000047" : "#ffffff36",
         backdropFilter: "blur(180px)",
         border: "none",
       }}
@@ -1204,11 +1201,12 @@ const cardCommon = (link) => ({
       background:
         mode === "dark"
           ? "linear-gradient(145deg, rgba(39, 39, 39, 0.35), rgba(25, 25, 25, 0.5))"
-          : "linear-gradient(145deg, rgba(255,255,255,0.8), rgba(245,245,245,0.7))",
+          : "linear-gradient(145deg, rgba(255,255,255,0.58), rgba(245, 245, 245, 0.52))",
       borderRadius: 4,
       width: 240,
       py: 1.5,
       px: 2,
+      border:"none",
       backdropFilter: "blur(20px)",
       boxShadow:"none",
       cursor: "pointer",
@@ -1293,7 +1291,7 @@ const cardCommon = (link) => ({
   </Box>
 )}
 
-          <Container sx={{ borderRadius: 5, backgroundColor: mode === "dark" ? "#00000000" : "#ffffffa3", backdropFilter: "blur(80px)", py: 2 }}>
+          <Container sx={{ borderRadius: 5, backgroundColor: mode === "dark" ? "#00000000" : "#ffffff50", backdropFilter: "blur(80px)", py: 2, pb: 6 }}>
 
           {/* Title + Edit */}
           <Box display="flex" flexDirection="column" gap={1} px={3} py={2}>
@@ -1930,7 +1928,7 @@ const cardCommon = (link) => ({
               </Button>
             </Box>
 
-<Box sx={{ position: "relative" }}>
+<Box sx={{ position: "relative", backgroundColor: "transparent" }}>
   <List
     sx={{
       maxHeight: "200px",
@@ -2133,6 +2131,7 @@ const cardCommon = (link) => ({
   <Typography
     variant="body2"
     color="text.secondary"
+    backgroundColor="transparent"
     sx={{ pb: 5, mb: 3, textAlign: "center" }}
   >
     No events added yet.

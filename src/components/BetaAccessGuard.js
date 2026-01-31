@@ -12,7 +12,7 @@ import {
   SvgIcon,
   GlobalStyles,
 } from "@mui/material";
-import { LockOutlined, RocketLaunch, HourglassBottom } from "@mui/icons-material";
+import { LockOutlined, RocketLaunch, HourglassBottom } from "../icons/LucideIcons";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { auth, db } from "../firebase";  // Make sure you import your initialized db and auth
 import { onAuthStateChanged } from "firebase/auth";

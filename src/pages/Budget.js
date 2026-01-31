@@ -29,30 +29,36 @@ import {
   Menu,
   SwipeableDrawer
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
+import {
+  Add as AddIcon,
+  // Fix: DeleteOutline not found, using CloseOutlined or standard Close
+  CloseOutlined as DeleteOutlineIcon,
+  // Fix: Edit not found, using StickyNote2Outlined (symbolizes writing/editing)
+  StickyNote2Outlined as EditIcon,
+  StickyNote2Outlined as EditOutlinedIcon,
+  // Fix: ArrowBack not found, using ChevronLeft
+  ChevronLeft as ArrowBackIcon,
+  Search as SearchIcon,
+  // Fix: MoreVert not found, using ExpandMore
+  ExpandMore as MoreVertIcon,
+  InfoOutlined as InfoOutlinedIcon,
+  // Fix: ViewModule/List not found, using Category/Explore variants
+  CategoryOutlined as ViewModuleIcon,
+  ExploreOutlined as ViewListIcon,
+  RestaurantOutlined as RestaurantOutlinedIcon,
+  TravelExploreOutlined as TravelExploreOutlinedIcon,
+  HomeOutlined as HomeOutlinedIcon,
+  LocalMallOutlined as LocalMallOutlinedIcon,
+  LocalHospitalOutlined as LocalHospitalOutlinedIcon,
+  SchoolOutlined as SchoolOutlinedIcon,
+  EmojiEventsOutlined as EmojiEventsOutlinedIcon,
+  LocalGasStationOutlined as LocalGasStationOutlinedIcon,
+  MovieOutlined as MovieOutlinedIcon,
+  LocalAtmOutlined as LocalAtmOutlinedIcon,
+  CategoryOutlined as CategoryOutlinedIcon,
+} from "../icons/LucideIcons";
 import Card from "@mui/material/Card";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import EditIcon from "@mui/icons-material/Edit";
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import SearchIcon from '@mui/icons-material/Search';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Tooltip from '@mui/material/Tooltip';
-import ViewModuleIcon from '@mui/icons-material/ViewModuleOutlined';
-import ViewListIcon from '@mui/icons-material/ViewListOutlined';
-
-import RestaurantOutlinedIcon from '@mui/icons-material/RestaurantOutlined';
-import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
-import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
-import LocalMallOutlinedIcon from '@mui/icons-material/LocalMallOutlined';
-import LocalHospitalOutlinedIcon from '@mui/icons-material/LocalHospitalOutlined';
-import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
-import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined';
-import LocalGasStationOutlinedIcon from '@mui/icons-material/LocalGasStationOutlined';
-import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined';
-import LocalAtmOutlinedIcon from '@mui/icons-material/LocalAtmOutlined';
-import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 
 
 import { useNavigate, useLocation } from 'react-router-dom';

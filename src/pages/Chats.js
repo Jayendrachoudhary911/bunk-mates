@@ -49,23 +49,28 @@ import {
 } from '@mui/material';
 import { format, isToday, isYesterday } from 'date-fns';
 
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import GroupAddIcon from '@mui/icons-material/GroupAdd';
-import AddIcon from '@mui/icons-material/Add';
-import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
-import CloseIcon from '@mui/icons-material/Close';
-import SearchIcon from "@mui/icons-material/Search";
+// Lucide React Icons
+import { 
+  ArrowLeft as ArrowBackIcon, 
+  UserPlus as GroupAddIcon, 
+  UserPlus as PersonAddIcon, 
+  Plus as AddIcon, 
+  Smile as EmojiEmotionsIcon, 
+  X as CloseIcon, 
+  X as CloseRoundedIcon, 
+  Search as SearchIcon, 
+  CheckCircle2 as CheckCircleIcon, 
+  Share2 as ShareOutlinedIcon, 
+  Copy as ContentCopyOutlinedIcon, 
+  QrCode as QrCode2OutlinedIcon, 
+  MessageSquare as MessageOutlinedIcon, 
+  MessageSquare as ChatBubbleOutlineIcon, 
+  Info as InfoOutlinedIcon, 
+  ExternalLink as OpenInNewIcon
+} from 'lucide-react';
+
+// Local Component Imports (Unchanged)
 import ProfilePic from '../components/Profile';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
-import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
-import QrCode2OutlinedIcon from '@mui/icons-material/QrCode2Outlined';
-import MessageOutlinedIcon from '@mui/icons-material/MessageOutlined';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import Notifications from "../elements/Notifications";
 
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
@@ -1169,9 +1174,9 @@ return (
   return (
       <ThemeProvider theme={theme}>
         {/* <DeviceGuard> */}
-                  <BetaAccessGuard>
-          <div style={{ padding: '20px', backgroundColor: '#02020200', marginTop: 45 }}>
-      <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+      <BetaAccessGuard>
+      <div style={{ padding: '20px', backgroundColor: '#02020200', marginTop: 45 }}>
+      <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0px'}}>
         <Typography variant="h4" style={{ color: theme.palette.text.primary, fontWeight: "bolder", mr: 2 }}>Chats</Typography>
            <Notifications />
       </div>
@@ -1183,7 +1188,7 @@ return (
         top: 0,
         zIndex: 999,
         background: `linear-gradient(to bottom, ${theme.palette.background.default}, ${theme.palette.background.default}e3, ${theme.palette.background.default}00)`,
-        py: 2,
+        py: 5.5,
       }}
     >
       <TextField
@@ -1193,7 +1198,7 @@ return (
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         style={{
-          marginBottom: '20px',
+          marginBottom: '0px',
           color: theme.palette.text.primary,
         }}
         LabelInputProps={{ style: { color: theme.palette.text.primary } }}
@@ -1203,7 +1208,7 @@ return (
               <SearchIcon sx={{ color: theme.palette.text.primary }} />
             </InputAdornment>
           ),
-          sx: { color: theme.palette.text.primary, backgroundColor: theme.palette.background.paper, borderRadius: '8px', height: '40px' },
+          sx: { color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#00000000" : "#ffffff00", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", borderRadius: '15px', height: '50px' },
         }}
       />
     </Box>

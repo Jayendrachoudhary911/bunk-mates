@@ -8,11 +8,13 @@ import {
   IconButton,
   useTheme,
 } from "@mui/material";
-import FavoriteIcon from "@mui/icons-material/Favorite";
-import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
-import BookmarkIcon from "@mui/icons-material/Bookmark";
-import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
-import CloseIcon from "@mui/icons-material/Close";
+import { 
+  Favorite as FavoriteIcon, 
+  FavoriteBorder as FavoriteBorderIcon, 
+  Bookmark as BookmarkIcon, 
+  BookmarkBorder as BookmarkBorderIcon, 
+  Close as CloseIcon 
+} from "../icons/LucideIcons";
 
 const CLOSE_THRESHOLD = 120;
 const NEXT_THRESHOLD = -120;

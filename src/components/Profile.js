@@ -48,73 +48,26 @@ import {
   Badge,
   Collapse
 } from "@mui/material";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import LogoutIcon from "@mui/icons-material/Logout";
-import PersonOutlineIcon from '@mui/icons-material/PersonOutline'; 
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';   
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-
-import LanguageOutlinedIcon from '@mui/icons-material/LanguageOutlined';
-import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import FeedbackOutlinedIcon from '@mui/icons-material/FeedbackOutlined';
-import CheckIcon from '@mui/icons-material/Check';
-import SearchIcon from '@mui/icons-material/Search';
-import LanguageIcon from '@mui/icons-material/Language';
-import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
-import WallpaperOutlinedIcon from '@mui/icons-material/WallpaperOutlined';
-import FormatSizeOutlinedIcon from '@mui/icons-material/FormatSizeOutlined';
-import DeleteSweepOutlinedIcon from '@mui/icons-material/DeleteSweepOutlined';
-import DeleteForeverOutlinedIcon from '@mui/icons-material/DeleteForeverOutlined';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import ChatIcon from '@mui/icons-material/Chat';
-import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
-import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import WhatsAppIcon from '@mui/icons-material/WhatsApp';
-import EmailIcon from '@mui/icons-material/Email';
-import TelegramIcon from '@mui/icons-material/Telegram';
-import ShareIcon from '@mui/icons-material/Share';
-import QrCodeIcon from "@mui/icons-material/QrCode";
-import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
-import CloseIcon from "@mui/icons-material/Close";
-import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import PhotoCamera from "@mui/icons-material/PhotoCamera";
-import Brightness4Icon from '@mui/icons-material/Brightness4';
-import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
-import WbSunnyOutlinedIcon from '@mui/icons-material/WbSunnyOutlined';
-import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
-import MyLocationOutlinedIcon from '@mui/icons-material/MyLocationOutlined';
-import EditLocationOutlinedIcon from '@mui/icons-material/EditLocationOutlined';
-import FormatSizeIcon from '@mui/icons-material/FormatSize';
-import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
-import CardTravelOutlinedIcon from '@mui/icons-material/CardTravelOutlined';
-import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
-import PublicIcon from '@mui/icons-material/Public';
-import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
-import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
-import BlockIcon from "@mui/icons-material/Block";
-import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
-import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
-import QrCode2OutlinedIcon from '@mui/icons-material/QrCode2Outlined';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined';
-import FlashlightOnOutlinedIcon from '@mui/icons-material/FlashlightOnOutlined';
-import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
-import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
-import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
-import InstagramIcon from "@mui/icons-material/Instagram";
-import YouTubeIcon from "@mui/icons-material/YouTube";
-import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
-import EngineeringOutlinedIcon from '@mui/icons-material/EngineeringOutlined'
+import {
+  ArrowDropDown, ArrowBack, Logout, PersonOutline, InfoOutlined,
+  CheckCircle, ChatBubbleOutline, Search, Share, QrCode,
+  Close, ArrowForwardIos, PhotoCamera, WbSunnyOutlined, LockOutlined,
+  ContentCopyOutlined, DownloadOutlined, EngineeringOutlined, Mail,
+  EditLocationOutlined, Settings, HelpOutline as HelpOutlineIcon,
+  FeedbackOutlined, PersonAddOutlined, Brightness4 as Brightness4Icon,
+  PaletteOutlined as PaletteOutlinedIcon, WallpaperOutlined as WallpaperOutlinedIcon,
+  FormatSizeOutlined as FormatSizeOutlinedIcon, DeleteSweepOutlined as DeleteSweepOutlinedIcon,
+  DeleteForeverOutlined as DeleteForeverOutlinedIcon, GroupAddOutlined as GroupAddOutlinedIcon,
+  CardTravelOutlined as CardTravelOutlinedIcon, BlockOutlined as BlockOutlinedIcon,
+  Public as PublicIcon, PeopleOutline as PeopleOutlineIcon, PersonOffOutlined as PersonOffOutlinedIcon,
+  Check as CheckIcon, Chat as ChatIcon, MyLocationOutlined as MyLocationOutlinedIcon,
+  WhatsApp as WhatsAppIcon, Email as EmailIcon, Telegram as TelegramIcon, Share as ShareIcon,
+  Instagram, YouTube, LayersOutlined, DeleteForever as DeleteForeverIcon, DarkModeOutlined as DarkModeOutlinedIcon,
+  EngineeringOutlined as EngineeringOutlinedIcon,
+  LockOutlined as LockOutlinedIcon,
+  BlockOutlined as BlockIcon, // Or just Block
+  LocationOnOutlined as LocationOnOutlinedIcon,
+} from "@mui/icons-material";
 
 import { signOut, updateProfile, getAuth, deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
 import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, arrayRemove, deleteDoc } from "firebase/firestore";
@@ -135,6 +88,7 @@ import { toPng } from "html-to-image";
 import { color } from "framer-motion";
 import { alpha } from '@mui/material/styles';
 import BackgroundToggle from "../elements/BackgroundToggle";
+import { AccountCircleOutlined } from "@mui/icons-material";
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -1051,7 +1005,7 @@ sx={{
             {userData.email || "Email"}
           </Typography>
         </Box>
-        <ArrowDropDownIcon sx={{ color: "text.primary" }} />
+        <ArrowDropDown sx={{ color: "text.primary" }} />
       </>
     )}
   </Box>
@@ -1083,7 +1037,7 @@ sx={{
       {/* User info */}
       <Box sx={{ display: "flex", alignItems: "left", my: 2, mx: 2 }}>
         <IconButton edge="start" color="inherit" onClick={() => navigate(-1)} sx={{ mr: 2 }}>
-          <ArrowBackIcon />
+          <ArrowBack />
         </IconButton>
         <Typography sx={{ fontSize: '1.5rem' }}><h2>Settings</h2></Typography>
       </Box>
@@ -1112,7 +1066,7 @@ sx={{
             },
           }}
         >
-          <QrCodeIcon />
+          <QrCode />
         </IconButton>
 
     </Box>
@@ -1125,7 +1079,7 @@ sx={{
         {/* Accounts */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("accounts")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><AccountCircleOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+            <ListItemIcon sx={{ minWidth: 40 }}><AccountCircleOutlined sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="Accounts" secondary="User privacy and security" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
         </ListItem>
@@ -1133,7 +1087,7 @@ sx={{
         {/* Chats */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("chats")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><ChatBubbleOutlineIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+            <ListItemIcon sx={{ minWidth: 40 }}><ChatBubbleOutline sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="Chats" secondary="Theme, Wallpapers, and Chat Settings" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
         </ListItem>
@@ -1141,7 +1095,7 @@ sx={{
         {/* General Settings */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("generalSettings")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><SettingsOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+            <ListItemIcon sx={{ minWidth: 40 }}><Settings sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="General Settings" secondary="App Theme, Language, and Location" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
         </ListItem>
@@ -1157,7 +1111,7 @@ sx={{
         {/* Send Feedback */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("feedback")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><FeedbackOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+            <ListItemIcon sx={{ minWidth: 40 }}><FeedbackOutlined sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="Send feedback" secondary="Report technical issues" primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
           </ListItemButton>
         </ListItem>
@@ -1165,7 +1119,7 @@ sx={{
         {/* Invite a Friend */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("inviteFriend")} sx={{ borderRadius: 3, py: 1.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><PersonAddOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+            <ListItemIcon sx={{ minWidth: 40 }}><PersonAddOutlined sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="Invite a Friend" primaryTypographyProps={{ fontWeight: 'medium' }} />
           </ListItemButton>
         </ListItem>
@@ -1173,7 +1127,7 @@ sx={{
         {/* About */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("about")} sx={{ borderRadius: 3, py: 1.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><InfoOutlinedIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
+            <ListItemIcon sx={{ minWidth: 40 }}><InfoOutlined sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
             <ListItemText primary="About" primaryTypographyProps={{ fontWeight: 'medium' }} />
           </ListItemButton>
         </ListItem>
@@ -1208,7 +1162,7 @@ sx={{
           noWrap: true,
         }}
       />
-      <KeyboardArrowRightIcon sx={{ color: theme.palette.text.secondary }} />
+      <ArrowForwardIos sx={{ color: theme.palette.text.secondary }} />
     </ListItemButton>
   </ListItem>
 )}
@@ -1230,7 +1184,7 @@ sx={{
                 '&:hover': { backgroundColor: "#f1f1f121" },
             }}
         >
-            <ArrowBackIcon />
+            <ArrowBack />
         </IconButton>
         <Typography variant="h5" fontWeight="bold">
             Account Settings
@@ -1510,7 +1464,7 @@ sx={{
           "&:hover": { backgroundColor: "#f1f1f121" },
         }}
       >
-        <ArrowBackIcon />
+        <ArrowBack />
       </IconButton>
       <Typography variant="h5" fontWeight="bold">
         Blocked Contacts
@@ -1625,7 +1579,7 @@ sx={{
       '&:hover': { backgroundColor: "#f1f1f121" },
     }}
   >
-    <ArrowBackIcon />
+    <ArrowBack />
   </IconButton>
 
   <Typography
@@ -1959,7 +1913,7 @@ sx={{
                         }}
                     >
                         {chatWallpaper === wallpaper.url && (
-                            <CheckCircleIcon sx={{ position: 'absolute', top: 8, right: 8, color: 'primary.main', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '50%' }} />
+                            <CheckCircle sx={{ position: 'absolute', top: 8, right: 8, color: 'primary.main', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '50%' }} />
                         )}
                         <Typography sx={{ position: 'absolute', bottom: 8, left: 8, color: '#fff', backgroundColor: 'rgba(0,0,0,0.5)', px: 1, borderRadius: 1, fontSize: '0.75rem' }}>
                             {wallpaper.name}
@@ -2174,7 +2128,7 @@ sx={{
           },
         }}
       >
-        <ArrowBackIcon />
+        <ArrowBack />
       </IconButton>
       <Typography variant="h5" fontWeight="700">
         Invite & Download
@@ -2412,7 +2366,7 @@ sx={{
           '&:hover': { backgroundColor: "#f1f1f121" },
         }}
       >
-        <ArrowBackIcon />
+        <ArrowBack />
       </IconButton>
       <Typography variant="h5" fontWeight="bold">
         General Settings
@@ -2478,7 +2432,7 @@ sx={{
       },
     }}
   >
-    <ListItemIcon><SettingsOutlinedIcon fontSize="small" /></ListItemIcon>
+    <ListItemIcon><Settings fontSize="small" /></ListItemIcon>
     System
   </MenuItem>
 
@@ -2493,7 +2447,7 @@ sx={{
       },
     }}
   >
-    <ListItemIcon><WbSunnyOutlinedIcon fontSize="small" /></ListItemIcon>
+    <ListItemIcon><WbSunnyOutlined fontSize="small" /></ListItemIcon>
     Light
   </MenuItem>
 
@@ -2592,7 +2546,7 @@ sx={{
       },
     }}
   >
-    <EditLocationOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
+    <EditLocationOutlined fontSize="small" sx={{ mr: 1 }} />
     Manual
   </MenuItem>
 </Select>
@@ -2706,7 +2660,7 @@ sx={{
   >
     {/* Back Button */}
     <Button
-      startIcon={<ArrowBackIcon />}
+      startIcon={<ArrowBack />}
       onClick={() => navigate(-1)}
       sx={{
         mb: 3,
@@ -2764,7 +2718,7 @@ sx={{
   fullWidth
   variant="contained"
   endIcon={
-    <KeyboardArrowRightIcon
+    <ArrowForwardIos
       sx={{
         fontSize: 26,
         transition: "transform 0.3s ease",
@@ -2807,7 +2761,7 @@ sx={{
   <Box
     sx={{ display: "flex", alignItems: "center", gap: 2 }}
   >
-    <LayersOutlinedIcon
+    <LayersOutlined
         sx={{
           fontSize: 24,
           transition: "transform 0.3s ease",
@@ -2892,16 +2846,16 @@ sx={{
       <Stack direction="row" spacing={2}>
         {[
           {
-            icon: <MailOutlinedIcon />,
+            icon: <Mail />,
             action: () => window.open("mailto:team.bunkmates@gmail.com"),
           },
           {
-            icon: <InstagramIcon />,
+            icon: <Instagram />,
             action: () =>
               window.open("https://www.instagram.com/bunkmates.app", "_blank"),
           },
           {
-            icon: <YouTubeIcon />,
+            icon: <YouTube />,
             action: () =>
               window.open("https://www.youtube.com/@Team_BunkMates", "_blank"),
           },
@@ -3005,7 +2959,7 @@ sx={{
                 },
               }}
             >
-              <ArrowBackIcon />
+              <ArrowBack />
             </IconButton>
             <Typography variant="h5" fontWeight="700">
               App Info
@@ -3167,7 +3121,7 @@ sx={{
                 }}
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>
-                  <LayersOutlinedIcon
+                  <LayersOutlined
                     sx={{ color: theme.palette.text.secondary }}
                   />
                 </ListItemIcon>
@@ -3175,7 +3129,7 @@ sx={{
                   primary="Testing Features & Other Routes"
                   primaryTypographyProps={{ fontWeight: 500 }}
                 />
-                <KeyboardArrowRightIcon
+                <ArrowForwardIos
                   sx={{ color: theme.palette.text.secondary }}
                 />
               </ListItemButton>
@@ -3206,13 +3160,13 @@ sx={{
               }}
             >
               <ListItemIcon sx={{ minWidth: 40 }}>
-                <InfoOutlinedIcon sx={{ color: theme.palette.text.secondary }} />
+                <InfoOutlined sx={{ color: theme.palette.text.secondary }} />
               </ListItemIcon>
               <ListItemText
                 primary="Third-Party Licenses & Attributions"
                 primaryTypographyProps={{ fontWeight: 500 }}
               />
-              <KeyboardArrowRightIcon sx={{ color: theme.palette.text.secondary }} />
+              <ArrowForwardIos sx={{ color: theme.palette.text.secondary }} />
             </ListItemButton>
           </ListItem>
 
@@ -3263,7 +3217,7 @@ sx={{
   <Container sx={{ mt: 5, mb: 2 }}>
     {/* Back Button */}
     <Button
-      startIcon={<ArrowBackIcon />}
+      startIcon={<ArrowBack />}
       onClick={() => navigate(-1)}
       sx={{
         mb: 2,
@@ -3391,7 +3345,7 @@ sx={{
 {drawerPage === "support" && (
   <Container sx={{ mt: 5, mb: 2 }}>
     <Button
-      startIcon={<ArrowBackIcon />}
+      startIcon={<ArrowBack />}
       onClick={() => navigate(-1)}
       sx={{
         mb: 1,
@@ -3483,7 +3437,7 @@ sx={{
           '&:hover': { backgroundColor: "#f1f1f121" },
         }}
       >
-        <ArrowBackIcon />
+        <ArrowBack />
       </IconButton>
   <Typography variant="h5" fontWeight="bold">
     Profile
@@ -3501,7 +3455,7 @@ sx={{
       color: mode === "dark" ? 'white' : 'black',
     }}
   >
-    <EditOutlinedIcon />
+    <PersonOutline />
   </IconButton>
   </>
   ) : (
@@ -3820,7 +3774,7 @@ sx={{
         }}
       >
         <ListItemIcon>
-          <LogoutIcon sx={{ color: mode === "dark" ? "#ffe6e6ff" : "#ff0000ff" }} />
+          <Logout sx={{ color: mode === "dark" ? "#ffe6e6ff" : "#ff0000ff" }} />
         </ListItemIcon>
         <Typography sx={{ color: mode === "dark" ? "#ffe6e6ff" : "#ff0000ff" }}>Logout</Typography>
       </ListItemButton>
@@ -4053,7 +4007,7 @@ sx={{
                 "&:hover": { backgroundColor: "rgba(255,255,255,0.25)" },
               }}
             >
-              <EditOutlinedIcon fontSize="small" />
+              <PersonOutline fontSize="small" />
               <input
                 type="file"
                 accept="image/*"
@@ -4123,9 +4077,9 @@ sx={{
     >
       {viewMode === "avatar" &&
         [
-          { icon: <ShareOutlinedIcon />, label: "Share profile", delay: 400, handler: handleShare },
-          { icon: <ContentCopyOutlinedIcon />, label: "Copy link", delay: 500, handler: handleCopyLink },
-          { icon: <QrCode2OutlinedIcon />, label: "QR code", delay: 600, handler: () => setViewMode("qr") },
+          { icon: <Share />, label: "Share profile", delay: 400, handler: handleShare },
+          { icon: <ContentCopyOutlined />, label: "Copy link", delay: 500, handler: handleCopyLink },
+          { icon: <QrCode />, label: "QR code", delay: 600, handler: () => setViewMode("qr") },
         ].map(({ icon, label, delay, handler }) => (
           <Zoom in={profilePicOpen} style={{ transitionDelay: `${delay}ms` }} key={label}>
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mx: 1.5 }}>
@@ -4168,7 +4122,7 @@ sx={{
               "&:hover": { transform: "scale(1.15)" },
             }}
           >
-            <ArrowBackIcon />
+            <ArrowBack />
           </IconButton>
 
           {/* Download Button */}
@@ -4212,7 +4166,7 @@ sx={{
               "&:hover": { transform: "scale(1.15)" },
             }}
           >
-            <DownloadOutlinedIcon />
+            <DownloadOutlined />
           </IconButton>
         </>
       )}
@@ -4236,7 +4190,7 @@ sx={{
   <Container sx={{ mt: 5, mb: 4 }}>
     {/* Back Button */}
     <Button
-      startIcon={<ArrowBackIcon />}
+      startIcon={<ArrowBack />}
       onClick={() => navigate(-1)}
       sx={{
         mb: 3,
@@ -4336,7 +4290,7 @@ sx={{
             '&:hover': { backgroundColor: "#f1f1f121" },
           }}
         >
-          <ArrowBackIcon />
+          <ArrowBack />
         </IconButton>
         <Typography variant="h5" fontWeight="bold">QR Code</Typography>
       </Box>
@@ -4576,7 +4530,7 @@ sx={{
           },
         }}
       >
-        <ArrowBackIcon />
+        <ArrowBack />
       </IconButton>
       <Typography variant="h5" fontWeight="700">
         Developer Tools
@@ -4668,7 +4622,7 @@ sx={{
                 fontSize: "0.85rem",
               }}
             />
-            <KeyboardArrowRightIcon
+            <ArrowForwardIos
               sx={{ color: theme.palette.text.secondary }}
             />
           </ListItem>
@@ -4747,7 +4701,7 @@ sx={{
                 fontSize: "0.85rem",
               }}
             />
-            <KeyboardArrowRightIcon
+            <ArrowForwardIos
               sx={{ color: theme.palette.text.secondary }}
             />
           </ListItem>
