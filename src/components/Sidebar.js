@@ -1,16 +1,12 @@
 // Sidebar.js
 import React from "react";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import Chats from "../pages/Chats"; // Assuming Chats is a component that lists chat rooms or friends
 
 const Sidebar = () => {
   const navigate = useNavigate();
 
-  // Handle navigation to chats
-  const goToChats = () => {
-    navigate("/chats");
-  };
 
   return (
     <Box

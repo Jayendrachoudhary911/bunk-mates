@@ -17,7 +17,6 @@ import {
     IconButton,
     TextField,
     Snackbar,
-    InputAdornment,
     Collapse,
     Tooltip,
     Checkbox,
@@ -25,26 +24,21 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    Grid,
 } from "@mui/material";
 
 import {
     LocationOn,
     AccessTime,
     Edit,
-    Add,
-    ContentCopy,
     Settings as SettingsIcon,
     Info as InfoIcon,
     Directions as DirectionsIcon,
     ArrowBack as ArrowBackIcon,
     Group as GroupIcon,
     DeleteOutline as DeleteOutlineIcon,
-    CloseOutlined as CloseOutlinedIcon,
     ExpandMore as ExpandMoreIcon,
     LockOutlined as LockOutlinedIcon,
     Celebration as CelebrationIcon,
-    WarningAmberRounded as WarningAmberRoundedIcon,
     DriveFolderUpload as DriveFolderUploadIcon,
     YouTube as YouTubeIcon,
     PhotoLibrary as PhotoLibraryIcon,
@@ -63,15 +57,13 @@ import {
     collection,
     addDoc,
     onSnapshot,
-    getDocs,
     deleteDoc,
     setDoc,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db } from "../firebase";
-import { QRCodeSVG } from "qrcode.react";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 import { useWeather } from "../contexts/WeatherContext";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
@@ -88,7 +80,6 @@ import SettingsDrawer from "./trips_components/SettingsDrawer";
 import ConfirmDeleteDialog from "./trips_components/ConfirmDeleteDialog";
 import ChecklistViewAllDrawer from "./trips_components/ChecklistViewAllDrawer";
 import TimelineAllDrawer from "./trips_components/TimelineAllDrawer";
-// ...existing code...
 
 const getCurrentDate = () => {
     const now = new Date();
@@ -425,18 +416,18 @@ export default function TripDetails() {
         }
     };
 
-    const handleRenameLink = async (linkId, newTitle) => {
-        try {
-            const tripRef = doc(db, "trips", id);
-            const updated = (tripLinks || []).map((l) => (l.id === linkId ? { ...l, title: newTitle } : l));
-            await updateDoc(tripRef, { links: updated });
-            setEditingLink(null);
-            setSnackbar({ open: true, message: "Link renamed successfully!" });
-        } catch (err) {
-            console.error(err);
-            setSnackbar({ open: true, message: "Failed to rename link." });
-        }
-    };
+    // const handleRenameLink = async (linkId, newTitle) => {
+    //     try {
+    //         const tripRef = doc(db, "trips", id);
+    //         const updated = (tripLinks || []).map((l) => (l.id === linkId ? { ...l, title: newTitle } : l));
+    //         await updateDoc(tripRef, { links: updated });
+    //         setEditingLink(null);
+    //         setSnackbar({ open: true, message: "Link renamed successfully!" });
+    //     } catch (err) {
+    //         console.error(err);
+    //         setSnackbar({ open: true, message: "Failed to rename link." });
+    //     }
+    // };
 
     const getLinkIcon = (url) => {
         if (!url) return <LinkIcon />;
@@ -724,21 +715,21 @@ export default function TripDetails() {
         setUploadingBatch(false);
     };
 
-    const addAllTimelineEvents = async () => {
-        if (!timelineDrafts.length) {
-            setSnackbar({ open: true, message: "No timeline events to add." });
-            return;
-        }
-        try {
-            await Promise.all(timelineDrafts.map((item) => addDoc(collection(db, `trips/${id}/timeline`), { ...item, completed: false })));
-            setTimelineDrafts([]);
-            setTimelineDrawerOpen(false);
-            setSnackbar({ open: true, message: `${timelineDrafts.length} event(s) added!` });
-        } catch (err) {
-            console.error(err);
-            setSnackbar({ open: true, message: "Failed to add timeline events." });
-        }
-    };
+    // const addAllTimelineEvents = async () => {
+    //     if (!timelineDrafts.length) {
+    //         setSnackbar({ open: true, message: "No timeline events to add." });
+    //         return;
+    //     }
+    //     try {
+    //         await Promise.all(timelineDrafts.map((item) => addDoc(collection(db, `trips/${id}/timeline`), { ...item, completed: false })));
+    //         setTimelineDrafts([]);
+    //         setTimelineDrawerOpen(false);
+    //         setSnackbar({ open: true, message: `${timelineDrafts.length} event(s) added!` });
+    //     } catch (err) {
+    //         console.error(err);
+    //         setSnackbar({ open: true, message: "Failed to add timeline events." });
+    //     }
+    // };
 
     const updateChecklistItem = async (itemId, newText) => {
         if (!newText?.trim()) return;
@@ -781,78 +772,78 @@ const fetchCoverImage = async (location) => {
   }
 };
 
-const fetchTripData = async () => {
-  if (!id) return;
+// const fetchTripData = async () => {
+//   if (!id) return;
 
-  // Fetch trip details
-  const docRef = doc(db, "trips", id);
-  const docSnap = await getDoc(docRef);
-  if (!docSnap.exists()) return;
+//   // Fetch trip details
+//   const docRef = doc(db, "trips", id);
+//   const docSnap = await getDoc(docRef);
+//   if (!docSnap.exists()) return;
 
-  const tripData = docSnap.data();
+//   const tripData = docSnap.data();
 
-  // Fetch group chat iconURL
-  const groupChatRef = doc(db, "groupChats", id);
-  const groupChatSnap = await getDoc(groupChatRef);
-  const groupChatData = groupChatSnap.exists() ? groupChatSnap.data() : null;
+//   // Fetch group chat iconURL
+//   const groupChatRef = doc(db, "groupChats", id);
+//   const groupChatSnap = await getDoc(groupChatRef);
+//   const groupChatData = groupChatSnap.exists() ? groupChatSnap.data() : null;
 
-  const iconURL = groupChatData?.iconURL || null;
+//   const iconURL = groupChatData?.iconURL || null;
 
-  // Combine trip data with iconURL
-  const combinedData = {
-    ...tripData,
-    iconURL
-  };
+//   // Combine trip data with iconURL
+//   const combinedData = {
+//     ...tripData,
+//     iconURL
+//   };
 
-  // Set full trip state
-  setTrip(combinedData);
-  setEditTrip(tripData); // preserve separate edit state
+//   // Set full trip state
+//   setTrip(combinedData);
+//   setEditTrip(tripData); // preserve separate edit state
 
-  // Load members
-  if (tripData.members?.length) {
-    loadMemberDetails(tripData.members);
-  }
+//   // Load members
+//   if (tripData.members?.length) {
+//     loadMemberDetails(tripData.members);
+//   }
 
-  // Fallback image if no icon
-  const imageQuery = tripData.name || tripData.location || "travel";
-  const imageUrl = await fetchCoverImage(imageQuery);
-  setCoverImage(imageUrl);
+//   // Fallback image if no icon
+//   const imageQuery = tripData.name || tripData.location || "travel";
+//   const imageUrl = await fetchCoverImage(imageQuery);
+//   setCoverImage(imageUrl);
 
-  // Fetch weather
-  if (tripData.location) {
-    try {
-      const weatherData = await getWeather(tripData.location); // From WeatherContext
-      setWeather(weatherData); // assume you have `const [weather, setWeather] = useState(null)`
-    } catch (err) {
-      console.error("Failed to fetch weather:", err);
-    }
-  }
-};
+//   // Fetch weather
+//   if (tripData.location) {
+//     try {
+//       const weatherData = await getWeather(tripData.location); // From WeatherContext
+//       setWeather(weatherData); // assume you have `const [weather, setWeather] = useState(null)`
+//     } catch (err) {
+//       console.error("Failed to fetch weather:", err);
+//     }
+//   }
+// };
 
-    const renderExpensePayers = (exp) => {
-    const payers = exp?.payers || [];
-    const maxShown = 3;
-    return (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            {payers.slice(0, maxShown).map((p) => {
-                const member = memberDetails.find((m) => m.uid === p.uid);
-                return (
-                    <Tooltip key={p.uid} title={`${member?.name || p.name} — ₹${p.amount}`}>
-                        <Avatar
-                            src={member?.photoURL}
-                            sx={{ width: 24, height: 24, fontSize: 12 }}
-                        >
-                            {(!member?.photoURL && (member?.name || p.name)) ? (member?.name || p.name)[0] : null}
-                        </Avatar>
-                    </Tooltip>
-                );
-            })}
-            {payers.length > maxShown && (
-                <Typography variant="caption">+{payers.length - maxShown}</Typography>
-            )}
-        </Box>
-    );
-};
+//     const renderExpensePayers = (exp) => {
+//     const payers = exp?.payers || [];
+//     const maxShown = 3;
+//     return (
+//         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+//             {payers.slice(0, maxShown).map((p) => {
+//                 const member = memberDetails.find((m) => m.uid === p.uid);
+//                 return (
+//                     <Tooltip key={p.uid} title={`${member?.name || p.name} — ₹${p.amount}`}>
+//                         <Avatar
+//                             src={member?.photoURL}
+//                             sx={{ width: 24, height: 24, fontSize: 12 }}
+//                         >
+//                             {(!member?.photoURL && (member?.name || p.name)) ? (member?.name || p.name)[0] : null}
+//                         </Avatar>
+//                     </Tooltip>
+//                 );
+//             })}
+//             {payers.length > maxShown && (
+//                 <Typography variant="caption">+{payers.length - maxShown}</Typography>
+//             )}
+//         </Box>
+//     );
+// };
 
     const confirmRemoveMember = async () => {
     if (!memberToRemove) return;
@@ -1062,8 +1053,8 @@ const cardCommon = (link) => ({
     const goBack = () => navigate(-1);
     const inviteLink = `${window.location.origin}/join?trip=${id}`;
     const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(trip?.from || "")}&destination=${encodeURIComponent(trip?.to || "")}`;
-    const now = new Date();
-    const upcomingIndex = timeline.findIndex((item) => new Date(item.time) > now);
+    // const now = new Date();
+    // const upcomingIndex = timeline.findIndex((item) => new Date(item.time) > now);
     const displayIconURL = trip?.iconURL || groupChatIcon || coverImage || "";
     // --- Render ---
     return (

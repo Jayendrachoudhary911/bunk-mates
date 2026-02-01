@@ -1,7 +1,7 @@
 // src/hooks/useAuth.js
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 // ** IMPORTANT: Replace '../firebase' with the actual path to your initialized Firebase auth instance
-import { auth, firestore } from '../firebase'; // Assuming you have auth and firestore instances exported
+import { auth } from '../firebase'; // Assuming you have auth and firestore instances exported
 
 // Custom hook to listen for Firebase Auth state changes
 export const useAuth = () => {

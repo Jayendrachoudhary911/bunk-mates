@@ -25,18 +25,14 @@ import {
   StepLabel,
   Autocomplete,
   Slider,
-  Grid,
   Fade,
 } from "@mui/material";
 import {
-  Add,
   ExpandMore,
   ExpandLess,
   LocationOn,
-  Cancel,
   PhotoCamera,
 } from "@mui/icons-material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { db, auth } from "../firebase"; // <-- Make sure storage is exported!
 import {
   collection,
@@ -50,10 +46,8 @@ import {
   updateDoc,
   onSnapshot,
   getDoc,
-  serverTimestamp,
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import ProfilePic from "../components/Profile";
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import AddIcon from "@mui/icons-material/Add";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
@@ -170,9 +164,8 @@ export default function Trips() {
   const [latestTripId, setLatestTripId] = useState(null);
 
   // Cropping state
-  const [imageDrawer, setImageDrawer] = useState(false);
-  const [imageDataUri, setImageDataUri] = useState("");
   const [imageFile, setImageFile] = useState(null);
+  const [imageDataUri, setImageDataUri] = useState("");
   const [cropDrawerOpen, setCropDrawerOpen] = useState(false);
   const [uploadedImageSrc, setUploadedImageSrc] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -184,9 +177,7 @@ export default function Trips() {
   const isDarkMode = theme.palette.mode === 'dark'
   const navigate = useNavigate();
   const user = auth.currentUser;
-  const history = useNavigate();
   const [randomNatureImage, setRandomNatureImage] = useState("");
-  const saveTimerRef = useRef(null);
 
   useEffect(() => {
     if (createDialogOpen && !newTrip.iconDataUri) {
@@ -323,7 +314,7 @@ useEffect(() => {
         ]);
       }
     }
-  }, [createDialogOpen, step, user]);
+  }, [createDialogOpen, step, user, selectedMembers]);
 
   // Stepper navigation
   const handleNext = () => {
@@ -351,52 +342,6 @@ const handleIconUpload = (e) => {
   };
   reader.readAsDataURL(file);
 };
-
-const handleImageUpload = (e) => {
-  const file = e.target.files && e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    setUploadedImageSrc(reader.result);
-    setCropDrawerOpen(true);
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setCroppedAreaPixels(null);
-    setImageFile(file);
-  };
-  reader.readAsDataURL(file);
-};
-
-async function handleSendImage() {
-  if (!imageDataUri) return;
-  try {
-    const targetChat = latestTripId || null;
-    if (targetChat) {
-      await addDoc(collection(db, "groupChat", targetChat, "messages"), {
-        senderId: user?.uid,
-        type: "image",
-        dataUri: imageDataUri,
-        timestamp: serverTimestamp(),
-        status: "sent",
-        read: false,
-      });
-    } else {
-      // fallback: store image info into a generic collection if no trip created yet
-      await addDoc(collection(db, "tripImages"), {
-        uploader: user?.uid || null,
-        dataUri: imageDataUri,
-        createdAt: serverTimestamp(),
-      });
-    }
-
-    setImageDrawer(false);
-    setImageDataUri("");
-    setImageFile(null);
-  } catch (err) {
-    console.error("Failed to send image:", err);
-    // keep states so user can retry
-  }
-}
 
   // When cropping complete, update croppedAreaPixels
 const onCropComplete = useCallback((_, croppedAreaPixels) => {
@@ -581,24 +526,14 @@ const handleContinueCrop = async () => {
     0
   );
 
-  const goBack = () => {
-    history(-1);
-  };
 
   const today = new Date();
   const upcomingTrips = trips.filter(trip => new Date(trip.endDate || trip.startDate) >= today);
   const pastTrips = trips.filter(trip => new Date(trip.endDate || trip.startDate) < today);
 
-  const mockChecklist = () => Math.floor(Math.random() * 100);
-  const mockBudget = () => ({ total: 10000, used: Math.floor(Math.random() * 8000) });
-  const generateInviteCode = (tripId) => tripId.slice(-6).toUpperCase();
-
 
   const renderTripCard = (trip) => {
     const isNew = trip.id === latestTripId;
-    const budget = mockBudget();
-    const checklist = mockChecklist();
-    const inviteCode = generateInviteCode(trip.id);
 
     return (
       <Slide in direction="up" timeout={isNew ? 600 : 0} mountOnEnter unmountOnExit>
@@ -728,118 +663,6 @@ const handleContinueCrop = async () => {
     );
   };
 
-  // Calendar timeline component (vertical) showing days of the selected month
-  const CalendarTimeline = ({ trips = [] }) => {
-    // Determine which month to show: earliest upcoming trip start month or current month
-    const today = new Date();
-    let baseDate = today;
-    if (trips.length) {
-      try {
-        const minStart = trips
-          .map(t => new Date(t.startDate || t.start || t.date))
-          .filter(d => !isNaN(d))
-          .sort((a,b) => a - b)[0];
-        if (minStart) baseDate = minStart;
-      } catch {}
-    }
-
-    const year = baseDate.getFullYear();
-    const month = baseDate.getMonth();
-
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    // Build map from yyyy-mm-dd -> trips occurring on that date
-    const dateKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    const tripMap = {};
-    trips.forEach(t => {
-      const s = new Date(t.startDate || t.start || t.date);
-      const e = t.endDate ? new Date(t.endDate) : s;
-      if (isNaN(s)) return;
-      const cur = new Date(Math.max(s.getFullYear(), year) ? s : s);
-      // clamp range to this month
-      const start = new Date(Math.max(s, new Date(year, month, 1)));
-      const end = new Date(Math.min(e, new Date(year, month, daysInMonth)));
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const k = dateKey(new Date(d));
-        if (!tripMap[k]) tripMap[k] = [];
-        tripMap[k].push(t);
-      }
-    });
-
-    const handleClickDate = (d) => {
-      const k = dateKey(d);
-      const matched = tripMap[k];
-      if (matched && matched.length) {
-        const id = matched[0].id;
-        const el = document.getElementById(`trip-${id}`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    };
-
-    return (
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 800 }}>Calendar Timeline — {baseDate.toLocaleString(undefined, { month: 'long', year: 'numeric' })}</Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Box sx={{ width: 160, maxHeight: 220, overflowY: 'auto', pr: 1 }}>
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const d = new Date(year, month, i + 1);
-              const k = dateKey(d);
-              const has = !!tripMap[k];
-              return (
-                <Box
-                  key={k}
-                  onClick={() => handleClickDate(new Date(d))}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    p: 1,
-                    borderRadius: 1.5,
-                    mb: 0.5,
-                    cursor: has ? 'pointer' : 'default',
-                    background: has ? (mode === 'dark' ? 'rgba(255,255,255,0.06)' : '#f5f5f5') : 'transparent'
-                  }}
-                >
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">{d.toLocaleString(undefined, { weekday: 'short' })}</Typography>
-                    <Typography sx={{ fontWeight: 700 }}>{d.getDate()}</Typography>
-                  </Box>
-                  <Box sx={{ ml: 1 }}>
-                    {has && (
-                      <Chip size="small" label={tripMap[k][0].name || 'Trip'} sx={{ fontWeight: 700 }} />
-                    )}
-                  </Box>
-                </Box>
-              );
-            })}
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            {/* A compact legend or trip list for the month */}
-            {Object.keys(tripMap).length === 0 ? (
-              <Typography color="text.secondary">No upcoming trips in this month.</Typography>
-            ) : (
-              <Stack spacing={1}>
-                {Object.entries(tripMap).sort().map(([k, arr]) => (
-                  <Box key={k} sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                    <Typography variant="caption" sx={{ width: 90 }}>{k}</Typography>
-                    <Stack>
-                      {arr.map(t => (
-                        <Button key={t.id} size="small" onClick={() => {
-                          const el = document.getElementById(`trip-${t.id}`);
-                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }} sx={{ justifyContent: 'flex-start', textTransform: 'none' }}>{t.name}</Button>
-                      ))}
-                    </Stack>
-                  </Box>
-                ))}
-              </Stack>
-            )}
-          </Box>
-        </Box>
-      </Box>
-    );
-  };
-
   // Infinite horizontal calendar (scrollable) showing days and highlighting trip dates
 const HorizontalInfiniteCalendar = ({ trips = [], mode }) => {
   const scrollRef = useRef(null);
@@ -906,7 +729,7 @@ const handleScroll = useCallback(() => {
         return [...prev, ...more];
       });
     }
-  }, [days, activeMonth]);
+  }, [activeMonth]);
 
   const snapToToday = () => {
     const todayEl = document.getElementById('calendar-today');
@@ -1135,7 +958,6 @@ onClick={() => {
       height: "100vh",
       backgroundColor: mode === "dark" ? "#000000ff" : "#ffffff",
       color: mode === "dark" ? "#fff" : "#000",
-      height: "100vh",
       p: 3,
       boxShadow: 6,
       position: "relative"

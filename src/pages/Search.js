@@ -24,7 +24,6 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import MessageIcon from "@mui/icons-material/Chat";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
-import PlaceIcon from "@mui/icons-material/Place";
 import HistoryIcon from "@mui/icons-material/History";
 import CloseIcon from "@mui/icons-material/Close";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,7 +37,6 @@ import {
   getDoc,
   updateDoc,
   arrayUnion,
-  setDoc,
   collection,
   addDoc,
 } from "firebase/firestore";
@@ -86,35 +84,10 @@ const fieldSx = {
 };
 
 
-// Helper Component for Info Row
-const InfoRow = ({ label, value }) => (
-  <Stack direction="row" justifyContent="space-between" spacing={1}>
-    <Typography variant="body2" color="text.secondary">
-      {label}
-    </Typography>
-    <Typography variant="body2" fontWeight={500}>
-      {value}
-    </Typography>
-  </Stack>
-);
-
-// Helper Component for Sections (Mutual Friends, Shared Trips)
-const Section = ({ title, children }) => (
-  <Box sx={{ mb: 2 }}>
-    <Typography variant="subtitle2" sx={{ mb: 1 }}>
-      {title}
-    </Typography>
-    <Stack direction="row" spacing={1} flexWrap="wrap">
-      {children}
-    </Stack>
-  </Box>
-);
-
 export default function SearchPage() {
   const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
@@ -269,10 +242,6 @@ export default function SearchPage() {
   }, []);
 
 
-  const isFriend = (targetUid) => {
-    return Array.isArray(currentUser?.friends) && currentUser.friends.includes(targetUid);
-  };
-
   const handleSearchCommit = (value) => {
     const term = value.trim();
     if (!term) return;
@@ -340,7 +309,7 @@ const usersToDisplay = useMemo(() => {
   });
 
   return sortedResults;
-}, [q, results.users, fetchedAllUsers, currentUser]);
+}, [q, results.users, fetchedAllUsers]);
 
 
   // Filter Notes and Reminders — only show if created or shared with the current user

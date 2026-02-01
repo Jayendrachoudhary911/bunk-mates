@@ -1,9 +1,8 @@
 import React from "react";
 import {
-  Box, Typography, Button, TextField, SwipeableDrawer, IconButton,
+  Typography, Button, TextField, SwipeableDrawer,
 } from "@mui/material";
 import AddLinkIcon from "@mui/icons-material/Link";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 
 const LinkDrawer = ({
   linkDrawerOpen,

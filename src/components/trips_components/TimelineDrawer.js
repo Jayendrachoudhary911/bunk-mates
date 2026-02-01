@@ -1,7 +1,7 @@
 import React from "react";
 import {
   Box, Typography, Button, TextField, SwipeableDrawer, IconButton,
-  CloseOutlinedIcon, FormControlLabel, Checkbox,
+  FormControlLabel, Checkbox,
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 

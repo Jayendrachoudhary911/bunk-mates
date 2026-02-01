@@ -1,39 +1,29 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import Sidebar from "../components/Sidebar";
-import { doc, collection, query, where, orderBy, getDoc, onSnapshot, getDocs, updateDoc, arrayUnion, arrayRemove, increment } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
+// import Sidebar from "../components/Sidebar";
+import { doc, collection, query, where, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useWeather } from "../contexts/WeatherContext";
-import { Chats } from "./Chats";
 import packageJson from '../../package.json';
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
+import { weatherIcons } from "../elements/weatherTheme";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 // Update this line to include hashString and gradientPresets (if needed)
-import { Backgrounds, hashString, solidPresets } from "../theme/backgroundPresets";
+import { Backgrounds } from "../theme/backgroundPresets";
 import { useBackground } from "../contexts/BackgroundContext";
-import { getReadableTextColor } from "../utils/colorUtils";
-import BackgroundLayer from "../elements/BackgroundLayer";
-import Snackbar from "@mui/material/Snackbar";
-import MuiAlert from "@mui/material/Alert";
 // Import placesData (assuming path is correct relative to Home.js)
 import placesData from '../data/data.json';
 import {
   motion,
   AnimatePresence,
-  useSpring,
-  useTransform,
-  useScroll
 } from "framer-motion";
 import { Drawer, TextField, DialogActions, SwipeableDrawer } from "@mui/material";
 import { 
   CloseOutlined,
-  AddIcon,
-  MapOutlinedIcon,
   CheckCircleOutline,
   Search,
   Favorite,
@@ -63,73 +53,29 @@ import {
   Tooltip,
   useTheme,
   useMediaQuery,
-  Fab,
-  Zoom,
-  Badge,
   IconButton,
-  Collapse,
-  BottomNavigation,
-  BottomNavigationAction,
-  Dialog,
   DialogTitle,
   DialogContent,
   Chip, // Added Chip for place details
   Divider, // Added Divider for visual separation
-  CardMedia, // Added CardMedia for place image
   Stack,
   alpha,
-  Checkbox
 } from "@mui/material";
 import {
   LocationOn,
   AccessTime,
   WbSunnyOutlined, // Added weather icon
-  CalendarTodayOutlined, // Added season icon
-  CloudIcon,
-  FlashOffRounded, // Added for AQI
 } from "../icons/LucideIcons";
-import ProfilePic from "../components/Profile";
 import Notifications from "../elements/Notifications";
-import Reminders from "./Reminders";
-import DeviceGuard from "../components/DeviceGuard";
 import BetaAccessGuard from "../components/BetaAccessGuard";
 import {
-  CategoryOutlined,
-  RestaurantOutlined,
-  TravelExploreOutlined,
-  HomeOutlined,
-  LocalMallOutlined,
-  LocalHospitalOutlined,
-  SchoolOutlined,
-  EmojiEventsOutlined,
-  LocalGasStationOutlined,
-  MovieOutlined,
-  LocalAtmOutlined,
   ChevronRight,
   ChevronLeft,
-  AccountBalanceWalletOutlined,
-  ExploreOutlined,
-  StickyNote2Outlined,
-  AlarmOutlined,
-  NotificationsActive,
-  ChatBubbleOutline,
-  NotificationsNoneOutlined,
-  ExpandMore,
-  ExpandLess,
-  ArrowForwardIos,
-  Circle,
-  LiveTv,
   Check,
-  BroadcastOnPersonal,
   WifiTethering,
   InfoOutlined,
-  Close,
   CalendarMonth,
   NotificationsNone,
-  AcUnit,
-  DownhillSkiing,
-  Straighten,
-  Terrain,
 } from "../icons/LucideIcons";
 
 import { MapContainer, TileLayer, Polyline, Marker } from "react-leaflet";
@@ -138,12 +84,9 @@ import "leaflet/dist/leaflet.css";
 import Confetti from "react-confetti";
 import BlurEffect from "react-progressive-blur";
 import { toggleLikePlace, toggleSavePlace } from "../utils/placeActions";
-import { isTrending } from "../utils/placeRanking";
-import { usePlaceLikes } from "../hooks/usePlaceLikes";
 import PlaceDetailsDialog from "../elements/PlaceDetailsDialog";
 import { usePlaceLikesCount } from "../hooks/usePlaceLikesCount";
 import AnimatedLikeCount from "../elements/AnimatedLikeCount";
-import { useFriendLikesCount } from "../hooks/useFriendLikesCount";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -242,45 +185,15 @@ const MiniRouteMap = ({ from, to }) => {
   );
 };
 
-// Stable random tilt per card (no jitter on re-render)
-const getCardTilt = (() => {
-  const cache = {};
-  return (id) => {
-    if (!cache[id]) {
-      cache[id] = (Math.random() * 2 - 1) * 1.2; // -1.2° → +1.2°
-    }
-    return cache[id];
-  };
-})();
-
-const LIKED_PLACES_KEY = "bunkmate_liked_places";
-
-const getLikedPlaces = () => {
-  try {
-    return JSON.parse(localStorage.getItem(LIKED_PLACES_KEY)) || [];
-  } catch {
-    return [];
-  }
-};
-
-const saveLikedPlace = (place) => {
-  const liked = getLikedPlaces();
-  if (!liked.find(p => p.id === place.id)) {
-    localStorage.setItem(
-      LIKED_PLACES_KEY,
-      JSON.stringify([...liked, place])
-    );
-  }
-};
 
 // Safe haptics (mobile only, no crashes)
-const triggerHaptic = (velocity = 0.5) => {
-  if (!navigator.vibrate) return;
+// const triggerHaptic = (velocity = 0.5) => {
+//   if (!navigator.vibrate) return;
 
-  if (velocity > 1.2) navigator.vibrate([12, 18, 12]);
-  else if (velocity > 0.6) navigator.vibrate(12);
-  else navigator.vibrate(6);
-};
+//   if (velocity > 1.2) navigator.vibrate([12, 18, 12]);
+//   else if (velocity > 0.6) navigator.vibrate(12);
+//   else navigator.vibrate(6);
+// };
 
 
 const fadeIn = keyframes`
@@ -354,16 +267,6 @@ const getDayProgress = (start, end) => {
         );
 
   return { currentDay, totalDays };
-};
-
-const getOSMRouteEmbed = (from, to) => {
-  const base = "https://www.openstreetmap.org/export/embed.html";
-  const query = new URLSearchParams({
-    layer: "mapnik",
-    marker: from,
-  });
-
-  return `${base}?${query.toString()}`;
 };
 
 
@@ -485,33 +388,11 @@ const formFieldSx = {
 };
 
 
-const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
 const WEATHER_API_KEY = "c5298240cb3e71775b479a32329803ab"; // <-- Replace with your API key
-const NOTIF_API_URL = "http://localhost:5000/notifications"; // Adjust if needed
-const VAPID_PUBLIC_KEY_URL = "http://localhost:5000/vapid_public_key";
-const SAVE_SUBSCRIPTION_URL = "http://localhost:5000/save_subscription";
-const POLL_INTERVAL = 6000; // ms
+const VAPID_PUBLIC_KEY_URL = "https://app.bunkmates.xyz/vapid_public_key";
+const SAVE_SUBSCRIPTION_URL = "https://app.bunkmates.xyz/save_subscription";
 const CPCB_URL = `https://api.data.gov.in/resource/3b01bcb8-0b14-4abf-b6f2-c1bfd384ba69?api-key=579b464db66ec23bdd0000011c04ccafb50742ba6a0a7d5e22aa498e&format=json&limit=1000`;
-
-function getUserFromStorage() {
-  try {
-    const storedUser = localStorage.getItem("bunkmateuser");
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      if (parsed?.uid) return parsed;
-    }
-    const cookieUser = document.cookie
-      .split("; ")
-      .find(row => row.startsWith("bunkmateuser="))
-      ?.split("=")[1];
-    if (cookieUser) {
-      const parsed = JSON.parse(decodeURIComponent(cookieUser));
-      if (parsed?.uid) return parsed;
-    }
-  } catch {}
-  return null;
-}
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -520,14 +401,6 @@ function getGreeting() {
   if (hour >= 17 && hour < 21) return "Good Evening";
   return "Good Night";
 }
-
-const getGreetingEmoji = () => {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return "☀️";
-  if (hour >= 12 && hour < 17) return "🌤️";
-  if (hour >= 17 && hour < 21) return "🌆";
-  return "🌙";
-};
 
 function getDefaultTripIndex(trips) {
   const now = new Date();
@@ -558,58 +431,12 @@ const sliderSettings = {
   arrows: false,
 };
 
-const carouselSettings = {
-  dots: true,
-  dotsClass: "slick-dots slick-thumb",
-  infinite: false,
-  speed: 500,
-  slidesToShow: 4,
-  slidesToScroll: 1,
-  swipeToSlide: true,
-  adaptiveHeight: true,
-  arrows: false,
-  responsive: [
-    {
-      breakpoint: 1024,
-      settings: {
-        slidesToShow: 3,
-        slidesToScroll: 1,
-      }
-    },
-    {
-      breakpoint: 600,
-      settings: {
-        slidesToShow: 2,
-        slidesToScroll: 1
-      }
-    },
-    {
-      breakpoint: 480,
-      settings: {
-        slidesToShow: 1,
-        slidesToScroll: 1
-      }
-    }
-  ]
-};
-
-const pickTip = keyframes`
-  0% { transform: translateY(0) rotate(0deg); }
-  40% { transform: translateY(-6px) rotate(-1deg); }
-  70% { transform: translateY(-2px) rotate(0.4deg); }
-  100% { transform: translateY(0) rotate(0deg); }
-`;
-
-
-
 const haptic = (pattern = 10) => {
   if (typeof navigator !== "undefined" && navigator.vibrate) {
     navigator.vibrate(pattern);
   }
 };
 
-
-const DOUBLE_TAP_DELAY = 250;
 const PARTICLES = 8;
 
 const LikeBurst = ({ x = 0, y = 0 }) => {
@@ -661,14 +488,6 @@ const PlaceCard = ({ place, userData, onPlanTrip,  relatedPlaces = [] }) => {
 
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
-  const friends = userData?.friends ?? [];
-  const friendLikes = useFriendLikesCount(place.id, friends);
-
-  const friendLikeLabel =
-  liked && friendLikes > 0
-    ? `You and ${friendLikes} friend${friendLikes > 1 ? "s" : ""} liked this`
-    : null;
-
 
   /* 🔥 REAL-TIME GLOBAL LIKE COUNT */
   const likesCount = usePlaceLikesCount(place.id, place.likesCount);
@@ -931,15 +750,6 @@ const PlaceCard = ({ place, userData, onPlanTrip,  relatedPlaces = [] }) => {
   );
 };
 
-
-const pulseKeyframes = {
-  "@keyframes aqiPulse": {
-    "0%":   { boxShadow: "0 0 0 0 rgba(0,0,0,0)" },
-    "50%":  { boxShadow: "0 0 18px var(--pulse-color)" },
-    "100%": { boxShadow: "0 0 0 0 rgba(0,0,0,0)" },
-  },
-};
-
 const getHealthAdvice = (label) => {
   switch (label) {
     case "Good":
@@ -986,15 +796,6 @@ function parseAQIDate(dateStr) {
 function AQIDetailsDrawer({ aqiValue, label, color, aqiData, onClose }) {
   const theme = useTheme();
   const parsedDate = parseAQIDate(aqiData?.last_update);
-
-  const lastUpdateDate = parsedDate
-    ? parsedDate.toLocaleDateString(undefined, {
-        weekday: "long",
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    : "Unknown date";
 
   const lastUpdateTime = parsedDate
     ? parsedDate.toLocaleTimeString(undefined, {
@@ -1299,7 +1100,6 @@ function WeatherDetailsDrawer({ weather, open, onClose }) {
       weatherBackgrounds.Default)[isDark ? "dark" : "light"];
 
   const textPrimary = theme.palette.text.primary;
-  const textSecondary = theme.palette.text.secondary;
   const textMuted = isDark
     ? "rgba(255,255,255,0.6)"
     : "rgba(0,0,0,0.55)";
@@ -1548,69 +1348,8 @@ const DataItem = ({ label, value, unit }) => {
   );
 }
 
-const getDueBadge = (dueDate) => {
-  if (!dueDate) return null;
-
-  const today = new Date();
-  const due = new Date(dueDate);
-
-  const diffDays = Math.floor(
-    (due.setHours(0,0,0,0) - today.setHours(0,0,0,0)) / 86400000
-  );
-
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Tomorrow";
-  return due.toLocaleDateString(undefined, { day: "numeric", month: "short" });
-};
-
-const priorityColors = {
-  high: "#ef4444",
-  medium: "#f59e0b",
-  low: "#10b981",
-};
-
-const SWIPE_THRESHOLD = 80;
 const REMCARD_WIDTH = 140;
 const MAX_VISIBLE = 4;
-
-
-const AnimatedCheck = ({ checked }) => {
-  return (
-    <motion.div
-      initial={false}
-      animate={{
-        scale: checked ? 1 : 0.85,
-        backgroundColor: checked
-          ? "rgba(34,197,94,0.25)"
-          : "rgba(0,0,0,0.08)",
-      }}
-      transition={{ type: "spring", stiffness: 420, damping: 26 }}
-      style={{
-        width: 28,
-        height: 28,
-        borderRadius: 8,
-        display: "grid",
-        placeItems: "center",
-      }}
-    >
-      <motion.div
-        initial={false}
-        animate={{
-          scale: checked ? 1 : 0,
-          rotate: checked ? 0 : -45,
-        }}
-        transition={{ type: "spring", stiffness: 420, damping: 30 }}
-      >
-        <Check
-          sx={{
-            fontSize: 18,
-            color: "#22c55e",
-          }}
-        />
-      </motion.div>
-    </motion.div>
-  );
-};
 
 const ConfettiParticle = ({ x, y, rotate, color }) => (
   <motion.div
@@ -1666,7 +1405,6 @@ const ProgressRing = ({ progress, color }) => {
 
 /* ───────── REMINDER CARD ───────── */
 const ReminderCard = ({ rem, mode, onToggleComplete }) => {
-  const theme = useTheme();
   const navigate = useNavigate();
 
   /* ───── HOOKS MUST COME FIRST ───── */
@@ -2032,13 +1770,10 @@ if (!rem) {
   );
 };
 
-
-
 const Home = () => {
   const navigate = useNavigate();
   const muiTheme = useTheme();
   const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
-  const location = useLocation();
 
   const [authInitialized, setAuthInitialized] = useState(false);
   const [user, setUser] = useState(null);
@@ -2052,8 +1787,6 @@ const Home = () => {
   const [budgets, setBudgets] = useState([]);
   const [reminders, setReminders] = useState([]);
   const [remindersLoading, setRemindersLoading] = useState(true);
-  const [remindersDrawerOpen, setRemindersDrawerOpen] = useState(false);
-  const remindersRef = useRef();
   const [expandedId, setExpandedId] = useState(null);
   const [expandedOngoingId, setExpandedOngoingId] = useState(null);
 
@@ -2065,28 +1798,21 @@ const Home = () => {
   const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
 
-  const [notifications, setNotifications] = useState([]);
-  const [notifPopup, setNotifPopup] = useState({ open: false, message: "", id: null });
   const [unreadCount, setUnreadCount] = useState(0);
 
   const [liveAlerts, setLiveAlerts] = useState({ upcoming: [], ongoing: [], reminders: [] });
-  const [expandedGroups, setExpandedGroups] = useState({ upcoming: true, reminders: true });
-  const [openUpcoming, setOpenUpcoming] = useState(false);
-
-  const [scrolled, setScrolled] = useState(false);
-  const [showAppBar, setShowAppBar] = useState(true);
-  const lastScrollY = useRef(0);
+  
   const watchIdRef = useRef(null);
   const [friendCards, setFriendCards] = useState([]);
-
-  const isDesktop = useMediaQuery(muiTheme.breakpoints.up('lg'));
-  const isLargeDesktop = useMediaQuery(muiTheme.breakpoints.up('xl'));
+  const remindersScrollRef = useRef(null);
   const [weatherOpen, setWeatherOpen] = useState(false);
+  const lastScrollY = useRef(0);
+  
+  const [openUpcoming, setOpenUpcoming] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [showAppBar, setShowAppBar] = useState(true);
 
-  const [scrollOpacity, setScrollOpacity] = useState(1);
-  const [drawerTransform, setDrawerTransform] = useState(0);
 // 🛎️ Reminders
-const remindersScrollRef = useRef(null);
 const [reminderIndex, setReminderIndex] = useState(0);
 
 // 🌍 Places
@@ -2107,69 +1833,7 @@ const remainingCount = Math.max(sortedReminders.length - MAX_VISIBLE, 0);
 const displayReminders =
   reminders.length === 0 ? [null] : visibleReminders;
 
-const magneticRef = useRef(null);
-
-const { scrollY } = useScroll();
-
-// ─────────────────────────────────────────────
-// 🧲 MAGNETIC SNAP + iOS RUBBER BAND (FINAL)
-// ─────────────────────────────────────────────
-
-const SNAP_POINT = 96;        // where magnet locks
-const MAX_PULL = 140;        // max elastic distance
-const MAX_BLUR = 22;         // px
-const MAX_SCALE_PULL = 0.985;
-
-// iOS rubber band math (non-linear, resistance grows)
-const rubberBand = (distance, dimension = MAX_PULL, resistance = 0.55) =>
-  (distance * dimension * resistance) /
-  (dimension + resistance * Math.abs(distance));
-
-// 1️⃣ Raw scroll proximity
-const proximity = useTransform(scrollY, (y) =>
-  y < SNAP_POINT ? SNAP_POINT - y : 0
-);
-
-// 2️⃣ Elastic pull (rubber band)
-const elasticPull = useTransform(proximity, (v) =>
-  rubberBand(v)
-);
-
-// 3️⃣ Y translation (magnetic lift)
-const yPull = useSpring(
-  useTransform(elasticPull, [0, MAX_PULL], [0, -28]),
-  { stiffness: 420, damping: 36, mass: 0.6 }
-);
-
-// 4️⃣ Scale compression (feels physical)
-const scalePull = useSpring(
-  useTransform(elasticPull, [0, MAX_PULL], [1, MAX_SCALE_PULL]),
-  { stiffness: 360, damping: 34 }
-);
-
-// 5️⃣ 🧊 BLUR SNAP (NOT linear — locks in)
-const blurPx = useTransform(elasticPull, (v) => {
-  if (v < 12) return 0;
-  if (v > 72) return MAX_BLUR;
-  return (v / 72) * MAX_BLUR;
-});
-
-const blurFilter = useTransform(blurPx, (b) => `blur(${b}px)`);
-
-// 6️⃣ Opacity tightening
-const backdropOpacity = useSpring(
-  useTransform(elasticPull, [0, 80], [1, 0.92]),
-  { stiffness: 300, damping: 30 }
-);
-
-// 7️⃣ 📍 Indicator appears ONLY when magnet active
-const indicatorOpacity = useSpring(
-  useTransform(elasticPull, [24, 56], [0, 1]),
-  { stiffness: 280, damping: 26 }
-);
-
 const CARD_WIDTH = 365 + 16;
-
 
   const allFlattenedPlaces = useMemo(() => {
   if (!placesData || !placesData.states) return [];
@@ -2187,9 +1851,7 @@ const CARD_WIDTH = 365 + 16;
     )
   ).sort(() => 0.5 - Math.random());
 }, []);
-// Inside Home component
 
-const aqiDetails = getAQIDetails(aqiData?.maxAqi || 0);
 // Normalized AQI number (single source of truth)
 const aqiValue = aqiData?.maxAqi ?? 0;
 
@@ -2197,23 +1859,7 @@ const aqiValue = aqiData?.maxAqi ?? 0;
 const { label, color } = getAQIDetails(aqiValue);
 
 // Progress (0–300 scale, clamped)
-const percent = Math.min((aqiValue / 300) * 100, 100);
 const [open, setOpen] = useState(false);
-const pulseStrength =
-  aqiData?.maxAqi >= 200
-    ? "0.8"
-    : aqiData?.maxAqi >= 150
-    ? "0.6"
-    : aqiData?.maxAqi >= 100
-    ? "0.4"
-    : "0";
-
-const triggerHaptic = () => {
-  if (navigator.vibrate) {
-    navigator.vibrate(8); // subtle, not annoying
-  }
-};
-
 
 const carouselPlaces = allFlattenedPlaces.slice(0, 4);
 const remainingPlaces = allFlattenedPlaces.slice(4);
@@ -2270,9 +1916,6 @@ const {
   selectedMembers,
   setSelectedMembers,
   randomNatureImage,
-  startLocationMode,
-  setStartLocationMode,
-  resolvedStartLocation,
   openDrawerWithPrefill,
   closeDrawer,
   handleNext,
@@ -2349,62 +1992,6 @@ useEffect(() => {
   window.addEventListener("scroll", handleScroll);
   return () => window.removeEventListener("scroll", handleScroll);
 }, []);
-
-  const toggleGroup = (group) => {
-    setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
-  };
-
-  const NAV_ITEMS = [ // <-- NEW CONSTANT ARRAY
-    {
-      label: "Notes",
-      icon: <StickyNote2Outlined />,
-      path: "/notes",
-    },
-    {
-      label: "Reminder",
-      icon: <AlarmOutlined />,
-      path: "/reminders",
-    },
-    {
-      label: "Trip",
-      icon: <ExploreOutlined />,
-      path: "/trips",
-    },
-    {
-      label: "Budget",
-      icon: <AccountBalanceWalletOutlined />,
-      path: "/budget-mngr",
-    },
-  ];
-
-
-  const placeSuggestions = useMemo(() => {
-    if (!placesData || !placesData.states) return [];
-
-    const allStates = Array.isArray(placesData.states) ? placesData.states : [];
-          
-    // Flatten the nested structure: states -> districts -> places
-    const flatPlaces = allStates.flatMap(state => 
-      (state.districts || []).flatMap(district => 
-        (district.places || []).map(p => ({ 
-          // Generate a unique ID and add location context
-          id: p.name.replace(/\s/g, '_') + '_' + state.code + '_' + district.name,
-          location: `${district.name}, ${state.name}`, 
-          city: district.name,
-          state: state.name,
-          ...p 
-        }))
-      )
-    );
-    // Shuffle the array and take a maximum of 4 suggestions
-    return flatPlaces
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 4);
-  }, []);
-
-const incompleteRemindersCount = useMemo(() => {
-    return reminders.filter((rem) => !rem.completed).length;
-  }, [reminders]);
 
 
   useEffect(() => {
@@ -2567,7 +2154,6 @@ useEffect(() => {
       windGust: data.wind.gust || 0,
       
       // System
-      city: data.name,
       country: data.sys.country,
       sunrise: data.sys.sunrise,
       sunset: data.sys.sunset,
@@ -2833,29 +2419,6 @@ const textColor = useMemo(
   [mode]
 );
 
-  const weatherBg =
-    weather && weatherGradients[weather.main]
-      ? weatherGradients[weather.main]
-      : weatherGradients.Default;
-
-  const buttonWeatherBg =
-    weather && weatherColors[weather.main]
-      ? weatherColors[weather.main]
-      : weatherColors.Default;
-
-  const WeatherBgdrop =
-    weather && weatherbgColors[weather.main]
-      ? weatherbgColors[weather.main]
-      : weatherbgColors.Default;
-
-  const sortedBudgets = useMemo(() => {
-    return [...budgets].sort((a, b) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bTime - aTime;
-    });
-  }, [budgets]);
-
   // Real-time trips listener + timelines + trip member fetch (one-time per trip)
   useEffect(() => {
     if (!user?.uid) {
@@ -2937,12 +2500,12 @@ const textColor = useMemo(
     fetchGroupsForTrips();
   }, [myTrips]);
 
-  const handleLogout = () => {
-    localStorage.removeItem(SESSION_KEY);
-    document.cookie = `${SESSION_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;`;
-    localStorage.removeItem("bunkmateuser");
-    auth.signOut().then(() => navigate("/login"));
-  };
+  // const handleLogout = () => {
+  //   localStorage.removeItem(SESSION_KEY);
+  //   document.cookie = `${SESSION_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;`;
+  //   localStorage.removeItem("bunkmateuser");
+  //   auth.signOut().then(() => navigate("/login"));
+  // };
 
   // Register push subscription with backend
   async function registerPushSubscription(uid) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged } from "firebase/auth";
 import {
@@ -21,15 +21,9 @@ import { useNavigate } from 'react-router-dom';
 import BetaAccessGuard from "../components/BetaAccessGuard";
 import {
   Avatar,
-  useTheme,
   IconButton,
   Dialog,
-  createTheme,
-  keyframes,
-  Slide,
   Box,
-  Tabs,
-  Tab,
   InputAdornment,
   Typography,
   TextField,
@@ -40,9 +34,6 @@ import {
   Divider,
   SwipeableDrawer,
   Zoom,
-  Fade,
-  Card,
-  ButtonGroup,
   Chip,
   Stack,
   Paper
@@ -55,59 +46,28 @@ import {
   UserPlus as GroupAddIcon, 
   UserPlus as PersonAddIcon, 
   Plus as AddIcon, 
-  Smile as EmojiEmotionsIcon, 
-  X as CloseIcon, 
   X as CloseRoundedIcon, 
   Search as SearchIcon, 
   CheckCircle2 as CheckCircleIcon, 
-  Share2 as ShareOutlinedIcon, 
-  Copy as ContentCopyOutlinedIcon, 
-  QrCode as QrCode2OutlinedIcon, 
   MessageSquare as MessageOutlinedIcon, 
   MessageSquare as ChatBubbleOutlineIcon, 
   Info as InfoOutlinedIcon, 
   ExternalLink as OpenInNewIcon
 } from 'lucide-react';
 
-// Local Component Imports (Unchanged)
-import ProfilePic from '../components/Profile';
 import Notifications from "../elements/Notifications";
 
-import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
+import { weatherColors, weatherbgColors } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
-import { Theme } from 'emoji-picker-react';
-import { useSettings } from "../contexts/SettingsContext";
 import { messaging } from "../firebase";
-import { getToken, onMessage } from "firebase/messaging";
-import DeviceGuard from '../components/DeviceGuard';
+import { getToken } from "firebase/messaging";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
-import { QRCodeSVG } from "qrcode.react";
 
-// Fade-in animation keyframes
-const fadeIn = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-`;
-
-
-const SESSION_KEY = "bunkmate_session";
 const USER_STORAGE_KEY = "bunkmateuser";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
-
-function showLocalNotification(title, options) {
-  if (Notification.permission === "granted") {
-    new Notification(title, options);
-  }
-}
 
 
 function Chats({ onlyList }) {
@@ -121,26 +81,19 @@ function Chats({ onlyList }) {
   const [groupUnreadCounts, setGroupUnreadCounts] = useState({});
   const [latestGroupMessages, setLatestGroupMessages] = useState({});
   const [latestGroupTimestamps, setLatestGroupTimestamps] = useState({});
-  const muiTheme = useTheme();
-  const history = useNavigate();
+
   const [addUserDialog, setAddUserDialog] = useState(false);
-  const [groupDialog, setGroupDialog] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]); 
-  const [searchUsername, setSearchUsername] = useState('');
-  const [foundUsers, setFoundUsers] = useState([]);
   const [groupName, setGroupName] = useState('');
-  const [groupEmoji, setGroupEmoji] = useState('💬');
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chat: null });
   const [friends, setFriends] = useState([]);
   const [nicknames, setNicknames] = useState({});
   const navigate = useNavigate();
-  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
   const [currentUser, setCurrentUser] = useState(null);
-  const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
-  const [dynamicTheme, setDynamicTheme] = useState(theme);
-  const [tab, setTab] = useState(0);
+  const { weather, setWeather } = useWeather();
   const [friendsList, setFriendsList] = useState([]);
   const [searchFriend, setSearchFriend] = useState(""); 
   const [creatingGroup, setCreatingGroup] = useState(false);
@@ -216,30 +169,6 @@ useEffect(() => {
 }, [selectedUserProfile, currentUser]);
 
 
-// --- Copy these handlers from your previous implementation ---
-const handleShare = async () => {
-  if (!selectedProfileData) return;
-  const shareData = {
-    title: `Check out ${selectedProfileData.name}'s profile`,
-    text: `Here's a link to their profile.`,
-    url: `${window.location.origin}/profile/${selectedProfileData.id}`,
-  };
-  try {
-    await navigator.share(shareData);
-  } catch (error) { console.error('Error sharing:', error); }
-};
-
-const handleCopyLink = async () => {
-    if (!selectedProfileData) return;
-    const profileLink = `${window.location.origin}/profile/${selectedProfileData.id}`;
-    try {
-        await navigator.clipboard.writeText(profileLink);
-        setSnackbar({ open: true, message: 'Profile link copied!' });
-    } catch (error) {
-        console.error('Error copying link:', error);
-    }
-};
-
 const handleOpenProfileDrawer = () => {
   if (!selectedProfileData || selectedProfileData.type !== 'user') {
     return;
@@ -264,16 +193,6 @@ const handleSnackbarClose = () => {
   }
   requestPermission();
 
-  // Listen for foreground FCM messages
-  const unsubscribe = onMessage(messaging, (payload) => {
-    if (payload?.notification) {
-      showLocalNotification(payload.notification.title, {
-        body: payload.notification.body,
-        icon: "/logo192.png",
-      });
-    }
-  });
-
   return () => {
     // No unsubscribe needed for onMessage in v9 modular
   };
@@ -285,11 +204,6 @@ useEffect(() => {
   });
   return () => unsubscribe();
 }, []);
-
-  const weatherBg =
-  weather && weatherGradients[weather.main]
-  ? weatherGradients[weather.main]
-  : weatherGradients.Default;
   
   const buttonWeatherBg =
   weather && weatherColors[weather.main]
@@ -425,15 +339,6 @@ const filteredFriends = friendsList.filter((friend) => {
   );
 });
 
-const toggleFriendSelection = (friend) => {
-  const alreadySelected = selectedFriends.find((f) => f.uid === friend.uid);
-  if (alreadySelected) {
-    setSelectedFriends((prev) => prev.filter((f) => f.uid !== friend.uid));
-  } else {
-    setSelectedFriends((prev) => [...prev, friend]);
-  }
-};
-
 
 useEffect(() => {
     if (!currentUser) return;
@@ -465,69 +370,7 @@ useEffect(() => {
       setSearchResults(matches);
     };
     fetchUsers();
-  }, [searchTerm, selectedUsers]);
-
-  const handleAddToChatList = async (userToAdd) => {
-    if (!userToAdd || !userToAdd.uid) return;
-  
-    const chatId = [currentUser.uid, userToAdd.uid].sort().join('_');
-  
-    const userChatRef = doc(db, "userChats", currentUser.uid);
-    const userChatSnap = await getDoc(userChatRef);
-  
-    if (!userChatSnap.exists() || !userChatSnap.data()[chatId]) {
-      const currentUserChatData = {
-        [chatId]: {
-          userInfo: {
-            uid: userToAdd.uid,
-            displayName: userToAdd.displayName || "Unnamed User",
-            photoURL: userToAdd.photoURL || "",
-          },
-          date: serverTimestamp(),
-          lastMessage: {
-            text: "Say Hi!",
-          },
-        },
-      };
-  
-      const otherUserChatData = {
-        [chatId]: {
-          userInfo: {
-            uid: currentUser.uid,
-            displayName: currentUser.displayName || "Unnamed User",
-            photoURL: currentUser.photoURL || "",
-          },
-          date: serverTimestamp(),
-          lastMessage: {
-            text: "Say Hi!",
-          },
-        },
-      };
-  
-      await setDoc(doc(db, "userChats", currentUser.uid), currentUserChatData, { merge: true });
-      await setDoc(doc(db, "userChats", userToAdd.uid), otherUserChatData, { merge: true });
-  
-      // Optional: Create starter message
-      await addDoc(collection(db, "chats", chatId, "messages"), {
-        text: "Say Hi!",
-        senderId: currentUser.uid,
-        timestamp: serverTimestamp(),
-      });
-    }
-  
-    setAddUserDialog(false);
-    setSearchTerm('');
-  };
-  
-
-  const handleAddUser = (user) => {
-    setSelectedUsers([...selectedUsers, user]);
-    setSearchTerm('');
-  };
-  
-  const handleRemoveUser = (uid) => {
-    setSelectedUsers(prev => prev.filter(u => u.uid !== uid));
-  };
+  }, [searchTerm, selectedUsers, currentUser]);
 
 const handleCreateGroup = async () => {
   if (!groupName || selectedFriends.length === 0) return;
@@ -671,7 +514,6 @@ useEffect(() => {
         const data = doc.data();
         const isSystem = data.type === 'system';
         const msg = isSystem ? data.content : data.text || 'No messages yet';
-        const senderName = isSystem ? 'System' : data.senderName || 'Unknown';
         const ts = data.timestamp?.toDate?.() || new Date(0);
         
         // Check if message is unread for current user
@@ -696,12 +538,6 @@ useEffect(() => {
   
   return () => unsubscribes.forEach(unsub => unsub());
 }, [userGroups, currentUser]);
-
-
-  const goBack = () => {
-    history(-1);
-  };
-
 
   const handleSelect = async (userId) => {
     if (!currentUser) return;
@@ -1531,12 +1367,7 @@ return (
         <Box sx={{ overflowY: "auto", flex: 1 }}>
 {searchResults.map((user) => {
   const existingFriend = friends.includes(user.uid);
-  const sentRequest = friendRequests.some(
-    (r) =>
-      r.senderId === currentUser.uid &&
-      r.uid === user.uid &&
-      r.status === "pending"
-  );
+
   const receivedRequest = friendRequests.find(
     (r) =>
       r.senderId === user.uid &&

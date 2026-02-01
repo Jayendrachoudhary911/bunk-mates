@@ -15,16 +15,19 @@ import {
   Drawer,
   Card,
   Avatar,
+  Slide,
+  IconButton
 } from "@mui/material";
-import GoogleIcon from "@mui/icons-material/Google";
-import { auth, googleProvider, db } from "../firebase";
+// import GoogleIcon from "@mui/icons-material/Google";
+import { auth, db } from "../firebase";
 import {
   signInWithEmailAndPassword,
-  signInWithPopup,
+  // signInWithPopup,
   onAuthStateChanged,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { ArrowBackIos as ArrowBackIcon } from "@mui/icons-material";
 
 // Dark mode theme configuration
 const darkTheme = createTheme({
@@ -126,6 +129,9 @@ const Login = () => {
   const [showDrawer, setShowDrawer] = useState(false);
   const [fadeIn, setFadeIn] = useState(false);
   const [bgGradient, setBgGradient] = useState("");
+  const [page, setPage] = useState("landing");
+  const [navDir, setNavDir] = useState("forward");
+
 
 useEffect(() => {
   const random =
@@ -227,34 +233,34 @@ useEffect(() => {
   };
 
   // Google login handler
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    setErrorMessage("");
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const googleUser = result.user;
-      const userRef = doc(db, "users", googleUser.uid);
-      const userDoc = await getDoc(userRef);
+  // const handleGoogleLogin = async () => {
+  //   setLoading(true);
+  //   setErrorMessage("");
+  //   try {
+  //     const result = await signInWithPopup(auth, googleProvider);
+  //     const googleUser = result.user;
+  //     const userRef = doc(db, "users", googleUser.uid);
+  //     const userDoc = await getDoc(userRef);
 
-      if (!userDoc.exists()) {
-        // User does not exist in Firestore, create it once
-        await setDoc(userRef, {
-          uid: googleUser.uid,
-          email: googleUser.email,
-          displayName: googleUser.displayName,
-          photoURL: googleUser.photoURL || "",
-          type: "Regular",
-          createdAt: serverTimestamp(),
-        });
-      }
-      // userData will be updated by onSnapshot listener
-      saveUserData(googleUser);
-    } catch (err) {
-      setErrorMessage(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     if (!userDoc.exists()) {
+  //       // User does not exist in Firestore, create it once
+  //       await setDoc(userRef, {
+  //         uid: googleUser.uid,
+  //         email: googleUser.email,
+  //         displayName: googleUser.displayName,
+  //         photoURL: googleUser.photoURL || "",
+  //         type: "Regular",
+  //         createdAt: serverTimestamp(),
+  //       });
+  //     }
+  //     // userData will be updated by onSnapshot listener
+  //     saveUserData(googleUser);
+  //   } catch (err) {
+  //     setErrorMessage(err.message);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   // Continue button after successful login drawer
   const handleContinue = () => {
@@ -263,14 +269,14 @@ useEffect(() => {
   };
 
   // Logout handler
-  const handleLogout = () => {
-    auth.signOut();
-    localStorage.removeItem("bunkmateuser");
-    setUser(null);
-    setUserData(null);
-    setShowDrawer(false);
-    navigate("/login");
-  };
+  // const handleLogout = () => {
+  //   auth.signOut();
+  //   localStorage.removeItem("bunkmateuser");
+  //   setUser(null);
+  //   setUserData(null);
+  //   setShowDrawer(false);
+  //   navigate("/login");
+  // };
 
   return (
     <ThemeProvider theme={darkTheme}>
@@ -292,15 +298,77 @@ useEffect(() => {
 
         <Fade in={fadeIn} timeout={100}>
           <Container maxWidth="xs">
+                        <Stack spacing={4} sx={{ mt: "35vh", position: "absolute"  }}>
+
+<Slide
+  direction={navDir === "forward" ? "right" : "left"}
+  in={page === "landing"}
+  timeout={350}
+  appear
+  mountOnEnter
+  unmountOnExit
+>
+  <Stack spacing={4} sx={{ mt: "35vh"}}>
+
+    <Typography variant="h4" fontWeight="bold">
+      Welcome Back
+    </Typography>
+
+    <Button
+      size="large"
+      fullWidth
+      variant="contained"
+      sx={{ borderRadius: 4, py: 1.3 }}
+      onClick={() => {
+        setNavDir("forward");
+        setPage("email");
+      }}
+    >
+      Continue with Email
+    </Button>
+
+    <Typography align="center">
+      Don’t have an account?{" "}
+      <Link href="/signup">Sign Up</Link>
+    </Typography>
+
+  </Stack>
+</Slide>
+</Stack>
             <Stack spacing={4} sx={{ mt: "35vh" }}>
-              <Typography
-                variant="h4"
-                fontWeight="bold"
-                color="primary"
-                align="left"
-              >
-                Login
-              </Typography>
+            {/* EMAIL LOGIN PAGE */}
+
+<Slide
+  direction={navDir === "forward" ? "left" : "right"}
+  in={page === "email"}
+  timeout={350}
+  appear
+  mountOnEnter
+  unmountOnExit
+>
+  <Stack spacing={3} sx={{ mt: "28vh" }}>
+
+    <IconButton
+      onClick={() => {
+        setNavDir("back");
+        setPage("landing");
+      }}
+    >
+      <ArrowBackIcon />
+    </IconButton>
+
+    <Typography
+      variant="h4"
+      fontWeight="bold"
+      color="primary"
+      align="left"
+    >
+      Login
+    </Typography>
+
+    {/* KEEP YOUR FORM EXACTLY AS IS BELOW */}
+
+
 
               {!user && (
                 <>
@@ -485,6 +553,8 @@ useEffect(() => {
                   )}
                 </>
               )}
+              </Stack>
+              </Slide>
             </Stack>
           </Container>
         </Fade>

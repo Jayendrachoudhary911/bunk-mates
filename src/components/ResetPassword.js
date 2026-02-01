@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import { auth, db } from "../firebase";
 import { confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';

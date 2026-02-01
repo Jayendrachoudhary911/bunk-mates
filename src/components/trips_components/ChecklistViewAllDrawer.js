@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Box, Typography, Button, SwipeableDrawer, IconButton,
+  Box, Typography, Button, SwipeableDrawer,
   List, ListItem, ListItemIcon, ListItemText, Checkbox,
 } from "@mui/material";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";

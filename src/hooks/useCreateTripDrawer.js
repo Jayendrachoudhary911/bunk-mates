@@ -13,7 +13,6 @@ import { db, auth } from "../firebase";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 
-const LOCALSTORAGEKEY = "bunkmate.newTripForm";
 
 // SAME KEY YOU USE IN Home.js FOR WEATHER
 const WEATHERAPIKEY = "c5298240cb3e71775b479a32329803ab"; // keep in sync with Home

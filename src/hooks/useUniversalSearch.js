@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import placesData from "../data/data.json";
 
@@ -14,7 +14,6 @@ export default function useUniversalSearch(searchTerm, options = {}) {
     places: [],
   });
   const currentUser = auth.currentUser;
-  const lastQuery = useRef("");
 
   useEffect(() => {
     const term = (searchTerm || "").trim().toLowerCase();

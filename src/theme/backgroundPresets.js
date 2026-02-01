@@ -7,7 +7,6 @@ export const hashString = (str = "") => {
   return Math.abs(h);
 };
 
-const pick = (arr, seed) => arr[seed % arr.length];
 
 // ---------- Luminance + Contrast ----------
 export const getContrastText = (hex) => {

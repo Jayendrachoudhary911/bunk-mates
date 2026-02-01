@@ -1,8 +1,3 @@
-import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import CloudIcon from '@mui/icons-material/Cloud';
-import ThunderstormIcon from '@mui/icons-material/Thunderstorm';
-import AcUnitIcon from '@mui/icons-material/AcUnit';
-import OpacityIcon from '@mui/icons-material/Opacity';
 
 // Default (DARK) theme colors
 const weatherGradients = {

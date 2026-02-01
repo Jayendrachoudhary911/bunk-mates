@@ -1,7 +1,6 @@
 import React from "react";
 import {
-  Box, Typography, Button, TextField, SwipeableDrawer, IconButton,
-  CloseOutlinedIcon,
+  Box, Typography, Button, TextField, SwipeableDrawer,
 } from "@mui/material";
 
 const BudgetDrawer = ({

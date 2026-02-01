@@ -18,17 +18,12 @@ import {
   InputAdornment,
   Collapse,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   useMediaQuery,
   Alert,
   SwipeableDrawer,
   Divider
 } from "@mui/material";
 import { ThemeProvider, useTheme } from "@mui/material/styles";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -52,7 +47,6 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { motion } from "framer-motion";
-import ProfilePic from "../components/Profile";
 import Notifications from "../elements/Notifications";
 
 // Helper to format date for input type="date" (YYYY-MM-DD)

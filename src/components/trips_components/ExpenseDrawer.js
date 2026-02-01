@@ -1,7 +1,6 @@
 import React from "react";
 import {
-  Box, Typography, Button, TextField, SwipeableDrawer, IconButton,
-  CloseOutlinedIcon, FormControlLabel, Checkbox, Collapse, Avatar,
+  Box, Typography, Button, TextField, SwipeableDrawer, Checkbox, Collapse, Avatar,
 } from "@mui/material";
 import { motion } from "framer-motion";
 

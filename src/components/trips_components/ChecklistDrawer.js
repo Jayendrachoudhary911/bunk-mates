@@ -1,9 +1,8 @@
 import React from "react";
 import {
-  Box, Typography, Button, TextField, SwipeableDrawer, IconButton,
+  Box, Typography, Button, TextField, SwipeableDrawer,
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 
 const ChecklistDrawer = ({
   checklistDrawerOpen,

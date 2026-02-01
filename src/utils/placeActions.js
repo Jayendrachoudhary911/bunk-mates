@@ -2,7 +2,6 @@ import { db, auth } from "../firebase";
 import {
   doc,
   updateDoc,
-  setDoc,
   arrayUnion,
   arrayRemove,
   increment,

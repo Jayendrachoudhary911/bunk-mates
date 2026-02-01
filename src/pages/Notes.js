@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -7,29 +6,21 @@ import {
   CardContent,
   IconButton,
   Button,
-  Fab,
-  Drawer,
   TextField,
   Stack,
   CircularProgress,
-  Menu,
   MenuItem,
   Chip,
   Tooltip,
   SwipeableDrawer,
-  Collapse,
   Avatar,
   ThemeProvider,
-  createTheme,
-  keyframes,
-  Container,
   ToggleButton,
   ToggleButtonGroup,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Icon,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -38,12 +29,8 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ShareIcon from "@mui/icons-material/Share";
 import SearchIcon from "@mui/icons-material/Search";
-import ExpandMore from "@mui/icons-material/ExpandMore";
 import FormatBoldIcon from "@mui/icons-material/FormatBold";
 import FormatItalicIcon from "@mui/icons-material/FormatItalic";
-import FormatUnderlinedIcon from "@mui/icons-material/FormatUnderlined";
-import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
-import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
 import CodeIcon from "@mui/icons-material/Code";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import LabelIcon from "@mui/icons-material/Label";
@@ -66,71 +53,16 @@ import {
   orderBy,
   updateDoc,
   getDoc,
-  setDoc,
   arrayUnion,
   onSnapshot,
   serverTimestamp
 } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
-import { Navigate } from "react-router-dom";
-import ProfilePic from "../components/Profile";
-import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
+import { weatherColors } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
 import BetaAccessGuard from "../components/BetaAccessGuard";
-import DeviceGuard from "../components/DeviceGuard";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
-import BottomNavBar from "../components/BottomNavBar";
 import NotificationsPage from "../elements/Notifications";
-
-function setCookie(name, value, days = 7) {
-  const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = name + "=" + encodeURIComponent(value) + "; expires=" + expires + "; path=/";
-}
-
-function getCookie(name) {
-  return document.cookie.split("; ").reduce((r, v) => {
-    const parts = v.split("=");
-    return parts[0] === name ? decodeURIComponent(parts[1]) : r;
-  }, "");
-}
-
-
-const fadeIn = keyframes`
-  from { opacity: 0; transform: translateY(20px);}
-  to { opacity: 1; transform: translateY(0);}
-`;
-
-function getUserFromStorage() {
-  try {
-    const storedUser = localStorage.getItem("bunkmateuser");
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      if (parsed?.uid) return parsed;
-    }
-    const cookieUser = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("bunkmateuser="))
-      ?.split("=")[1];
-    if (cookieUser) {
-      const parsed = JSON.parse(decodeURIComponent(cookieUser));
-      if (parsed?.uid) return parsed;
-    }
-  } catch {}
-  return null;
-}
-
-const fetchUserInfo = async (uid) => {
-  try {
-    const userDoc = await getDoc(doc(db, "users", uid));
-    if (userDoc.exists()) {
-      return userDoc.data();
-    }
-  } catch (e) {
-    // ignore
-  }
-  return null;
-};
 
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
 
@@ -171,13 +103,11 @@ const Notes = () => {
   const [shareUsername, setShareUsername] = useState("");
   const [sharedWith, setSharedWith] = useState([]);
   const [sharedUsersInfo, setSharedUsersInfo] = useState({});
-  const [expanded, setExpanded] = useState(false);
   const noteContentRef = useRef(null);
   const [labels, setLabels] = useState([]);
   const [noteLabels, setNoteLabels] = useState([]); // For add/edit
   const [selectedNoteLabels, setSelectedNoteLabels] = useState([]); // For view
   const [collaborators, setCollaborators] = useState([]); // For add/edit
-  const [collaboratorInput, setCollaboratorInput] = useState("");
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
   const [addCollaboratorDrawerOpen, setAddCollaboratorDrawerOpen] = useState(false);
   const [addCollabDrawerOpen, setAddCollabDrawerOpen] = useState(false);
@@ -191,21 +121,15 @@ const Notes = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState(null);
 
-  const history = useNavigate();
-  const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
+  const { weather, setWeather } = useWeather();
   
-  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
 
   const buttonWeatherBg =
   weather && weatherColors[weather.main]
     ? weatherColors[weather.main]
     : weatherColors.Default;
-
-  const WeatherBgdrop =
-  weather && weatherbgColors[weather.main]
-    ? weatherbgColors[weather.main]
-    : weatherbgColors.Default;
     
 
 useEffect(() => {
@@ -266,6 +190,27 @@ useEffect(() => {
   }, []);
 
 
+  
+  const fetchCollaboratorProfiles = async (uids) => {
+    const newInfo = { ...sharedUsersInfo };
+    let hasNewData = false;
+
+    for (const uid of uids) {
+      if (!newInfo[uid]) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", uid));
+          if (userDoc.exists()) {
+            newInfo[uid] = userDoc.data();
+            hasNewData = true;
+          }
+        } catch (e) {
+          console.warn(`Could not fetch profile for ${uid}`);
+        }
+      }
+    }
+    if (hasNewData) setSharedUsersInfo(newInfo);
+  };
+
 useEffect(() => {
   if (!user) return;
 
@@ -324,27 +269,6 @@ useEffect(() => {
   return () => unsubscribe();
 }, [user]);
 
-
-  const fetchCollaboratorProfiles = async (uids) => {
-    const newInfo = { ...sharedUsersInfo };
-    let hasNewData = false;
-
-    for (const uid of uids) {
-      if (!newInfo[uid]) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", uid));
-          if (userDoc.exists()) {
-            newInfo[uid] = userDoc.data();
-            hasNewData = true;
-          }
-        } catch (e) {
-          console.warn(`Could not fetch profile for ${uid}`);
-        }
-      }
-    }
-    if (hasNewData) setSharedUsersInfo(newInfo);
-  };
-
 useEffect(() => {
   // Build user-selectable labels; exclude system "Shared" label
   const labelSet = new Set();
@@ -378,26 +302,6 @@ useEffect(() => {
     }
   }, [viewDrawerOpen, selectedNote]);
 
-  // --- Collaborator add/remove logic for add/edit ---
-  const handleAddCollaborator = async () => {
-    if (!collaboratorInput.trim()) return;
-    // Find user by username
-    const q = query(collection(db, "users"), where("username", "==", collaboratorInput.trim()));
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      const userDoc = snapshot.docs[0];
-      const shareUid = userDoc.id;
-      if (!collaborators.includes(shareUid) && shareUid !== user.uid) {
-        setCollaborators(prev => [...prev, shareUid]);
-      }
-      setCollaboratorInput("");
-    } else {
-      setError("User not found!");
-    }
-  };
-  const handleRemoveCollaborator = (uid) => {
-    setCollaborators(prev => prev.filter(id => id !== uid));
-  };
 
 const handleAddCollaboratorFromDrawer = async () => {
   if (!newCollaboratorUsername.trim()) return;
@@ -507,15 +411,6 @@ await addDoc(collection(db, "notes"), {
     // onSnapshot will update notes
    };
 
-  const handleMenuOpen = (event, index) => {
-    setMenuAnchorEl(event.currentTarget);
-    setMenuIndex(index);
-  };
-  const handleMenuClose = () => {
-    setMenuAnchorEl(null);
-    setMenuIndex(null);
-  };
-
   // Open the view drawer for a note
   const openView = useCallback((note) => {
     setSelectedNote(note);
@@ -536,28 +431,29 @@ await addDoc(collection(db, "notes"), {
     setSharedWith(note.sharedWith || []);
   };
 
-  const handleShareWithUser = async () => {
-    if (!shareUsername.trim()) return;
-    // Find user by username
-    const q = query(collection(db, "users"), where("username", "==", shareUsername.trim()));
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      const userDoc = snapshot.docs[0];
-      const shareUid = userDoc.id;
-      // Update note's sharedWith and owners
-      await updateDoc(doc(db, "notes", selectedNote.id), {
-        sharedWith: [...(selectedNote.sharedWith || []), shareUid],
-        owners: Array.from(new Set([...(selectedNote.owners || []), shareUid])),
-      });
-      setSharedWith((prev) => [...prev, shareUid]);
-      setShareUsername("");
-      // rely on onSnapshot to reflect changes; avoid manual fetch to prevent loops & extra reads
-    } else {
-      setError("User not found!");
-    }
-  };
+  // const handleShareWithUser = async () => {
+  //   if (!shareUsername.trim()) return;
+  //   // Find user by username
+  //   const q = query(collection(db, "users"), where("username", "==", shareUsername.trim()));
+  //   const snapshot = await getDocs(q);
+  //   if (!snapshot.empty) {
+  //     const userDoc = snapshot.docs[0];
+  //     const shareUid = userDoc.id;
+  //     // Update note's sharedWith and owners
+  //     await updateDoc(doc(db, "notes", selectedNote.id), {
+  //       sharedWith: [...(selectedNote.sharedWith || []), shareUid],
+  //       owners: Array.from(new Set([...(selectedNote.owners || []), shareUid])),
+  //     });
+  //     setSharedWith((prev) => [...prev, shareUid]);
+  //     setShareUsername("");
+  //     // rely on onSnapshot to reflect changes; avoid manual fetch to prevent loops & extra reads
+  //   } else {
+  //     setError("User not found!");
+  //   }
+  // };
 
 // Memoized filtering (search + label)
+
 const filteredNotes = useMemo(() => {
   const s = (searchTerm || "").toLowerCase().trim();
   return notes.filter(note => {
@@ -593,11 +489,6 @@ const sortedNotes = useMemo(() => {
 
 const pinnedNotes = useMemo(() => sortedNotes.filter(n => n.pinned), [sortedNotes]);
 const unpinnedNotes = useMemo(() => sortedNotes.filter(n => !n.pinned), [sortedNotes]);
-
-
-  const goBack = () => {
-    history(-1);
- };
 
  useEffect(() => {
   if (drawerOpen || editDrawerOpen) {
@@ -721,7 +612,7 @@ const NoteCard = ({ note, onOpen, onMenu, mode, theme }) => (
             />
           ))}
 
-          {!note.owners == undefined && (
+          {!note.owners === undefined && (
             <Chip
               size="small"
               label="Shared"
@@ -1081,7 +972,7 @@ const NoteCard = ({ note, onOpen, onMenu, mode, theme }) => (
             sx: {
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              backgroundColor: "${theme.palette.background.default}00",
+              backgroundColor: `${theme.palette.background.default}00`,
               backdropFilter: "blur(80px)",
               p: 3,
               maxWidth: 400,
@@ -1138,7 +1029,7 @@ const NoteCard = ({ note, onOpen, onMenu, mode, theme }) => (
             sx: {
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              backgroundColor: "${theme.palette.background.default}00",
+              backgroundColor: `${theme.palette.background.default}00`,
               backdropFilter: "blur(80px)",
               p: 3,
               maxWidth: 400,
@@ -1371,7 +1262,7 @@ const NoteCard = ({ note, onOpen, onMenu, mode, theme }) => (
             sx: {
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              backgroundColor: "${theme.palette.background.default}00",
+              backgroundColor: `${theme.palette.background.default}00`,
               backdropFilter: "blur(80px)",
               p: 3,
               maxWidth: 400,
@@ -1441,8 +1332,7 @@ const NoteCard = ({ note, onOpen, onMenu, mode, theme }) => (
       onClick={() => setDeleteDialogOpen(false)} 
       color="inherit" 
       variant="outlined" 
-      sx={{ 
-        color: "#000",
+      sx={{
         borderRadius: 4,
         fontWeight: "bold",
         backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",

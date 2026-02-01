@@ -55,7 +55,6 @@ const PlaceDetailsDialog = ({
   /* ───────── MOTION MAPPINGS ───────── */
   const scale = useTransform(y, [0, 300], [1, 0.96]);
 
-  const backdropOpacity = useTransform(y, [0, 300], [0.55, 0.15]);
   const backdropBlur = useTransform(y, [0, 300], [20, 0]);
   const backdropSaturate = useTransform(y, [0, 300], [120, 100]);
 

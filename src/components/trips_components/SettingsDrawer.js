@@ -5,9 +5,7 @@ import {
   Button,
   SwipeableDrawer,
   IconButton,
-  Divider,
   Stack,
-  Chip,
   ToggleButton,
   ToggleButtonGroup,
   Slider,
@@ -20,7 +18,6 @@ import {
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
-import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 /* ---------------- Utils ---------------- */

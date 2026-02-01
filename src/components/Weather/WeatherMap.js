@@ -3,7 +3,6 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './WeatherMap.css'; // Create this for custom styles
-import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import OpacityIcon from '@mui/icons-material/Opacity';
 import ThermostatIcon from '@mui/icons-material/Thermostat';
 

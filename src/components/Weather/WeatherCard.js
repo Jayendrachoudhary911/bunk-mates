@@ -5,7 +5,6 @@ import {
   Typography,
   Grid,
   Box,
-  useTheme,
 } from '@mui/material';
 import {
   WbSunny,
