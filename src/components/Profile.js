@@ -4596,6 +4596,11 @@ sx={{
             description: "This feature is just for fun and won't go live for public and BETA Testers.",
             action: () => navigate("/developer/bunkmates/social"),
           },
+          {
+            label: "OTP Login",
+            description: "This feature is just for testing OTP login functionality.",
+            action: () => navigate("/developer/OtpLogin"),
+          },
         ].map((feature, index) => (
           <ListItem
             key={index}

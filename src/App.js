@@ -13,8 +13,8 @@ import { SettingsProvider } from "./contexts/SettingsContext";
 import { ThemeToggleProvider, useThemeToggle } from './contexts/ThemeToggleContext';
 import { BackgroundProvider } from "./contexts/BackgroundContext";
 // Pages
-import Signup from "./pages/Signup";
-import Login from "./pages/Login";
+import Signup from "./auth/Signup";
+import Login from "./auth/Login";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import Chats from "./pages/Chats";
@@ -23,7 +23,7 @@ import Reminders from "./pages/Reminders";
 import Notes from "./pages/Notes";
 import Waitlist from "./pages/Wishlist";
 import Trips from "./pages/Trips";
-import JoinTrip from "./pages/JoinTrip";
+import JoinTrip from "./invites/JoinTrip";
 import SearchPage from "./pages/Search";
 
 // Components
@@ -45,6 +45,7 @@ import AccountDeletionPolicy from "./components/AccountDeletionPolicy";
 import BunkMatesSocialFeed from "./components/BunkMatesSocialFeed";
 import GroupDevChats from "./components/DevBeta/GroupChats";
 import GroupList from "./components/DevBeta/GroupList";
+import OtpLogin from "./components/DevBeta/OtpLogin";
 
 const vapidKey = 'BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs';
 
@@ -210,6 +211,7 @@ function AppContent() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/account-deletion-policy" element={<AccountDeletionPolicy />} />
             <Route path="/developer/bunkmates/social" element={<BunkMatesSocialFeed />} />
+            <Route path="/developer/OtpLogin" element={<OtpLogin />} />
 
             <Route
               path="/developer/waether-forecast"
