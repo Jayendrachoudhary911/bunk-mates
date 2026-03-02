@@ -54,27 +54,42 @@ const UsersMap = () => {
   // =========================
   // MAP INIT
   // =========================
-  useEffect(() => {
-    if (mapRef.current) return;
+useEffect(() => {
+  if (mapRef.current) {
+    mapRef.current.remove(); // remove old map on theme change
+    mapRef.current = null;
+  }
 
-    const map = L.map("map", {
-      center: [20.5937, 78.9629],
-      zoom: 5,
-      zoomControl: false,
-    });
+  const apiKey = `72a80d89-2fa4-422b-ad14-e0064315ff45`;
 
-    const styleUrl =
-      mode === "dark"
-        ? "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png"
-        : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+  if (!apiKey) {
+    console.error("Map API key missing");
+    return;
+  }
 
-    L.tileLayer(styleUrl).addTo(map);
+  const map = L.map("map", {
+    center: [20.5937, 78.9629],
+    zoom: 5,
+    zoomControl: false,
+  });
 
-    markersLayerRef.current = L.layerGroup().addTo(map);
-    routeLayerRef.current = L.layerGroup().addTo(map);
+  // 🔑 Example: Stadia Maps (requires API key)
+  const styleUrl =
+    mode === "dark"
+      ? `https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=${apiKey}`
+      : `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png?api_key=${apiKey}`;
 
-    mapRef.current = map;
-  }, [mode]);
+  L.tileLayer(styleUrl, {
+    maxZoom: 20,
+    attribution:
+      '',
+  }).addTo(map);
+
+  markersLayerRef.current = L.layerGroup().addTo(map);
+  routeLayerRef.current = L.layerGroup().addTo(map);
+
+  mapRef.current = map;
+}, [mode]);
 
   // =========================
   // TRACK CURRENT USER LOCATION
@@ -320,7 +335,7 @@ const UsersMap = () => {
           position: "absolute",
           zIndex: 1000,
           m: 2,
-          mt: 5,
+          mt: 6.5,
           pl: 1,
           pr: 2,
           py: 1,
