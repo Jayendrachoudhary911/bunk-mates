@@ -4601,6 +4601,11 @@ sx={{
             description: "This feature is just for testing OTP login functionality.",
             action: () => navigate("/developer/OtpLogin"),
           },
+          {
+            label: "User Maps",
+            description: "View user distribution heatmaps and analytics.",
+            action: () => navigate("/developer/maps"),
+          }
         ].map((feature, index) => (
           <ListItem
             key={index}

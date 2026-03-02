@@ -46,6 +46,8 @@ import BunkMatesSocialFeed from "./components/BunkMatesSocialFeed";
 import GroupDevChats from "./components/DevBeta/GroupChats";
 import GroupList from "./components/DevBeta/GroupList";
 import OtpLogin from "./components/DevBeta/OtpLogin";
+import UsersMap from "./pages/MapsPage";
+
 
 const vapidKey = 'BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs';
 
@@ -113,6 +115,15 @@ function AppContent() {
     "/profile",
   ];
 
+  const QUIZ_MOBILE_BOTTOM_NAV_ROUTES = [
+    "/quiz-round/home",
+    "/quiz-round/search",
+    "/quiz-round/notes",
+    "/quiz-round/trips",
+    "/quiz-round/chats",
+    "/quiz-round/profile",
+  ];
+
   // Routes where BottomNav should NEVER appear
   const HIDE_BOTTOM_NAV_PREFIXES = [
     "/login",
@@ -130,6 +141,9 @@ function AppContent() {
 
   const isAllowedMobileRoute =
     MOBILE_BOTTOM_NAV_ROUTES.includes(location.pathname);
+  
+  const isQuizMobileRoute =
+    QUIZ_MOBILE_BOTTOM_NAV_ROUTES.includes(location.pathname);
 
   const isExplicitlyHiddenRoute =
     HIDE_BOTTOM_NAV_PREFIXES.some((path) =>
@@ -138,7 +152,7 @@ function AppContent() {
 
   // Final decision
   const showBottomNav =
-    !isDesktop && isAllowedMobileRoute && !isExplicitlyHiddenRoute;
+    !isDesktop && isAllowedMobileRoute && !isExplicitlyHiddenRoute || isQuizMobileRoute;
 
   /* -------------------------------
      RIGHT COLUMN LOGIC
@@ -156,6 +170,7 @@ function AppContent() {
           setIsExpanded={setIsExpanded}
         />
       )}
+
 
       {/* MAIN CONTENT WRAPPER */}
       <Box
@@ -212,6 +227,7 @@ function AppContent() {
             <Route path="/account-deletion-policy" element={<AccountDeletionPolicy />} />
             <Route path="/developer/bunkmates/social" element={<BunkMatesSocialFeed />} />
             <Route path="/developer/OtpLogin" element={<OtpLogin />} />
+            <Route path="/developer/maps" element={<UsersMap />} />     
 
             <Route
               path="/developer/waether-forecast"
