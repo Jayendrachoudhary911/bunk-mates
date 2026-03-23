@@ -24,6 +24,8 @@ import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { useNavigate } from "react-router-dom";
 
+const ORS_API_KEY = "5b3ce3597851110001cf62484a264622a33048f694b7220a215994ec";
+
 const UsersMap = () => {
   const navigate = useNavigate();
   const { mode, accent } = useThemeToggle();
@@ -33,17 +35,16 @@ const UsersMap = () => {
   const markersLayerRef = useRef(null);
   const routeLayerRef = useRef(null);
 
-  // 🔐 Separate auth + profile state (CRITICAL FIX)
   const [authUser, setAuthUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [followMe, setFollowMe] = useState(true);
+  const [routeInfo, setRouteInfo] = useState(null);
+  const [isRouting, setIsRouting] = useState(false);
+  const [locationError, setLocationError] = useState(false);
 
-  // =========================
-  // AUTH LISTENER
-  // =========================
+  // ================= AUTH =================
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((user) => {
       if (user) setAuthUser(user);
@@ -51,70 +52,54 @@ const UsersMap = () => {
     return () => unsub();
   }, []);
 
-  // =========================
-  // MAP INIT
-  // =========================
-useEffect(() => {
-  if (mapRef.current) {
-    mapRef.current.remove(); // remove old map on theme change
-    mapRef.current = null;
-  }
-
-  const apiKey = `72a80d89-2fa4-422b-ad14-e0064315ff45`;
-
-  if (!apiKey) {
-    console.error("Map API key missing");
-    return;
-  }
-
-  const map = L.map("map", {
-    center: [20.5937, 78.9629],
-    zoom: 5,
-    zoomControl: false,
-  });
-
-  // 🔑 Example: Stadia Maps (requires API key)
-  const styleUrl =
-    mode === "dark"
-      ? `https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=${apiKey}`
-      : `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png?api_key=${apiKey}`;
-
-  L.tileLayer(styleUrl, {
-    maxZoom: 20,
-    attribution:
-      '',
-  }).addTo(map);
-
-  markersLayerRef.current = L.layerGroup().addTo(map);
-  routeLayerRef.current = L.layerGroup().addTo(map);
-
-  mapRef.current = map;
-}, [mode]);
-
-  // =========================
-  // TRACK CURRENT USER LOCATION
-  // =========================
+  // ================= MAP INIT =================
   useEffect(() => {
-    if (!authUser || !navigator.geolocation) return;
+    if (mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+    }
 
-    let lastUpdate = 0;
+    const map = L.map("map", {
+      center: [20.5937, 78.9629],
+      zoom: 5,
+      zoomControl: false,
+    });
 
-    const watchId = navigator.geolocation.watchPosition(
-      async (position) => {
-        const now = Date.now();
-        if (now - lastUpdate < 15000) return;
-        lastUpdate = now;
+    const styleUrl =
+      mode === "dark"
+        ? `https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png`
+        : `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png`;
 
-        const { latitude, longitude } = position.coords;
+    L.tileLayer(styleUrl, { maxZoom: 20 }).addTo(map);
 
-        if (followMe && mapRef.current) {
-          mapRef.current.setView([latitude, longitude], 14);
-        }
+    markersLayerRef.current = L.layerGroup().addTo(map);
+    routeLayerRef.current = L.layerGroup().addTo(map);
+    mapRef.current = map;
+  }, [mode]);
 
-        // 🔐 SAFETY GUARD
-        if (!authUser?.uid) return;
+// ================= TRACK LOCATION =================
+useEffect(() => {
+  if (!authUser || !navigator.geolocation) return;
 
-        await updateDoc(doc(db, "users", authUser.uid), {
+  let lastUpdate = 0;
+
+  const watchId = navigator.geolocation.watchPosition(
+    async (position) => {
+      const now = Date.now();
+      // Only update every 15 seconds to save quota and reduce triggers
+      if (now - lastUpdate < 15000) return;
+      lastUpdate = now;
+
+      const { latitude, longitude } = position.coords;
+
+      if (followMe && mapRef.current && !selectedUser) {
+        mapRef.current.setView([latitude, longitude], 14);
+      }
+
+      // WRAP IN TRY/CATCH TO PREVENT ERR_BLOCKED_BY_CLIENT CRASHES
+      try {
+        const userRef = doc(db, "users", authUser.uid);
+        await updateDoc(userRef, {
           location: {
             lat: latitude,
             lng: longitude,
@@ -122,17 +107,23 @@ useEffect(() => {
           },
           isOnline: true,
         });
-      },
-      (err) => console.error(err),
-      { enableHighAccuracy: true }
-    );
+      } catch (err) {
+        // Log it locally but don't break the UI
+        if (err.message.includes('blocked-by-client')) {
+          console.warn("Firestore request blocked by an extension (AdBlocker).");
+        } else {
+          console.error("Firestore Update Failed:", err);
+        }
+      }
+    },
+    (err) => console.error("Geolocation Error:", err),
+    { enableHighAccuracy: true }
+  );
 
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [authUser, followMe]);
+  return () => navigator.geolocation.clearWatch(watchId);
+}, [authUser, followMe, selectedUser]);
 
-  // =========================
-  // FIRESTORE USERS LISTENER
-  // =========================
+  // ================= FIRESTORE USERS =================
   useEffect(() => {
     if (!authUser) return;
 
@@ -142,28 +133,20 @@ useEffect(() => {
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
         if (data.location && data.isOnline) {
-          list.push({
-            id: docSnap.id,
-            ...data,
-          });
+          list.push({ id: docSnap.id, ...data });
         }
       });
 
       setUsers(list);
-
-      // Update currentUser profile safely
       const me = list.find((u) => u.id === authUser.uid);
       if (me) setCurrentUser(me);
-
       renderMarkers(list);
     });
 
     return () => unsub();
   }, [authUser]);
 
-  // =========================
-  // RENDER MARKERS + CLUSTER
-  // =========================
+  // ================= MARKERS =================
   const renderMarkers = (userList) => {
     if (!mapRef.current) return;
 
@@ -201,19 +184,12 @@ useEffect(() => {
         const count = feature.properties.point_count;
 
         const clusterIcon = L.divIcon({
-          html: `
-            <div style="
+          html: `<div style="
               background:${theme.palette.primary.main};
               color:#fff;
-              width:50px;
-              height:50px;
-              border-radius:50%;
-              display:flex;
-              align-items:center;
-              justify-content:center;
-              font-weight:bold;
-            ">${count}</div>
-          `,
+              width:50px;height:50px;border-radius:50%;
+              display:flex;align-items:center;justify-content:center;
+              font-weight:bold;">${count}</div>`,
         });
 
         L.marker([lat, lng], { icon: clusterIcon })
@@ -227,11 +203,8 @@ useEffect(() => {
         const user = feature.properties;
 
         const icon = L.divIcon({
-          html: `
-            <div style="
-              width:45px;
-              height:45px;
-              border-radius:50%;
+          html: `<div style="
+              width:45px;height:45px;border-radius:50%;
               background-image:url('${user.photoURL || ""}');
               background-size:cover;
               border:3px solid ${
@@ -239,8 +212,7 @@ useEffect(() => {
                   ? "#00ff88"
                   : theme.palette.primary.main
               };
-            "></div>
-          `,
+            "></div>`,
         });
 
         L.marker([lat, lng], { icon })
@@ -250,39 +222,6 @@ useEffect(() => {
     });
   };
 
-  // =========================
-  // REAL-TIME ROUTE LINE
-  // =========================
-  useEffect(() => {
-    if (!selectedUser || !currentUser?.location) return;
-    if (!mapRef.current) return;
-
-    routeLayerRef.current.clearLayers();
-
-    const start = [
-      currentUser.location.lat,
-      currentUser.location.lng,
-    ];
-
-    const end = [
-      selectedUser.location.lat,
-      selectedUser.location.lng,
-    ];
-
-    const polyline = L.polyline([start, end], {
-      color: theme.palette.primary.main,
-      weight: 4,
-      dashArray: "6,6",
-    }).addTo(routeLayerRef.current);
-
-    mapRef.current.fitBounds(polyline.getBounds(), {
-      padding: [50, 50],
-    });
-  }, [selectedUser, currentUser, theme]);
-
-  // =========================
-  // DISTANCE CALCULATION
-  // =========================
   const calculateDistance = (user) => {
     if (!currentUser?.location || !user.location) return null;
 
@@ -302,12 +241,91 @@ useEffect(() => {
     return (R * c).toFixed(2);
   };
 
-  // =========================
-  // UI
-  // =========================
+  // ================= ROUTING (ROAD + STRAIGHT LINE) =================
+  useEffect(() => {
+    if (!selectedUser || !currentUser?.location || !mapRef.current) return;
+
+    if (selectedUser.id === authUser?.uid) {
+      routeLayerRef.current.clearLayers();
+      setRouteInfo(null);
+      return;
+    }
+
+    const fetchRoute = async () => {
+      try {
+        setIsRouting(true);
+        routeLayerRef.current.clearLayers();
+        setRouteInfo(null);
+
+        const start = [
+          currentUser.location.lat,
+          currentUser.location.lng,
+        ];
+        const end = [
+          selectedUser.location.lat,
+          selectedUser.location.lng,
+        ];
+
+
+        // 2️⃣ Road Route
+        const response = await fetch(
+          "https://api.openrouteservice.org/v2/directions/driving-car",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: ORS_API_KEY,
+            },
+            body: JSON.stringify({
+              coordinates: [
+                [start[1], start[0]],
+                [end[1], end[0]],
+              ],
+              instructions: false,
+            }),
+          }
+        );
+
+        const data = await response.json();
+        if (!data.features?.length) return;
+
+        const geometry = data.features[0].geometry;
+        const coords = data.features[0].geometry.coordinates;
+        const latLngs = coords.map(([lng, lat]) => [lat, lng]);
+
+        const routeLine = L.polyline(latLngs, {
+          color: theme.palette.primary.main,
+          weight: 5,
+          opacity: 0.8,
+          lineJoin: 'round',
+          dashArray: mode === 'dark' ? "1, 10" : null, // Optional: stylish dotted line for dark mode
+        }).addTo(routeLayerRef.current);
+
+        const summary = data.features[0].properties.summary;
+
+        setRouteInfo({
+          distance: (summary.distance / 1000).toFixed(2),
+          duration: Math.ceil(summary.duration / 60),
+        });
+
+        mapRef.current.fitBounds(routeLine.getBounds(), {
+          padding: [100, 100],
+          maxZoom: 16,
+          animate: true,
+          duration: 1.5
+        });
+
+      } catch (err) {
+        console.error("Routing error:", err);
+      }
+    };
+
+    fetchRoute();
+  }, [selectedUser, currentUser, theme]);
+
+  // ================= UI =================
   return (
     <Box sx={{ height: "100vh", width: "100%", position: "relative" }}>
-    {/* Progressive Top Blur Layer */}
 <Box
   sx={{
     position: "absolute",
@@ -382,7 +400,7 @@ useEffect(() => {
         </Stack>
       </Box>
 
-      <div id="map" style={{ height: "100%", width: "100%" }} />
+      <div id="map" style={{ height: "100%", width: "100%", filter: mode === 'dark' ? 'grayscale(0.2) invert(0) contrast(1.1)' : 'none', bgcolor: mode === 'dark' ? '#1a1a1a' : '#f0f0f0' }} />
 
       {/* USER CARDS */}
 <Box
@@ -574,6 +592,74 @@ useEffect(() => {
     );
   })}
 </Box>
+
+{isRouting && (
+        <Box sx={{
+          position: 'absolute',
+          top: 120,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1200,
+          bgcolor: 'rgba(0,0,0,0.7)',
+          color: '#fff',
+          px: 2, py: 1,
+          borderRadius: 2,
+          fontSize: '12px',
+          backdropFilter: 'blur(5px)'
+        }}>
+          Calculating road path...
+        </Box>
+      )}
+
+{locationError && (
+  <Box sx={{
+    position: "absolute",
+    top: 130,
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: 2000,
+    bgcolor: "error.main",
+    color: "white",
+    px: 3, py: 1,
+    borderRadius: 2,
+    boxShadow: 3,
+    textAlign: 'center'
+  }}>
+    <Typography variant="body2" fontWeight="bold">
+      Location Access Denied
+    </Typography>
+    <Typography variant="caption">
+      Please enable location in your browser settings to see yourself on the map.
+    </Typography>
+  </Box>
+)}
+
+      {routeInfo && selectedUser && (
+        <Box
+          sx={{
+            position: "absolute",
+            bottom: 300,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1100,
+            px: 3,
+            py: 1.5,
+            borderRadius: 4,
+            backdropFilter: "blur(10px)",
+            background:
+              mode === "dark"
+                ? "rgba(0,0,0,0.6)"
+                : "rgba(255,255,255,0.9)",
+          }}
+        >
+          <Typography fontWeight="bold">
+            Route to {selectedUser.fullName || selectedUser.name}
+          </Typography>
+          <Typography variant="caption">
+            🚗 {routeInfo.distance} km • ⏱ {routeInfo.duration} mins
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };

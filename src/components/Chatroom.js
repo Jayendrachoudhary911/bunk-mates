@@ -2914,7 +2914,7 @@ const getMessageDate = (timestamp) => {
       height: '100vh',
       mx: 'auto',
       backgroundImage: "none",
-      mt: 4.5
+      pt: 4.5
     },
   }}
 >
@@ -3500,3 +3500,4 @@ const getMessageDate = (timestamp) => {
   );
 }
 export default ChatRoom;
+
