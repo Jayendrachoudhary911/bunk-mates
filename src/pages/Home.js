@@ -20,7 +20,7 @@ import placesData from '../data/data.json';
 import {
   motion,
   AnimatePresence,
-} from "framer-motion";
+  useMotionValue, useTransform, animate } from "framer-motion";
 import { Drawer, TextField, DialogActions, SwipeableDrawer } from "@mui/material";
 import { 
   CloseOutlined,
@@ -32,8 +32,8 @@ import {
   BookmarkBorder
 } from "../icons/LucideIcons";
 import { useCreateTripDrawer } from "../hooks/useCreateTripDrawer";
-
-
+import FloatingSearch from "../elements/FloatingSearch";
+import { createPortal } from "react-dom";
 import {
   AppBar,
   Toolbar,
@@ -1604,9 +1604,9 @@ if (!rem) {
       <Box
         sx={{
           minWidth: 180,
-          height: 100,
+          height: 75,
           borderRadius: 5,
-          p: 2.4,
+          p: 2,
           position: "relative",
           overflow: "hidden",
 
@@ -1815,6 +1815,37 @@ const Home = () => {
 // 🛎️ Reminders
 const [reminderIndex, setReminderIndex] = useState(0);
 
+const y = useMotionValue(0);
+
+// 🌊 NON-LINEAR RUBBER BAND CURVE
+const rubberY = useTransform(y, (value) => {
+  const resistance = 0.35;
+  return value < 0
+    ? value * 0.2 // upward resistance
+    : value * (1 - Math.exp(-value * resistance / 100));
+});
+
+// 🌊 VISUAL FEEDBACK
+const scale = useTransform(rubberY, [0, 300], [1, 0.95]);
+const opacity = useTransform(rubberY, [0, 300], [1, 0.65]);
+
+// 🌊 LIQUID EDGE MORPH
+const radius = useTransform(
+  rubberY,
+  [0, 250],
+  ["32px 32px 22px 22px", "20px"]
+);
+
+const smoothClose = (value, velocity) => {
+  return animate(value, 500, {
+    type: "spring",
+    stiffness: 120,
+    damping: 18,
+    mass: 0.9,
+    velocity, // 🔥 carry momentum
+  });
+};
+
 // 🌍 Places
 const placesScrollRef = useRef(null);
 const [placeIndex, setPlaceIndex] = useState(0);
@@ -1975,6 +2006,7 @@ const handleRemoveMember = (uid) => {
 useEffect(() => {
   const handleScroll = () => {
     const currentScroll = window.scrollY;
+    setScrolled(currentScroll > 50);
 
     // Frosted effect toggle
     setScrolled(currentScroll > 10);
@@ -2704,8 +2736,9 @@ const textColor = useMemo(
         WebkitBackdropFilter: "blur(120px)",
         color: textColor,
         borderRadius: "50%",
+        boxShadow: mode === "dark" ? "inset 0 2px 6px rgba(255, 255, 255, 0.2), inset 0 -4px 10px rgba(255, 255, 255, 0.2)" : "inset 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 -4px 10px rgba(0, 0, 0, 0.2)",
         p: 1.2,
-        border: mode === "dark" ? "1px solid #33333346" : "1px solid #ddd",
+        border: mode === "dark" ? "1px solid #ffffff46" : "1px solid #ffffff00",
         "&:hover": { transform: "scale(1.05)" },
       }}
     >
@@ -2935,106 +2968,193 @@ borderRadius: "0 0 34px 34px",
   </style>
 </Box>
 
-      <Box
-        role="button"
-        tabIndex={0}
-        onClick={() => setOpen(true)}
-        onKeyDown={(e) => e.key === "Enter" && setOpen(true)}
-        sx={{
-          width: 130,
-          px: 1,
-          py: 0.5,
-          borderRadius: 4,
-          cursor: "pointer",
-          userSelect: "none",
+<motion.div
+  layoutId="aqi-card"
+  onClick={() => setOpen(true)}
+  whileTap={{ scale: 0.94 }}
+  transition={{ type: "spring", stiffness: 260, damping: 22 }}
+  style={{
+    width: 130,
+    cursor: "pointer",
+    position: "relative",
+    zIndex: 10,
+  }}
+>
+  <Box
+    sx={{
+      px: 1,
+      py: 0.5,
+      borderRadius: "20px",
 
-          background:
-            mode === "dark"
-              ? "linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0))"
-              : "linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(245, 245, 245, 0))",
+      backdropFilter: "blur(12px)",
+      background: mode === "dark"
+        ? "rgba(20,20,20,0.35)"
+        : "rgba(255,255,255,0.3)",
 
-          backdropFilter: "blur(10px)",
-          border: `1px solid ${
-            mode === "dark"
-              ? "rgba(255,255,255,0.12)"
-              : "rgba(0,0,0,0.1)"
-          }`,
+      border: `1px solid ${
+        mode === "dark"
+          ? "rgba(255,255,255,0.15)"
+          : "rgba(255,255,255,0.6)"
+      }`,
 
-          boxShadow: "none",
+      boxShadow:
+        "0 8px 30px rgba(0,0,0,0.2), inset 0 2px 6px rgba(255,255,255,0.2)",
 
-          transition:
-            "transform 0.15s ease, box-shadow 0.15s ease",
+      position: "relative",
+    }}
+  >
+    <Stack spacing={1.2}>
+      <InfoOutlined sx={{ fontSize: 14, opacity: 0.6, position: "absolute", right: 8, top: 8 }} />
+      <Typography variant="h4" sx={{ fontWeight: 900, textAlign: "center" }}>
+        {aqiValue}
+      </Typography>
+      <Typography variant="caption" sx={{ textAlign: "center" }}>
+        AQI • {label}
+      </Typography>
+    </Stack>
+  </Box>
+</motion.div>
 
-          "&:hover": {
-            transform: "translateY(-2px)",
-          },
-          "&:active": {
-            transform: "scale(0.98)",
-          },
-          "&:focus-visible": {
-            outline: `2px solid ${color}`,
-            outlineOffset: 2,
-          },
-        }}
-      >
-        <Stack spacing={1.2} alignContent={"center"}>
-          {/* Header */}
-            <InfoOutlined sx={{ fontSize: 14, opacity: 0.6, position: "absolute", right: 8, top: 8 }} />
+{/* ─── AQI DETAILS DRAWER PORTAL ─── */}
+{typeof document !== "undefined" &&
+  createPortal(
+    <AnimatePresence mode="wait">
+      {open && (
+        <>
+          {/* BACKDROP */}
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            onClick={() => setOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.35)",
+              backdropFilter: "blur(18px)",
+              zIndex: 99999,
+            }}
+          />
 
-          {/* AQI Value */}
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 900,
-              lineHeight: 1,
-              color,
-              letterSpacing: -0.8,
-              textAlign: "center"
+          {/* 🔥 MORPH CONTAINER (NO Y ANIMATION HERE) */}
+          <motion.div
+            key="card"
+            layoutId="aqi-card"
+            transition={{
+              type: "spring",
+              stiffness: 240,
+              damping: 26,
+            }}
+            style={{
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 100000,
+              margin: "12px",
+              display: "flex",
+              justifyContent: "center",
             }}
           >
-            {aqiValue}
-          </Typography>
+            {/* 🔥 INNER SLIDE LAYER */}
+<motion.div
+  drag="y"
+  dragConstraints={{ top: 0, bottom: 0 }}
+  dragElastic={0} // ❗ disable default → we control physics
+  style={{
+    y: rubberY,
+    scale,
+    opacity,
+    width: "100%",
+    maxWidth: 600,
+  }}
+  initial={{ y: 80, opacity: 0, scale: 0.98 }}
+  animate={{ y: 0, opacity: 1, scale: 1 }}
+  exit={{ y: 140, opacity: 0, scale: 0.96 }}
+  transition={{
+    type: "spring",
+    stiffness: 160,
+    damping: 22,
+    mass: 0.8, // 🌊 smoother inertia
+  }}
+  onDrag={(e, info) => {
+    y.set(info.offset.y);
+  }}
+onDragEnd={(e, info) => {
+  const offset = info.offset.y;
+  const velocity = info.velocity.y;
 
-          {/* Status */}
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 700,
-              letterSpacing: 0.6,
-              color,
-              textAlign: "center",
-              fontSize: 10,
-            }}
-          >
-            AQI • {label}
-          </Typography>
-        </Stack>
-      </Box>
+  const shouldClose =
+    offset > 120 || velocity > 700;
 
-      {/* ─── AQI DETAILS DRAWER ─── */}
-      <SwipeableDrawer
-        anchor="bottom"
-        open={open}
-        onClose={() => setOpen(false)}
-        onOpen={() => setOpen(true)}
-        PaperProps={{
-          sx: {
-            borderRadius: 6,
-            m: 1,
-            background:
-              mode === "dark" ? "#0c0c0c" : "#f1f1f1",
-            backdropFilter: "blur(20px)",
-          },
-        }}
-      >
-        <AQIDetailsDrawer
-          aqiValue={aqiValue}
-          label={label}
-          color={color}
-          aqiData={aqiData}
-          onClose={() => setOpen(false)}
-        />
-      </SwipeableDrawer>
+  if (shouldClose) {
+    // 🌊 CONTINUE MOTION (no abrupt jump)
+    smoothClose(y, velocity);
+
+    // delay state change slightly → allows animation to finish
+    setTimeout(() => setOpen(false), 180);
+  } else {
+    // 🌊 SMOOTH RETURN (not snap)
+    animate(y, 0, {
+      type: "spring",
+      stiffness: 100,
+      damping: 20,
+      mass: 0.7,
+      velocity,
+    });
+  }
+}}
+>
+<Box
+  sx={{
+    height: "80vh",
+    borderRadius: radius, // 🔥 dynamic
+
+    overflow: "hidden",
+    backdropFilter: "blur(28px)",
+
+    background: mode === "dark"
+      ? "rgba(18,18,18,0.92)"
+      : "rgba(255,255,255,0.92)",
+
+    boxShadow: "0 -20px 40px rgba(0,0,0,0.3)",
+
+    border: mode === "dark"
+      ? "1px solid rgba(255,255,255,0.1)"
+      : "1px solid rgba(0,0,0,0.05)",
+      borderRadius: "24px",
+
+    position: "relative",
+
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      inset: 0,
+      borderRadius: "24px",
+      background:
+        "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.35), transparent 60%)",
+      opacity: 0.4,
+      pointerEvents: "none",
+    },
+  }}
+>
+                <AQIDetailsDrawer
+                  aqiValue={aqiValue}
+                  label={label}
+                  color={color}
+                  aqiData={aqiData}
+                  onClose={() => setOpen(false)}
+                />
+              </Box>
+            </motion.div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>,
+    document.body
+  )}
 
 <WeatherDetailsDrawer
   weather={weather}
@@ -3043,34 +3163,6 @@ borderRadius: "0 0 34px 34px",
 />
 
 </Box>
-
-              <Button
-                fullWidth
-                startIcon={<Search />}
-                onClick={() => navigate('/search')}
-                sx={{
-                  py: 1,
-                  mb: 0,
-                  borderRadius: 10,
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                  textTransform: "none",
-                  width: '100%',
-                  boxShadow: "none",
-                  background: 
-                    mode === "dark"
-                      ? "linear-gradient(135deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.04))"
-                      : "linear-gradient(135deg, rgba(189, 189, 189, 0.05), rgba(181, 181, 181, 0.02))",
-                  backdropFilter: "blur(15px)",
-                  border: `1.2px solid ${mode === "dark" ? "#6666667e" : "#ffffff8d"}`,
-                  color: theme.palette.text.secondary,
-                  '&:hover': {
-                    backgroundColor: theme.palette.mode === "light" ? "#e0e0e0" : "#3a3a3a4e",
-                  },
-                }}
-              >
-                Search Exploration
-              </Button>
 
                   </Box>
 
@@ -3623,64 +3715,27 @@ borderRadius: "0 0 34px 34px",
 </AnimatePresence>
 </>
 
-                </Container>
 
+                </Container>
               </Box>
             )}
+
             {/* Main Content */}
-
-  <Box
-    sx={{
-      top: 0,
-      zIndex: 20,
-      display: "flex",
-      flexGrow: 1,
-
-      borderRadius: "30px 30px 0 0",
-      pt: 2,
-
-      background: `
-        linear-gradient(
-          to top,
-          ${mode === "dark"
-            ? "rgba(12,12,12,0.96)"
-            : "rgba(241,241,241,0.96)"} 40%,
-          ${mode === "dark"
-            ? "rgba(12, 12, 12, 0.92)"
-            : "rgba(241,241,241,0.72)"} 85%,
-          ${mode === "dark"
-            ? "rgba(0, 0, 0, 0.06)"
-            : "rgba(255, 255, 255, 0.08)"} 100%
-        )
-      `,
-
-      transition:
-        "background 600ms cubic-bezier(.4,0,.2,1)",
-
-      "&::after": {
-        content: '""',
-        inset: 0,
-        pointerEvents: "none",
-      },
-    }}
-  >
-
-              <Container maxWidth="lg" sx={{ flexGrow: 1, pt: 1, position: "relative" }}>
-                {loading ? (
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      height: "60vh",
-                    }}
-                  >
-                    <CircularProgress color={theme.palette.background.main} />
-
-                  </Box>
-                ) : (
-                  <Grid container spacing={3} justifyContent={"center"}>
-                    
+<Box>
+            <Container
+              maxWidth="lg"
+              sx={{
+                position: "relative",
+                zIndex: 3,
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+                animation: `${fadeIn} 0.8s ease both`,
+                px: 4,
+                zIndex: 3,
+              }}
+            >
+<Grid container spacing={3} justifyContent={"center"} mt={3}>
                     {/* Trips Display card */}
                     <Grid item xs={12} md={6} lg={4} xl={2.4}>
                       {myTrips && myTrips.length > 0 ? (
@@ -3688,131 +3743,225 @@ borderRadius: "0 0 34px 34px",
                           <Typography variant="h6" textAlign="left" mb={1} ml={1.4}>Your Trips</Typography>
                           <Slider {...sliderSettings} slickGoTo={sliderIndex} afterChange={setSliderIndex} >
                             {myTrips.map((tripInfo) => (
-                              <Box key={tripInfo.id} sx={{ px: 0 }}>
-                                <Card
-                                  sx={{
-                                    position: "relative",
-                                    overflow: "hidden",
-                                  
-                                    background: tripGroupsMap[tripInfo.id]?.iconURL
-                                      ? `url(${tripGroupsMap[tripInfo.id].iconURL})`
-                                      : mode === "dark"
-                                      ? "#17171791"
-                                      : "#fff",
-                                  
-                                    backgroundSize: "cover",
-                                    backgroundPosition: "center",
-                                    backgroundRepeat: "no-repeat",
-                                  
-                                    color: "#fff",
-                                    borderRadius: 4,
-                                    boxShadow: "none",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    justifyContent: "flex-end",
-                                    mx: { xs: 1, lg: 0 },
-                                    height: { xs: 260, lg: 320 },
-                                    cursor: "pointer",
-                                    p: 0,
-                                  }}
-                                  onClick={() => navigate(`/trips/${tripInfo.id}`)}
-                                >
-                                  {/* Progressive Blur Overlay */}
-                                  <Box
-                                    sx={{
-                                      position: "absolute",
-                                      inset: 0,
-                                      pointerEvents: "none",
-                                      height: { xs: 260, lg: 320 },
-                                      zIndex: 1,
-                                    
-                                      backdropFilter: "blur(10px)",
-                                      WebkitBackdropFilter: "blur(10px)",
-                                    
-                                      maskImage:
-                                        "linear-gradient(to top, black 10%, black 30%, transparent 100%)",
-                                      WebkitMaskImage:
-                                        "linear-gradient(to top, black 10%, black 30%, transparent 100%)",
-                                    }}
-                                  />
+<Box key={tripInfo.id} sx={{ px: 0 }}>
+  <Card
+    onClick={() => navigate(`/trips/${tripInfo.id}`)}
+    sx={{
+      position: "relative",
+      overflow: "hidden",
+      borderRadius: "24px",
+      cursor: "pointer",
+      mx: { xs: 1, lg: 0 },
 
-                                  <CardContent
-                                    sx={{
-                                      position: "relative",
-                                      zIndex: 2,
-                                      background:"linear-gradient(to top, rgba(0, 0, 0, 0.37), rgba(0, 0, 0, 0.36), rgba(0, 0, 0, 0.27), rgba(0, 0, 0, 0))",
-                                      borderBottomLeftRadius: 8,
-                                      borderBottomRightRadius: 8,
-                                    }}
-                                  >
-                                    <BlurEffect position="top" intensity={50} />
-                                    <Box display="flex" gap={2} mb={1} alignItems="flex-start" justifyContent="space-between">
-                                      <Box>
-                                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5, color: "#ffffffff" }}>
-                                          {tripInfo?.name || "Unnamed Trip"}
-                                        </Typography>
-                                        <Typography variant="body2" sx={{ color: "#cbcbcb", display: "flex", alignItems: "center" }}>
-                                          <LocationOn sx={{ fontSize: 16, mr: 1 }} />
-                                          {tripInfo?.from || "Unknown"} → {tripInfo?.location || "Unknown"}
-                                        </Typography>
-                                        {(tripInfo?.startDate || tripInfo?.date) && (
-                                          <Typography variant="body2" sx={{ color: "#cbcbcb", display: "flex", alignItems: "center" }}>
-                                            <AccessTime sx={{ fontSize: 16, mr: 1 }} />
-                                            {tripInfo?.startDate || "?"} → {tripInfo?.date || "?"}
-                                          </Typography>
-                                        )}
-                                      </Box>
-                                      {/* Member avatars as avatar group */}
-                                      {tripMembersMap[tripInfo.id]?.length > 0 && (
-                                        <AvatarGroup max={3} sx={{ mt: 1, width: 24, height: 24 }}>
-                                          {tripMembersMap[tripInfo.id].map((m) => (
-                                            <Tooltip title={m.name || `@${m.username}`} key={m.uid}>
-                                              <Avatar
-                                                sx={{
-                                                  width: 24,
-                                                  height: 24,
-                                                }}
-                                                src={m.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${m.uid}`}
-                                                alt={m.name || m.username}
-                                              />
-                                            </Tooltip>
-                                          ))}
-                                        </AvatarGroup>
-                                      )}
-                                    </Box>
-                                    {timelineStatsMap[tripInfo.id] && (
-                                      <Box sx={{ mb: 1 }}>
-                                        <Typography variant="caption" sx={{ color: "#cbcbcb" }}>
-                                          Timeline Progress: {timelineStatsMap[tripInfo.id].completed} / {timelineStatsMap[tripInfo.id].total} complete
-                                        </Typography>
-                                        <LinearProgress
-                                          value={timelineStatsMap[tripInfo.id].percent}
-                                          variant="determinate"
-                                          sx={{
-                                            mt: 0.5,
-                                            borderRadius: 20,
-                                            height: 7,
-                                            bgcolor: "#ffffff36",
-                                            "& .MuiLinearProgress-bar": { bgcolor: "#ffffffff", borderRadius: 20 },
-                                          }}
-                                        />
-                                      </Box>
-                                    )}
-                                  </CardContent>
-                                </Card>
-                              </Box>
+      background:
+          tripGroupsMap[tripInfo.id]?.iconURL
+            ? `url(${tripGroupsMap[tripInfo.id].iconURL})`
+            : mode === "dark"
+          ? "linear-gradient(135deg, #1e1e1e, #2c2c2c)"
+          : "linear-gradient(135deg, #f5f5f5, #e0e0e0)",
+
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+
+      boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+      transition: "all 0.35s ease",
+
+      "&:hover": {
+        boxShadow: "none",
+      },
+
+      "&::before": {
+        content: '""',
+        position: "absolute",
+        inset: 0,
+        background:
+          "linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.2))",
+        zIndex: 1,
+      },
+    }}
+  >
+    {/* Glass Content Layer */}
+    <CardContent
+      sx={{
+        position: "relative",
+        zIndex: 2,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-end",
+        backdropFilter: "blur(6px)",
+      }}
+    >
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        gap={2}
+      >
+        {/* Left Content */}
+        <Box>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 800,
+              color: "#fff",
+              letterSpacing: 0.3,
+            }}
+          >
+            {tripInfo?.name || "Unnamed Trip"}
+          </Typography>
+
+          <Typography
+            variant="body2"
+            sx={{
+              color: "rgba(255,255,255,0.75)",
+              display: "flex",
+              alignItems: "center",
+              mt: 0.5,
+            }}
+          >
+            <LocationOn sx={{ fontSize: 16, mr: 0.7 }} />
+            {tripInfo?.from || "Unknown"} →{" "}
+            {tripInfo?.location || "Unknown"}
+          </Typography>
+
+          {(tripInfo?.startDate || tripInfo?.date) && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: "rgba(255,255,255,0.7)",
+                display: "flex",
+                alignItems: "center",
+                mt: 0.3,
+              }}
+            >
+              <AccessTime sx={{ fontSize: 16, mr: 0.7 }} />
+              {tripInfo?.startDate || "?"} → {tripInfo?.date || "?"}
+            </Typography>
+          )}
+        </Box>
+
+        {/* Avatar Group */}
+        {tripMembersMap[tripInfo.id]?.length > 0 && (
+          <AvatarGroup
+            max={3}
+            sx={{
+              "& .MuiAvatar-root": {
+                width: 30,
+                height: 30,
+                fontSize: 12,
+                border: mode === "dark" ? "2px solid #1d1d1d" : "2px solid #ddd",
+                backdropFilter: "blur(4px)",
+              },
+            }}
+          >
+            {tripMembersMap[tripInfo.id].map((m) => (
+              <Tooltip
+                title={m.name || `@${m.username}`}
+                key={m.uid}
+              >
+                <Avatar
+                  src={
+                    m.photoURL ||
+                    `https://api.dicebear.com/7.x/identicon/svg?seed=${m.uid}`
+                  }
+                  alt={m.name || m.username}
+                />
+              </Tooltip>
+            ))}
+          </AvatarGroup>
+        )}
+      </Box>
+    </CardContent>
+  </Card>
+</Box>
                             ))}
                           </Slider>
                         </Box>
                       ) : (
-                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: "center", mt: 4 }}>
-                          No trips found. Start planning!
-                        </Typography>
+<Box
+  sx={{
+    mt: 6,
+    px: 2,
+    py: 2,
+    textAlign: "center",
+    borderRadius: "20px",
+
+    backdropFilter: "blur(14px)",
+    background:
+      theme.palette.mode === "dark"
+        ? "rgba(255,255,255,0.05)"
+        : "rgba(255,255,255,0.7)",
+
+    border: "1px solid rgba(255,255,255,0.15)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+
+    maxWidth: 420,
+    mx: "auto",
+
+    transition: "all 0.3s ease",
+    "&:hover": {
+      transform: "translateY(-4px)",
+      boxShadow: "0 20px 50px rgba(0,0,0,0.15)",
+    },
+  }}
+>
+  {/* Emoji / Icon */}
+  <Typography
+    sx={{
+      fontSize: "40px",
+      mb: 1,
+    }}
+  >
+    🧳
+  </Typography>
+
+  {/* Title */}
+  <Typography
+    variant="h6"
+    sx={{
+      fontWeight: 700,
+      mb: 0.5,
+      color: theme.palette.text.primary,
+    }}
+  >
+    No Trips Yet
+  </Typography>
+
+  {/* Subtitle */}
+  <Typography
+    variant="body2"
+    sx={{
+      color: theme.palette.text.secondary,
+      opacity: 0.85,
+    }}
+  >
+    You haven’t planned any trips yet. Start your next adventure now!
+  </Typography>
+
+  {/* Optional CTA Button */}
+    
+    <Button
+      onClick={() => navigate('/search')}
+      variant="contained"
+      sx={{
+        mt: 2,
+        borderRadius: "12px",
+        textTransform: "none",
+        background: mode === "dark" ? "#fff" : "#0c0c0c",
+        color: mode === "dark" ? "#0c0c0c" : "#fff",
+        px: 3,
+        py: 1,
+      }}
+    >
+      + Create Trip
+    </Button> 
+   
+</Box>
                       )}
                     </Grid>
 
-                                        {/* Reminders Glimpse Card */}
-<Container maxWidth="lg" sx={{ mt: 6 }}>
+                    {/* Reminders Glimpse Card */}
+<Container maxWidth="lg" sx={{ mt: 4 }}>
   {/* Header */}
   <Box
     sx={{
@@ -4032,6 +4181,64 @@ borderRadius: "0 0 34px 34px",
 </Box>
 
 </Container>
+</Grid> 
+</Container>
+
+          <Box>
+            <Box
+              sx={{
+                top: 0,
+                zIndex: 20,
+                display: "flex",
+                flexGrow: 1,
+
+                borderRadius: "30px 30px 0 0",
+                pt: 2,
+
+                background: `
+                  linear-gradient(
+                    to top,
+                    ${mode === "dark"
+                      ? "rgba(12,12,12,0.96)"
+                      : "rgba(241,241,241,0.96)"} 40%,
+                    ${mode === "dark"
+                      ? "rgba(12, 12, 12, 0.92)"
+                      : "rgba(241,241,241,0.72)"} 85%,
+                    ${mode === "dark"
+                      ? "rgba(0, 0, 0, 0.06)"
+                      : "rgba(255, 255, 255, 0.08)"} 100%
+                  )
+                `,
+                    
+                transition:
+                  "background 600ms cubic-bezier(.4,0,.2,1)",
+
+                "&::after": {
+                  content: '""',
+                  inset: 0,
+                  pointerEvents: "none",
+                },
+              }}
+            >
+
+              <Container maxWidth="lg" sx={{ flexGrow: 1, pt: 0, position: "relative" }}>
+
+<FloatingSearch mode={mode} />
+
+                {loading ? (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      height: "60vh",
+                    }}
+                  >
+                    <CircularProgress color={theme.palette.background.main} />
+
+                  </Box>
+                ) : (
+                  <Grid container spacing={3} pt={1} justifyContent={"center"}>
 
                     
                     {/* Trips Suggestions Card (NEW SECTION) */}
@@ -4240,42 +4447,8 @@ borderRadius: "0 0 34px 34px",
                 )}
               </Container>
             </Box>
-
-            {/* <Grid
-              justifyContent={"right"}
-              container
-              sx={{
-                position: "sticky",
-                bottom: 90,
-                right: 30,
-                mr: 1.5
-              }}
-            >
-              {isSmallScreen && (
-                <Zoom in>
-                  <Fab
-                    color="primary"
-                    aria-label="chat"
-                    sx={{
-                      zIndex: 999,
-                      width: '70px',
-                      height: '70px',
-                      background: theme.palette.primary.bg,
-                      color: theme.palette.primary.maintxt,
-                      boxShadow: "none",
-                      borderRadius: 5,
-                      "&:hover": {
-                        background: theme.palette.primary.bg,
-                      },
-                    }}
-                    onClick={() => navigate("/chats")}
-                  >
-                    <ChatBubbleOutlineIcon />
-                  </Fab>
-                </Zoom>
-              )}
-            </Grid> */}
-
+          </Box>
+</Box>
 
 <Drawer
   anchor="bottom"

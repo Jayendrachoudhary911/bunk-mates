@@ -253,10 +253,18 @@ return (
       borderRight: `1px solid ${
         mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"
       }`,
-      boxShadow:
-        mode === "dark"
-          ? "4px 0 30px rgba(0,0,0,0.6)"
-          : "4px 0 24px rgba(0,0,0,0.08)",
+                boxShadow:
+            mode === "dark"
+              ? `
+                inset 0 2px 6px rgba(255, 255, 255, 0.11),
+                inset 0 -4px 10px rgba(255, 255, 255, 0.07),
+                0 8px 30px rgba(0,0,0,0.4)
+              `
+              : `
+                inset 0 2px 6px rgba(255,255,255,0.8),
+                inset 0 -4px 10px rgba(0,0,0,0.1),
+                0 8px 25px rgba(0,0,0,0.1)
+              `,
       zIndex: 1400,
       px: 2,
       py: 3,
@@ -489,15 +497,27 @@ return (
           alignItems: "center",
           py: 0.9,
           px: 1,
-          backdropFilter: "blur(14px) saturate(1.4)",
+          backdropFilter: "blur(8px) saturate(1.4)",
           background:
             mode === "dark"
               ? "linear-gradient(135deg, rgba(20, 20, 20, 0.12), rgba(40, 40, 40, 0))"
               : "linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(240, 240, 240, 0))",
           border:
             mode === "dark"
-              ? "1px solid rgba(255,255,255,0.08)"
-              : "1px solid rgba(0,0,0,0.08)",
+              ? "0px solid rgba(255,255,255,0.08)"
+              : "0px solid rgba(0,0,0,0.08)",
+          boxShadow:
+            mode === "dark"
+              ? `
+                inset 0 2px 6px rgba(255, 255, 255, 0.11),
+                inset 0 -4px 10px rgba(255, 255, 255, 0.07),
+                0 8px 30px rgba(0,0,0,0.4)
+              `
+              : `
+                inset 0 2px 6px rgba(255,255,255,0.8),
+                inset 0 -4px 10px rgba(0,0,0,0.1),
+                0 8px 25px rgba(0,0,0,0.1)
+              `,
         }}
       >
         <Box
@@ -600,10 +620,22 @@ return (
                  mode === "dark"
                   ? "#fff"
                   : "#000",
-              backdropFilter: "blur(10px)",
+              backdropFilter: "blur(8px)",
               border: mode === "dark"
-                ? "1px solid rgba(255,255,255,0.07)"
-                : "1px solid rgba(0,0,0,0.07)",
+                ? "0px solid rgba(255,255,255,0.07)"
+                : "0px solid rgba(0,0,0,0.07)",
+          boxShadow:
+            mode === "dark"
+              ? `
+                inset 0 2px 6px rgba(255, 255, 255, 0.11),
+                inset 0 -4px 10px rgba(255, 255, 255, 0.07),
+                0 8px 30px rgba(0,0,0,0.4)
+              `
+              : `
+                inset 0 2px 6px rgba(255,255,255,0.8),
+                inset 0 -4px 10px rgba(0,0,0,0.1),
+                0 8px 25px rgba(0,0,0,0.1)
+              `,
               transition: "all 0.3s ease",
               transform: "scale(1)",
               cursor: 'pointer',

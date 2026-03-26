@@ -25,6 +25,7 @@ import Waitlist from "./pages/Wishlist";
 import Trips from "./pages/Trips";
 import JoinTrip from "./invites/JoinTrip";
 import SearchPage from "./pages/Search";
+import Homepage from "./pages/Homepage";
 
 // Components
 import BottomNavBar from './components/BottomNavBar';
@@ -203,6 +204,8 @@ function AppContent() {
             <Route path="/chats" element={<Chats />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/profile" element={<Profile />} />
+
+            <Route path="/home-dummy" element={<Homepage/>}/>
 
             <Route path="/budget-mngr" element={<Budgetmngr />} />
             <Route path="/reminders" element={<Reminders />} />
