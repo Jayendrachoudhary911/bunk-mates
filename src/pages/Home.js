@@ -3044,8 +3044,8 @@ borderRadius: "0 0 34px 34px",
             layoutId="aqi-card"
             transition={{
               type: "spring",
-              stiffness: 240,
-              damping: 26,
+              stiffness: 340,
+              damping: 16,
             }}
             style={{
               position: "fixed",
@@ -3072,11 +3072,11 @@ borderRadius: "0 0 34px 34px",
   }}
   initial={{ y: 80, opacity: 0, scale: 0.98 }}
   animate={{ y: 0, opacity: 1, scale: 1 }}
-  exit={{ y: 140, opacity: 0, scale: 0.96 }}
+  exit={{ y: 140, opacity: 0 }}
   transition={{
     type: "spring",
-    stiffness: 160,
-    damping: 22,
+    stiffness: 340,
+    damping: 16,
     mass: 0.8, // 🌊 smoother inertia
   }}
   onDrag={(e, info) => {
@@ -3087,20 +3087,20 @@ onDragEnd={(e, info) => {
   const velocity = info.velocity.y;
 
   const shouldClose =
-    offset > 120 || velocity > 700;
+    offset > 120 || velocity > 400;
 
   if (shouldClose) {
     // 🌊 CONTINUE MOTION (no abrupt jump)
     smoothClose(y, velocity);
 
     // delay state change slightly → allows animation to finish
-    setTimeout(() => setOpen(false), 180);
+    setOpen(false);
   } else {
     // 🌊 SMOOTH RETURN (not snap)
     animate(y, 0, {
       type: "spring",
-      stiffness: 100,
-      damping: 20,
+      stiffness: 340,
+      damping: 16,
       mass: 0.7,
       velocity,
     });
