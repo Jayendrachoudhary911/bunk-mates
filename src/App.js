@@ -48,6 +48,7 @@ import GroupDevChats from "./components/DevBeta/GroupChats";
 import GroupList from "./components/DevBeta/GroupList";
 import OtpLogin from "./components/DevBeta/OtpLogin";
 import UsersMap from "./pages/MapsPage";
+import TravelAI from "./pages/TravelAI";
 
 
 const vapidKey = 'BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs';
@@ -204,6 +205,7 @@ function AppContent() {
             <Route path="/chats" element={<Chats />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/travel-ai" element={<TravelAI />} />
 
             <Route path="/home-dummy" element={<Homepage/>}/>
 

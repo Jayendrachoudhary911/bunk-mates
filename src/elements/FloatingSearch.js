@@ -70,13 +70,11 @@ export default function FloatingSearch({ mode }) {
             mode === "dark"
               ? `
                 inset 0 2px 6px rgba(255, 255, 255, 0.11),
-                inset 0 -4px 10px rgba(255, 255, 255, 0.07),
-                0 8px 30px rgba(0,0,0,0.4)
+                inset 0 -4px 10px rgba(255, 255, 255, 0.07)
               `
               : `
                 inset 0 2px 6px rgba(255,255,255,0.8),
-                inset 0 -4px 10px rgba(0,0,0,0.1),
-                0 8px 25px rgba(0,0,0,0.1)
+                inset 0 -4px 10px rgba(0,0,0,0.1)
               `,
 
           "& .MuiButton-startIcon": {
