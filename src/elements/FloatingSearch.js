@@ -30,8 +30,8 @@ export default function FloatingSearch({ mode }) {
     <Box
       sx={{
         position: "fixed",
-        bottom: 80,
-        right: 30,
+        bottom: 74,
+        right: 41,
         zIndex: 1100,
         pointerEvents: "none",
       }}
@@ -46,9 +46,9 @@ export default function FloatingSearch({ mode }) {
           position: "relative",
           overflow: "hidden",
 
-          minWidth: expanded ? { xs: "280px", md: "400px" } : 56,
+          minWidth: expanded ? { xs: "330px", md: "400px" } : 56,
           height: 56,
-          borderRadius: expanded ? "24px" : "50%",
+          borderRadius: expanded ? "35px" : "50%",
           px: expanded ? 3 : 0,
 
           transition: "all 0.45s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -92,7 +92,7 @@ export default function FloatingSearch({ mode }) {
             width: "50%",
             height: "100%",
             background:
-              "linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.3), transparent)",
+              "linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.17), transparent)",
             transform: "skewX(-20deg)",
             transition: "all 0.6s ease",
           },

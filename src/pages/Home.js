@@ -2974,7 +2974,7 @@ borderRadius: "0 0 34px 34px",
   whileTap={{ scale: 0.94 }}
   transition={{ type: "spring", stiffness: 260, damping: 22 }}
   style={{
-    width: 130,
+    width: 220,
     cursor: "pointer",
     position: "relative",
     zIndex: 10,
@@ -2988,8 +2988,8 @@ borderRadius: "0 0 34px 34px",
 
       backdropFilter: "blur(12px)",
       background: mode === "dark"
-        ? "rgba(20,20,20,0.35)"
-        : "rgba(255,255,255,0.3)",
+        ? "rgba(20,20,20,0)"
+        : "rgba(255,255,255,0)",
 
       border: `1px solid ${
         mode === "dark"
@@ -2998,7 +2998,7 @@ borderRadius: "0 0 34px 34px",
       }`,
 
       boxShadow:
-        "0 8px 30px rgba(0,0,0,0.2), inset 0 2px 6px rgba(255,255,255,0.2)",
+        "inset 0 2px 6px rgba(255,255,255,0.2)",
 
       position: "relative",
     }}
@@ -3109,7 +3109,6 @@ onDragEnd={(e, info) => {
 >
 <Box
   sx={{
-    height: "80vh",
     borderRadius: radius, // 🔥 dynamic
 
     overflow: "hidden",

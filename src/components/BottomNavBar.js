@@ -480,11 +480,12 @@ return (
     <Box
       sx={{
         width: "100%",
-        maxWidth: 370,
+        maxWidth: 330,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         pointerEvents: "auto",
+        gap: 1,
       }}
     >
       {/* Nav Buttons */}
@@ -601,9 +602,6 @@ return (
 
           <Box
             sx={{
-              ml: 1,
-              mr: 0.8,
-              mb: 0.6,
               width: 56,
               py: 0,
               borderRadius: 10,
