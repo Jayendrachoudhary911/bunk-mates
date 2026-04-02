@@ -1,23 +1,36 @@
-import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 
+/**
+ * Fetches all trips where user is a member with full trip context.
+ */
 export const fetchTripsFromFirestore = async (uid) => {
+  if (!uid) return [];
   try {
-    const snapshot = await getDocs(collection(db, "trips"));
-    const trips = [];
+    // Ensure collection name matches your DB exactly
+    const tripsRef = collection(db, "trips"); 
+    const q = query(tripsRef, where("members", "array-contains", uid));
+    const snapshot = await getDocs(q);
 
-    snapshot.forEach((doc) => {
+    return snapshot.docs.map((doc) => {
       const data = doc.data();
-
-      // Filter trips where user is a member
-      if (data.members?.includes(uid)) {
-        trips.push({ id: doc.id, ...data });
-      }
+      return {
+        id: doc.id,
+        name: data.name,
+        description: data.description,
+        from: data.from,           // Jaipur
+        to: data.to,               // Dehradun
+        startDate: data.startDate, // 2026-04-02
+        endDate: data.endDate,     // 2026-04-07
+        members: data.members || [],
+        admins: data.admins || [],
+        tripId: data.tripId,
+        // iconURL included here, but pruned in gemini.js to save money/tokens
+        iconURL: data.iconURL, 
+      };
     });
-
-    return trips;
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching trips:", error);
     return [];
   }
 };

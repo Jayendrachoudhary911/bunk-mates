@@ -1561,11 +1561,9 @@ const cardCommon = (link) => ({
                   {trip?.createdBy === currentUseruid && (
                     <Button size="small" color={theme.palette.text.primary} onClick={() => setBudgetDrawerOpen(true)}>Edit</Button>
                   )}
-                  {trip?.createdBy === currentUseruid && canUserDo('canAddExpenses') && (
                     <Button size="small" color={theme.palette.text.primary} onClick={() => setExpenseDrawerOpen(true)} sx={{ ml: 1 }}>
                       Add Expense
                     </Button>
-                  )}
                   </>
                 </Box>
               </Box>

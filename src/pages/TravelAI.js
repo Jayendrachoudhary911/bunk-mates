@@ -1,240 +1,181 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, memo } from "react";
 import {
-  Box,
-  TextField,
-  IconButton,
-  Typography,
-  Paper,
-  Stack,
-  Avatar,
+  Box, TextField, IconButton, Typography, Avatar, Paper, Fade, Collapse
 } from "@mui/material";
-import SendIcon from "@mui/icons-material/Send";
-import SmartToyIcon from "@mui/icons-material/SmartToy";
-import PersonIcon from "@mui/icons-material/Person";
-import { askTravelAI } from "../utils/gemini";
+import SendRoundedIcon from "@mui/icons-material/SendRounded";
+import SmartToyRoundedIcon from "@mui/icons-material/SmartToyRounded";
+import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
+import CodeIcon from "@mui/icons-material/Code";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
+import { askTravelAI } from "../utils/groq";
 import { auth } from "../firebase";
-import { fetchTripsFromFirestore } from "../utils/firestore";
+import AIResponseRenderer from "../components/AIResponseRenderer";
+
+import {
+  getUserMemory,
+  saveMessage,
+  updateSummary,
+} from "../utils/memory";
+
+const JSONViewer = ({ data }) => (
+  <Box sx={{ mt: 1, p: 1, bgcolor: "#020617", fontFamily: "monospace", fontSize: "0.75rem" }}>
+    {JSON.stringify(data, null, 2)}
+  </Box>
+);
+
+const ChatBubble = memo(({ msg }) => {
+  const isUser = msg.type === "user";
+  const [showJSON, setShowJSON] = useState(false);
+
+  return (
+    <Fade in>
+      <Box sx={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", gap: 1, mb: 2 }}>
+        <Avatar>{isUser ? <PersonRoundedIcon /> : <SmartToyRoundedIcon />}</Avatar>
+
+        <Box>
+          <Paper sx={{ p: 1.5 }}>
+            {msg.isTyping ? "..." : (
+              <>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {msg.text}
+                </ReactMarkdown>
+
+                <AIResponseRenderer message={msg} />
+
+                {msg.json && (
+                  <>
+                    <IconButton onClick={() => setShowJSON(!showJSON)}>
+                      <CodeIcon />
+                    </IconButton>
+
+                    <Collapse in={showJSON}>
+                      <JSONViewer data={msg.json} />
+                    </Collapse>
+                  </>
+                )}
+              </>
+            )}
+          </Paper>
+
+          {msg.time && <Typography variant="caption">{msg.time}</Typography>}
+        </Box>
+      </Box>
+    </Fade>
+  );
+});
 
 export default function TravelAI() {
   const [messages, setMessages] = useState([]);
+  const [summary, setSummary] = useState("");
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const [user, setUser] = useState(null);
-  const [trips, setTrips] = useState([]);
-
   const chatEndRef = useRef(null);
+  const [preferences, setPreferences] = useState({});
+
+  // 🔥 Load Firestore memory
 
   useEffect(() => {
-    const currentUser = auth.currentUser;
-    setUser(currentUser);
+  const load = async () => {
+    if (!auth.currentUser) return;
 
-    const loadTrips = async () => {
-      try {
-        if (currentUser) {
-          const data = await fetchTripsFromFirestore(currentUser.uid);
-          setTrips(data || []);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
+    const data = await getUserMemory(auth.currentUser.uid);
 
-    loadTrips();
-  }, []);
+    setSummary(data.summary || "");
+    setMessages(data.messages || []);
+    setPreferences(data.preferences || {}); // ✅ NEW
+  };
 
-  // 🔥 Auto scroll
+  load();
+}, []);
+
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    chatEndRef.current?.scrollIntoView();
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim()) return;
 
-    const userMessage = { type: "user", text: input };
+    const userMsg = { type: "user", text: input };
+    setMessages(prev => [...prev, userMsg]);
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setLoading(true);
+    await saveMessage(auth.currentUser.uid, userMsg);
+
+    const id = Date.now();
+    setMessages(prev => [...prev, { id, type: "bot", text: "", isTyping: true }]);
+
+    const history = messages.slice(-6);
+
+    let acc = "";
 
     try {
-      const aiResponse = await askTravelAI({
+      const res = await askTravelAI({
         message: input,
-        user,
-        trips,
+        user: auth.currentUser,
+        history,
+        summary,
+        onChunk: (c) => {
+          acc += c;
+          setMessages(prev =>
+            prev.map(m => m.id === id ? { ...m, text: acc } : m)
+          );
+        }
       });
 
-      const botMessage = { type: "bot", text: aiResponse };
+      const botMsg = {
+        type: "bot",
+        text: res.content || acc,
+        json: res,
+      };
 
-      setMessages((prev) => [...prev, botMessage]);
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        { type: "bot", text: "Something went wrong." },
-      ]);
+      setMessages(prev =>
+        prev.map(m => m.id === id ? { ...botMsg } : m)
+      );
+
+      await saveMessage(auth.currentUser.uid, botMsg);
+
+      // 🔥 AUTO SUMMARIZATION
+      if (messages.length % 10 === 0) {
+        const summaryRes = await askTravelAI({
+          message: "Summarize this conversation briefly",
+          history: messages.slice(-10),
+          user: auth.currentUser,
+        });
+
+        setSummary(summaryRes.content);
+        await updateSummary(auth.currentUser.uid, summaryRes.content);
+      }
+
+    } catch {
+      setMessages(prev =>
+        prev.map(m => m.id === id ? { ...m, text: "Error", isTyping: false } : m)
+      );
     }
 
-    setLoading(false);
+    setInput("");
   };
 
   return (
-    <Box
-      sx={{
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        bgcolor: "#0f0f0f",
-        color: "#fff",
-      }}
-    >
-      {/* Header */}
-      <Box
-        sx={{
-          p: 2,
-          background: "rgba(255,255,255,0.05)",
-          backdropFilter: "blur(10px)",
-          borderBottom: "1px solid rgba(255,255,255,0.1)",
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-        }}
-      >
-        <SmartToyIcon />
-        <Typography variant="h6" fontWeight="bold">
-          BunkMate AI
-        </Typography>
+    <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+      <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+        {messages.map((m, i) => <ChatBubble key={m.id || i} msg={m} />)}
+        <div ref={chatEndRef} />
       </Box>
 
-      {/* Chat Area */}
-      <Box
-        sx={{
-          flex: 1,
-          overflowY: "auto",
-          p: 2,
-        }}
-      >
-        <Stack spacing={2}>
-          {messages.map((msg, index) => (
-            <Box
-              key={index}
-              sx={{
-                display: "flex",
-                justifyContent:
-                  msg.type === "user" ? "flex-end" : "flex-start",
-              }}
-            >
-              <Stack direction="row" spacing={1} alignItems="flex-end">
-                {msg.type === "bot" && (
-                  <Avatar
-                    sx={{
-                      bgcolor: "#1f1f1f",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                    }}
-                  >
-                    <SmartToyIcon />
-                  </Avatar>
-                )}
-
-                <Paper
-                  sx={{
-                    p: 1.5,
-                    maxWidth: "70%",
-                    borderRadius: 3,
-                    backdropFilter: "blur(12px)",
-                    background:
-                      msg.type === "user"
-                        ? "linear-gradient(135deg, #000, #222)"
-                        : "rgba(255,255,255,0.05)",
-                    border:
-                      msg.type === "bot"
-                        ? "1px solid rgba(255,255,255,0.08)"
-                        : "none",
-                    color: "#fff",
-                  }}
-                >
-                  <Typography variant="body2">
-                    {msg.text}
-                  </Typography>
-                </Paper>
-
-                {msg.type === "user" && (
-                  <Avatar
-                    sx={{
-                      bgcolor: "#000",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                    }}
-                  >
-                    <PersonIcon />
-                  </Avatar>
-                )}
-              </Stack>
-            </Box>
-          ))}
-
-          {loading && (
-            <Typography variant="body2" sx={{ opacity: 0.6 }}>
-              Thinking...
-            </Typography>
-          )}
-
-          <div ref={chatEndRef} />
-        </Stack>
-      </Box>
-
-      {/* Input */}
-      <Box
-        sx={{
-          p: 2,
-          borderTop: "1px solid rgba(255,255,255,0.1)",
-          background: "rgba(255,255,255,0.03)",
-          backdropFilter: "blur(10px)",
-          display: "flex",
-          gap: 1,
-        }}
-      >
+      <Box sx={{ p: 2, display: "flex", gap: 1 }}>
         <TextField
           fullWidth
-          placeholder="Ask about trips, budgets, routes..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          variant="outlined"
-          sx={{
-            "& .MuiOutlinedInput-root": {
-              borderRadius: 3,
-              color: "#fff",
-              background: "rgba(255,255,255,0.05)",
-              "& fieldset": {
-                borderColor: "rgba(255,255,255,0.1)",
-              },
-              "&:hover fieldset": {
-                borderColor: "rgba(255,255,255,0.2)",
-              },
-              "&.Mui-focused fieldset": {
-                borderColor: "#fff",
-              },
-            },
-            input: {
-              color: "#fff",
-            },
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
           }}
         />
-
-        <IconButton
-          onClick={handleSend}
-          sx={{
-            bgcolor: "#fff",
-            color: "#000",
-            "&:hover": {
-              bgcolor: "#ddd",
-            },
-            borderRadius: 2,
-            px: 2,
-          }}
-        >
-          <SendIcon />
+        <IconButton onClick={handleSend}>
+          <SendRoundedIcon />
         </IconButton>
       </Box>
     </Box>

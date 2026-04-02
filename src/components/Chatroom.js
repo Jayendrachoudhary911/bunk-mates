@@ -2062,7 +2062,7 @@ const getMessageDate = (timestamp) => {
   onSubmit={sendMessage}
   sx={{
     position: "absolute",
-    bottom: "0",
+    bottom: "40px",
     left: "50%",
     transform: "translateX(-50%)",
     width: "95%",
