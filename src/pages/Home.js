@@ -3214,9 +3214,9 @@ onDragEnd={(e, info) => {
           <Box
             fullwidth
             sx={{
-              width: { xs: "100%", sm: 320 },
+              width: 340,
               p: 1.6,
-              borderRadius: 10,
+              borderRadius: 8,
               display: "flex",
               flexDirection: "column",
               gap: 1.2,
@@ -3227,7 +3227,7 @@ onDragEnd={(e, info) => {
                 ? "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(16,185,129,0.08))"
                 : mode === "dark"
                 ? tripGroupsMap[t.id]?.iconURL
-                  ? `linear-gradient(rgba(0, 0, 0, 0.21), rgba(0, 0, 0, 0.27)), url(${tripGroupsMap[t.id].iconURL})`
+                  ? `linear-gradient(rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0))`
                   : "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.04))"
                 : "linear-gradient(135deg, rgba(0,0,0,0.05), rgba(0,0,0,0.02))",
               backgroundSize: "cover",
