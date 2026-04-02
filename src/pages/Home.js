@@ -3212,22 +3212,27 @@ onDragEnd={(e, info) => {
           style={{ cursor: "pointer" }}
         >
           <Box
+            fullwidth
             sx={{
-              width: 260,
+              width: { xs: "100%", sm: 320 },
               p: 1.6,
-              borderRadius: 6,
+              borderRadius: 10,
               display: "flex",
               flexDirection: "column",
               gap: 1.2,
 
               backdropFilter: "blur(10px)",
-              background:
-                completed
-                  ? "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(16,185,129,0.08))"
-                  : mode === "dark"
-                  ? "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.04))"
-                  : "linear-gradient(135deg, rgba(0,0,0,0.05), rgba(0,0,0,0.02))",
-
+              boxShadow: mode === "dark" ? "inset 0 2px 6px rgba(255, 255, 255, 0.2), inset 0 -4px 10px rgba(255, 255, 255, 0.2)" : "inset 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 -4px 10px rgba(0, 0, 0, 0.2)",
+              background: completed
+                ? "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(16,185,129,0.08))"
+                : mode === "dark"
+                ? tripGroupsMap[t.id]?.iconURL
+                  ? `linear-gradient(rgba(0, 0, 0, 0.21), rgba(0, 0, 0, 0.27)), url(${tripGroupsMap[t.id].iconURL})`
+                  : "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.04))"
+                : "linear-gradient(135deg, rgba(0,0,0,0.05), rgba(0,0,0,0.02))",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
               border:
                 completed
                   ? "1px solid rgba(16,185,129,0.4)"
@@ -3253,7 +3258,7 @@ onDragEnd={(e, info) => {
                     justifyContent: "center",
                     backgroundColor: completed
                       ? "rgba(16,185,129,0.25)"
-                      : "rgba(255,0,0,0.22)",
+                      : "rgba(255, 0, 0, 0.12)",
                   }}
                 >
                   {completed ? (
@@ -3261,7 +3266,8 @@ onDragEnd={(e, info) => {
                       sx={{ color: "#10b981" }}
                     />
                   ) : (
-                    <WifiTethering
+                    <Avatar 
+                    src={tripGroupsMap[t.id]?.iconURL}
                       sx={{ color: "#ff6b6b" }}
                     />
                   )}
@@ -3291,7 +3297,7 @@ onDragEnd={(e, info) => {
                   fontWeight: 800,
                   backgroundColor: completed
                     ? "rgba(16,185,129,0.25)"
-                    : "rgba(255,0,0,0.25)",
+                    : "rgba(255,0,0,0.12)",
                   color: completed ? "#10b981" : mode === "dark" ? "#ffb4b4" : "#ff6868ff",
                 }}
               />
