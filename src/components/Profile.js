@@ -50,7 +50,7 @@ import {
 } from "@mui/material";
 import {
   ArrowDropDown, ArrowBack, Logout, PersonOutline, InfoOutlined,
-  CheckCircle, ChatBubbleOutline, Search, Share, QrCode,
+  CheckCircle, ChatBubbleOutline, Search, Share,
   Close, ArrowForwardIos, PhotoCamera, WbSunnyOutlined, LockOutlined,
   ContentCopyOutlined, DownloadOutlined, EngineeringOutlined, Mail,
   EditLocationOutlined, Settings, HelpOutline as HelpOutlineIcon,
@@ -68,7 +68,11 @@ import {
   BlockOutlined as BlockIcon, // Or just Block
   LocationOnOutlined as LocationOnOutlinedIcon,
 } from "@mui/icons-material";
-
+import {
+  QrCode,
+  Edit3,
+  Luggage,
+} from "lucide-react";
 import { signOut, updateProfile, getAuth, deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
 import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, arrayRemove, deleteDoc } from "firebase/firestore";
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
@@ -250,6 +254,22 @@ const ProfilePic = ({currentUser}) => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '' });
   const [unreadCount, setUnreadCount] = useState(0);
   const [backgroundOpen, setBackgroundOpen] = useState(false);
+  const [tripsCount, setTripsCount] = useState(0);
+
+useEffect(() => {
+  if (!auth.currentUser?.uid) return;
+
+  const q = query(
+    collection(db, "trips"),
+    where("members", "array-contains", auth.currentUser.uid)
+  );
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    setTripsCount(snapshot.size);
+  });
+
+  return () => unsubscribe();
+}, []);
 
   // Place this at the top level of your component, with your other hooks
 
@@ -1021,12 +1041,12 @@ sx={{
     sx: {
       mx: "auto",
       width: isSmallScreen ? "92vw" : 400,
-      backgroundColor: mode === "dark" ? "#00000059" : "#ffffffb4",
-      backdropFilter: 'blur(80px)',
+      backgroundColor: mode === "dark" ? "#000000" : "#ffffff00",
+      backdropFilter: 'blur(40px)',
       backgroundImage: 'none',
       color: theme.palette.text.primary,
       px: 2,
-      pb: 3,
+      pb: 6,
       pt: 4,
     },
   }}
@@ -1035,46 +1055,332 @@ sx={{
   {drawerPage === "main" && (
     <>
       {/* User info */}
-      <Box sx={{ display: "flex", alignItems: "left", my: 2, mx: 2 }}>
-        <IconButton edge="start" color="inherit" onClick={() => navigate(-1)} sx={{ mr: 2 }}>
-          <ArrowBack />
-        </IconButton>
-        <Typography sx={{ fontSize: '1.5rem' }}><h2>Settings</h2></Typography>
-      </Box>
-
-    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mx: 2 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, my: 0, py: 2, borderRadius: 5, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788'} }} onClick={() => handleSetDrawerPage("profile")}>
-        <Avatar src={userData.photoURL || ""} sx={{ width: 50, height: 50 }} />
-        <Box>
-          <Typography variant="subtitle1" fontWeight="bold">
-            {userData.name || "Username"}
-          </Typography>
-          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-            {userData.email || "Email"}
-          </Typography>
-        </Box>
-      </Box>
-      
-          <IconButton
-          onClick={() => handleSetDrawerPage("adduser")}
-          sx={{
-            ml: 1,
+      <Box sx={{ display: "flex", alignItems: "center", my: 2, mx: 2, zIndex: 999 }}>
+        <IconButton edge="start" color="inherit" onClick={() => navigate(-1)} 
+          sx={{ 
+            mr: 2,
             color: theme.palette.text.primary,
             backgroundColor: mode === "dark" ? "#f1f1f111" : "#01010111",
-            "&:hover": {
-              backgroundColor: "#f1f1f111",
-            },
+            p: 1.3,
+            height: 45,
+            boxShadow: 
+              mode === "dark" 
+              ? "inset 0 2px 6px rgba(255, 255, 255, 0.2), inset 0 -4px 10px rgba(255, 255, 255, 0.2)" 
+              : "inset 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 -4px 10px rgba(0, 0, 0, 0.2)",
           }}
         >
-          <QrCode />
+          <ArrowBack />
         </IconButton>
+         {/* <Typography sx={{ fontSize: '1.5rem' }}><h2>Settings</h2></Typography>  */}
+      </Box>
 
-    </Box>
+<Box
+  sx={{
+    position: "relative",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    mx: -2,
+    mt: -14,
+    px: 3,
+    py: 4,
+    minHeight: 440,
+    height: "100%",
 
-      <Divider sx={{ borderColor: "#333" }} />
+    transition: "all 0.35s ease",
+
+    "&:hover": {
+      transform: "translateY(-3px)",
+      boxShadow:
+        mode === "dark"
+          ? "0 28px 70px rgba(0,0,0,0.55)"
+          : "0 28px 70px rgba(0,0,0,0.12)",
+    },
+  }}
+>
+  {/* Background Dark Overlay */}
+  <Box
+    sx={{
+      position: "absolute",
+      inset: 0,
+      background:
+        mode === "dark"
+          ? "linear-gradient(180deg, rgba(0, 0, 0, 0.07), rgba(0, 0, 0, 0.08))"
+          : "linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.35))",
+      zIndex: 1,
+    }}
+  />
+
+  {/* Progressive Premium Blur */}
+
+
+  <Box
+    component="img"
+    src={userData.photoURL || ""}
+    alt="background"
+    sx={{
+      width: "100%",
+      height: "100%",
+      objectFit: "cover",
+      display: "block",
+      position: "absolute",
+            maskImage:
+        "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 20%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.15) 80%, rgba(0,0,0,0) 100%)",
+
+      WebkitMaskImage:
+        "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 20%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.15) 80%, rgba(0,0,0,0) 100%)",
+    }}
+  />
+
+
+  {/* Content */}
+<Box
+  sx={{
+    position: "relative",
+    zIndex: 5,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    width: "100%",
+    mt: 36,
+  }}
+>
+  {/* User Info Card */}
+  <Box
+    sx={{
+      background:"transparent",
+      border:"none",
+    }}
+  >
+    {/* Name */}
+    <Typography
+      variant="h6"
+      sx={{
+        fontWeight: 700,
+        color: "#fff",
+        letterSpacing: 0.3,
+      }}
+    >
+      {userData.name || "Username"}
+    </Typography>
+
+    {/* Username */}
+    <Typography
+      variant="body2"
+      sx={{
+        color: "rgba(255,255,255,0.68)",
+        fontSize: "0.9rem",
+        mt: 0.3,
+      }}
+    >
+      @{userData.username || "username"}
+    </Typography>
+
+    {/* Buttons Row */}
+<Box
+  sx={{
+    display: "flex",
+    justifyContent: "center",
+    gap: 1.2,
+    mt: 3,
+    flexWrap: "wrap",
+    width: "100%",
+  }}
+>
+  {/* Total Trips */}
+  <Button
+    variant="contained"
+    onClick={(e) => {
+      setDrawerOpen(false);
+      navigate("/trips");
+    }}
+    sx={{
+      minWidth: 112,
+      px: 3,
+      py: 2.3,
+      borderRadius: "18px",
+      textTransform: "none",
+      boxShadow: "none",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 0.2,
+      backdropFilter: "blur(14px)",
+      WebkitBackdropFilter: "blur(14px)",
+
+      background:
+        mode === "dark"
+          ? "rgba(255,255,255,0.08)"
+          : "rgba(255,255,255,0.3)",
+
+      backdropFilter: "blur(14px)",
+      WebkitBackdropFilter: "blur(14px)",
+
+      border: "1px solid rgba(255,255,255,0.08)",
+      color: "#fff",
+
+      transition: "all 0.25s ease",
+
+      "&:hover": {
+        transform: "translateY(-2px)",
+        background:
+          mode === "dark"
+            ? "rgba(255,255,255,0.14)"
+            : "rgba(255,255,255,0.4)",
+      },
+    }}
+  >
+    <Typography
+      sx={{
+        fontSize: "1.55rem",
+        fontWeight: 700,
+        lineHeight: 1,
+        color: "#fff",
+      }}
+    >
+      {tripsCount || 0}
+    </Typography>
+
+    <Typography
+      variant="caption"
+      sx={{
+        color: "rgba(255,255,255,0.65)",
+        fontWeight: 500,
+        letterSpacing: 0.4,
+      }}
+    >
+      Trips
+    </Typography>
+  </Button>
+
+  {/* Edit Profile */}
+  <Button
+    variant="contained"
+    onClick={(e) => {
+      e.stopPropagation();
+      handleSetDrawerPage("profile");
+    }}
+    sx={{
+      minWidth: 112,
+      px: 2,
+      py: 1.3,
+      borderRadius: "18px",
+      textTransform: "none",
+      boxShadow: "none",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 0.3,
+      backdropFilter: "blur(14px)",
+      WebkitBackdropFilter: "blur(14px)",
+
+      background:
+        mode === "dark"
+          ? "rgba(255,255,255,0.08)"
+          : "rgba(255,255,255,0.3)",
+
+      backdropFilter: "blur(14px)",
+      WebkitBackdropFilter: "blur(14px)",
+
+      border: "1px solid rgba(255,255,255,0.08)",
+      color: "#fff",
+
+      transition: "all 0.25s ease",
+
+      "&:hover": {
+        transform: "translateY(-2px)",
+        background:
+          mode === "dark"
+            ? "rgba(255,255,255,0.14)"
+            : "rgba(255,255,255,0.4)",
+      },
+    }}
+  >
+    <Edit3 size={22} />
+
+    <Typography
+      variant="caption"
+      sx={{
+        color: "rgba(255,255,255,0.7)",
+        fontWeight: 500,
+        letterSpacing: 0.3,
+      }}
+    >
+      Edit Profile
+    </Typography>
+  </Button>
+
+  {/* QR Code */}
+  <Button
+    variant="contained"
+    onClick={(e) => {
+      e.stopPropagation();
+      handleSetDrawerPage("adduser");
+    }}
+    sx={{
+      minWidth: 112,
+      px: 2,
+      py: 1.3,
+      borderRadius: "18px",
+      textTransform: "none",
+      boxShadow: "none",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 0.3,
+      backdropFilter: "blur(14px)",
+      WebkitBackdropFilter: "blur(14px)",
+
+      background:
+        mode === "dark"
+          ? "rgba(255,255,255,0.08)"
+          : "rgba(255,255,255,0.3)",
+
+      backdropFilter: "blur(14px)",
+      WebkitBackdropFilter: "blur(14px)",
+
+      border: "1px solid rgba(255,255,255,0.08)",
+      color: "#fff",
+
+      transition: "all 0.25s ease",
+
+      "&:hover": {
+        transform: "translateY(-2px)",
+        background:
+          mode === "dark"
+            ? "rgba(255,255,255,0.14)"
+            : "rgba(255,255,255,0.4)",
+      },
+    }}
+  >
+    <QrCode size={22} />
+
+    <Typography
+      variant="caption"
+      sx={{
+        color: "rgba(255,255,255,0.7)",
+        fontWeight: 500,
+        letterSpacing: 0.3,
+      }}
+    >
+      QR Code
+    </Typography>
+  </Button>
+</Box>
+  </Box>
+</Box>
+</Box>
+
 
       {/* Menu List */}
-      <List sx={{ my: 0, gap: 0, display: "flex", flexDirection: "column" }}>
+      <List sx={{ my: 0, mb: 4, gap: 0, display: "flex", flexDirection: "column" }}>
 
         {/* Accounts */}
         <ListItem sx={{ pb: 0 }}>
