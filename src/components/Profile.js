@@ -1056,14 +1056,13 @@ PaperProps={{
 
 <Box sx={{ pt: 0 }}>
   {/* Progressive Blur Overlay */}
-{/* Fixed Progressive Blur Header */}
 <Box
   sx={{
     position: "sticky",
     top: 0,
     left: 0,
     right: 0,
-    height: 60,
+    height: 120,
     zIndex: 20,
     mx: -2,
     pointerEvents: "none",
@@ -1118,12 +1117,14 @@ PaperProps={{
   {drawerPage === "main" && (
     <>
       {/* User info */}
-      <Box sx={{ display: "flex",position: "sticky", top: 60, left: 0, right: 0, alignItems: "center", my: 0, mx: 2, zIndex: 999 }}>
+      <Box sx={{ display: "flex",position: "sticky", top: 120, left: 0, right: 0, alignItems: "center", my: 0, mx: 2, zIndex: 999 }}>
         <IconButton edge="start" color="inherit" onClick={() => navigate(-1)} 
           sx={{
+            position: "relative",
+            top: -70,
             mr: 2,
             color: theme.palette.text.primary,
-            backgroundColor: mode === "dark" ? "#f1f1f111" : "#01010111",
+            backgroundColor: mode === "dark" ? "#f1f1f100" : "#01010100",
             p: 1.3,
             height: 45,
             backdropFilter: "blur(6px)",
@@ -1147,7 +1148,7 @@ PaperProps={{
     alignItems: "center",
     justifyContent: "center",
     mx: -2,
-    mt: -18,  
+    mt: -23,  
     px: 3,
     py: 4,
     maxHeight: 500,
@@ -1267,7 +1268,7 @@ PaperProps={{
 
       background:
         mode === "dark"
-          ? "rgba(255,255,255,0)"
+          ? "rgba(255, 255, 255, 0.08)"
           : "rgba(255,255,255,0.3)",
 
       backdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
@@ -1331,7 +1332,7 @@ PaperProps={{
 
       background:
         mode === "dark"
-          ? "rgba(255,255,255,0)"
+          ? "rgba(255, 255, 255, 0.08)"
           : "rgba(255,255,255,0.3)",
 
       backdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
@@ -1386,7 +1387,7 @@ PaperProps={{
 
       background:
         mode === "dark"
-          ? "rgba(255,255,255,0)"
+          ? "rgba(255, 255, 255, 0.08)"
           : "rgba(255,255,255,0.3)",
 
       backdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
