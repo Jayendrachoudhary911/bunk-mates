@@ -1037,32 +1037,96 @@ sx={{
   open={drawerOpen}
   onClose={handleDrawerClose}
   fullWidth
-  PaperProps={{
-    sx: {
-      mx: "auto",
-      width: isSmallScreen ? "92vw" : 400,
-      backgroundColor: mode === "dark" ? "#000000" : "#ffffff00",
-      backdropFilter: 'blur(40px)',
-      backgroundImage: 'none',
-      color: theme.palette.text.primary,
-      px: 2,
-      pb: 6,
-      pt: 4,
-    },
-  }}
+PaperProps={{
+  sx: {
+    mx: "auto",
+    width: isSmallScreen ? "92vw" : 400,
+    backgroundColor: mode === "dark" ? "#000000" : "#ffffff00",
+    backgroundImage: "none",
+    color: theme.palette.text.primary,
+    px: 2,
+    pb: 14,
+    pt: 0,
+    overflowY: "auto",
+    position: "relative",
+  },
+}}
 >
+
+
+<Box sx={{ pt: 0 }}>
+  {/* Progressive Blur Overlay */}
+{/* Fixed Progressive Blur Header */}
+<Box
+  sx={{
+    position: "sticky",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    zIndex: 20,
+    mx: -2,
+    pointerEvents: "none",
+
+    /* Glass blur */
+    backdropFilter: "blur(30px)",
+    WebkitBackdropFilter: "blur(30px)",
+
+    /* Premium gradient fade */
+    maskImage: `
+      linear-gradient(
+        to bottom,
+        rgba(0,0,0,1) 0%,
+        rgba(0,0,0,0.92) 18%,
+        rgba(0,0,0,0.72) 38%,
+        rgba(0,0,0,0.42) 62%,
+        rgba(0,0,0,0.12) 82%,
+        rgba(0,0,0,0) 100%
+      )
+    `,
+    WebkitMaskImage: `
+      linear-gradient(
+        to bottom,
+        rgba(0,0,0,1) 0%,
+        rgba(0,0,0,0.92) 18%,
+        rgba(0,0,0,0.72) 38%,
+        rgba(0,0,0,0.42) 62%,
+        rgba(0,0,0,0.12) 82%,
+        rgba(0,0,0,0) 100%
+      )
+    `,
+
+    background:
+      mode === "dark"
+        ? `
+          linear-gradient(
+            to bottom,
+            rgba(0,0,0,0.35),
+            rgba(0,0,0,0)
+          )
+        `
+        : `
+          linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.35),
+            rgba(255,255,255,0)
+          )
+        `,
+  }}
+/>
 
   {drawerPage === "main" && (
     <>
       {/* User info */}
-      <Box sx={{ display: "flex", alignItems: "center", my: 2, mx: 2, zIndex: 999 }}>
+      <Box sx={{ display: "flex",position: "sticky", top: 58, left: 0, right: 0, alignItems: "center", my: 0, mx: 2, zIndex: 999 }}>
         <IconButton edge="start" color="inherit" onClick={() => navigate(-1)} 
-          sx={{ 
+          sx={{
             mr: 2,
             color: theme.palette.text.primary,
             backgroundColor: mode === "dark" ? "#f1f1f111" : "#01010111",
             p: 1.3,
             height: 45,
+            backdropFilter: "blur(10px)",
             boxShadow: 
               mode === "dark" 
               ? "inset 0 2px 6px rgba(255, 255, 255, 0.2), inset 0 -4px 10px rgba(255, 255, 255, 0.2)" 
@@ -1083,21 +1147,11 @@ sx={{
     alignItems: "center",
     justifyContent: "center",
     mx: -2,
-    mt: -14,
+    mt: -18,  
     px: 3,
     py: 4,
-    minHeight: 440,
+    maxHeight: 500,
     height: "100%",
-
-    transition: "all 0.35s ease",
-
-    "&:hover": {
-      transform: "translateY(-3px)",
-      boxShadow:
-        mode === "dark"
-          ? "0 28px 70px rgba(0,0,0,0.55)"
-          : "0 28px 70px rgba(0,0,0,0.12)",
-    },
   }}
 >
   {/* Background Dark Overlay */}
@@ -4810,7 +4864,7 @@ sx={{
   <Container
     sx={{
       mt: 5,
-      mb: 4,
+      mb: 10,
       px: { xs: 2, sm: 3 },
       animation: "fadeIn 0.4s ease-in-out",
       "@keyframes fadeIn": { from: { opacity: 0 }, to: { opacity: 1 } },
@@ -5040,7 +5094,7 @@ sx={{
   </Container>
 )}
 
-
+</Box>
 </Drawer>
 
 {/* Logout Confirm Dialog */}
