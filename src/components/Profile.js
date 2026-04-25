@@ -1271,8 +1271,8 @@ PaperProps={{
           ? "rgba(255, 255, 255, 0.08)"
           : "rgba(255,255,255,0.3)",
 
-      backdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
-      WebkitBackdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
+      backdropFilter: "blur(70px) saturate(1.7) brightness(0.8)",
+      WebkitBackdropFilter: "blur(70px) saturate(1.7) brightness(0.8)",
 
       color: "#fff",
 
@@ -1335,8 +1335,8 @@ PaperProps={{
           ? "rgba(255, 255, 255, 0.08)"
           : "rgba(255,255,255,0.3)",
 
-      backdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
-      WebkitBackdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
+      backdropFilter: "blur(70px) saturate(1.7) brightness(0.8)",
+      WebkitBackdropFilter: "blur(70px) saturate(1.7) brightness(0.8)",
 
       color: "#fff",
 
@@ -1390,8 +1390,8 @@ PaperProps={{
           ? "rgba(255, 255, 255, 0.08)"
           : "rgba(255,255,255,0.3)",
 
-      backdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
-      WebkitBackdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
+      backdropFilter: "blur(70px) saturate(1.7) brightness(0.8)",
+      WebkitBackdropFilter: "blur(70px) saturate(1.7) brightness(0.8)",
 
       color: "#fff",
 
