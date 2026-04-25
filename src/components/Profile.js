@@ -1117,7 +1117,7 @@ PaperProps={{
   {drawerPage === "main" && (
     <>
       {/* User info */}
-      <Box sx={{ display: "flex",position: "sticky", top: 120, left: 0, right: 0, alignItems: "center", my: 0, mx: 2, zIndex: 999 }}>
+      <Box sx={{ display: "flex", position: "sticky", top: 120, left: 0, right: 0, alignItems: "center", my: 0, mx: 2, zIndex: 999 }}>
         <IconButton edge="start" color="inherit" onClick={() => navigate(-1)} 
           sx={{
             position: "relative",
@@ -1426,7 +1426,7 @@ PaperProps={{
 
 
       {/* Menu List */}
-      <List sx={{ my: 0, mb: 10, gap: 0, display: "flex", flexDirection: "column" }}>
+      <List sx={{ my: 0, mb: 10, mt: -5, gap: 0, display: "flex", flexDirection: "column" }}>
 
         {/* Accounts */}
         <ListItem sx={{ pb: 0 }}>
@@ -1525,7 +1525,7 @@ PaperProps={{
   )}
 
 {drawerPage === "accounts" && (
-  <Container sx={{ mt: 5, mb: 2 }}>
+  <Container sx={{ mt: -6, mb: 2 }}>
     {/* Header */}
     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
         <IconButton
@@ -1803,7 +1803,7 @@ PaperProps={{
 )}
 
 {drawerPage === "blockedContacts" && (
-  <Container sx={{ mt: 5, mb: 2 }}>
+  <Container sx={{ mt: -6, mb: 2 }}>
     {/* Header */}
     <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
       <IconButton
@@ -1913,7 +1913,7 @@ PaperProps={{
 )}
 
 {drawerPage === "chats" && (
-<Container sx={{ mt: 5, mb: 2 }}>
+<Container sx={{ mt: -6, mb: 2 }}>
 <Box
   sx={{
     display: 'flex',
@@ -2455,7 +2455,7 @@ PaperProps={{
 {drawerPage === "inviteFriend" && (
   <Container
     sx={{
-      mt: 5,
+      mt: -6,
       mb: 3,
       animation: "fadeIn 0.4s ease-in-out",
       "@keyframes fadeIn": { from: { opacity: 0 }, to: { opacity: 1 } },
@@ -2705,7 +2705,7 @@ PaperProps={{
 )}
 
 {drawerPage === "generalSettings" && (
-  <Container sx={{ mt: 5, mb: 2 }}>
+  <Container sx={{ mt: -6, mb: 2 }}>
     {/* Header */}
     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
       <IconButton
@@ -3004,7 +3004,7 @@ PaperProps={{
 {drawerPage === "about" && (
   <Container
     sx={{
-      mt: 6,
+      mt: -6,
       mb: 5,
       maxWidth: 700,
       borderRadius: 6,
@@ -3283,7 +3283,7 @@ PaperProps={{
 {drawerPage === "appInfo" && (
   <Container
     sx={{
-      mt: 5,
+      mt: -6,
       mb: 3,
       px: { xs: 2, sm: 3 },
       animation: "fadeIn 0.4s ease-in-out",
@@ -3566,7 +3566,7 @@ PaperProps={{
 )}
 
 {drawerPage === "featuresChangelog" && (
-  <Container sx={{ mt: 5, mb: 2 }}>
+  <Container sx={{ mt: -6, mb: 2 }}>
     {/* Back Button */}
     <Button
       startIcon={<ArrowBack />}
@@ -3695,7 +3695,7 @@ PaperProps={{
 )}
 
 {drawerPage === "support" && (
-  <Container sx={{ mt: 5, mb: 2 }}>
+  <Container sx={{ mt: -6, mb: 2 }}>
     <Button
       startIcon={<ArrowBack />}
       onClick={() => navigate(-1)}
@@ -3767,49 +3767,115 @@ PaperProps={{
 )}
 
 {drawerPage === "profile" && (
-  <Container sx={{ mt: 4, mb: 3 }}>
+  <Container sx={{ mt: -6, mb: 3 }}>
     {/* Title */}
-<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+<Box
+  sx={{
+    position: "sticky",
+    top: 50,
+    zIndex: 40,
+    mt: -10,
+
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+
+    mb: 3,
+    py: 0.6,
+    px: 0,
+    mx: -1.5,
+
+    /* Required for sticky inside Drawer */
+    background: "transparent",
+
+    /* prevents sticky clipping */
+    isolation: "isolate",
+  }}
+>
   {!isEditing ? (
     <>
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        flexDirection: "row"
-      }}
-    >
-      <IconButton
-        onClick={() => navigate(-1)}
+      <Box
         sx={{
-          mr: 2,
-          borderRadius: 8,
-          color: theme.palette.text.primary,
-          backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
-          '&:hover': { backgroundColor: "#f1f1f121" },
+          display: "flex",
+          alignItems: "center",
+          flexDirection: "row",
+          zIndex: 20,
         }}
       >
-        <ArrowBack />
+        <IconButton
+          onClick={() => navigate(-1)}
+          sx={{
+            mr: 1,
+            p: 1.3,
+            borderRadius: 8,
+            color: theme.palette.text.primary,
+            backgroundColor:
+              mode === "dark" ? "#f1f1f100" : "#e0e0e000",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+
+            boxShadow:
+              mode === "dark"
+                ? "inset 0 2px 6px rgba(255, 255, 255, 0.2), inset 0 -4px 10px rgba(255, 255, 255, 0.2)"
+                : "inset 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 -4px 10px rgba(0, 0, 0, 0.2)",
+
+            "&:hover": {
+              backgroundColor: "#f1f1f121",
+            },
+          }}
+        >
+          <ArrowBack />
+        </IconButton>
+
+        {userData.type && (
+          <Typography
+            variant="h6"
+            fontWeight="bold"
+            sx={{
+              background: "transparent",
+              px: 1.5,
+              py: 0.8,
+              borderRadius: 12,
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
+
+              boxShadow:
+                mode === "dark"
+                  ? "inset 0 2px 6px rgba(255, 255, 255, 0.2), inset 0 -4px 10px rgba(255, 255, 255, 0.2)"
+                  : "inset 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 -4px 10px rgba(0, 0, 0, 0.2)",
+            }}
+          >
+            {userData.type || "Profile"}
+          </Typography>
+        )}
+      </Box>
+
+      <IconButton
+        color="primary"
+        onClick={() => setIsEditing(true)}
+        sx={{
+          p: 1.3,
+          zIndex: 20,
+          borderRadius: 5,
+          bgcolor: "transparent",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
+
+          boxShadow:
+            mode === "dark"
+              ? "inset 0 2px 6px rgba(255, 255, 255, 0.2), inset 0 -4px 10px rgba(255, 255, 255, 0.2)"
+              : "inset 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 -4px 10px rgba(0, 0, 0, 0.2)",
+
+          "&:hover": {
+            bgcolor: "primary.dark",
+          },
+
+          color: mode === "dark" ? "white" : "black",
+        }}
+      >
+        <Edit3 size={22} />
       </IconButton>
-  <Typography variant="h5" fontWeight="bold">
-    Profile
-  </Typography>
-  </Box>
-  <IconButton
-    color="primary"
-    onClick={() => setIsEditing(true)}
-    sx={{
-      borderRadius: 5,
-      bgcolor: mode === "dark" ? '#f1f1f111' : '#e0e0e071',
-      '&:hover': {
-        bgcolor: 'primary.dark',
-      },
-      color: mode === "dark" ? 'white' : 'black',
-    }}
-  >
-    <PersonOutline />
-  </IconButton>
-  </>
+    </>
   ) : (
     <Typography variant="h5" fontWeight="bold">
       Edit Profile
@@ -4043,60 +4109,289 @@ PaperProps={{
 
     ) : (
       <>
-        {/* View Mode */}
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3, position: "relative" }}>
-          <>
+
   {/* --- Your Existing Avatar Code (with onClick added) --- */}
   <Box sx={{ display: "flex", opacity: profilePicOpen ? 0 : 1, flexDirection: "column", alignItems: "center", mb: 3, position: "relative" }}>
-    <Avatar
-      src={viewData?.photoURL || ""}
+<Box
+  sx={{
+    position: "relative",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    mx: 0,
+    mt: -15,  
+    px: 4,
+    py: 4,
+    maxHeight: 500,
+    height: "100%",
+    maxWidth: 540,
+    width: "100%",
+  }}
+>
+
+  {/* Progressive Premium Blur */}
+
+
+  <Box
+    component="img"
+    src={userData.photoURL || ""}
+    alt="background"
+    sx={{
+      height: "100%",
+      objectFit: "cover",
+      display: "block",
+      maxWidth: "100vw",
+      width: "calc(100% + 40px)",
+      position: "absolute",
+            maskImage:
+        "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 20%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.15) 80%, rgba(0,0,0,0) 100%)",
+
+      WebkitMaskImage:
+        "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 20%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.15) 80%, rgba(0,0,0,0) 100%)",
+    }}
+  />
+
+
+  {/* Content */}
+<Box
+  sx={{
+    position: "relative",
+    zIndex: 5,
+    textAlign: "center",
+    width: "100%",
+    mt: 36,
+  }}
+>
+  {/* User Info Card */}
+  <Box
+    sx={{
+      background:"transparent",
+      border:"none",
+    }}
+  >
+    {/* Name */}
+    <Typography
+      variant="h6"
       sx={{
-        width: 110,
-        height: 110,
-        cursor: 'pointer', // Make it look clickable
-        transition: 'transform 0.2s ease',
-        '&:hover': {
-          transform: 'scale(1.05)',
-        },
+        fontWeight: 700,
+        color: "#fff",
+        letterSpacing: 0.3,
       }}
-      onClick={() => setProfilePicOpen(true)} // This opens the dialog
-    />
-    {userData.type && (
-      <Box sx={{ position: "absolute", bottom: -10, right: "calc(30% - 10%)", zIndex: 10 }}>
-        <Chip
-          label={userData.type}
-          size="small"
-          variant="contained"
+    >
+      {userData.name || "Username"}
+    </Typography>
+
+    {/* Username */}
+    <Typography
+      variant="body2"
+      sx={{
+        color: "rgba(255,255,255,0.68)",
+        fontSize: "0.9rem",
+        mt: 0.3,
+      }}
+    >
+      @{userData.username || "username"}
+    </Typography>
+
+            {/* Beta Stats */}
+{(userData.type === "Beta" || userData.type === "Dev Beta") && (
+  <Box
+    sx={{
+      mt: 3,
+      mb: 3,
+
+      overflow: "hidden",
+      position: "relative",
+
+      background:"transparent",
+
+      backdropFilter: "blur(0px)",
+      WebkitBackdropFilter: "blur(0px)",
+
+      border:"none",
+
+      boxShadow:"none",
+
+      px: 0,
+      py: 0,
+    }}
+  >
+    {/* Glow Accent 
+    <Box
+      sx={{
+        position: "absolute",
+        top: -40,
+        right: -40,
+        width: 120,
+        height: 120,
+        borderRadius: "50%",
+        background:
+          mode === "dark"
+            ? "rgba(255,255,255,0.08)"
+            : "rgba(255,255,255,0.45)",
+        filter: "blur(50px)",
+      }}
+    />*/}
+
+    {/* Header */}
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        mb: 2.5,
+        position: "relative",
+        zIndex: 2,
+      }}
+    >
+      <Box>
+        <Typography
+          variant="subtitle1"
           sx={{
-            pointerEvents: "none",
-            userSelect: "none",
-            backgroundColor: mode === "dark" ? "#101010c9" : "#f1f1f1c9",
-            backdropFilter: "blur(80px)",
+            fontWeight: 700,
+            color: theme.palette.text.primary,
+            letterSpacing: 0.3,
+            textAlign: "left"
           }}
-        />
+        >
+          Beta Statistics
+        </Typography>
+
+        <Typography
+          variant="caption"
+          sx={{
+            color: theme.palette.text.secondary,
+            opacity: 0.75,
+            textAlign: "left"
+          }}
+        >
+          Your testing contribution
+        </Typography>
       </Box>
-    )}
-  </Box>
-</>
-          <Typography variant="h6" fontWeight="bold" sx={{ mt: 2 }}>
-            {viewData?.name || ""}
+
+      <Box
+        sx={{
+          px: 1.4,
+          py: 0.5,
+          borderRadius: "999px",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+
+          background:
+            mode === "dark"
+              ? "rgba(255,255,255,0.06)"
+              : "rgba(255,255,255,0.35)",
+
+          border:
+            mode === "dark"
+              ? "1px solid rgba(255,255,255,0.06)"
+              : "1px solid rgba(255,255,255,0.25)",
+        }}
+      >
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: 600,
+            color: theme.palette.text.secondary,
+          }}
+        >
+          {userData.type}
+        </Typography>
+      </Box>
+    </Box>
+
+    {/* Stats Grid */}
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: 1.2,
+        position: "relative",
+        zIndex: 2,
+      }}
+    >
+      {[
+        {
+          label: "Feedbacks",
+          value: feedbackCount,
+        },
+        {
+          label: "Issues",
+          value: issuesCount,
+        },
+        {
+          label: "Reports",
+          value: reportsCount,
+        },
+      ].map((item) => (
+        <Box
+          key={item.label}
+          sx={{
+            textAlign: "center",
+            borderRadius: "18px",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+            py: 2,
+
+            background:
+              mode === "dark"
+                ? "rgba(255,255,255,0.04)"
+                : "rgba(255,255,255,0.25)",
+
+
+            border:
+              mode === "dark"
+                ? "1px solid rgba(255,255,255,0.05)"
+                : "1px solid rgba(255,255,255,0.2)",
+
+            transition: "all 0.25s ease",
+
+            "&:hover": {
+              transform: "translateY(-2px)",
+              background:
+                mode === "dark"
+                  ? "rgba(255,255,255,0.07)"
+                  : "rgba(255,255,255,0.35)",
+            },
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: "1.3rem",
+              fontWeight: 700,
+              color: theme.palette.text.primary,
+              lineHeight: 1,
+            }}
+          >
+            {item.value}
           </Typography>
-          <Typography sx={{ color: "text.secondary" }}>
-            {viewData?.username ? "@" + viewData.username : ""}
+
+          <Typography
+            variant="caption"
+            sx={{
+              mt: 0.5,
+              display: "block",
+              color: theme.palette.text.secondary,
+              fontWeight: 500,
+            }}
+          >
+            {item.label}
           </Typography>
         </Box>
+      ))}
+    </Box>
+  </Box>
+)}
+  </Box>
+</Box>
+</Box>
 
-        {/* Beta Stats */}
-        {(userData.type === "Beta" || userData.type === "Dev Beta") && (
-          <Box sx={{ mb: 3, backgroundColor: "#f1f1f111", borderRadius: 5, px: 3, py: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
-              Your Beta Stats
-            </Typography>
-            <Typography variant="body2">Feedbacks: {feedbackCount}</Typography>
-            <Typography variant="body2">Issues: {issuesCount}</Typography>
-            <Typography variant="body2">Reports: {reportsCount}</Typography>
-          </Box>
-        )}
+
+  </Box>
+
+
 
         {/* Profile Details */}
         <List sx={{ borderRadius: 3 }}>
@@ -4539,7 +4834,7 @@ PaperProps={{
 )}
 
 {drawerPage === "feedback" && (
-  <Container sx={{ mt: 5, mb: 4 }}>
+  <Container sx={{ mt: -6, mb: 4 }}>
     {/* Back Button */}
     <Button
       startIcon={<ArrowBack />}
@@ -4631,7 +4926,7 @@ PaperProps={{
 
 {drawerPage === "adduser" && (
   <>
-    <Box sx={{ p: 2, mt: 3 }}>
+    <Box sx={{ p: 2, mt: -6 }}>
       {/* --- Header --- */}
       <Box sx={{ display: "flex", alignItems: "center", flexDirection: "row", mb: 2 }}>
         <IconButton
@@ -4855,7 +5150,7 @@ PaperProps={{
 {drawerPage === "developers" && (
   <Container
     sx={{
-      mt: 5,
+      mt: -6,
       mb: 10,
       px: { xs: 2, sm: 3 },
       animation: "fadeIn 0.4s ease-in-out",
