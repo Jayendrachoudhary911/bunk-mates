@@ -1045,7 +1045,7 @@ PaperProps={{
     backgroundImage: "none",
     color: theme.palette.text.primary,
     px: 2,
-    pb: 14,
+    pb: 4,
     pt: 0,
     overflowY: "auto",
     position: "relative",
@@ -1069,8 +1069,8 @@ PaperProps={{
     pointerEvents: "none",
 
     /* Glass blur */
-    backdropFilter: "blur(30px)",
-    WebkitBackdropFilter: "blur(30px)",
+    backdropFilter: "blur(40px)",
+    WebkitBackdropFilter: "blur(40px)",
 
     /* Premium gradient fade */
     maskImage: `
@@ -1118,7 +1118,7 @@ PaperProps={{
   {drawerPage === "main" && (
     <>
       {/* User info */}
-      <Box sx={{ display: "flex",position: "sticky", top: 58, left: 0, right: 0, alignItems: "center", my: 0, mx: 2, zIndex: 999 }}>
+      <Box sx={{ display: "flex",position: "sticky", top: 60, left: 0, right: 0, alignItems: "center", my: 0, mx: 2, zIndex: 999 }}>
         <IconButton edge="start" color="inherit" onClick={() => navigate(-1)} 
           sx={{
             mr: 2,
@@ -1126,7 +1126,7 @@ PaperProps={{
             backgroundColor: mode === "dark" ? "#f1f1f111" : "#01010111",
             p: 1.3,
             height: 45,
-            backdropFilter: "blur(10px)",
+            backdropFilter: "blur(6px)",
             boxShadow: 
               mode === "dark" 
               ? "inset 0 2px 6px rgba(255, 255, 255, 0.2), inset 0 -4px 10px rgba(255, 255, 255, 0.2)" 
@@ -1264,18 +1264,15 @@ PaperProps={{
       alignItems: "center",
       justifyContent: "center",
       gap: 0.2,
-      backdropFilter: "blur(14px)",
-      WebkitBackdropFilter: "blur(14px)",
 
       background:
         mode === "dark"
-          ? "rgba(255,255,255,0.08)"
+          ? "rgba(255,255,255,0)"
           : "rgba(255,255,255,0.3)",
 
-      backdropFilter: "blur(14px)",
-      WebkitBackdropFilter: "blur(14px)",
+      backdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
+      WebkitBackdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
 
-      border: "1px solid rgba(255,255,255,0.08)",
       color: "#fff",
 
       transition: "all 0.25s ease",
@@ -1331,18 +1328,15 @@ PaperProps={{
       alignItems: "center",
       justifyContent: "center",
       gap: 0.3,
-      backdropFilter: "blur(14px)",
-      WebkitBackdropFilter: "blur(14px)",
 
       background:
         mode === "dark"
-          ? "rgba(255,255,255,0.08)"
+          ? "rgba(255,255,255,0)"
           : "rgba(255,255,255,0.3)",
 
-      backdropFilter: "blur(14px)",
-      WebkitBackdropFilter: "blur(14px)",
+      backdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
+      WebkitBackdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
 
-      border: "1px solid rgba(255,255,255,0.08)",
       color: "#fff",
 
       transition: "all 0.25s ease",
@@ -1389,18 +1383,15 @@ PaperProps={{
       alignItems: "center",
       justifyContent: "center",
       gap: 0.3,
-      backdropFilter: "blur(14px)",
-      WebkitBackdropFilter: "blur(14px)",
 
       background:
         mode === "dark"
-          ? "rgba(255,255,255,0.08)"
+          ? "rgba(255,255,255,0)"
           : "rgba(255,255,255,0.3)",
 
-      backdropFilter: "blur(14px)",
-      WebkitBackdropFilter: "blur(14px)",
+      backdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
+      WebkitBackdropFilter: "blur(10px) saturate(1.7) brightness(0.8)",
 
-      border: "1px solid rgba(255,255,255,0.08)",
       color: "#fff",
 
       transition: "all 0.25s ease",
@@ -1434,7 +1425,7 @@ PaperProps={{
 
 
       {/* Menu List */}
-      <List sx={{ my: 0, mb: 4, gap: 0, display: "flex", flexDirection: "column" }}>
+      <List sx={{ my: 0, mb: 10, gap: 0, display: "flex", flexDirection: "column" }}>
 
         {/* Accounts */}
         <ListItem sx={{ pb: 0 }}>
