@@ -1041,7 +1041,7 @@ PaperProps={{
   sx: {
     mx: "auto",
     width: isSmallScreen ? "92vw" : 400,
-    backgroundColor: mode === "dark" ? "#000000" : "#ffffff00",
+    backgroundColor: mode === "dark" ? "#000000" : "#f1f1f1",
     backgroundImage: "none",
     color: theme.palette.text.primary,
     px: 2,
