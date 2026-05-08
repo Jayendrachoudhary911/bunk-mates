@@ -233,6 +233,7 @@ function AppContent() {
             <Route path="/developer/bunkmates/social" element={<BunkMatesSocialFeed />} />
             <Route path="/developer/OtpLogin" element={<OtpLogin />} />
             <Route path="/developer/maps" element={<UsersMap />} />     
+            <Route path="/developer/BudgetMngr" element={<Budgetmngr />} />     
 
             <Route
               path="/developer/waether-forecast"

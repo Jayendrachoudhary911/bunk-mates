@@ -5252,6 +5252,11 @@ PaperProps={{
             label: "User Maps",
             description: "View user distribution heatmaps and analytics.",
             action: () => navigate("/developer/maps"),
+          },
+          {
+            label: "Budget Manager",
+            description: "Manage and track your budget allocations.",
+            action: () => navigate("/developer/BudgetMngr"),
           }
         ].map((feature, index) => (
           <ListItem
