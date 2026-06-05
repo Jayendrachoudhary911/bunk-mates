@@ -197,7 +197,9 @@ const BottomNavBar = () => {
     const updateVisibility = () => {
       const currentScroll = window.scrollY;
       const scrollDown = currentScroll > lastScrollY && currentScroll > 80;
-      setVisible(!scrollDown);
+      const nextVisible = !scrollDown;
+
+      setVisible((prev) => (prev !== nextVisible ? nextVisible : prev));
       lastScrollY = currentScroll > 0 ? currentScroll : 0;
       ticking = false;
     };
@@ -209,7 +211,7 @@ const BottomNavBar = () => {
       }
     };
 
-    window.addEventListener("scroll", onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, [location.pathname]);
 
@@ -468,6 +470,7 @@ return (
       zIndex: 1010,
       // Slide in/out only vertically for smoother behavior
       transform: visible ? "translateY(0)" : "translateY(120%)",
+      willChange: "transform",
       transition: "transform 0.5s cubic-bezier(.4,0,.2,1)",
       background:
         mode === "dark"
@@ -498,11 +501,12 @@ return (
           alignItems: "center",
           py: 0.9,
           px: 1,
-          backdropFilter: "blur(8px) saturate(1.4)",
+          mb: 1.6,
+          backdropFilter: "blur(3px) saturate(1)",
           background:
             mode === "dark"
-              ? "linear-gradient(135deg, rgba(20, 20, 20, 0.12), rgba(40, 40, 40, 0))"
-              : "linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(240, 240, 240, 0))",
+              ? "rgba(0, 0, 0, 0.55)"
+              : "rgba(255, 255, 255, 0.25)",
           border:
             mode === "dark"
               ? "0px solid rgba(255,255,255,0.08)"
@@ -510,14 +514,14 @@ return (
           boxShadow:
             mode === "dark"
               ? `
-                inset 0 2px 6px rgba(255, 255, 255, 0.11),
-                inset 0 -4px 10px rgba(255, 255, 255, 0.07),
-                0 8px 30px rgba(0,0,0,0.4)
+                inset 0 1px 1px rgba(255, 255, 255, 0.11),
+                inset 0 -1px 1px rgba(255, 255, 255, 0.07),
+                0 1px 0px rgba(0,0,0,0.1)
               `
               : `
-                inset 0 2px 6px rgba(255,255,255,0.8),
-                inset 0 -4px 10px rgba(0,0,0,0.1),
-                0 8px 25px rgba(0,0,0,0.1)
+                inset 0 1px 1px rgba(255,255,255,0.8),
+                inset 0 -1px 1px rgba(0,0,0,0.1),
+                0 1px 0px rgba(0,0,0,0.1)
               `,
         }}
       >
@@ -604,6 +608,7 @@ return (
             sx={{
               width: 56,
               py: 0,
+              mb: 1.2,
               borderRadius: 10,
               height: 56,
               display: 'flex',
@@ -611,28 +616,28 @@ return (
               alignItems: 'center',
               justifyContent: 'center',
               background:
-                mode === "dark"
-                  ? "linear-gradient(135deg, rgba(20, 20, 20, 0.12), rgba(40, 40, 40, 0))"
-                  : "linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(240, 240, 240, 0))",
+            mode === "dark"
+              ? "rgba(0, 0, 0, 0.55)"
+              : "rgba(255, 255, 255, 0.25)",
               color: 
                  mode === "dark"
                   ? "#fff"
                   : "#000",
-              backdropFilter: "blur(8px)",
+              backdropFilter: "blur(2px)",
               border: mode === "dark"
                 ? "0px solid rgba(255,255,255,0.07)"
                 : "0px solid rgba(0,0,0,0.07)",
           boxShadow:
             mode === "dark"
               ? `
-                inset 0 2px 6px rgba(255, 255, 255, 0.11),
-                inset 0 -4px 10px rgba(255, 255, 255, 0.07),
-                0 8px 30px rgba(0,0,0,0.4)
+                inset 0 1px 1px rgba(255, 255, 255, 0.11),
+                inset 0 -1px 1px rgba(255, 255, 255, 0.07),
+                0 1px 0px rgba(0,0,0,0.1)
               `
               : `
-                inset 0 2px 6px rgba(255,255,255,0.8),
-                inset 0 -4px 10px rgba(0,0,0,0.1),
-                0 8px 25px rgba(0,0,0,0.1)
+                inset 0 1px 1px rgba(255,255,255,0.8),
+                inset 0 -1px 1px rgba(0,0,0,0.1),
+                0 1px 0px rgba(0,0,0,0.1)
               `,
               transition: "all 0.3s ease",
               transform: "scale(1)",

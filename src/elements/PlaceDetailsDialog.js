@@ -54,9 +54,7 @@ const PlaceDetailsDialog = ({
 
   /* ───────── MOTION MAPPINGS ───────── */
   const scale = useTransform(y, [0, 300], [1, 0.96]);
-
-  const backdropBlur = useTransform(y, [0, 300], [20, 0]);
-  const backdropSaturate = useTransform(y, [0, 300], [120, 100]);
+  const backdropOpacity = useTransform(y, [0, 300], [1, 0]);
 
   if (!open) return null;
 
@@ -74,9 +72,10 @@ const PlaceDetailsDialog = ({
             ? "radial-gradient(120% 90% at 50% 100%, rgba(32, 32, 32, 0.92), rgba(32, 32, 32, 0.92))"
             : "radial-gradient(120% 90% at 50% 100%, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.87))",
 
-          opacity: 1,
-          backdropFilter: `blur(${backdropBlur}px) saturate(${backdropSaturate}%)`,
-          WebkitBackdropFilter: `blur(${backdropBlur}px) saturate(${backdropSaturate}%)`,
+          opacity: backdropOpacity,
+          backdropFilter: "blur(20px) saturate(120%)",
+          WebkitBackdropFilter: "blur(20px) saturate(120%)",
+          willChange: "opacity",
         }}
       />
 
@@ -130,6 +129,7 @@ const PlaceDetailsDialog = ({
           y,
           scale,
           touchAction: "none",
+          willChange: "transform",
         }}
         transition={{ type: "spring", stiffness: 260, damping: 30 }}
       >

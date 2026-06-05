@@ -10,6 +10,7 @@
   width: 90%;
   height: 100%;
   cursor: grab;
+  will-change: transform;
 }
 
 .card-rotate-disabled {
@@ -27,6 +28,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
 }
 
 .card img {

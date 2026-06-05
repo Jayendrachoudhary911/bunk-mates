@@ -11,13 +11,22 @@ export default function FloatingSearch({ mode }) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      const isScrolled = window.scrollY > 20;
-      setScrolled(isScrolled);
-      if (isScrolled) setExpanded(false);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const isScrolled = window.scrollY > 20;
+          setScrolled((prev) => (prev !== isScrolled ? isScrolled : prev));
+          if (isScrolled) {
+            setExpanded(false);
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -30,7 +39,7 @@ export default function FloatingSearch({ mode }) {
     <Box
       sx={{
         position: "fixed",
-        bottom: 74,
+        bottom: 85,
         right: 41,
         zIndex: 1100,
         pointerEvents: "none",
@@ -52,14 +61,15 @@ export default function FloatingSearch({ mode }) {
           px: expanded ? 3 : 0,
 
           transition: "all 0.45s cubic-bezier(0.4, 0, 0.2, 1)",
+          willChange: "transform, min-width, border-radius",
 
           // 🔥 LIQUID GLASS BASE
-          backdropFilter: "blur(8px) saturate(180%)",
-          WebkitBackdropFilter: "blur(8px) saturate(180%)",
+          backdropFilter: "blur(2px) saturate(2)",
+          WebkitBackdropFilter: "blur(2px) saturate(2)",
 
           background:
             mode === "dark"
-              ? "rgba(0, 0, 0, 0.35)"
+              ? "rgba(0, 0, 0, 0.65)"
               : "rgba(255, 255, 255, 0.25)",
 
 
@@ -69,12 +79,14 @@ export default function FloatingSearch({ mode }) {
           boxShadow:
             mode === "dark"
               ? `
-                inset 0 2px 6px rgba(255, 255, 255, 0.11),
-                inset 0 -4px 10px rgba(255, 255, 255, 0.07)
+                inset 0 1px 1px rgba(255, 255, 255, 0.11),
+                inset 0 -1px 1px rgba(255, 255, 255, 0.07),
+                0 1px 0px rgba(0,0,0,0.1)
               `
               : `
-                inset 0 2px 6px rgba(255,255,255,0.8),
-                inset 0 -4px 10px rgba(0,0,0,0.1)
+                inset 0 1px 1px rgba(255,255,255,0.8),
+                inset 0 -1px 1px rgba(0,0,0,0.1),
+                0 1px 0px rgba(0,0,0,0.1)
               `,
 
           "& .MuiButton-startIcon": {

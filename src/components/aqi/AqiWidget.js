@@ -335,6 +335,7 @@ export default function AQIWidget({
     [0, 1],
     ["32px 32px 22px 22px", "18px"]
   );
+  const backdropOpacity = useTransform(progress, [0, 1], [1, 0]);
 
   // 🌊 Smooth close animation
   const smoothClose = (velocity = 0) => {
@@ -418,7 +419,9 @@ export default function AQIWidget({
               inset: 0,
               background: "rgba(0,0,0,0.35)",
               backdropFilter: "blur(18px)",
+              opacity: backdropOpacity,
               zIndex: 99999,
+              willChange: "opacity",
             }}
           />
 
@@ -453,6 +456,7 @@ export default function AQIWidget({
     opacity,
     width: "100%",
     maxWidth: 600,
+    willChange: "transform",
   }}
   initial={{ y: 80, opacity: 0, scale: 0.98 }}
   animate={{ y: 0, opacity: 1, scale: 1 }}
@@ -475,7 +479,7 @@ onDragEnd={(e, info) => {
 
   if (shouldClose) {
     // 🌊 CONTINUE MOTION (no abrupt jump)
-    smoothClose(y, velocity);
+    smoothClose(velocity);
 
     // delay state change slightly → allows animation to finish
     setTimeout(() => setOpen(false), 180);

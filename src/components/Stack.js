@@ -57,7 +57,8 @@ export default function Stacked({
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < mobileBreakpoint);
+      const nextIsMobile = window.innerWidth < mobileBreakpoint;
+      setIsMobile((prev) => (prev !== nextIsMobile ? nextIsMobile : prev));
     };
 
     checkMobile();
