@@ -5257,6 +5257,11 @@ PaperProps={{
             label: "Budget Manager",
             description: "Manage and track your budget allocations.",
             action: () => navigate("/developer/BudgetMngr"),
+          },
+          {
+            label: "Notes",
+            description: "A simple note-taking feature for testing purposes.",
+            action: () => navigate("/developer/notes"),
           }
         ].map((feature, index) => (
           <ListItem

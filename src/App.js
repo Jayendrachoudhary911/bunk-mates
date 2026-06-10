@@ -47,6 +47,7 @@ import BunkMatesSocialFeed from "./components/BunkMatesSocialFeed";
 import GroupDevChats from "./components/DevBeta/GroupChats";
 import GroupList from "./components/DevBeta/GroupList";
 import OtpLogin from "./components/DevBeta/OtpLogin";
+import NewNotes from "./components/DevBeta/Notes";
 import UsersMap from "./pages/MapsPage";
 import TravelAI from "./pages/TravelAI";
 
@@ -233,7 +234,8 @@ function AppContent() {
             <Route path="/developer/bunkmates/social" element={<BunkMatesSocialFeed />} />
             <Route path="/developer/OtpLogin" element={<OtpLogin />} />
             <Route path="/developer/maps" element={<UsersMap />} />     
-            <Route path="/developer/BudgetMngr" element={<Budgetmngr />} />     
+            <Route path="/developer/BudgetMngr" element={<Budgetmngr />} />   
+            <Route path="/developer/notes" element={<NewNotes />} />  
 
             <Route
               path="/developer/waether-forecast"

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Box,
   Card,
@@ -12,35 +12,6 @@ import {
 } from "@mui/material";
 import { LocationOn, AccessTime } from "../../icons/LucideIcons";
 
-const slideVariants = {
-  enter: (direction) => ({
-    x: direction > 0 ? 250 : -250,
-    opacity: 0,
-    scale: 0.96,
-    filter: "blur(8px)",
-  }),
-
-  center: {
-    zIndex: 2,
-    x: 0,
-    opacity: 1,
-    scale: 1,
-    filter: "blur(0px)",
-  },
-
-  exit: (direction) => ({
-    zIndex: 1,
-    x: direction < 0 ? 250 : -250,
-    opacity: 0,
-    scale: 0.96,
-    filter: "blur(8px)",
-    position: "absolute",
-    width: "100%",
-    top: 0,
-    left: 0,
-  }),
-};
-
 export default function YourTrips({
   myTrips,
   tripGroupsMap,
@@ -52,23 +23,50 @@ export default function YourTrips({
   navigate,
 }) {
   const hasTrips = myTrips && myTrips.length > 0;
-  const [direction, setDirection] = useState(0);
-  const lastIndexRef = useRef(sliderIndex);
+  const containerRef = useRef(null);
+  const [width, setWidth] = useState(0);
 
   useEffect(() => {
-    if (sliderIndex !== lastIndexRef.current) {
-      setDirection(sliderIndex > lastIndexRef.current ? 1 : -1);
-      lastIndexRef.current = sliderIndex;
+    if (containerRef.current) {
+      setWidth(containerRef.current.clientWidth);
     }
-  }, [sliderIndex]);
+    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
+      const observer = new ResizeObserver((entries) => {
+        for (let entry of entries) {
+          setWidth(entry.contentRect.width);
+        }
+      });
+      observer.observe(containerRef.current);
+      return () => observer.disconnect();
+    } else {
+      const handleResize = () => {
+        if (containerRef.current) {
+          setWidth(containerRef.current.clientWidth);
+        }
+      };
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }
+  }, [hasTrips]);
 
-  const paginate = (newDirection) => {
-    const nextIndex = sliderIndex + newDirection;
-    if (nextIndex >= 0 && nextIndex < myTrips.length) {
-      setDirection(newDirection);
-      lastIndexRef.current = sliderIndex;
-      setSliderIndex(nextIndex);
+  const handleDragEnd = (event, info) => {
+    const dragOffset = info.offset.x;
+    const currentPosition = -sliderIndex * width + dragOffset;
+    const rawIndex = -currentPosition / (width || 1);
+    
+    let newIndex = Math.round(rawIndex);
+    
+    // Quick swipe detection for highly responsive touch gestures
+    const swipeThreshold = 40;
+    const velocityThreshold = 0.2;
+    if (info.velocity.x < -velocityThreshold && dragOffset < -swipeThreshold) {
+      newIndex = Math.min(sliderIndex + 1, myTrips.length - 1);
+    } else if (info.velocity.x > velocityThreshold && dragOffset > swipeThreshold) {
+      newIndex = Math.max(sliderIndex - 1, 0);
     }
+    
+    newIndex = Math.max(0, Math.min(newIndex, myTrips.length - 1));
+    setSliderIndex(newIndex);
   };
 
   const tripInfo = hasTrips ? myTrips[sliderIndex] : null;
@@ -81,235 +79,208 @@ export default function YourTrips({
             Your Trips
           </Typography>
 
-          <Box sx={{ position: "relative", minHeight: 125, width: "100%", overflow: "hidden" }}>
-            <AnimatePresence initial={false} custom={direction}>
-              <motion.div
-                key={tripInfo.id}
-                custom={direction}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-transition={{
-  x: {
-    type: "spring",
-    stiffness: 110,
-    damping: 22,
-    mass: 1.1,
-  },
-
-  opacity: {
-    duration: 0.45,
-    ease: [0.22, 1, 0.36, 1],
-  },
-
-  scale: {
-    duration: 0.45,
-    ease: [0.22, 1, 0.36, 1],
-  },
-
-  filter: {
-    duration: 0.45,
-  },
-}}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.18}
-dragMomentum={true}
-dragTransition={{
-  bounceStiffness: 120,
-  bounceDamping: 18,
-}}
-whileDrag={{
-  scale: 0.97,
-  rotateY: 3,
-  cursor: "grabbing",
-}}
-                onDragEnd={(e, { offset, velocity }) => {
-                  const swipeThreshold = 50; // px
-                  if (offset.x < -swipeThreshold && sliderIndex < myTrips.length - 1) {
-                    paginate(1);
-                  } else if (offset.x > swipeThreshold && sliderIndex > 0) {
-                    paginate(-1);
-                  }
-                }}
-                style={{
-                  width: "100%",
-                }}
-              >
-                <Box sx={{ px: 0 }}>
-                  <Card
-                    onClick={() => navigate(`/trips/${tripInfo.id}`)}
+          <Box 
+            ref={containerRef}
+            sx={{ position: "relative", minHeight: 125, width: "100%", overflow: "hidden" }}
+          >
+            <motion.div
+              drag="x"
+              dragConstraints={{ left: -width * (myTrips.length - 1), right: 0 }}
+              dragElastic={0.2}
+              onDragEnd={handleDragEnd}
+              animate={{ x: -sliderIndex * width }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              style={{
+                display: "flex",
+                width: `${myTrips.length * 100}%`,
+                cursor: "grab",
+              }}
+              whileDrag={{ cursor: "grabbing" }}
+            >
+              {myTrips.map((trip, i) => {
+                const tripInfo = trip;
+                return (
+                  <Box
+                    key={tripInfo.id}
                     sx={{
-                      position: "relative",
-                      overflow: "hidden",
-                      borderRadius: "24px",
-                      cursor: "pointer",
-                      mx: { xs: 1, lg: 0 },
-                      height: 125,
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "flex-end",
-
-                      background:
-                        mode === "dark"
-                          ? "linear-gradient(135deg, #1e1e1e00, #2c2c2c00)"
-                          : "linear-gradient(135deg, #f5f5f501, #e0e0e001)",
-
-                      boxShadow:
-                        mode === "dark"
-                          ? `
-                            inset 0 1px 1px rgba(255, 255, 255, 0.11),
-                            inset 0 -1px 1px rgba(255, 255, 255, 0.07),
-                            0 1px 0px rgba(0,0,0,0.1)
-                          `
-                          : `
-                            inset 0 1px 1px rgba(255,255,255,0.8),
-                            inset 0 -1px 1px rgba(0,0,0,0.1),
-                            0 1px 0px rgba(0,0,0,0.1)
-                          `,
-
-                      transition: "all 0.35s ease",
-
-                      "&:hover": {
-                        boxShadow: "none",
-                      },
-
-                      // Transparent image layer
-                      "&::after": tripGroupsMap[tripInfo.id]?.iconURL
-                        ? {
-                            content: '""',
-                            position: "absolute",
-                            inset: 0,
-                            backgroundImage: `url(${tripGroupsMap[tripInfo.id].iconURL})`,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                            opacity: 0.15, // <-- image transparency
-                            zIndex: 0,
-                          }
-                        : {},
-
-                      // Dark overlay
-                      "&::before": {
-                        content: '""',
-                        position: "absolute",
-                        inset: 0,
-                        zIndex: 1,
-                      },
-
-                      // Keep card content above both layers
-                      "& > *": {
-                        position: "relative",
-                        zIndex: 2,
-                      },
+                      width: width || "100%",
+                      flexShrink: 0,
+                      boxSizing: "border-box",
+                      px: { xs: 1, lg: 0 },
                     }}
                   >
-                    {/* Glass Content Layer */}
-                    <CardContent
+                    <Card
+                      onClick={() => navigate(`/trips/${tripInfo.id}`)}
                       sx={{
                         position: "relative",
-                        zIndex: 2,
+                        overflow: "hidden",
+                        borderRadius: "24px",
+                        cursor: "pointer",
+                        height: 125,
                         display: "flex",
                         flexDirection: "column",
                         justifyContent: "flex-end",
-                        backdropFilter: "blur(6px)",
-                        height: "100%",
-                        boxSizing: "border-box",
-                        p: 2,
+
+                        background:
+                          mode === "dark"
+                            ? "linear-gradient(135deg, #1e1e1e00, #2c2c2c00)"
+                            : "linear-gradient(135deg, #f5f5f501, #e0e0e001)",
+
+                        boxShadow:
+                          mode === "dark"
+                            ? `
+                              inset 0 1px 1px rgba(255, 255, 255, 0.11),
+                              inset 0 -1px 1px rgba(255, 255, 255, 0.07),
+                              0 1px 0px rgba(0,0,0,0.1)
+                            `
+                            : `
+                              inset 0 1px 1px rgba(255,255,255,0.8),
+                              inset 0 -1px 1px rgba(0,0,0,0.1),
+                              0 1px 0px rgba(0,0,0,0.1)
+                            `,
+
+                        transition: "all 0.35s ease",
+
+                        "&:hover": {
+                          boxShadow: "none",
+                        },
+
+                        // Transparent image layer
+                        "&::after": tripGroupsMap[tripInfo.id]?.iconURL
+                          ? {
+                              content: '""',
+                              position: "absolute",
+                              inset: 0,
+                              backgroundImage: `url(${tripGroupsMap[tripInfo.id].iconURL})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                              opacity: 0.15, // <-- image transparency
+                              zIndex: 0,
+                            }
+                          : {},
+
+                        // Dark overlay
+                        "&::before": {
+                          content: '""',
+                          position: "absolute",
+                          inset: 0,
+                          zIndex: 1,
+                        },
+
+                        // Keep card content above both layers
+                        "& > *": {
+                          position: "relative",
+                          zIndex: 2,
+                        },
                       }}
                     >
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="flex-end"
-                        gap={2}
-                        width="100%"
+                      {/* Glass Content Layer */}
+                      <CardContent
+                        sx={{
+                          position: "relative",
+                          zIndex: 2,
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "flex-end",
+                          backdropFilter: "blur(6px)",
+                          height: "100%",
+                          boxSizing: "border-box",
+                          p: 2,
+                        }}
                       >
-                        {/* Left Content */}
-                        <Box sx={{ overflow: "hidden" }}>
-                          <Typography
-                            variant="h6"
-                            sx={{
-                              fontWeight: 800,
-                              color: "#fff",
-                              letterSpacing: 0.3,
-                            }}
-                            noWrap
-                          >
-                            {tripInfo?.name || "Unnamed Trip"}
-                          </Typography>
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="flex-end"
+                          gap={2}
+                          width="100%"
+                        >
+                          {/* Left Content */}
+                          <Box sx={{ overflow: "hidden" }}>
+                            <Typography
+                              variant="h6"
+                              sx={{
+                                fontWeight: 800,
+                                color: "#fff",
+                                letterSpacing: 0.3,
+                              }}
+                              noWrap
+                            >
+                              {tripInfo?.name || "Unnamed Trip"}
+                            </Typography>
 
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: "rgba(255,255,255,0.75)",
-                              display: "flex",
-                              alignItems: "center",
-                              mt: 0.5,
-                            }}
-                            noWrap
-                          >
-                            <LocationOn sx={{ fontSize: 16, mr: 0.7, flexShrink: 0 }} />
-                            {tripInfo?.from || "Unknown"} →{" "}
-                            {tripInfo?.location || "Unknown"}
-                          </Typography>
-
-                          {(tripInfo?.startDate || tripInfo?.date) && (
                             <Typography
                               variant="body2"
                               sx={{
-                                color: "rgba(255,255,255,0.7)",
+                                color: "rgba(255,255,255,0.75)",
                                 display: "flex",
                                 alignItems: "center",
-                                mt: 0.3,
+                                mt: 0.5,
+                              }}
+                              noWrap
+                            >
+                              <LocationOn sx={{ fontSize: 16, mr: 0.7, flexShrink: 0 }} />
+                              {tripInfo?.from || "Unknown"} →{" "}
+                              {tripInfo?.location || "Unknown"}
+                            </Typography>
+
+                            {(tripInfo?.startDate || tripInfo?.date) && (
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  color: "rgba(255,255,255,0.7)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  mt: 0.3,
+                                }}
+                              >
+                                <AccessTime sx={{ fontSize: 16, mr: 0.7, flexShrink: 0 }} />
+                                {tripInfo?.startDate || "?"} → {tripInfo?.date || "?"}
+                              </Typography>
+                            )}
+                          </Box>
+
+                          {/* Avatar Group */}
+                          {tripMembersMap[tripInfo.id]?.length > 0 && (
+                            <AvatarGroup
+                              max={3}
+                              sx={{
+                                flexShrink: 0,
+                                "& .MuiAvatar-root": {
+                                  width: 30,
+                                  height: 30,
+                                  fontSize: 12,
+                                  border:
+                                    mode === "dark"
+                                      ? "2px solid #1d1d1d"
+                                      : "2px solid #ddd",
+                                  backdropFilter: "blur(4px)",
+                                },
                               }}
                             >
-                              <AccessTime sx={{ fontSize: 16, mr: 0.7, flexShrink: 0 }} />
-                              {tripInfo?.startDate || "?"} → {tripInfo?.date || "?"}
-                            </Typography>
+                              {tripMembersMap[tripInfo.id].map((m) => (
+                                <Tooltip
+                                  title={m.name || `@${m.username}`}
+                                  key={m.uid}
+                                >
+                                  <Avatar
+                                    src={
+                                      m.photoURL ||
+                                      `https://api.dicebear.com/7.x/identicon/svg?seed=${m.uid}`
+                                    }
+                                    alt={m.name || m.username}
+                                  />
+                                </Tooltip>
+                              ))}
+                            </AvatarGroup>
                           )}
                         </Box>
-
-                        {/* Avatar Group */}
-                        {tripMembersMap[tripInfo.id]?.length > 0 && (
-                          <AvatarGroup
-                            max={3}
-                            sx={{
-                              flexShrink: 0,
-                              "& .MuiAvatar-root": {
-                                width: 30,
-                                height: 30,
-                                fontSize: 12,
-                                border:
-                                  mode === "dark"
-                                    ? "2px solid #1d1d1d"
-                                    : "2px solid #ddd",
-                                backdropFilter: "blur(4px)",
-                              },
-                            }}
-                          >
-                            {tripMembersMap[tripInfo.id].map((m) => (
-                              <Tooltip
-                                title={m.name || `@${m.username}`}
-                                key={m.uid}
-                              >
-                                <Avatar
-                                  src={
-                                    m.photoURL ||
-                                    `https://api.dicebear.com/7.x/identicon/svg?seed=${m.uid}`
-                                  }
-                                  alt={m.name || m.username}
-                                />
-                              </Tooltip>
-                            ))}
-                          </AvatarGroup>
-                        )}
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Box>
-              </motion.div>
-            </AnimatePresence>
+                      </CardContent>
+                    </Card>
+                  </Box>
+                );
+              })}
+            </motion.div>
           </Box>
 
           {/* DOTS / INDICATORS */}
@@ -325,12 +296,11 @@ whileDrag={{
               {myTrips.map((_, i) => (
                 <Box
                   key={i}
-                  onClick={() => {
-                    if (i !== sliderIndex) {
-                      setDirection(i > sliderIndex ? 1 : -1);
-                      setSliderIndex(i);
-                    }
-                  }}
+onClick={() => {
+  if (i !== sliderIndex) {
+    setSliderIndex(i);
+  }
+}}
                   sx={{
                     width: i === sliderIndex ? 34 : 8,
                     height: 6,
