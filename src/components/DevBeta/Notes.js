@@ -40,7 +40,7 @@ import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import ReactMarkdown from 'react-markdown';
-import { db, auth } from "../firebase";
+import { db, auth } from "../../firebase";
 import {
   collection,
   addDoc,
@@ -57,12 +57,12 @@ import {
   serverTimestamp,
   limit
 } from "firebase/firestore";
-import { weatherColors } from "../elements/weatherTheme";
-import { useWeather } from "../contexts/WeatherContext";
-import BetaAccessGuard from "../components/BetaAccessGuard";
-import { useThemeToggle } from "../contexts/ThemeToggleContext";
-import { getTheme } from "../theme";
-import NotificationsPage from "../elements/Notifications";
+import { weatherColors } from "../../elements/weatherTheme";
+import { useWeather } from "../../contexts/WeatherContext";
+import BetaAccessGuard from "../../components/BetaAccessGuard";
+import { useThemeToggle } from "../../contexts/ThemeToggleContext";
+import { getTheme } from "../../theme";
+import NotificationsPage from "../../elements/Notifications";
 
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
 
