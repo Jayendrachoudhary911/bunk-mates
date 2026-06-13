@@ -39,6 +39,7 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import CloseIcon from "@mui/icons-material/Close";
 import ReactMarkdown from 'react-markdown';
 import { Search } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
@@ -216,18 +217,8 @@ const GlassActionToolbar = ({
   );
 };
 
-const FloatingNewNotes = ({ 
-  mode, 
-  setNoteTitle, 
-  setNoteContent, 
-  titleInputRef, 
-  contentInputRef, 
-  setNoteLabels, 
-  setCollaborators, 
-  setSelectedNote, 
-  setEditDrawerOpen, 
-  setDrawerOpen 
-}) => {
+/* FIXED: Refactored FloatingNewNotes to read the clean 'onOpen' callback function prop */
+const FloatingNewNotes = ({ mode, onOpen }) => {
   const [expanded, setExpanded] = useState(true);
   const [scrolled, setScrolled] = useState(false);
 
@@ -267,18 +258,7 @@ const FloatingNewNotes = ({
       }}
     >
       <Button
-        onClick={() => {
-          // Reset everything so the drawer always opens as a fresh new note
-          if (setNoteTitle) setNoteTitle("");
-          if (setNoteContent) setNoteContent("");
-          if (titleInputRef) titleInputRef.current = "";
-          if (contentInputRef) contentInputRef.current = "";
-          if (setNoteLabels) setNoteLabels([]);
-          if (setCollaborators) setCollaborators([]);
-          if (setSelectedNote) setSelectedNote(null);
-          if (setEditDrawerOpen) setEditDrawerOpen(false);
-          if (setDrawerOpen) setDrawerOpen(true);
-        }}
+        onClick={onOpen}
         onMouseEnter={() => !scrolled && setExpanded(true)}
         onMouseLeave={() => !scrolled && setExpanded(false)}
         startIcon={<SquarePen sx={{ fontSize: expanded ? 27 : 42 }} />}
@@ -307,7 +287,7 @@ const FloatingNewNotes = ({
           color: mode === "dark" ? "#fff" : "#000",
 
           // 🔥 DEPTH (liquid feel)
-boxShadow: mode === "dark"
+          boxShadow: mode === "dark"
                             ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
                             : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
 
@@ -373,8 +353,6 @@ boxShadow: mode === "dark"
 };
 
 // ─── NoteCardContent: lazily renders ReactMarkdown via IntersectionObserver ───
-// Off-screen cards skip the markdown parse completely — critical for low-end Android
-// with large lists. Cards pre-render 200px before entering the viewport (no pop-in).
 const NoteCardContent = React.memo(({ previewContent, mdComponents, mode }) => {
   const containerRef = React.useRef(null);
   const [isVisible, setIsVisible] = React.useState(false);
@@ -399,17 +377,12 @@ const NoteCardContent = React.memo(({ previewContent, mdComponents, mode }) => {
       {isVisible ? (
         <ReactMarkdown components={mdComponents}>{previewContent}</ReactMarkdown>
       ) : (
-        // Skeleton placeholder while off-screen — zero parse cost
         <Box sx={{ height: 4, width: "60%", borderRadius: 1, bgcolor: mode === "dark" ? "#ffffff15" : "#00000010" }} />
       )}
     </Box>
   );
 });
 
-// ─── NoteCard: defined at MODULE level so React.memo is effective ─────────────
-// If defined inside Notes(), every keystroke recreates this reference,
-// destroying memo and forcing React to unmount+remount every card in the list.
-// Memoize markdown components at module level to avoid recreation
 const createMdComponents = (mode) => ({
   p: ({ children }) => (
     <Typography variant="body2" sx={{ fontSize: 12, lineHeight: 1.4, color: mode === "dark" ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.65)", mb: 0.3, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
@@ -426,31 +399,109 @@ const createMdComponents = (mode) => ({
   li: ({ children }) => <Typography component="li" variant="body2" sx={{ fontSize: 12, color: mode === "dark" ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.65)", mb: 0.2 }}>{children}</Typography>,
   code: ({ children }) => <Box component="code" sx={{ fontSize: 10, fontFamily: "monospace", bgcolor: mode === "dark" ? "#ffffff15" : "#00000010", px: 0.3, borderRadius: 0.3 }}>{children}</Box>,
   pre: ({ children }) => <Box component="pre" sx={{ fontSize: 10, fontFamily: "monospace", bgcolor: mode === "dark" ? "#ffffff15" : "#00000010", p: 0.3, borderRadius: 0.5, whiteSpace: "pre-wrap", m: 0, display: "none" }}>{children}</Box>,
-  br: () => null, // Skip br tags in preview for lower overhead
+  br: () => null,
 });
 
-const NoteCard = React.memo(({ note, onOpen, onMenu, mode, theme }) => {
-  const mdComponents = React.useMemo(() => createMdComponents(mode), [mode]);
+// A highly optimized, lightweight hook to track touch/click holding durations
+const useLongPress = (callback, ms = 500) => {
+  const timeoutRef = useRef(null);
+  const isLongPressTriggeredRef = useRef(false);
 
-  // Limit content to 150 chars for low-end Android devices (faster markdown parse)
+  const start = useCallback((event) => {
+    event.persist();
+    isLongPressTriggeredRef.current = false;
+    timeoutRef.current = setTimeout(() => {
+      isLongPressTriggeredRef.current = true;
+      callback(event);
+    }, ms);
+  }, [callback, ms]);
+
+  const stop = useCallback((event) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    // Returns whether this gesture was handled as a long press or can continue as a click
+    return isLongPressTriggeredRef.current;
+  }, []);
+
+  return {
+    onMouseDown: start,
+    onTouchStart: start,
+    onMouseUp: stop,
+    onTouchEnd: stop,
+    onMouseLeave: () => timeoutRef.current && clearTimeout(timeoutRef.current),
+  };
+};
+
+const NoteCard = React.memo(({ note, onOpen, onMenu, mode, theme, isSelected, actionMode }) => {
+  const mdComponents = React.useMemo(() => createMdComponents(mode), [mode]);
   const previewContent = note.content ? note.content.slice(0, 150) : "";
+
+  // Instantiate the gesture hook directly bound to this unique note instance
+  const longPressHandlers = useLongPress((e) => {
+    onMenu(e);
+  }, 600); // 600ms hold threshold triggers the focused pop-up dashboard
 
   return (
     <Card
-      onClick={onOpen}
+      {...longPressHandlers} // Injects touch/mouse hold down timing arrays
+      onClick={(e) => {
+        // Safe check: If this release was the end of a completed long press hold, stop normal open actions
+        const wasLongPress = longPressHandlers.onMouseUp(e);
+        if (wasLongPress) return;
+        onOpen();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      component="button" // Strict interactive button wrapper (Destroys link anchor characteristics)
+      type="button"
+      aria-label={`View note: ${note.title || "Untitled"}`}
       sx={{
         ...glass(mode),
         ...cardHover,
+        width: "100%",
+        textAlign: "left",
+        fontFamily: "inherit",
         borderRadius: 6,
         cursor: "pointer",
         position: "relative",
-        "&:hover": { transform: "translateY(-1px)" }, // Reduced hover lift for low-end devices
+        padding: 0,
+        outline: "none",
+        border: "2px solid transparent",
+        display: "block",
+        boxSizing: "border-box",
+        transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+        WebkitTapHighlightColor: "transparent", // Clean mobile touch flash overlay artifacts
+
+        // Workspace Focus Context Highlight rules
+        ...(isSelected && {
+          transform: "scale(1.03) translateY(-4px) !important",
+          zIndex: 10001,
+          border: mode === "dark" 
+            ? "1px solid rgba(255, 255, 255, 0.45)" 
+            : `1px solid ${theme.palette.primary.main}`,
+          boxShadow: mode === "dark"
+            ? "0 24px 64px rgba(0,0,0,0.65)"
+            : "0 24px 64px rgba(0, 0, 0, 0.16)",
+        }),
+
+        // Secondary background blur filter for inactive feed cards
+        ...(actionMode && !isSelected && {
+          filter: "blur(6px)",
+          opacity: 0.25,
+          transform: "scale(0.97)",
+          pointerEvents: "none",
+        }),
       }}
     >
-      <CardContent sx={CARD_CONTENT_SX}>
-        <Stack direction="row" justifyContent="space-between">
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography fontWeight={700} fontSize={16}>
+      <CardContent sx={{ ...CARD_CONTENT_SX, width: "100%", boxSizing: "border-box", pointerEvents: "auto" }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+          <Box sx={{ flex: 1, minWidth: 0, pointerEvents: "none" }}>
+            <Typography component="div" fontWeight={700} fontSize={16} sx={{ display: "flex", alignItems: "center" }}>
               {note.title || "Untitled"}
               {note.pinned && (
                 <PushPinIcon
@@ -459,24 +510,24 @@ const NoteCard = React.memo(({ note, onOpen, onMenu, mode, theme }) => {
               )}
             </Typography>
 
-            {/* IntersectionObserver lazy render: skip ReactMarkdown for off-screen cards */}
             <NoteCardContent previewContent={previewContent} mdComponents={mdComponents} mode={mode} />
           </Box>
 
           <IconButton
+            component="span" // Safe nested block wrapper fallback to pass nested button validation
             onClick={(e) => {
               e.stopPropagation();
-              onMenu(e);
+              onMenu(e); // Legacy ellipsis menu click path fallback compatibility
             }}
             size="small"
-            sx={{ flexShrink: 0, alignSelf: "flex-start" }}
+            sx={{ flexShrink: 0, alignSelf: "flex-start", ml: 1, position: "relative", zIndex: 2 }}
           >
             <MoreVertIcon />
           </IconButton>
         </Stack>
 
         {note.labels?.length > 0 && (
-          <Stack direction="row" spacing={0.8} mt={1} flexWrap="wrap">
+          <Stack direction="row" spacing={0.8} mt={1} flexWrap="wrap" sx={{ pointerEvents: "none" }}>
             {note.labels.map((label) => (
               <Chip
                 key={label}
@@ -485,7 +536,7 @@ const NoteCard = React.memo(({ note, onOpen, onMenu, mode, theme }) => {
                 sx={{
                   fontSize: 11,
                   borderRadius: 2,
-                  backgroundColor: mode === "dark" ? "#ffffff20" : "#00000020",
+                  backgroundColor: mode === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
                 }}
               />
             ))}
@@ -501,9 +552,10 @@ const NoteCard = React.memo(({ note, onOpen, onMenu, mode, theme }) => {
   prevProps.note.content === nextProps.note.content &&
   prevProps.note.pinned === nextProps.note.pinned &&
   prevProps.note.labels === nextProps.note.labels &&
+  prevProps.isSelected === nextProps.isSelected &&
+  prevProps.actionMode === nextProps.actionMode &&
   prevProps.mode === nextProps.mode
 );
-
 
 const Notes = () => {
   const [notes, setNotes] = useState([]);
@@ -515,7 +567,7 @@ const Notes = () => {
   const [noteTitle, setNoteTitle] = useState("");
   const [noteContent, setNoteContent] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchDisplayValue, setSearchDisplayValue] = useState(""); // Separate display state for instant input response
+  const [searchDisplayValue, setSearchDisplayValue] = useState("");
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [menuIndex, setMenuIndex] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -524,9 +576,9 @@ const Notes = () => {
   const [sharedUsersInfo, setSharedUsersInfo] = useState({});
   const noteContentRef = useRef(null);
   const [labels, setLabels] = useState([]);
-  const [noteLabels, setNoteLabels] = useState([]); // For add/edit
-  const [selectedNoteLabels, setSelectedNoteLabels] = useState([]); // For view
-  const [collaborators, setCollaborators] = useState([]); // For add/edit
+  const [noteLabels, setNoteLabels] = useState([]);
+  const [selectedNoteLabels, setSelectedNoteLabels] = useState([]);
+  const [collaborators, setCollaborators] = useState([]);
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
   const [addCollaboratorDrawerOpen, setAddCollaboratorDrawerOpen] = useState(false);
   const [addLabelDrawerOpen, setAddLabelDrawerOpen] = useState(false);
@@ -538,7 +590,9 @@ const Notes = () => {
   const [isPreview, setIsPreview] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState(null);
-
+const [selectedNotes, setSelectedNotes] = useState([]);
+const [actionMode, setActionMode] = useState(false);
+const [detailModalOpen, setDetailModalOpen] = useState(false);
   const { weather, setWeather } = useWeather();
   const [autoSaveStatus, setAutoSaveStatus] = useState("");
   const autoSaveTimerRef = useRef(null);
@@ -547,27 +601,18 @@ const Notes = () => {
   const inputDebounceRef = useRef(null);
   const searchDebounceRef = useRef(null);
   
-  // Advanced: Cache collaborator profiles + pagination + debouncing
   const collaboratorCacheRef = useRef({});
   const snapshotDebounceRef = useRef(null);
-  const isManuallySavedRef = useRef(false); // Prevents auto-save duplicating a manual save
-  const [pageSize] = useState(15); // Reduced from 30 for low-end Android
+  const isManuallySavedRef = useRef(false);
+  const [pageSize] = useState(15);
   const [allNotesLoaded, setAllNotesLoaded] = useState(false);
   const [hasMoreNotes, setHasMoreNotes] = useState(true);
-  const observerRef = useRef(null); // Intersection observer for infinite scroll
+  const observerRef = useRef(null);
 
-  // Static sx objects promoted to module-level constants above — no useMemo overhead needed
-  // overflowSx, transparentContentSx, cardSx, cardContentSx are now OVERFLOW_SX, TRANSPARENT_CONTENT_SX, CARD_STATIC_SX, CARD_CONTENT_SX
-  
   const { mode, accent } = useThemeToggle();
   const theme = useMemo(() => getTheme(mode, accent), [mode, accent]);
 
-  // React 18: startTransition marks sort/filter/search updates as non-urgent
-  // → typing is always smooth; filtering can be interrupted/deferred
   const [, startTransition] = useTransition();
-
-  // useDeferredValue: React renders the note list with the old search
-  // while computing the new one — input never blocks on list re-render
   const deferredSearchTerm = useDeferredValue(searchTerm);
 
   const buttonWeatherBg =
@@ -592,7 +637,6 @@ useEffect(() => {
     } catch {}
 
     if (cachedWeather) {
-      // Use requestIdleCallback for non-critical updates on low-end devices
       if (window.requestIdleCallback) {
         requestIdleCallback(() => setWeather(cachedWeather), { timeout: 2000 });
       } else {
@@ -603,10 +647,6 @@ useEffect(() => {
 }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
-// NOTE: Redundant localStorage read removed — sortOption, viewMode, selectedLabelFilter
-// are already initialized from localStorage via lazy useState() on lines 117-119.
-
-// Advanced: Batch localStorage writes with debouncing for low-end devices
 const localStorageDebounceRef = useRef(null);
 useEffect(() => {
   if (localStorageDebounceRef.current) clearTimeout(localStorageDebounceRef.current);
@@ -618,7 +658,7 @@ useEffect(() => {
     } catch (e) {
       console.warn("localStorage write failed:", e);
     }
-  }, 500); // 500ms debounce to batch rapid changes
+  }, 500);
   return () => clearTimeout(localStorageDebounceRef.current);
 }, [sortOption, viewMode, selectedLabelFilter]);
 
@@ -627,17 +667,11 @@ useEffect(() => {
 useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
-      if (!currentUser) {
-        // Optional: Redirect to login if user is lost
-        // history("/login");
-      }
     });
     return () => unsubscribe();
   }, []);
 
 
-  
-  // Fixed: functional updater removes sharedUsersInfo from deps → no listener re-subscribe churn
   const fetchCollaboratorProfiles = useCallback(async (uids) => {
     const idsToFetch = [];
     const fromCache = {};
@@ -650,7 +684,6 @@ useEffect(() => {
       }
     }
 
-    // Apply cached entries instantly via functional updater (no stale state captured)
     if (Object.keys(fromCache).length > 0) {
       setSharedUsersInfo(prev => ({ ...prev, ...fromCache }));
     }
@@ -675,12 +708,11 @@ useEffect(() => {
     } catch (e) {
       console.warn("Error batching profiles:", e);
     }
-  }, []); // Stable: no sharedUsersInfo dep → Firestore listener won't re-subscribe on every profile load
+  }, []);
 
 useEffect(() => {
   if (!user) return;
 
-  // Advanced: Limit query + debounce updates
   const q = query(
     collection(db, "notes"),
     where("owners", "array-contains", user.uid),
@@ -720,10 +752,9 @@ useEffect(() => {
 
       setNotes(processed);
       setLoading(false);
-      setAllNotesLoaded(false); // Reset pagination state
-      setHasMoreNotes(processed.length >= pageSize); // Check if more notes exist
+      setAllNotesLoaded(false);
+      setHasMoreNotes(processed.length >= pageSize);
 
-      // Defer collaborator profile fetching to idle time on low-end devices
       if (uids.size > 0) {
         if (window.requestIdleCallback) {
           requestIdleCallback(() => fetchCollaboratorProfiles(Array.from(uids)), { timeout: 3000 });
@@ -731,7 +762,7 @@ useEffect(() => {
           fetchCollaboratorProfiles(Array.from(uids));
         }
       }
-    }, 200); // Increased from 150ms to 200ms for low-end devices
+    }, 200);
   }, (err) => {
     console.error("Notes listener error:", err);
     setLoading(false);
@@ -743,7 +774,6 @@ useEffect(() => {
   };
 }, [user, pageSize, fetchCollaboratorProfiles]);
 
-// Advanced: Memoize label extraction
 const labelsFromNotes = useMemo(() => {
   const labelSet = new Set();
   notes.forEach((note) => {
@@ -762,7 +792,6 @@ useEffect(() => {
   }
 }, [labelsFromNotes, labels]);
 
-  // Advanced: Consolidate drawer state updates
   useEffect(() => {
     if (editDrawerOpen && selectedNote) {
       setCollaborators(selectedNote.sharedWith || []);
@@ -799,13 +828,11 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
 
       const noteRef = doc(db, "notes", selectedNote.id);
 
-      // Add both the current user and collaborator to owners and sharedWith
       await updateDoc(noteRef, {
         sharedWith: arrayUnion(shareUid),
         owners: arrayUnion(user.uid, shareUid)
       });
 
-      // Update local state
       if (!collaborators.includes(shareUid)) {
         setCollaborators(prev => [...prev, shareUid]);
       }
@@ -822,7 +849,6 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
   }
 }, [newCollaboratorUsername, selectedNote?.id, user?.uid, collaborators]);
 
-  // --- Label add/remove logic for add/edit ---
   const handleAddCustomLabel = useCallback(() => {
     if (!newLabel.trim()) return;
     if (!labels.includes(newLabel.trim())) {
@@ -833,16 +859,14 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
     setAddLabelDrawerOpen(false);
   }, [newLabel, labels]);
 
-  // --- Pin note logic ---
   const handlePinNote = useCallback(async (note) => {
     await updateDoc(doc(db, "notes", note.id), { pinned: !note.pinned });
-    // onSnapshot will update the list; no additional fetch to reduce reads
   }, []);
 
   const handleAddNote = useCallback(async () => {
     if (!noteTitle.trim() && !noteContent.trim()) return;
     setSaving(true);
-    isManuallySavedRef.current = true; // Flag: manual save — stop auto-save effect from duplicating
+    isManuallySavedRef.current = true;
     try {
       await addDoc(collection(db, "notes"), {
         owners: [user.uid],
@@ -853,7 +877,6 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
         labels: noteLabels,
         pinned: false,
       });
-      // Clear refs BEFORE setDrawerOpen so the auto-save effect sees empty content
       titleInputRef.current = "";
       contentInputRef.current = "";
       setNoteTitle("");
@@ -862,26 +885,19 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
       setSaving(false);
     } catch (error) {
       console.error("Error adding note:", error);
-      isManuallySavedRef.current = false; // Reset on failure
+      isManuallySavedRef.current = false;
       setSaving(false);
     }
-    // onSnapshot will update notes
   }, [noteTitle, noteContent, user?.uid, collaborators, noteLabels]);
 
-  // --- AUTO SAVE FOR EDITING NOTES (Google Keep/Notion Style) ---
-  // Real-time debounced auto-save with optimized dependencies
   useEffect(() => {
     if (!editDrawerOpen || !selectedNote) return;
     
-    // Clear previous timer
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     
-    // Use current values from refs to avoid stale closures
     const currentTitle = noteTitle === undefined ? titleInputRef.current : noteTitle;
     const currentContent = noteContent === undefined ? contentInputRef.current : noteContent;
     
-    // Debounce: wait 1000ms after user stops typing, then save
-    // 1000ms is better for low-end devices — more typing time, fewer Firestore writes
     autoSaveTimerRef.current = setTimeout(async () => {
       const finalTitle = titleInputRef.current || currentTitle;
       const finalContent = contentInputRef.current || currentContent;
@@ -902,14 +918,13 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
         console.error("Auto-save error:", error);
         setAutoSaveStatus("");
       }
-    }, 800); // Increased from 500ms to 800ms for low-end devices
+    }, 800);
     
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
   }, [noteTitle, noteContent, selectedNote?.id, editDrawerOpen, collaborators, noteLabels]);
 
-  // Batch all cleanup — capture ref values locally so cleanup sees the correct timer IDs
   useEffect(() => {
     const inputTimer = inputDebounceRef.current;
     const searchTimer = searchDebounceRef.current;
@@ -921,7 +936,6 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
     };
   }, []);
 
-  // Advanced: Clean up drawer save
   useEffect(() => {
     if (editDrawerOpen || !selectedNote) return;
     
@@ -943,7 +957,6 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
     saveFinalChanges();
   }, [editDrawerOpen, selectedNote, noteTitle, noteContent, collaborators, noteLabels]);
 
-  // --- Save on page unload/refresh ---
   useEffect(() => {
     if (!editDrawerOpen || !selectedNote) return;
     
@@ -958,14 +971,9 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [editDrawerOpen, selectedNote, noteTitle, noteContent]);
 
-  // Removed: redundant unmount-cleanup save. The debounced auto-save (above)
-  // and the drawer-close save effect cover all scenarios without race conditions.
 
-  // --- AUTO SAVE FOR NEW NOTES (Create Drawer) ---
-  // Fires when drawer closes. Guard: skipped if isManuallySavedRef is set (handleAddNote ran already).
   useEffect(() => {
-    if (drawerOpen || !user || selectedNote) return; // Only for new notes (no selectedNote)
-    // Skip if handleAddNote already saved — prevents duplicate Firestore writes
+    if (drawerOpen || !user || selectedNote) return;
     if (isManuallySavedRef.current) {
       isManuallySavedRef.current = false;
       return;
@@ -978,7 +986,6 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
         try {
           setAutoSaveStatus("saving");
           
-          // Save new note with same structure as handleAddNote
           await addDoc(collection(db, "notes"), {
             owners: [user.uid],
             title: finalTitle,
@@ -991,7 +998,6 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
           
           setAutoSaveStatus("saved");
           
-          // Clear form after save
           setNoteTitle("");
           setNoteContent("");
           titleInputRef.current = "";
@@ -999,7 +1005,6 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
           setCollaborators([]);
           setNoteLabels([]);
           
-          // Show success status for 1.5 seconds
           setTimeout(() => setAutoSaveStatus(""), 1500);
           
           console.log("✓ New note auto-saved on drawer close");
@@ -1013,7 +1018,6 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
     autoSaveNewNote();
   }, [drawerOpen, user, selectedNote, noteTitle, noteContent, collaborators, noteLabels]);
  
-   // Advanced: Memoized edit handler
    const handleEditNote = useCallback(async () => {
      if (!selectedNote || (!noteTitle.trim() && !noteContent.trim())) return;
      setSaving(true);
@@ -1024,14 +1028,12 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
          sharedWith: collaborators,
          labels: noteLabels,
        });
-       // Clear form fields and refs so drawer doesn't re-open in "Add Note" mode with stale content
        titleInputRef.current = "";
        contentInputRef.current = "";
        setNoteTitle("");
        setNoteContent("");
        setNoteLabels([]);
        setCollaborators([]);
-       // Close BOTH drawers — editDrawerOpen and drawerOpen
        setEditDrawerOpen(false);
        setDrawerOpen(false);
        setSelectedNote(null);
@@ -1044,16 +1046,13 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
  
    const handleDeleteNote = useCallback(async (id) => {
      await deleteDoc(doc(db, "notes", id));
-    // onSnapshot will update notes
    }, []);
 
-  // Open the view drawer for a note
   const openView = useCallback((note) => {
     setSelectedNote(note);
     setViewDrawerOpen(true);
   }, []);
 
-  // Open the contextual menu for a note (stops event propagation)
   const openMenu = useCallback((event, index) => {
     event?.stopPropagation?.();
     setMenuAnchorEl(event.currentTarget);
@@ -1062,24 +1061,23 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
 
   const handleTitleChange = useCallback((e) => {
     const value = e.target.value;
-    titleInputRef.current = value; // Keep ref in sync for auto-save
-    setNoteTitle(value);           // Synchronous: preserves cursor position in controlled input
+    titleInputRef.current = value;
+    setNoteTitle(value);
   }, []);
 
   const handleContentChange = useCallback((e) => {
     const value = e.target.value;
-    contentInputRef.current = value; // Keep ref in sync for auto-save
-    setNoteContent(value);           // Synchronous: preserves cursor position in controlled input
+    contentInputRef.current = value;
+    setNoteContent(value);
   }, []);
 
   const handleSearchChange = useCallback((e) => {
     const value = e.target.value;
-    setSearchDisplayValue(value); // Instant update so input display never lags
-    // Wrap in startTransition: filtering is non-urgent, typing stays smooth
+    setSearchDisplayValue(value);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
       startTransition(() => setSearchTerm(value));
-    }, 350); // Increased from 200ms to 350ms for low-end Android devices
+    }, 350);
   }, [startTransition]);
 
   const handleToggleLabelMemo = useCallback((label) => {
@@ -1087,29 +1085,7 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
       prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
     );
   }, []);
-  
-  // const handleShareWithUser = async () => {
-  //   if (!shareUsername.trim()) return;
-  //   // Find user by username
-  //   const q = query(collection(db, "users"), where("username", "==", shareUsername.trim()));
-  //   const snapshot = await getDocs(q);
-  //   if (!snapshot.empty) {
-  //     const userDoc = snapshot.docs[0];
-  //     const shareUid = userDoc.id;
-  //     // Update note's sharedWith and owners
-  //     await updateDoc(doc(db, "notes", selectedNote.id), {
-  //       sharedWith: [...(selectedNote.sharedWith || []), shareUid],
-  //       owners: Array.from(new Set([...(selectedNote.owners || []), shareUid])),
-  //     });
-  //     setSharedWith((prev) => [...prev, shareUid]);
-  //     setShareUsername("");
-  //     // rely on onSnapshot to reflect changes; avoid manual fetch to prevent loops & extra reads
-  //   } else {
-  //     setError("User not found!");
-  //   }
-  // };
 
-// Advanced: Optimize filtering — uses deferredSearchTerm so typing never blocks
 const filteredNotes = useMemo(() => {
   const s = (deferredSearchTerm || "").toLowerCase().trim();
   
@@ -1124,7 +1100,6 @@ const filteredNotes = useMemo(() => {
   });
 }, [notes, deferredSearchTerm, selectedLabelFilter]);
 
-// Memoized sorting (server-side provides pinned+createdAt ordering by default)
 const sortedNotes = useMemo(() => {
   const copy = [...filteredNotes];
   if (sortOption === "title-asc") {
@@ -1132,14 +1107,11 @@ const sortedNotes = useMemo(() => {
   } else if (sortOption === "title-desc") {
     copy.sort((a, b) => (b.title || "").localeCompare(a.title || ""));
   } else if (sortOption === "oldest") {
-    // reverse server order (server gives newest first)
     copy.reverse();
   }
-  // default: server order is newest pinned-first
   return copy;
 }, [filteredNotes, sortOption]);
 
-// Advanced: Combine filters in single pass
 const { pinnedNotes, unpinnedNotes } = useMemo(() => {
   const pinned = [];
   const unpinned = [];
@@ -1147,18 +1119,12 @@ const { pinnedNotes, unpinnedNotes } = useMemo(() => {
   return { pinnedNotes: pinned, unpinnedNotes: unpinned };
 }, [sortedNotes]);
 
-// Memoize the flat sorted note list — avoid [...pinnedNotes,...unpinnedNotes] spread on every render
 const flatNotes = useMemo(() => [...pinnedNotes, ...unpinnedNotes], [pinnedNotes, unpinnedNotes]);
-
-// Memoize the filter chip labels array — avoids spread allocation on every Notes render
 const allFilterLabels = useMemo(() => ["All", "Pinned", "Shared", ...labels], [labels]);
 
-// Advanced: Infinite scroll implementation for pagination
-// Observes last note, triggers "load more" when visible
 useEffect(() => {
-  if (!hasMoreNotes || allNotesLoaded) return; // Stop if all notes loaded
+  if (!hasMoreNotes || allNotesLoaded) return;
   
-  // Create intersection observer for last note
   if (window.IntersectionObserver && flatNotes.length > 0) {
     const lastNote = document.querySelector(`[data-note-id="${flatNotes[flatNotes.length - 1]?.id}"]`);
     if (!lastNote) return;
@@ -1166,8 +1132,6 @@ useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !allNotesLoaded && hasMoreNotes) {
-          // Load more notes by increasing pageSize or triggering new query
-          // For now, this is a placeholder for future pagination implementation
           console.log("📍 Bottom reached - ready to load more notes");
         }
       },
@@ -1180,8 +1144,6 @@ useEffect(() => {
 }, [flatNotes, hasMoreNotes, allNotesLoaded]);
 
 
-  // --- Add formatting helper used by toolbar (fixes no-undef) ---
-  // Advanced: Optimize format execution with requestAnimationFrame
   const applyFormat = useCallback((format) => {
     const textarea = noteContentRef.current;
     if (!textarea) return;
@@ -1214,7 +1176,6 @@ useEffect(() => {
 
   return (
     <ThemeProvider theme={theme}>
-      {/* <DeviceGuard> */}
       <BetaAccessGuard>
               <Box
         sx={{
@@ -1245,6 +1206,355 @@ useEffect(() => {
             <NotificationsPage />
           </Box>
 
+<AnimatePresence>
+            {actionMode && selectedNote && (
+              <>
+                {/* 1. Full-screen interactive blur layer */}
+                <Box 
+                  onClick={() => setActionMode(false)}
+                  sx={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 9998,
+                    backdropFilter: "blur(10px) saturate(140%)",
+                    WebkitBackdropFilter: "blur(10px) saturate(140%)",
+                    background: mode === "dark" ? "rgba(0, 0, 0, 0)" : "rgba(255, 255, 255, 0.35)",
+                    transition: "all 0.3s ease",
+                  }}
+                />
+
+<Box
+                  sx={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 9998,
+                    backdropFilter: "blur(10px) saturate(140%)",
+                    WebkitBackdropFilter: "blur(10px) saturate(140%)",
+                    background: mode === "dark" ? "rgba(0, 0, 0, 0)" : "rgba(255, 255, 255, 0.35)",
+                    transition: "all 0.3s ease",
+                  }}>
+                      <IconButton onClick={() => setActionMode(false)} size="small" sx={{ mx: 0.5 }}>
+                      <CloseIcon sx={{ fontSize: "1.1rem" }} />
+                    </IconButton>
+                    </Box>
+
+                {/* 2. Sticky Top Contextual Management Header */}
+<motion.div
+  initial={{ y: 100, opacity: 0 }}
+  animate={{ y: 0, opacity: 1 }}
+  exit={{ y: 100, opacity: 0 }}
+  transition={{
+    duration: 0.35,
+    ease: [0.22, 1, 0.36, 1],
+  }}
+  style={{
+    position: "fixed",
+    bottom: 24,
+    left: 0,
+    right: 0,
+    zIndex: 14000,
+    display: "flex",
+    justifyContent: "center",
+    pointerEvents: "none",
+  }}
+>
+  <Box
+    sx={{
+      pointerEvents: "auto",
+
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-evenly",
+
+      height: 68,
+      px: 1.25,
+
+      width: "fit-content",
+      minWidth: 360,
+      maxWidth: "90vw",
+
+      borderRadius: "999px",
+
+      backdropFilter: "blur(40px) saturate(180%)",
+      WebkitBackdropFilter: "blur(40px) saturate(180%)",
+
+      background:
+        mode === "dark"
+          ? "rgba(20,20,20,0.72)"
+          : "rgba(255,255,255,0.72)",
+
+      boxShadow: mode === "dark"
+                            ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                            : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+
+      "& .actionBtn": {
+        minWidth: 48,
+        width: 48,
+        height: 48,
+        borderRadius: "50%",
+
+        transition: "all .25s ease",
+
+        color:
+          mode === "dark"
+            ? "rgba(255,255,255,0.82)"
+            : "rgba(0,0,0,0.78)",
+
+        "&:hover": {
+          transform: "translateY(-2px)",
+          background:
+            mode === "dark"
+              ? "rgba(255,255,255,0.08)"
+              : "rgba(0,0,0,0.05)",
+        },
+      },
+    }}
+  >
+    <IconButton
+      className="actionBtn"
+      onClick={() => {
+        setNoteTitle(selectedNote.title || "");
+        setNoteContent(selectedNote.content || "");
+        setEditDrawerOpen(true);
+        setDrawerOpen(true);
+        setActionMode(false);
+      }}
+    >
+      <EditIcon />
+    </IconButton>
+
+    <IconButton
+      className="actionBtn"
+      onClick={() => setAddCollaboratorDrawerOpen(true)}
+    >
+      <ShareIcon />
+    </IconButton>
+
+    <IconButton
+      className="actionBtn"
+      onClick={() => setAddLabelDrawerOpen(true)}
+    >
+      <LabelIcon />
+    </IconButton>
+
+    <IconButton
+      className="actionBtn"
+      onClick={() => {
+        handlePinNote(selectedNote);
+        setActionMode(false);
+      }}
+    >
+      <PushPinIcon />
+    </IconButton>
+
+    <IconButton
+      className="actionBtn"
+      onClick={() => setDetailsDrawerOpen(true)}
+    >
+      <InfoOutlinedIcon />
+    </IconButton>
+
+
+    <IconButton
+      className="actionBtn"
+      onClick={() => {
+        setNoteToDelete(selectedNote);
+        setDeleteDialogOpen(true);
+      }}
+      sx={{
+        color: `${theme.palette.error.main} !important`,
+      }}
+    >
+      <DeleteOutlineIcon />
+    </IconButton>
+  </Box>
+</motion.div>
+
+{/* 3. The Centered Full Content Note Popup Overlay (Enhanced Typography Formatting) */}
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 350 }}
+                  style={{
+                    position: "fixed",
+                    mx: "auto",
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 9999,
+                    width: "calc(100% - 32px)",
+                    maxWidth: "540px",
+                    maxHeight: "65vh",
+                    display: "flex",
+                    flexDirection: "column"
+                  }}
+                >
+                  <Box
+                    sx={{
+                      borderRadius: 6,
+                      display: "flex",
+                      flexDirection: "column",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <Box
+                    sx={{
+                      ...glass(mode),
+                      borderRadius: 6,
+                      p: 3,
+                        mb: 2, 
+                      background: mode === "dark" ? "rgba(20, 20, 20, 0.11)" : "rgba(255, 255, 255, 0.9)",
+                      border: "0px solid",
+                            boxShadow: mode === "dark"
+                            ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                            : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+                    }}>
+                    {/* Note Title */}
+                    <Typography 
+                      variant="h5" 
+                      fontWeight={700} 
+                      sx={{ 
+                        color: mode === "dark" ? "#fff" : "#000",
+                      }}
+                    >
+                      {selectedNote.title || "Untitled"}
+                    </Typography>
+
+                                        {selectedNote.labels?.length > 0 && (
+                      <Stack 
+                        direction="row" 
+                        spacing={0.8} 
+                        mt={1} 
+                        flexWrap="wrap" 
+                        pt={1}
+                      >
+                        {selectedNote.labels.map((label) => (
+                          <Chip 
+                            key={label} 
+                            size="small" 
+                            label={label} 
+                            icon={<LabelIcon sx={{ fontSize: "0.85rem", color: "inherit" }} />}
+                            sx={{ 
+                              fontSize: 11, 
+                              fontWeight: 500,
+                              borderRadius: 2,
+                              backgroundColor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"
+                            }} 
+                          />
+                        ))}
+                      </Stack>
+                    )}
+                    </Box>
+
+                    {/* Highly Formatted Content Wrapper Area */}
+                    <Box 
+                      sx={{ 
+                        flex: 1, 
+                        overflowY: "auto", 
+                        pr: 1, 
+                        WebkitOverflowScrolling: "touch",
+                        // Fine-tune overall sub-spacing rules inside markdown render loops
+                        "& > *:first-of-type": { mt: 0 },
+                        "& > *:last-child": { mb: 0 },
+                      borderRadius: 6,
+                      p: 3,
+                      background: mode === "dark" ? "rgba(20, 20, 20, 0.48)" : "rgba(255, 255, 255, 0.9)",
+                      border: "0px solid",
+                            boxShadow: mode === "dark"
+                            ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                            : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+                      }}
+                    >
+                      <ReactMarkdown
+                        components={{
+                          // Paragraph elements text configuration
+                          p: ({ children }) => (
+                            <Typography variant="body1" sx={{ mb: 2, color: theme.palette.text.primary, fontSize: "0.95rem", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                              {children}
+                            </Typography>
+                          ),
+                          // Crisp bolded headers tracking hierarchy layouts
+                          h1: ({ children }) => <Typography variant="h4" sx={{ mb: 2, mt: 2.5, fontWeight: 800, color: theme.palette.text.primary }}>{children}</Typography>,
+                          h2: ({ children }) => <Typography variant="h5" sx={{ mb: 1.5, mt: 2, fontWeight: 700, color: theme.palette.text.primary }}>{children}</Typography>,
+                          h3: ({ children }) => <Typography variant="h6" sx={{ mb: 1.2, mt: 1.8, fontWeight: 700, color: theme.palette.text.primary }}>{children}</Typography>,
+                          
+                          // Custom bulleted list rendering adjustments
+                          ul: ({ children }) => (
+                            <Box component="ul" sx={{ pl: 2.5, mb: 2, color: theme.palette.text.primary, "& li": { whiteSpace: "pre-wrap", wordBreak: "break-word", mb: 0.5 } }}>
+                              {children}
+                            </Box>
+                          ),
+                          // Custom numbered list rendering adjustments
+                          ol: ({ children }) => (
+                            <Box component="ol" sx={{ pl: 2.5, mb: 2, color: theme.palette.text.primary, "& li": { whiteSpace: "pre-wrap", wordBreak: "break-word", mb: 0.5 } }}>
+                              {children}
+                            </Box>
+                          ),
+                          li: ({ children }) => (
+                            <Typography component="li" variant="body1" sx={{ fontSize: "0.95rem", color: theme.palette.text.primary }}>
+                              {children}
+                            </Typography>
+                          ),
+
+                          // Inline code blocks (`code`) execution matching theme configs
+                          code: ({ children }) => (
+                            <Box 
+                              component="code" 
+                              sx={{ 
+                                bgcolor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)", 
+                                px: 0.6, 
+                                py: 0.2, 
+                                borderRadius: 1.5, 
+                                fontSize: "0.85em", 
+                                fontFamily: 'monospace',
+                                color: mode === "dark" ? "#ffb454" : "#d32f2f" 
+                              }}
+                            >
+                              {children}
+                            </Box>
+                          ),
+                          // Code block fences (```pre```) complete layout wrapping setup
+                          pre: ({ children }) => (
+                            <Box 
+                              component="pre" 
+                              sx={{ 
+                                bgcolor: mode === "dark" ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.02)", 
+                                p: 2, 
+                                borderRadius: 2.5, 
+                                overflow: 'auto', 
+                                mb: 2, 
+                                border: "1px solid", 
+                                borderColor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" 
+                              }}
+                            >
+                              {children}
+                            </Box>
+                          ),
+                          // Line breaks matchers
+                          br: () => <br />,
+                          // Horizontal layout splits rules (`---`) styling rules
+                          hr: () => (
+                            <Box 
+                              component="hr" 
+                              sx={{ 
+                                border: "none", 
+                                height: "1px", 
+                                bgcolor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", 
+                                my: 2 
+                              }} 
+                            />
+                          )
+                        }}
+                      >
+                        {selectedNote.content || '*No content saved on this note*'}
+                      </ReactMarkdown>
+                    </Box>
+
+                  </Box>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+          
 <Box 
   sx={{ 
     position: "sticky", 
@@ -1580,63 +1890,85 @@ useEffect(() => {
   }}
 />
 </Box>
+
           <Box sx={TRANSPARENT_CONTENT_SX} px={1}>
-          <CardContent sx={CARD_STATIC_SX}>
-            {loading ? (
-              <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
-                <CircularProgress color="inherit" />
-              </Box>
-            ) : sortedNotes.length === 0 ? (
-              <Box sx={{ display: "flex", height: "70vh", alignItems: "center", justifyContent: "center" }}>
-                <Typography color="text.secondary" fontSize={16}>
-                  No notes yet.
-                </Typography>
-              </Box>
-            ) : (
-<Box sx={{ willChange: "contents" }}>
-{viewMode === "list" ? (
-  <Stack spacing={1.4} sx={{ perspective: "1000px" }}>
-    {[...pinnedNotes, ...unpinnedNotes].map((note, idx) => (
-      <div key={note.id} data-note-id={note.id} style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
-        <NoteCard
-          note={note}
-          mode={mode}
-          theme={theme}
-          onOpen={() => openView(note)}
-          onMenu={(e) => openMenu(e, idx)}
-        />
-      </div>
-    ))}
-  </Stack>
-) : (
-  <Box
-    sx={{
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fill, minmax(240px,1fr))",
-      gap: 1.5,
-      perspective: "1000px",
+            <CardContent sx={CARD_STATIC_SX}>
+              {loading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}><CircularProgress color="inherit" /></Box>
+              ) : sortedNotes.length === 0 ? (
+                <Box sx={{ display: "flex", height: "70vh", alignItems: "center", justifyContent: "center" }}><Typography color="text.secondary" fontSize={16}>No notes yet.</Typography></Box>
+              ) : (
+                <Box sx={{ willChange: "contents" }}>
+                  {viewMode === "list" ? (
+                    <Stack spacing={1.4} sx={{ perspective: "1000px" }}>
+{[...pinnedNotes, ...unpinnedNotes].map((note) => (
+  <div 
+    key={note.id} 
+    style={{ 
+      backfaceVisibility: "hidden", 
+      WebkitBackfaceVisibility: "hidden",
+      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      filter: actionMode ? "blur(4px)" : "none",
+      opacity: actionMode ? 0.35 : 1,
+      transform: actionMode ? "scale(0.98)" : "none",
+      pointerEvents: actionMode ? "none" : "auto"
     }}
   >
-    {[...pinnedNotes, ...unpinnedNotes].map((note, idx) => (
-      <div key={note.id} data-note-id={note.id} style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
-        <NoteCard
-          note={note}
-          mode={mode}
-          theme={theme}
-          onOpen={() => openView(note)}
-          onMenu={(e) => openMenu(e, idx)}
-        />
-      </div>
-    ))}
-  </Box>
-)}
-
-</Box>
-            )}
-          </CardContent>
+    <NoteCard
+      note={note}
+      mode={mode}
+      theme={theme}
+      onOpen={() => openView(note)}
+      onMenu={(e) => {
+        // Tapping the ellipsis icon or holding down long press paths lock focus right here
+        setSelectedNotes([note]);
+        setSelectedNote(note);
+        setActionMode(true);
+      }}
+      isSelected={selectedNotes.some(n => n.id === note.id) && actionMode}
+      actionMode={actionMode}
+    />
+  </div>
+))}
+                    </Stack>
+                  ) : (
+                    <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px,1fr))", gap: 1.5, perspective: "1000px" }}>
+{[...pinnedNotes, ...unpinnedNotes].map((note) => (
+  <div 
+    key={note.id} 
+    style={{ 
+      backfaceVisibility: "hidden", 
+      WebkitBackfaceVisibility: "hidden",
+      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      filter: actionMode ? "blur(4px)" : "none",
+      opacity: actionMode ? 0.35 : 1,
+      transform: actionMode ? "scale(0.98)" : "none",
+      pointerEvents: actionMode ? "none" : "auto"
+    }}
+  >
+    <NoteCard
+      note={note}
+      mode={mode}
+      theme={theme}
+      onOpen={() => openView(note)}
+      onMenu={(e) => {
+        // Tapping the ellipsis icon or holding down long press paths lock focus right here
+        setSelectedNotes([note]);
+        setSelectedNote(note);
+        setActionMode(true);
+      }}
+      isSelected={selectedNotes.some(n => n.id === note.id) && actionMode}
+      actionMode={actionMode}
+    />
+  </div>
+))}
+                    </Box>
+                  )}
+                </Box>
+              )}
+            </CardContent>
           </Box>
 
-        {/* Add Note Drawer */}
         <SwipeableDrawer
           anchor="bottom"
           open={drawerOpen}
@@ -1663,7 +1995,7 @@ useEffect(() => {
     sx={{
       display: "flex",
       flexDirection: "column",
-      pb: 9, // space for floating button
+      pb: 9,
     }}
   >
     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, mt: 4.5 }}>
@@ -1695,7 +2027,6 @@ useEffect(() => {
     </Button>
     </Box>
 
-    {/* Title Input */}
     <TextField
       placeholder="Enter title..."
       value={noteTitle}
@@ -1712,7 +2043,6 @@ useEffect(() => {
         },
       }}
     />
-        {/* Labels Display */}
     <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mt: 1, mb: 1 }}>
       {labels.map((label) => (
         <Chip
@@ -1729,7 +2059,6 @@ useEffect(() => {
       ))}
     </Stack>
 
-    {/* Preview Toggle */}
     <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
       <Button
         variant={isPreview ? "contained" : "outlined"}
@@ -1745,7 +2074,6 @@ useEffect(() => {
       </Button>
     </Box>
 
-    {/* Content */}
     {isPreview ? (
       <Box sx={{ flex: 1, mb: 2, p: 2, border: `1px solid ${theme.palette.divider}`, borderRadius: 2, minHeight: 300 }}>
         <ReactMarkdown
@@ -1785,7 +2113,6 @@ useEffect(() => {
 
   </Box>
 
-    {/* Toolbar */}
 <Box
   sx={{
     position: "sticky",
@@ -1872,7 +2199,6 @@ useEffect(() => {
           </Stack>
         </SwipeableDrawer>
 
-        {/* Add Custom Label Drawer */}
         <SwipeableDrawer
           anchor="bottom"
           open={addLabelDrawerOpen}
@@ -1924,7 +2250,6 @@ useEffect(() => {
           </Stack>
         </SwipeableDrawer>
 
-        {/* View Note Drawer */}
 <SwipeableDrawer
   anchor="bottom"
   open={viewDrawerOpen}
@@ -1944,17 +2269,14 @@ useEffect(() => {
       maxWidth: 480,
       height: "100vh",
       mx: "auto",
-      
-      // 🚨 CRITICAL FIXES FOR THE BLUR LAYER:
       display: "flex",
       flexDirection: "column",
-      overflow: "visible !important", // Ensures the wrapper doesn't kill child filters
-      borderRadius: "0px 0px 20px 20px", // Only round the top corners for a modern look
+      overflow: "visible !important",
+      borderRadius: "0px 0px 20px 20px",
       boxShadow: "0 -8px 32px rgba(0, 0, 0, 0.15)",
     },
   }}
 >
-  {/* 1. Header Back Deck (Fixed, Not Scrollable) */}
     <Button
       onClick={() => setViewDrawerOpen(false)}
       sx={{
@@ -1985,26 +2307,22 @@ useEffect(() => {
       <Typography variant="body2" fontWeight={600}>Back</Typography>
     </Button>
   
-  {/* 2. Isolated Scrolling Body Area */}
-  {/* 🚨 This handles 100% of the scrolling so text drops directly behind the action bar */}
   <Box 
     sx={{ 
       flex: 1, 
-      overflowY: "scroll", // Forces structural scrolling tracking
+      overflowY: "scroll",
       overflowX: "hidden",
       pr: 0.5, 
       mb: 0,
       pt: 16,
       position: "relative",
-      WebkitOverflowScrolling: "touch", // Smooth iOS scrolling inertial matching
+      WebkitOverflowScrolling: "touch",
     }}
   >
-    {/* Title */}
     <Typography variant="h5" fontWeight="bold" sx={{ color: theme.palette.text.primary, paddingBottom: 1.5, mb: 2 }}>
       {selectedNote?.title || "Untitled Note"}
     </Typography>
 
-    {/* Shared Collaborators Area */}
     {selectedNote?.sharedWith && selectedNote.sharedWith.length > 0 && (
       <Box sx={{ mb: 2 }}>
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
@@ -2043,7 +2361,6 @@ useEffect(() => {
       </Box>
     )}
 
-    {/* Labels Layout */}
     {selectedNote?.labels && selectedNote.labels.length > 0 && (
       <Box sx={{ width: "100%", mb: 3 }}>
         <Stack direction="row" display="flex" alignItems="center" spacing={1} useFlexGap flexWrap="wrap">
@@ -2068,8 +2385,6 @@ useEffect(() => {
       </Box>
     )}
 
-    {/* Markdown Content Field */}
-    {/* 🚨 Note the generous padding at the bottom (pb: 10) - this forces text to be able to scroll completely past and behind the toolbar! */}
     <Box sx={{ pb: 12 }}>
       <ReactMarkdown
         components={{
@@ -2109,8 +2424,6 @@ useEffect(() => {
     }}
   />
 </SwipeableDrawer>
-
-        {/* Duplicate Add Collaborator drawer removed — the one inside the Add/Edit note drawer (above) handles this */}
 
 
 <Dialog
@@ -2164,7 +2477,6 @@ useEffect(() => {
 </Dialog>
 
 
-        {/* Note Details Drawer */}
         <SwipeableDrawer
           anchor="right"
           open={detailsDrawerOpen}
@@ -2283,7 +2595,6 @@ useEffect(() => {
 <FloatingNewNotes 
   mode={mode} 
   onOpen={() => {
-    // Your existing reset logic
     setNoteTitle("");
     setNoteContent("");
     titleInputRef.current = "";
@@ -2298,7 +2609,6 @@ useEffect(() => {
           
           </Box>
       </BetaAccessGuard>
-      {/* </DeviceGuard> */}
     </ThemeProvider>
   );
 };
