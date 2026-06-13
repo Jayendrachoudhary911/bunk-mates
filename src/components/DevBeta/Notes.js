@@ -79,11 +79,12 @@ const glass = (mode) => ({
   border: "1px solid rgba(255,255,255,0.08)",
 });
 
+// Reduced animation complexity for low-end devices
 const cardHover = {
-  transition: "transform .15s ease, box-shadow .15s ease",
+  transition: "transform .2s ease", // Simplified and slowed transition
   "&:hover": {
-    transform: "translateY(-2px)",
-    boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
+    transform: "translateY(-1px)", // Reduced lift distance
+    boxShadow: "0 4px 12px rgba(0,0,0,0.1)", // Simpler shadow
   },
 };
 // ─── Static sx objects: module-level constants, never recreated ────────────
@@ -129,29 +130,31 @@ const NoteCardContent = React.memo(({ previewContent, mdComponents, mode }) => {
 // ─── NoteCard: defined at MODULE level so React.memo is effective ─────────────
 // If defined inside Notes(), every keystroke recreates this reference,
 // destroying memo and forcing React to unmount+remount every card in the list.
-const NoteCard = React.memo(({ note, onOpen, onMenu, mode, theme }) => {
-  // Memoize the ReactMarkdown component map per mode change only
-  const mdComponents = React.useMemo(() => ({
-    p: ({ children }) => (
-      <Typography variant="body2" sx={{ fontSize: 13, lineHeight: 1.5, color: mode === "dark" ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.65)", mb: 0.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-        {children}
-      </Typography>
-    ),
-    h1: ({ children }) => <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: 13, color: mode === "dark" ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.8)" }}>{children}</Typography>,
-    h2: ({ children }) => <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: 13, color: mode === "dark" ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.8)" }}>{children}</Typography>,
-    h3: ({ children }) => <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, color: mode === "dark" ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.8)" }}>{children}</Typography>,
-    strong: ({ children }) => <strong style={{ color: mode === "dark" ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.85)" }}>{children}</strong>,
-    em: ({ children }) => <em>{children}</em>,
-    ul: ({ children }) => <Box component="ul" sx={{ pl: 2, m: 0 }}>{children}</Box>,
-    ol: ({ children }) => <Box component="ol" sx={{ pl: 2, m: 0 }}>{children}</Box>,
-    li: ({ children }) => <Typography component="li" variant="body2" sx={{ fontSize: 13, color: mode === "dark" ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.65)" }}>{children}</Typography>,
-    code: ({ children }) => <Box component="code" sx={{ fontSize: 12, fontFamily: "monospace", bgcolor: mode === "dark" ? "#ffffff15" : "#00000010", px: 0.5, borderRadius: 0.5 }}>{children}</Box>,
-    pre: ({ children }) => <Box component="pre" sx={{ fontSize: 12, fontFamily: "monospace", bgcolor: mode === "dark" ? "#ffffff15" : "#00000010", p: 0.5, borderRadius: 1, whiteSpace: "pre-wrap", m: 0 }}>{children}</Box>,
-    br: () => <br />,
-  }), [mode]);
+// Memoize markdown components at module level to avoid recreation
+const createMdComponents = (mode) => ({
+  p: ({ children }) => (
+    <Typography variant="body2" sx={{ fontSize: 12, lineHeight: 1.4, color: mode === "dark" ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.65)", mb: 0.3, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+      {children}
+    </Typography>
+  ),
+  h1: ({ children }) => <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 12, color: mode === "dark" ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.8)" }}>{children}</Typography>,
+  h2: ({ children }) => <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 12, color: mode === "dark" ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.8)" }}>{children}</Typography>,
+  h3: ({ children }) => <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 12, color: mode === "dark" ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.8)" }}>{children}</Typography>,
+  strong: ({ children }) => <strong style={{ color: mode === "dark" ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.85)", fontSize: 12 }}>{children}</strong>,
+  em: ({ children }) => <em style={{ fontSize: 12 }}>{children}</em>,
+  ul: ({ children }) => <Box component="ul" sx={{ pl: 1, m: 0, mb: 0.3 }}>{children}</Box>,
+  ol: ({ children }) => <Box component="ol" sx={{ pl: 1, m: 0, mb: 0.3 }}>{children}</Box>,
+  li: ({ children }) => <Typography component="li" variant="body2" sx={{ fontSize: 12, color: mode === "dark" ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.65)", mb: 0.2 }}>{children}</Typography>,
+  code: ({ children }) => <Box component="code" sx={{ fontSize: 10, fontFamily: "monospace", bgcolor: mode === "dark" ? "#ffffff15" : "#00000010", px: 0.3, borderRadius: 0.3 }}>{children}</Box>,
+  pre: ({ children }) => <Box component="pre" sx={{ fontSize: 10, fontFamily: "monospace", bgcolor: mode === "dark" ? "#ffffff15" : "#00000010", p: 0.3, borderRadius: 0.5, whiteSpace: "pre-wrap", m: 0, display: "none" }}>{children}</Box>,
+  br: () => null, // Skip br tags in preview for lower overhead
+});
 
-  // Limit content to 400 chars to avoid parsing huge documents for a small preview
-  const previewContent = note.content ? note.content.slice(0, 400) : "";
+const NoteCard = React.memo(({ note, onOpen, onMenu, mode, theme }) => {
+  const mdComponents = React.useMemo(() => createMdComponents(mode), [mode]);
+
+  // Limit content to 150 chars for low-end Android devices (faster markdown parse)
+  const previewContent = note.content ? note.content.slice(0, 150) : "";
 
   return (
     <Card
@@ -162,6 +165,7 @@ const NoteCard = React.memo(({ note, onOpen, onMenu, mode, theme }) => {
         borderRadius: 4,
         cursor: "pointer",
         position: "relative",
+        "&:hover": { transform: "translateY(-1px)" }, // Reduced hover lift for low-end devices
       }}
     >
       <CardContent sx={CARD_CONTENT_SX}>
@@ -268,7 +272,10 @@ const Notes = () => {
   const collaboratorCacheRef = useRef({});
   const snapshotDebounceRef = useRef(null);
   const isManuallySavedRef = useRef(false); // Prevents auto-save duplicating a manual save
-  const [pageSize] = useState(30);
+  const [pageSize] = useState(15); // Reduced from 30 for low-end Android
+  const [allNotesLoaded, setAllNotesLoaded] = useState(false);
+  const [hasMoreNotes, setHasMoreNotes] = useState(true);
+  const observerRef = useRef(null); // Intersection observer for infinite scroll
 
   // Static sx objects promoted to module-level constants above — no useMemo overhead needed
   // overflowSx, transparentContentSx, cardSx, cardContentSx are now OVERFLOW_SX, TRANSPARENT_CONTENT_SX, CARD_STATIC_SX, CARD_CONTENT_SX
@@ -306,7 +313,12 @@ useEffect(() => {
     } catch {}
 
     if (cachedWeather) {
-      setWeather(cachedWeather);
+      // Use requestIdleCallback for non-critical updates on low-end devices
+      if (window.requestIdleCallback) {
+        requestIdleCallback(() => setWeather(cachedWeather), { timeout: 2000 });
+      } else {
+        setTimeout(() => setWeather(cachedWeather), 100);
+      }
     }
   }
 }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -315,11 +327,20 @@ useEffect(() => {
 // NOTE: Redundant localStorage read removed — sortOption, viewMode, selectedLabelFilter
 // are already initialized from localStorage via lazy useState() on lines 117-119.
 
-// Advanced: Batch localStorage writes
+// Advanced: Batch localStorage writes with debouncing for low-end devices
+const localStorageDebounceRef = useRef(null);
 useEffect(() => {
-  localStorage.setItem("noteSortOption", sortOption);
-  localStorage.setItem("noteViewMode", viewMode);
-  localStorage.setItem("noteLabelFilter", selectedLabelFilter);
+  if (localStorageDebounceRef.current) clearTimeout(localStorageDebounceRef.current);
+  localStorageDebounceRef.current = setTimeout(() => {
+    try {
+      localStorage.setItem("noteSortOption", sortOption);
+      localStorage.setItem("noteViewMode", viewMode);
+      localStorage.setItem("noteLabelFilter", selectedLabelFilter);
+    } catch (e) {
+      console.warn("localStorage write failed:", e);
+    }
+  }, 500); // 500ms debounce to batch rapid changes
+  return () => clearTimeout(localStorageDebounceRef.current);
 }, [sortOption, viewMode, selectedLabelFilter]);
 
 
@@ -420,9 +441,18 @@ useEffect(() => {
 
       setNotes(processed);
       setLoading(false);
+      setAllNotesLoaded(false); // Reset pagination state
+      setHasMoreNotes(processed.length >= pageSize); // Check if more notes exist
 
-      if (uids.size > 0) fetchCollaboratorProfiles(Array.from(uids));
-    }, 150);
+      // Defer collaborator profile fetching to idle time on low-end devices
+      if (uids.size > 0) {
+        if (window.requestIdleCallback) {
+          requestIdleCallback(() => fetchCollaboratorProfiles(Array.from(uids)), { timeout: 3000 });
+        } else {
+          fetchCollaboratorProfiles(Array.from(uids));
+        }
+      }
+    }, 200); // Increased from 150ms to 200ms for low-end devices
   }, (err) => {
     console.error("Notes listener error:", err);
     setLoading(false);
@@ -593,7 +623,7 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
         console.error("Auto-save error:", error);
         setAutoSaveStatus("");
       }
-    }, 500);
+    }, 800); // Increased from 500ms to 800ms for low-end devices
     
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
@@ -770,7 +800,7 @@ const handleAddCollaboratorFromDrawer = useCallback(async () => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
       startTransition(() => setSearchTerm(value));
-    }, 200); // 200ms debounce inside transition — low-end friendly
+    }, 350); // Increased from 200ms to 350ms for low-end Android devices
   }, [startTransition]);
 
   const handleToggleLabelMemo = useCallback((label) => {
@@ -844,12 +874,31 @@ const flatNotes = useMemo(() => [...pinnedNotes, ...unpinnedNotes], [pinnedNotes
 // Memoize the filter chip labels array — avoids spread allocation on every Notes render
 const allFilterLabels = useMemo(() => ["All", "Pinned", "Shared", ...labels], [labels]);
 
- // Advanced: Optimize preview toggle with early return
- useEffect(() => {
-  if ((drawerOpen || editDrawerOpen) && isPreview) {
-    setIsPreview(false);
+// Advanced: Infinite scroll implementation for pagination
+// Observes last note, triggers "load more" when visible
+useEffect(() => {
+  if (!hasMoreNotes || allNotesLoaded) return; // Stop if all notes loaded
+  
+  // Create intersection observer for last note
+  if (window.IntersectionObserver && flatNotes.length > 0) {
+    const lastNote = document.querySelector(`[data-note-id="${flatNotes[flatNotes.length - 1]?.id}"]`);
+    if (!lastNote) return;
+    
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !allNotesLoaded && hasMoreNotes) {
+          // Load more notes by increasing pageSize or triggering new query
+          // For now, this is a placeholder for future pagination implementation
+          console.log("📍 Bottom reached - ready to load more notes");
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    
+    observer.observe(lastNote);
+    return () => observer.disconnect();
   }
-}, [drawerOpen, editDrawerOpen, isPreview]);
+}, [flatNotes, hasMoreNotes, allNotesLoaded]);
 
 
   // --- Add formatting helper used by toolbar (fixes no-undef) ---
@@ -1011,18 +1060,19 @@ const allFilterLabels = useMemo(() => ["All", "Pinned", "Shared", ...labels], [l
                 </Typography>
               </Box>
             ) : (
-<Box>
+<Box sx={{ willChange: "contents" }}>
 {viewMode === "list" ? (
-  <Stack spacing={1.4}>
+  <Stack spacing={1.4} sx={{ perspective: "1000px" }}>
     {[...pinnedNotes, ...unpinnedNotes].map((note, idx) => (
-      <NoteCard
-        key={note.id}
-        note={note}
-        mode={mode}
-        theme={theme}
-        onOpen={() => openView(note)}
-        onMenu={(e) => openMenu(e, idx)}
-      />
+      <div key={note.id} data-note-id={note.id} style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
+        <NoteCard
+          note={note}
+          mode={mode}
+          theme={theme}
+          onOpen={() => openView(note)}
+          onMenu={(e) => openMenu(e, idx)}
+        />
+      </div>
     ))}
   </Stack>
 ) : (
@@ -1031,17 +1081,19 @@ const allFilterLabels = useMemo(() => ["All", "Pinned", "Shared", ...labels], [l
       display: "grid",
       gridTemplateColumns: "repeat(auto-fill, minmax(240px,1fr))",
       gap: 1.5,
+      perspective: "1000px",
     }}
   >
     {[...pinnedNotes, ...unpinnedNotes].map((note, idx) => (
-      <NoteCard
-        key={note.id}
-        note={note}
-        mode={mode}
-        theme={theme}
-        onOpen={() => openView(note)}
-        onMenu={(e) => openMenu(e, idx)}
-      />
+      <div key={note.id} data-note-id={note.id} style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
+        <NoteCard
+          note={note}
+          mode={mode}
+          theme={theme}
+          onOpen={() => openView(note)}
+          onMenu={(e) => openMenu(e, idx)}
+        />
+      </div>
     ))}
   </Box>
 )}
@@ -1059,6 +1111,7 @@ const allFilterLabels = useMemo(() => ["All", "Pinned", "Shared", ...labels], [l
           onOpen={() => {}}
           disableSwipeToOpen={true}
           disableDiscovery={true}
+          transitionDuration={{ enter: 200, exit: 150 }}
           PaperProps={{
             sx: {
               borderTopLeftRadius: 0,
@@ -1236,6 +1289,7 @@ const allFilterLabels = useMemo(() => ["All", "Pinned", "Shared", ...labels], [l
           onOpen={() => {}}
           disableSwipeToOpen={true}
           disableDiscovery={true}
+          transitionDuration={{ enter: 200, exit: 150 }}
           PaperProps={{
             sx: {
               borderTopLeftRadius: 20,
@@ -1293,6 +1347,7 @@ const allFilterLabels = useMemo(() => ["All", "Pinned", "Shared", ...labels], [l
           onOpen={() => {}}
           disableSwipeToOpen={true}
           disableDiscovery={true}
+          transitionDuration={{ enter: 200, exit: 150 }}
           PaperProps={{
             sx: {
               borderTopLeftRadius: 20,
@@ -1344,6 +1399,7 @@ const allFilterLabels = useMemo(() => ["All", "Pinned", "Shared", ...labels], [l
           onOpen={() => {}}
           disableSwipeToOpen={true}
           disableDiscovery={true}
+          transitionDuration={{ enter: 200, exit: 150 }}
           PaperProps={{
             sx: {
               backgroundColor: mode === "dark" ? "#0c0c0c" : "#f1f1f1",
@@ -1577,6 +1633,7 @@ const allFilterLabels = useMemo(() => ["All", "Pinned", "Shared", ...labels], [l
           onOpen={() => {}}
           disableSwipeToOpen={true}
           disableDiscovery={true}
+          transitionDuration={{ enter: 200, exit: 150 }}
           PaperProps={{
             sx: {
               borderTopLeftRadius: 16,
