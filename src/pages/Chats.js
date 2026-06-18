@@ -19,6 +19,7 @@ import {
 } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import BetaAccessGuard from "../components/BetaAccessGuard";
+import { useBackButtonClose } from '../hooks/useBackButtonClose';
 import {
   Avatar,
   IconButton,
@@ -122,6 +123,13 @@ function Chats({ onlyList }) {
   const [profilePicOpen, setProfilePicOpen] = useState(false);
   const [selectedProfileData, setSelectedProfileData] = useState(null); // To hold the data of the clicked user
   const [viewMode, setViewMode] = useState('avatar');
+
+  // Back button responsiveness for drawers and dialogs
+  useBackButtonClose(addUserDialog, () => setAddUserDialog(false));
+  useBackButtonClose(groupDialogOpen, () => setGroupDialogOpen(false));
+  useBackButtonClose(membDialogOpen, () => setMembDialogOpen(false));
+  useBackButtonClose(profileDrawerOpen, () => setProfileDrawerOpen(false));
+  useBackButtonClose(profilePicOpen, () => setProfilePicOpen(false));
 
   const handleCloseSnackbar = (_, reason) => {
     if (reason === "clickaway") return;
@@ -1815,9 +1823,10 @@ const ProfileDrawerContent = ({
   const [mutualGroups, setMutualGroups] = useState([]);
   const [mutualFriends, setMutualFriends] = useState([]);
 
-  // mini quick-view overlay state
   const [miniOpen, setMiniOpen] = useState(false);
   const [miniPerson, setMiniPerson] = useState(null);
+
+  useBackButtonClose(miniOpen, () => setMiniOpen(false));
 
 const isSelf = currentUser?.uid === user?.uid;
 

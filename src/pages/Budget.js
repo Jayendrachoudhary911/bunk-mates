@@ -71,6 +71,7 @@ import { getTheme } from "../theme";
 import ProfilePic from "../components/Profile";
 import BetaAccessGuard from "../components/BetaAccessGuard";
 import DeviceGuard from "../components/DeviceGuard";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -1497,6 +1498,11 @@ const selectedBudget = selectedIndex !== null && !isNaN(selectedIndex)
 
   const isOwner = selectedBudget && userId && selectedBudget.contributors?.[0]?.uid === userId;
 const expdrawerFlag = params.get("expdrawer") === "true";
+
+  useBackButtonClose(dialogOpen, () => setDialogOpen(false));
+  useBackButtonClose(aboutDrawerOpen, () => setAboutDrawerOpen(false));
+  useBackButtonClose(drawerOpen, () => setDrawerOpen(false));
+  useBackButtonClose(ExpdrawerOpen, () => setExpDrawerOpen(false));
 
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
 

@@ -30,6 +30,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import useUniversalSearch from "../hooks/useUniversalSearch";
 import { useNavigate } from "react-router-dom";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 import { getTheme } from "../theme";
 import {
   doc,
@@ -162,6 +163,8 @@ export default function SearchPage() {
   handleCreateTrip,
 } = useCreateTripDrawer();
 
+  useBackButtonClose(drawerOpen, () => setDrawerOpen(false));
+  useBackButtonClose(createDialogOpen, () => closeTripDrawer());
 
   useEffect(() => {
     const bottomBar = document.getElementById("bottom-nav"); // Adjust ID based on your layout

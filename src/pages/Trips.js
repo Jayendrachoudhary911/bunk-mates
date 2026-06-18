@@ -55,6 +55,7 @@ import { getTheme } from "../theme";
 import Cropper from "react-easy-crop";
 import Notifications from "../elements/Notifications";
 import {motion} from "framer-motion";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 // Deterministic color generator based on Trip ID
 const getTripColor = (id, mode) => {
@@ -178,6 +179,9 @@ export default function Trips() {
   const navigate = useNavigate();
   const user = auth.currentUser;
   const [randomNatureImage, setRandomNatureImage] = useState("");
+
+  useBackButtonClose(createDialogOpen, () => setCreateDialogOpen(false));
+  useBackButtonClose(cropDrawerOpen, () => setCropDrawerOpen(false));
 
   useEffect(() => {
     if (createDialogOpen && !newTrip.iconDataUri) {

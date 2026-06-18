@@ -1,6 +1,7 @@
 // src/pages/Reminders.js
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from 'react-router-dom';
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 import {
   AppBar,
   Toolbar,
@@ -84,6 +85,8 @@ export default function Reminders() {
   const muiTheme = useTheme(); 
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('sm'));
   const navigate = useNavigate();
+
+  useBackButtonClose(drawerOpen, () => setDrawerOpen(false));
 
   // Fetches and sets the current authenticated user
   useEffect(() => {

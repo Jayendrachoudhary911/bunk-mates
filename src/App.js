@@ -21,6 +21,7 @@ import Chats from "./pages/Chats";
 import Budgetmngr from "./pages/Budget";
 import Reminders from "./pages/Reminders";
 import Notes from "./pages/Notes";
+import NoteDetail from "./pages/NoteDetail";
 import Waitlist from "./pages/Wishlist";
 import Trips from "./pages/Trips";
 import JoinTrip from "./invites/JoinTrip";
@@ -202,6 +203,7 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/notes" element={<Notes />} />
+            <Route path="/notes/:id" element={<NoteDetail />} />
             <Route path="/trips" element={<Trips />} />
             <Route path="/chats" element={<Chats />} />
             <Route path="/search" element={<SearchPage />} />
