@@ -106,15 +106,13 @@ const GlassActionToolbar = ({
         right: 24,
         zIndex: 1000,
         borderRadius: 8,
-        backdropFilter: "blur(25px) saturate(180%)",
-        WebkitBackdropFilter: "blur(25px) saturate(180%)",
+        backdropFilter: "blur(15px) saturate(180%)",
+        WebkitBackdropFilter: "blur(15px) saturate(180%)",
         backgroundColor:
-          mode === "dark" ? "#1d1d1d" : "rgba(255, 255, 255, 0.75)",
+          mode === "dark" ? "#1d1d1d22" : "rgba(255, 255, 255, 0.75)",
         boxShadow: mode === "dark"
           ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
           : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-        border: "1px solid",
-        borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
         "& .MuiIconButton-root": {
           borderRadius: 2.5,
           padding: 1.2,
@@ -518,7 +516,7 @@ const NoteDetail = () => {
             minHeight: "100vh",
             maxWidth: 700,
             mx: "auto",
-            pt: 10,
+            pt: 13,
             pb: 12,
             boxSizing: "border-box",
             position: "relative",
@@ -529,7 +527,7 @@ const NoteDetail = () => {
             onClick={() => navigate("/notes")}
             sx={{
               position: "absolute",
-              top: 24,
+              top: 54,
               left: 16,
               height: 36,
               borderRadius: 6,
@@ -925,8 +923,9 @@ const NoteDetail = () => {
 
           {/* Details Drawer */}
           <SwipeableDrawer
-            anchor="right"
+            anchor="bottom"
             open={detailsDrawerOpen}
+            fullWidth
             onClose={() => setDetailsDrawerOpen(false)}
             onOpen={() => {}}
             disableSwipeToOpen={true}
@@ -934,107 +933,200 @@ const NoteDetail = () => {
             transitionDuration={{ enter: 200, exit: 150 }}
             PaperProps={{
               sx: {
-                borderTopLeftRadius: 16,
-                borderBottomLeftRadius: 16,
-                backgroundColor: mode === "dark" ? "#00000000" : "#ffffffda",
-                backdropFilter: "blur(80px)",
+                borderRadius: 6,
+                background: mode === "dark" ? "rgba(20, 20, 20, 0.85)" : "rgba(255, 255, 255, 0.9)",
+                backgroundImage: "none",
+                backdropFilter: "blur(20px)",
                 p: 3,
                 pt: 7.5,
-                maxWidth: 340,
-                width: "85vw", 
-                height: "95vh",
+                m: 2,
+                height: "50vh",
+                width: "80%",
                 mx: "auto",
+    boxShadow: theme.palette.mode === "dark"
+      ? `
+        inset 0 1px 2px rgba(255, 255, 255, 0.11),
+        inset 0 -1px 1px rgba(35, 35, 35, 0.07)
+      `
+      : `
+        inset 0 1px 1px rgba(255, 255, 255, 0.8),
+        inset 0 -1px 1px rgba(0, 0, 0, 0.1)
+      `
               },
             }}
           >
-            <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-              Note Details
+  <Typography variant="h6" fontWeight="800" sx={{ mb: 3, letterSpacing: "0.5px", textTransform: "uppercase", fontSize: "0.85rem", color: "text.secondary" }}>
+    Note Details
+  </Typography>
+
+  <Box
+    sx={{
+      display: "grid",
+      gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+      gap: 2,
+    }}
+  >
+
+    {/* GROUP 1: Authors & Sharing (Created By + Collaborators Side-by-Side) */}
+    <Box
+      sx={{
+        gridColumn: { sm: "span 2" },
+        p: 2.5,
+        borderRadius: 4,
+        background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)",
+        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}`,
+      }}
+    >
+      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+        Authors & Sharing
+      </Typography>
+      
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 4 }}>
+        {/* Created By Block */}
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Created By:</Typography>
+          {note?.owners && note.owners.length > 0 ? (
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1, background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderRadius: "20px", pl: 0.5, pr: 1.5, py: 0.5 }}>
+              <Avatar
+                src={sharedUsersInfo[note.owners[0]]?.photoURL || ""}
+                alt={sharedUsersInfo[note.owners[0]]?.username || "User"}
+                sx={{ width: 22, height: 22, fontSize: 11, bgcolor: theme.palette.secondary.main, color: "#fff" }}
+              >
+                {sharedUsersInfo[note.owners[0]]?.username ? sharedUsersInfo[note.owners[0]].username[0].toUpperCase() : "U"}
+              </Avatar>
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 13, fontWeight: 500 }}>
+                {sharedUsersInfo[note.owners[0]]?.username || note.owners[0].slice(0, 6) + "..."}
+              </Typography>
+            </Box>
+          ) : (
+            <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>Unknown</Typography>
+          )}
+        </Box>
+
+        {/* Collaborators Block */}
+        <Box sx={{ flex: 2 }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Collaborators:</Typography>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
+            {note?.sharedWith && note.sharedWith.length > 0 ? (
+              note.sharedWith.map((uid) => {
+                const u = sharedUsersInfo[uid];
+                return (
+                  <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderRadius: "20px", pl: 0.5, pr: 1.5, py: 0.5 }}>
+                    <Avatar
+                      src={u?.photoURL || ""}
+                      alt={u?.username || "User"}
+                      sx={{ width: 22, height: 22, fontSize: 11, bgcolor: theme.palette.primary.main, color: "#fff" }}
+                    >
+                      {u?.username ? u.username[0].toUpperCase() : "U"}
+                    </Avatar>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 13, fontWeight: 500 }}>
+                      {u?.username || uid.slice(0, 6) + "..."}
+                    </Typography>
+                  </Box>
+                );
+              })
+            ) : (
+              <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic", mt: 0.5 }}>Private Note</Typography>
+            )}
+          </Stack>
+        </Box>
+      </Box>
+    </Box>
+
+    {/* GROUP 2: Organization & Tags (Labels + Pinned Together) */}
+    <Box>
+      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, px: 1, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+        Organization & Tags
+      </Typography>
+
+      <Box sx={{ display: "flex", flexDirection: "row", gap: 2, alignItems: { sm: "center" } }}>
+        {/* Labels Block */}
+        <Box sx={{ flex: 2,
+        p: 2.5,
+        borderRadius: 4,
+        background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)",
+        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}`, }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Labels:</Typography>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
+            {note?.labels && note.labels.length > 0 ? (
+              note.labels.map((label) => (
+                <Chip
+                  key={label}
+                  icon={<LabelIcon sx={{ color: mode === "dark" ? "#fff" : "#000", fontSize: "14px !important" }} />}
+                  label={label}
+                  size="small"
+                  sx={{
+                    fontSize: "0.75rem",
+                    borderRadius: "8px",
+                    fontWeight: 500,
+                    color: mode === "dark" ? "#fff" : "#000",
+                    background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                  }}
+                />
+              ))
+            ) : (
+              <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>No labels assigned</Typography>
+            )}
+          </Stack>
+        </Box>
+
+        {/* Pinned Status Block */}
+        <Box sx={{ flex: 1, 
+        p: 2.5,
+        borderRadius: 4,
+        background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)",
+        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}`, }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Status:</Typography>
+          <Box 
+            sx={{ 
+              display: "inline-flex", 
+              alignItems: "center", 
+              gap: 1, 
+              py: 0.5, 
+              borderRadius: "12px",
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 700, color: note?.pinned ? "success.main" : "text.disabled", fontSize: 13 }}>
+              {note?.pinned ? "📌 Pinned" : "Regular Note"}
             </Typography>
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Title:</Typography>
-                <Typography variant="h5" sx={{ fontSize: "2rem" }}>{note.title || "Untitled"}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Labels:</Typography>
-                <Stack direction="row" spacing={1}>
-                  {(note.labels || []).map(label => (
-                    <Chip
-                      key={label}
-                      icon={<LabelIcon sx={{ color: "#000" }} />}
-                      label={label}
-                      size="small"
-                      sx={{
-                        fontSize: "0.7rem",
-                        borderRadius: '10px',
-                        color: mode === "dark" ? "#fff" : "#000",
-                        background: mode === "dark" ? "#3a3a3a" : "#bdbdbd83",
-                      }}
-                    />
-                  ))}
-                </Stack>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Collaborators:</Typography>
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                  {(note.sharedWith || []).map(uid => {
-                    const u = sharedUsersInfo[uid];
-                    return (
-                      <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: mode === "dark" ? "#171717" : "#acacac7e", borderRadius: 8, px: 0.5, py: 0.5 }}>
-                        <Avatar
-                          src={u?.photoURL || ""}
-                          alt={u?.username || "User"}
-                          sx={{ width: 24, height: 24, fontSize: 14, bgcolor: theme.palette.primary.bg, color: "#000" }}
-                        >
-                          {u?.username ? u.username[0].toUpperCase() : "U"}
-                        </Avatar>
-                        <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 14, marginRight: 1 }}>
-                          {u?.username || uid.slice(0, 6) + "..."}
-                        </Typography>
-                      </Box>
-                    );
-                  })}
-                </Stack>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Created At:</Typography>
-                <Typography variant="body2">
-                  {note.createdAt?.toDate
-                    ? note.createdAt.toDate().toLocaleString()
-                    : new Date(note.createdAt).toLocaleString()}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Created By:</Typography>
-                <Stack direction="row" spacing={1}>
-                  {note.owners && note.owners.length > 0 && (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, background: mode === "dark" ? "#171717" : "#acacac7e", borderRadius: 8, px: 0.5, py: 0.5 }}>
-                      <Avatar
-                        src={sharedUsersInfo[note.owners[0]]?.photoURL || ""}
-                        alt={sharedUsersInfo[note.owners[0]]?.username || "User"}
-                        sx={{ width: 24, height: 24, fontSize: 14, bgcolor: theme.palette.primary.bg, color: "#000" }}
-                      >
-                        {sharedUsersInfo[note.owners[0]]?.username
-                          ? sharedUsersInfo[note.owners[0]].username[0].toUpperCase()
-                          : "U"}
-                      </Avatar>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 14, marginRight: 1 }}>
-                        {sharedUsersInfo[note.owners[0]]?.username ||
-                          note.owners[0].slice(0, 6) + "..."}
-                      </Typography>
-                    </Box>
-                  )}
-                </Stack>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Note ID:</Typography>
-                <Typography variant="body2">{note.id}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Pinned:</Typography>
-                <Typography variant="body2">{note.pinned ? "Yes" : "No"}</Typography>
-              </Box>
-            </Stack>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+
+    {/* Timestamps & Identifiers (Footer elements) */}
+    <Box
+      sx={{
+        p: 2,
+        borderRadius: 3,
+        background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)",
+        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}`,
+      }}
+    >
+      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mb: 0.5 }}>Created At:</Typography>
+      <Typography variant="body2" sx={{ fontWeight: 500, color: "text.primary" }}>
+        {note?.createdAt?.toDate
+          ? note.createdAt.toDate().toLocaleString()
+          : note?.createdAt
+            ? new Date(note.createdAt).toLocaleString()
+            : "N/A"}
+      </Typography>
+    </Box>
+
+    <Box
+      sx={{
+        p: 2,
+        borderRadius: 3,
+        background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)",
+        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}`,
+      }}
+    >
+      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mb: 0.5 }}>Note ID:</Typography>
+      <Typography variant="body2" sx={{ fontFamily: "monospace", color: "text.secondary", fontSize: "0.8rem" }}>
+        {note?.id || "N/A"}
+      </Typography>
+    </Box>
+  </Box>
           </SwipeableDrawer>
 
           {/* Delete Confirm Dialog */}

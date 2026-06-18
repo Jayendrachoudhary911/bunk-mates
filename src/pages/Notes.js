@@ -21,7 +21,8 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Zoom
+  Zoom,
+  Link
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -286,7 +287,6 @@ const NoteCard = React.memo(({ note, onOpen, onMenu, mode, theme, isSelected, ac
         position: "relative",
         padding: 0,
         outline: "none",
-        border: "2px solid transparent",
         display: "block",
         boxSizing: "border-box",
         transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -295,9 +295,6 @@ const NoteCard = React.memo(({ note, onOpen, onMenu, mode, theme, isSelected, ac
         ...(isSelected && {
           transform: "scale(1.03) translateY(-4px) !important",
           zIndex: 10001,
-          border: mode === "dark" 
-            ? "1px solid rgba(255, 255, 255, 0.45)" 
-            : `1px solid ${theme.palette.primary.main}`,
           boxShadow: mode === "dark" ? "0 24px 64px rgba(0,0,0,0.65)" : "0 24px 64px rgba(0, 0, 0, 0.16)",
         }),
 
@@ -628,7 +625,7 @@ const Notes = () => {
           <AnimatePresence>
             {actionMode && selectedNote && (
               <>
-                <Box onClick={() => setActionMode(false)} sx={{ position: "fixed", inset: 0, zIndex: 1300, backdropFilter: "blur(10px) saturate(140%)", WebkitBackdropFilter: "blur(10px) saturate(140%)", background: "rgba(0, 0, 0, 0.4)" }} />
+                <Box onClick={() => setActionMode(false)} sx={{ position: "fixed", inset: 0, zIndex: 1300, WebkitOverflowScrolling: "touch", backdropFilter: "blur(10px) saturate(140%)", WebkitBackdropFilter: "blur(10px) saturate(140%)", background: "rgba(0, 0, 0, 0.4)" }} />
                 <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} style={{ position: "fixed", bottom: 20, width: "calc(100% - 32px)", maxWidth: "540px", mx: "auto", zIndex: 1301 }}>
                   <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, p: "8px 16px", width: "100%", boxSizing: "border-box", "& .MuiButton-root": { textTransform: "none", fontWeight: 600, minWidth: 44, height: 38, px: 1.5, color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.7)"} }}>
 <Stack 
@@ -668,8 +665,7 @@ const Notes = () => {
   <Stack direction="row" spacing={0.5} 
   sx={{
             backdropFilter: "blur(25px)", 
-        background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.8)", 
-        padding: 1, borderRadius: 8,
+        background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.8)", p: 0.5, borderRadius: 8,
               boxShadow: theme.palette.mode === "dark"
                 ? `
                   inset 0 1px 2px rgba(255, 255, 255, 0.11),
@@ -684,7 +680,7 @@ const Notes = () => {
     <Tooltip title="Labels" TransitionComponent={Zoom} arrow>
       <IconButton 
         onClick={() => setAddLabelDrawerOpen(true)}
-        sx={{ color: 'text.secondary', '&:hover': { color: 'secondary.main', bgcolor: 'secondary.lighter' } }}
+        sx={{ color: 'text.secondary', p: 1.5 }}
       >
         <LabelIcon fontSize="small" />
       </IconButton>
@@ -693,7 +689,7 @@ const Notes = () => {
     <Tooltip title="Edit Note" TransitionComponent={Zoom} arrow>
       <IconButton 
         onClick={() => { setNoteTitle(selectedNote.title || ""); setNoteContent(selectedNote.content || ""); setEditDrawerOpen(true); setDrawerOpen(true); setActionMode(false); }}
-        sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main', bgcolor: 'primary.lighter' } }}
+        sx={{ color: 'text.secondary', p: 1.5, }}
       >
         <EditIcon fontSize="small" />
       </IconButton>
@@ -703,35 +699,20 @@ const Notes = () => {
     <Tooltip title="Pin Note" TransitionComponent={Zoom} arrow>
       <IconButton 
         onClick={() => { handlePinNote(selectedNote); setActionMode(false); }}
-        sx={{ color: 'text.secondary', '&:hover': { color: 'info.main', bgcolor: 'info.lighter' } }}
+        sx={{ color: 'text.secondary', p: 1.5, }}
       >
         <PushPinIcon fontSize="small" />
       </IconButton>
     </Tooltip>
+  </Stack>
 
   {/* Dangerous Action Group (Destructive) */}
   <Tooltip title="Delete Note" TransitionComponent={Zoom} arrow>
     <IconButton 
       color="error" 
       onClick={() => { setNoteToDelete(selectedNote); setDeleteDialogOpen(true); }} 
-      sx={{ 
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': { 
-          bgcolor: 'error.lighter',
-          transform: 'scale(1.05)'
-        } 
-      }} 
-    >
-      <DeleteOutlineIcon fontSize="small" />
-    </IconButton>
-  </Tooltip>
-  </Stack>
-
-    <Tooltip title="Info" TransitionComponent={Zoom} arrow>
-      <IconButton 
-        onClick={() => setDetailsDrawerOpen(true)}
-        sx={{ color: 'text.secondary', '&:hover': { color: 'action.active' },
-              backdropFilter: "blur(25px)", 
+      sx={{ color: 'text.secondary', '&:hover': { color: 'success.main', bgcolor: 'success.lighter' },
+        backdropFilter: "blur(25px)", 
         background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.8)", 
         padding: 1.8, borderRadius: 8,
               boxShadow: theme.palette.mode === "dark"
@@ -742,27 +723,278 @@ const Notes = () => {
                 : `
                   inset 0 1px 1px rgba(255,255,255,0.8),
                   inset 0 -1px 1px rgba(0,0,0,0.1)
-                `, }}
-      >
-        <InfoOutlinedIcon fontSize="small" />
-      </IconButton>
-    </Tooltip>
+                `,
+      }}
+    >
+      <DeleteOutlineIcon fontSize="small" />
+    </IconButton>
+  </Tooltip>
 
 </Stack>
                   </Box>
                 </motion.div>
 
                 {/* Highly Configured typography preview modal panel slots overlaying backgrounds */}
-                <motion.div initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} style={{ position: "fixed", mx: "auto", zIndex: 1301, width: "calc(100% - 32px)", maxWidth: "540px", maxHeight: "65vh", display: "flex", flexDirection: "column" }}>
-                  <Box sx={{ borderRadius: 6, p: 3, display: "flex", flexDirection: "column", overflow: "hidden", background: mode === "dark" ? "rgba(28, 28, 28, 0.85)" : "rgba(255, 255, 255, 0.9)", border: "1px solid rgba(255,255,255,0.15)", boxShadow: "0 24px 64px rgba(0,0,0,0.75)" }}>
-                    <Typography variant="h5" fontWeight={700} sx={{ mb: 2, pb: 1.5, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>{selectedNote.title || "Untitled"}</Typography>
-                    <Box sx={{ flex: 1, overflowY: "auto", pr: 1, WebkitOverflowScrolling: "touch" }}>
-                      <ReactMarkdown components={{
-                        p: ({ children }) => <Typography variant="body1" sx={{ mb: 2, fontSize: "0.95rem", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{children}</Typography>,
-                        h1: ({ children }) => <Typography variant="h4" sx={{ mb: 2, fontWeight: 800 }}>{children}</Typography>,
-                        code: ({ children }) => <Box component="code" sx={{ bgcolor: "rgba(255,255,255,0.08)", px: 0.6, py: 0.2, borderRadius: 1.5, fontFamily: 'monospace' }}>{children}</Box>,
-                      }}>{selectedNote.content || '*No Content*'}</ReactMarkdown>
-                    </Box>
+                <motion.div initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} style={{ position: "fixed", mx: "auto", zIndex: 1300, width: "calc(100% - 32px)", maxWidth: "540px", maxHeight: "75vh", display: "flex", flexDirection: "column" }}>
+                  <Box>
+                    <Box sx={{ borderRadius: 6, p: 3, mb: 2, height: 150, background: mode === "dark" ? "rgba(20, 20, 20, 0.85)" : "rgba(255, 255, 255, 0.9)", 
+              boxShadow: theme.palette.mode === "dark"
+                ? `
+                  inset 0 1px 2px rgba(255, 255, 255, 0.11),
+                  inset 0 -1px 1px rgba(35, 35, 35, 0.07)
+                `
+                : `
+                  inset 0 1px 1px rgba(255,255,255,0.8),
+                  inset 0 -1px 1px rgba(0,0,0,0.1)
+                `, }}>
+                    <Typography variant="h5" fontWeight={700} sx={{ borderBottom: `2px solid ${theme.palette.divider}`, pb: 1 }}>
+                      {selectedNote.title || "Untitled"}
+                    </Typography>
+<Box 
+  onClick={() => {
+    // Replace this with your actual routing or state-changing navigation logic
+    navigate(`/notes/${selectedNote.id}`);
+  }}
+sx={{ mt: 2, cursor: "pointer",}}  
+>
+
+{selectedNote?.content ? (
+  <>
+    {/* This is the only ReactMarkdown component you need */}
+    <ReactMarkdown 
+      children={
+        selectedNote.content.length > 100 
+          ? `${selectedNote.content.substring(0, 100)}... ` 
+          : selectedNote.content
+      }
+    />
+
+    {/* The Read more link stays entirely detached outside of the markdown logic */}
+    {selectedNote.content.length > 140 && (
+      <Link
+      component="button"
+      variant="body1"
+      underline="hover"
+        onClick={(e) => {
+          e.stopPropagation(); // Prevents parent Box click
+          console.log("Navigate to details");
+        }}
+        sx={{
+          fontSize: "0.95rem",
+          fontWeight: 600,
+          color: "#7e7e7e",
+          textDecoration: "underline",
+          ml: 0.5,
+          verticalAlign: "baseline",
+          cursor: "pointer"
+        }}
+      >
+        Read more
+      </Link>
+    )}
+  </>
+) : (
+  <Typography variant="body1" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+    *No Content*
+  </Typography>
+)}
+</Box>
+    </Box>
+
+<Box
+  sx={{
+    flex: 1,
+    overflowY: "auto",
+    pr: 1,
+    WebkitOverflowScrolling: "touch",
+    height: 400,
+    borderRadius: 6,
+    p: 3,
+    background: mode === "dark" ? "rgba(20, 20, 20, 0.85)" : "rgba(255, 255, 255, 0.9)",
+    boxShadow: theme.palette.mode === "dark"
+      ? `
+        inset 0 1px 2px rgba(255, 255, 255, 0.11),
+        inset 0 -1px 1px rgba(35, 35, 35, 0.07)
+      `
+      : `
+        inset 0 1px 1px rgba(255, 255, 255, 0.8),
+        inset 0 -1px 1px rgba(0, 0, 0, 0.1)
+      `
+  }}
+>
+  <Typography variant="h6" fontWeight="800" sx={{ mb: 3, letterSpacing: "0.5px", textTransform: "uppercase", fontSize: "0.85rem", color: "text.secondary" }}>
+    Note Details
+  </Typography>
+
+  <Box
+    sx={{
+      display: "grid",
+      gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+      gap: 2,
+    }}
+  >
+
+    {/* GROUP 1: Authors & Sharing (Created By + Collaborators Side-by-Side) */}
+    <Box
+      sx={{
+        gridColumn: { sm: "span 2" },
+        p: 2.5,
+        borderRadius: 4,
+        background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)",
+        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}`,
+      }}
+    >
+      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+        Authors & Sharing
+      </Typography>
+      
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 4 }}>
+        {/* Created By Block */}
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Created By:</Typography>
+          {selectedNote?.owners && selectedNote.owners.length > 0 ? (
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1, background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderRadius: "20px", pl: 0.5, pr: 1.5, py: 0.5 }}>
+              <Avatar
+                src={sharedUsersInfo[selectedNote.owners[0]]?.photoURL || ""}
+                alt={sharedUsersInfo[selectedNote.owners[0]]?.username || "User"}
+                sx={{ width: 22, height: 22, fontSize: 11, bgcolor: theme.palette.secondary.main, color: "#fff" }}
+              >
+                {sharedUsersInfo[selectedNote.owners[0]]?.username ? sharedUsersInfo[selectedNote.owners[0]].username[0].toUpperCase() : "U"}
+              </Avatar>
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 13, fontWeight: 500 }}>
+                {sharedUsersInfo[selectedNote.owners[0]]?.username || selectedNote.owners[0].slice(0, 6) + "..."}
+              </Typography>
+            </Box>
+          ) : (
+            <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>Unknown</Typography>
+          )}
+        </Box>
+
+        {/* Collaborators Block */}
+        <Box sx={{ flex: 2 }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Collaborators:</Typography>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
+            {selectedNote?.sharedWith && selectedNote.sharedWith.length > 0 ? (
+              selectedNote.sharedWith.map((uid) => {
+                const u = sharedUsersInfo[uid];
+                return (
+                  <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderRadius: "20px", pl: 0.5, pr: 1.5, py: 0.5 }}>
+                    <Avatar
+                      src={u?.photoURL || ""}
+                      alt={u?.username || "User"}
+                      sx={{ width: 22, height: 22, fontSize: 11, bgcolor: theme.palette.primary.main, color: "#fff" }}
+                    >
+                      {u?.username ? u.username[0].toUpperCase() : "U"}
+                    </Avatar>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 13, fontWeight: 500 }}>
+                      {u?.username || uid.slice(0, 6) + "..."}
+                    </Typography>
+                  </Box>
+                );
+              })
+            ) : (
+              <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic", mt: 0.5 }}>Private Note</Typography>
+            )}
+          </Stack>
+        </Box>
+      </Box>
+    </Box>
+
+    {/* GROUP 2: Organization & Tags (Labels + Pinned Together) */}
+    <Box>
+      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, px: 1, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+        Organization & Tags
+      </Typography>
+
+      <Box sx={{ display: "flex", flexDirection: "row", gap: 2, alignItems: { sm: "center" } }}>
+        {/* Labels Block */}
+        <Box sx={{ flex: 2,
+        p: 2.5,
+        borderRadius: 4,
+        background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)",
+        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}`, }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Labels:</Typography>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
+            {selectedNote?.labels && selectedNote.labels.length > 0 ? (
+              selectedNote.labels.map((label) => (
+                <Chip
+                  key={label}
+                  icon={<LabelIcon sx={{ color: mode === "dark" ? "#fff" : "#000", fontSize: "14px !important" }} />}
+                  label={label}
+                  size="small"
+                  sx={{
+                    fontSize: "0.75rem",
+                    borderRadius: "8px",
+                    fontWeight: 500,
+                    color: mode === "dark" ? "#fff" : "#000",
+                    background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                  }}
+                />
+              ))
+            ) : (
+              <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>No labels assigned</Typography>
+            )}
+          </Stack>
+        </Box>
+
+        {/* Pinned Status Block */}
+        <Box sx={{ flex: 1, 
+        p: 2.5,
+        borderRadius: 4,
+        background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)",
+        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}`, }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Status:</Typography>
+          <Box 
+            sx={{ 
+              display: "inline-flex", 
+              alignItems: "center", 
+              gap: 1, 
+              py: 0.5, 
+              borderRadius: "12px",
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 700, color: selectedNote?.pinned ? "success.main" : "text.disabled", fontSize: 13 }}>
+              {selectedNote?.pinned ? "📌 Pinned" : "Regular Note"}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+
+    {/* Timestamps & Identifiers (Footer elements) */}
+    <Box
+      sx={{
+        p: 2,
+        borderRadius: 3,
+        background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)",
+        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}`,
+      }}
+    >
+      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mb: 0.5 }}>Created At:</Typography>
+      <Typography variant="body2" sx={{ fontWeight: 500, color: "text.primary" }}>
+        {selectedNote?.createdAt?.toDate
+          ? selectedNote.createdAt.toDate().toLocaleString()
+          : selectedNote?.createdAt
+            ? new Date(selectedNote.createdAt).toLocaleString()
+            : "N/A"}
+      </Typography>
+    </Box>
+
+    <Box
+      sx={{
+        p: 2,
+        borderRadius: 3,
+        background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)",
+        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}`,
+      }}
+    >
+      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mb: 0.5 }}>Note ID:</Typography>
+      <Typography variant="body2" sx={{ fontFamily: "monospace", color: "text.secondary", fontSize: "0.8rem" }}>
+        {selectedNote?.id || "N/A"}
+      </Typography>
+    </Box>
+  </Box>
+</Box>
                   </Box>
                 </motion.div>
               </>
