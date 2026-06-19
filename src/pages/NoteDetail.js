@@ -49,6 +49,7 @@ import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import NotificationsPage from "../elements/Notifications";
 import { useBackButtonClose } from "../hooks/useBackButtonClose";
+import confetti from 'canvas-confetti';
 
 // Glassmorphism design utility
 const glass = (mode) => ({
@@ -91,88 +92,184 @@ const GlassActionToolbar = ({
   onInfo,
   onDelete,
 }) => {
+
+const handlePinClick = (event) => {
+  onPin();
+
+  if (!isPinned) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = (rect.left + rect.width / 2) / window.innerWidth;
+    const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+    // Use glyph symbols that canvas-confetti can dynamically colorize
+    const pinShape1 = confetti.shapeFromText({ text: '📍', scalar: 4.2 });
+    const pinShape2 = confetti.shapeFromText({ text: '📌', scalar: 4.2 });
+
+    confetti({
+      particleCount: 30,
+      spread: 30,
+      startVelocity: 25,
+      origin: { x, y },
+      shapes: [pinShape1, pinShape2],
+      colors: ['#52ff74', '#3498db', '#f1c40f', '#e74c3c', '#9b59b6'], 
+      disableForReducedMotion: true,
+    });
+  }
+};
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "8px 16px",
-        width: 260,
-        mx: "auto",
-        position: "fixed",
-        bottom: 24,
-        left: 24,
-        right: 24,
-        zIndex: 1000,
-        borderRadius: 8,
-        backdropFilter: "blur(15px) saturate(180%)",
-        WebkitBackdropFilter: "blur(15px) saturate(180%)",
-        backgroundColor:
-          mode === "dark" ? "#1d1d1d22" : "rgba(255, 255, 255, 0.75)",
-        boxShadow: mode === "dark"
-          ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-          : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-        "& .MuiIconButton-root": {
-          borderRadius: 2.5,
-          padding: 1.2,
-          transition: "all 0.2s ease",
-          color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.7)",
-          "&:hover": {
-            backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
-            color: mode === "dark" ? "#fff" : "#000",
-          },
+<Box
+  sx={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    p: 0.7,
+    mx: "auto",
+    position: "fixed",
+    bottom: 24,
+    left: 14,
+    right: 24,
+    zIndex: 1000,
+    "& .MuiIconButton-root": {
+      transition: "all 0.2s ease",
+      color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.7)",
+      "&:hover": {
+        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
+        color: mode === "dark" ? "#fff" : "#000",
+      },
+    },
+  }}
+>
+<Box
+  sx={{
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 120, // Added an explicit height so the gradient doesn't stretch across the entire screen
+    pointerEvents: "none", // Ensures the gradient container doesn't block clicks to elements underneath it
+    background: mode === "dark" 
+      ? "linear-gradient(to top, rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 50%, rgba(0, 0, 0, 0) 100%)" 
+      : "linear-gradient(to top, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 100%)",
+  }}
+/>
+  {/* Left Section: Share */}
+  <Tooltip title="Share">
+    <IconButton onClick={onShare} 
+    sx={{
+      p: 2,
+    borderRadius: 8,
+    backdropFilter: "blur(15px) saturate(180%)",
+    WebkitBackdropFilter: "blur(15px) saturate(180%)",
+    backgroundColor:
+      mode === "dark" ? "#1d1d1d22" : "rgba(255, 255, 255, 0.75)",
+    boxShadow: mode === "dark"
+      ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+      : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+    }}>
+      <ShareIcon sx={{ fontSize: "1.35rem" }} />
+    </IconButton>
+  </Tooltip>
+
+  {/* Middle Section: Grouped Buttons */}
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1,
+    borderRadius: 8,
+    backdropFilter: "blur(15px) saturate(180%)",
+    WebkitBackdropFilter: "blur(15px) saturate(180%)",
+    backgroundColor:
+      mode === "dark" ? "#1d1d1d22" : "rgba(255, 255, 255, 0.75)",
+    boxShadow: mode === "dark"
+      ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+      : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+    }}>
+    <Tooltip title="Edit">
+      <IconButton onClick={onEdit}>
+        <EditIcon sx={{ fontSize: "1.35rem" }} />
+      </IconButton>
+    </Tooltip>
+
+<Tooltip title={isPinned ? "Unpin" : "Pin to Top"}>
+  <IconButton
+    onClick={handlePinClick}
+    sx={{
+      transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)", // Smooth spring-like transition
+      
+      // Active "Pinned" state animations
+      ...(isPinned && {
+        color: mode === "dark" ? "#52ff74" : "#00aa25",
+        backgroundColor: mode === "dark" ? "rgba(82, 255, 116, 0.15) !important" : "rgba(0, 170, 37, 0.08) !important",
+        transform: "rotate(30deg) scale(1.1)",
+        animation: "pinPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards", // Smooth entry pop
+        
+        "&:hover": {
+          transform: "rotate(35deg) scale(1.18)",
+          backgroundColor: mode === "dark" ? "rgba(82, 255, 116, 0.25) !important" : "rgba(0, 170, 37, 0.12) !important",
         },
-      }}
-    >
-      <Tooltip title="Edit">
-        <IconButton onClick={onEdit}>
-          <EditIcon sx={{ fontSize: "1.25rem" }} />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="Share">
-        <IconButton onClick={onShare}>
-          <ShareIcon sx={{ fontSize: "1.25rem" }} />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title={isPinned ? "Unpin" : "Pin to Top"}>
-        <IconButton
-          onClick={onPin}
-          sx={{
-            ...(isPinned && {
-              color: mode === "dark" ? "#52ff74" : "#00aa25",
-              backgroundColor: mode === "dark" ? "rgba(82, 255, 116, 0.15) !important" : "rgba(0, 170, 37, 0.08) !important",
-              transform: "rotate(30deg) scale(1.05)",
-              "&:hover": {
-                transform: "rotate(30deg) scale(1.1)",
-                backgroundColor: mode === "dark" ? "rgba(82, 255, 116, 0.25) !important" : "rgba(0, 170, 37, 0.12) !important",
-              },
-            }),
-          }}
-        >
-          <PushPinIcon sx={{ fontSize: "1.25rem" }} />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="Note Details">
-        <IconButton onClick={onInfo}>
-          <InfoOutlinedIcon sx={{ fontSize: "1.25rem" }} />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="Delete Note">
-        <IconButton
-          onClick={onDelete}
-          sx={{
-            color: mode === "dark" ? "#ff6b6b" : "#e03131",
-            "&:hover": {
-              backgroundColor: mode === "dark" ? "rgba(255, 107, 107, 0.15) !important" : "rgba(224, 49, 49, 0.08) !important",
-              color: mode === "dark" ? "#ff8787" : "#c92a2a",
-            },
-          }}
-        >
-          <DeleteOutlineIcon sx={{ fontSize: "1.25rem" }} />
-        </IconButton>
-      </Tooltip>
-    </Box>
+        "&:active": {
+          transform: "rotate(25deg) scale(0.95)", // Tactile compression feedback on click
+        },
+      }),
+
+      // Unpinned default state hover/active adjustments
+      ...(!isPinned && {
+        "&:active": {
+          transform: "scale(0.92)",
+        }
+      }),
+
+      // Hardware-accelerated CSS Keyframes injected cleanly into the DOM
+      "@keyframes pinPop": {
+        "0%": {
+          transform: "rotate(0deg) scale(0.5)",
+          opacity: 0.7,
+        },
+        "70%": {
+          transform: "rotate(40deg) scale(1.2)", // Over shoot for spring feel
+        },
+        "100%": {
+          transform: "rotate(30deg) scale(1.1)",
+          opacity: 1,
+        }
+      }
+    }}
+  >
+    <PushPinIcon sx={{ fontSize: "1.35rem" }} />
+  </IconButton>
+</Tooltip>
+
+    <Tooltip title="Delete Note">
+      <IconButton
+        onClick={onDelete}
+        sx={{
+          color: mode === "dark" ? "#ff6b6b" : "#e03131",
+          "&:hover": {
+            backgroundColor: mode === "dark" ? "rgba(255, 107, 107, 0.15) !important" : "rgba(224, 49, 49, 0.08) !important",
+            color: mode === "dark" ? "#ff8787" : "#c92a2a",
+          },
+        }}
+      >
+        <DeleteOutlineIcon sx={{ fontSize: "1.35rem" }} />
+      </IconButton>
+    </Tooltip>
+  </Box>
+
+  {/* Right Section: Info */}
+  <Tooltip title="Note Details">
+    <IconButton onClick={onInfo}
+    sx={{
+      p: 2,
+    borderRadius: 8,
+    backdropFilter: "blur(15px) saturate(180%)",
+    WebkitBackdropFilter: "blur(15px) saturate(180%)",
+    backgroundColor:
+      mode === "dark" ? "#1d1d1d22" : "rgba(255, 255, 255, 0.75)",
+    boxShadow: mode === "dark"
+      ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+      : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+    }}>
+      <InfoOutlinedIcon sx={{ fontSize: "1.35rem" }} />
+    </IconButton>
+  </Tooltip>
+</Box>
   );
 };
 

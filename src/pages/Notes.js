@@ -75,11 +75,11 @@ import { useBackButtonClose } from "../hooks/useBackButtonClose";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
 
 const glass = (mode) => ({
-  background: mode === "dark" ? "rgba(30, 30, 30, 0.4)" : "rgba(255, 255, 255, 0.4)",
+  background: mode === "dark" ? "rgba(30, 30, 30, 0.22)" : "rgba(255, 255, 255, 0.4)",
   backdropFilter: "blur(22px)",
   border: "none",
   boxShadow: mode === "dark"
-    ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+    ? `inset 0 1px 1px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
     : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
 });
 
@@ -295,7 +295,6 @@ const NoteCard = React.memo(({ note, onOpen, onMenu, mode, theme, isSelected, ac
         ...(isSelected && {
           transform: "scale(1.03) translateY(-4px) !important",
           zIndex: 10001,
-          boxShadow: mode === "dark" ? "0 24px 64px rgba(0,0,0,0.65)" : "0 24px 64px rgba(0, 0, 0, 0.16)",
         }),
 
         ...(actionMode && !isSelected && {
@@ -1008,7 +1007,7 @@ sx={{ mt: 2, cursor: "pointer",}}
     zIndex: 10, // Increased zIndex slightly to make sure parent stays above scrolling list
     pb: 3,
     px: 0,
-    pt: 5.5,
+    pt: 6.5,
     backgroundColor: "transparent", 
   }}
 >
@@ -1284,7 +1283,7 @@ sx={{ mt: 2, cursor: "pointer",}}
     top: -5,
     left: 0,
     right: 0,
-    height: 250,
+    height: 350,
     zIndex: -1,
     mx: -2,
     pointerEvents: "none",
