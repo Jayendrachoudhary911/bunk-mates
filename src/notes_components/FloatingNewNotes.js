@@ -55,8 +55,7 @@ export default function FloatingNewNotes({ mode }) {
               setNoteLabels([]);
               setCollaborators([]);
               setSelectedNote(null);
-              setEditDrawerOpen(false);
-              setDrawerOpen(true);
+              navigate(`/notes/${note.id}/workspace`);
             }}
         onMouseEnter={() => !scrolled && setExpanded(true)}
         onMouseLeave={() => !scrolled && setExpanded(false)}

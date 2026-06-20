@@ -99,6 +99,7 @@ const CARD_STATIC_SX = { mb: 8, padding: 0, backgroundColor: "transparent" };
 const FloatingNewNotes = ({ mode, onOpen }) => {
   const [expanded, setExpanded] = useState(true);
   const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let ticking = false;
@@ -125,7 +126,7 @@ const FloatingNewNotes = ({ mode, onOpen }) => {
   return (
     <Box sx={{ position: "fixed", bottom: 85, right: 41, zIndex: 1100, pointerEvents: "none" }}>
       <Button
-        onClick={onOpen}
+        onClick={() => navigate(`/notes/new/workspace`)}
         onMouseEnter={() => !scrolled && setExpanded(true)}
         onMouseLeave={() => !scrolled && setExpanded(false)}
         startIcon={<SquarePen sx={{ fontSize: expanded ? 27 : 42 }} />}
@@ -687,7 +688,7 @@ const Notes = () => {
 
     <Tooltip title="Edit Note" TransitionComponent={Zoom} arrow>
       <IconButton 
-        onClick={() => { setNoteTitle(selectedNote.title || ""); setNoteContent(selectedNote.content || ""); setEditDrawerOpen(true); setDrawerOpen(true); setActionMode(false); }}
+        onClick={() => { setNoteTitle(selectedNote.title || ""); setNoteContent(selectedNote.content || ""); navigate(`/notes/${selectedNote.id}/workspace`); setActionMode(false); }}
         sx={{ color: 'text.secondary', p: 1.5, }}
       >
         <EditIcon fontSize="small" />
