@@ -372,7 +372,7 @@ const NoteDetail = () => {
         <Box
           sx={{
             p: 3,
-            px: 2,
+            px: 4,
             backgroundColor: theme.palette.background.default,
             color: theme.palette.text.primary,
             minHeight: "100vh",
@@ -384,37 +384,92 @@ const NoteDetail = () => {
             position: "relative",
           }}
         >
-          {/* Top Return Layer Controls */}
-          <Button
-            onClick={() => navigate("/notes")}
+          <Box
             sx={{
-              position: "absolute",
-              top: 54,
-              left: 16,
-              height: 36,
-              borderRadius: 6,
-              px: 2,
-              backdropFilter: "blur(20px) saturate(200%)",
-              WebkitBackdropFilter: "blur(20px) saturate(200%)",
-              color: mode === "dark" ? "#fff" : "#000",
-              zIndex: 10,
-              backgroundColor: mode === "dark" ? "#1d1d1d" : "rgba(0, 0, 0, 0.04)",
-              textTransform: "none",
-              fontWeight: 600,
-              gap: 0.5,
-              boxShadow: mode === "dark"
-                ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-                : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-              "&:hover": {
-                backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)",
-              }
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+          
+              height: 120,
+          
+              zIndex: 1100,
+          
+              pointerEvents: "none",
+          
+              background:
+                mode === "dark"
+                  ? `
+                    linear-gradient(
+                      to bottom,
+                      rgba(12,12,12,1) 0%,
+                      rgba(12,12,12,0.85) 25%,
+                      rgba(12,12,12,0.55) 60%,
+                      rgba(12,12,12,0.15) 85%,
+                      transparent 100%
+                    )
+                  `
+                  : `
+                    linear-gradient(
+                      to bottom,
+                      rgba(255,255,255,1) 0%,
+                      rgba(255,255,255,0.88) 25%,
+                      rgba(255,255,255,0.58) 60%,
+                      rgba(255,255,255,0.18) 85%,
+                      transparent 100%
+                    )
+                  `,
             }}
-          >
-            <ArrowBackIcon sx={{ fontSize: "1.1rem" }} /> 
-            <Typography variant="body2" fontWeight={600}>Back</Typography>
-          </Button>
+          />
+          <Box
+  sx={{
+    position: "fixed",
+    top: 51,
+    left: 11,
+    right: 11,
+    zIndex: 1200,
 
-          <Typography variant="h4" fontWeight="bold" sx={{ color: theme.palette.text.primary, mb: 1, mt: 2 }}>
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    px: 1
+  }}
+>
+  {/* Left side */}
+  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+    <IconButton
+      onClick={() => navigate(-1)}
+      sx={{
+        borderRadius: 8,
+        p: 1.5,
+
+        backdropFilter: "blur(10px)",
+        boxShadow: theme.palette.mode === "dark"
+                  ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                  : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
+
+        color: mode === "dark" ? "#fff" : "#000",
+
+        background:
+          mode === "dark"
+            ? "rgba(255,255,255,0.06)"
+            : "rgba(0,0,0,0.04)",
+
+        "&:hover": {
+          background:
+            mode === "dark"
+              ? "rgba(255,255,255,0.12)"
+              : "rgba(0,0,0,0.08)",
+        },
+      }}
+    >
+      <ArrowBackIcon />
+    </IconButton>
+  </Box>
+
+</Box>
+
+          <Typography variant="h4" fontWeight="600" sx={{ color: theme.palette.text.primary, mb: 1, mt: 2 }}>
             {note.title || "Untitled Note"}
           </Typography>
 
