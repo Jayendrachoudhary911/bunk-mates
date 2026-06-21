@@ -211,6 +211,20 @@ const NoteWorkspace = () => {
   const [collaboratorsDrawerOpen, setCollaboratorsDrawerOpen] = useState(false);
   const [labelsDrawerOpen, setLabelsDrawerOpen] = useState(false);
 
+  const getFontFamily = (style) => {
+    switch (style) {
+      case "sans":
+        return '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+      case "serif":
+        return 'Georgia, Cambria, "Times New Roman", Times, serif';
+      case "dyslexic":
+        return '"OpenDyslexic", "Comic Sans MS", cursive, sans-serif';
+      case "monospace":
+      default:
+        return "monospace, Courier New, Courier, sans-serif";
+    }
+  };
+
   // Auto-resize textarea
   useEffect(() => {
     const textarea = noteContentRef.current;
@@ -386,7 +400,7 @@ const NoteWorkspace = () => {
         setTimeout(() => setAutoSaveStatus(""), 1500);
       } catch (error) {
         console.error("Auto-save operation exception fault:", error);
-        setAutoSaveStatus("");
+      setAutoSaveStatus("");
       }
     }, 1200);
 
@@ -457,7 +471,7 @@ const NoteWorkspace = () => {
   const filteredFriends = useMemo(() => {
     return friendsList.filter(f => 
       f.name.toLowerCase().includes(searchCollaboratorQuery.toLowerCase()) ||
-      f.email.toLowerCase().includes(searchCollaboratorQuery.toLowerCase())
+      (f.email && f.email.toLowerCase().includes(searchCollaboratorQuery.toLowerCase()))
     );
   }, [friendsList, searchCollaboratorQuery]);
 
@@ -500,20 +514,6 @@ const NoteWorkspace = () => {
     });
   }, [noteContent]);
 
-  const getFontFamily = (style) => {
-    switch (style) {
-      case "sans":
-        return '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-      case "serif":
-        return 'Georgia, Cambria, "Times New Roman", Times, serif';
-      case "dyslexic":
-        return '"OpenDyslexic", "Comic Sans MS", cursive, sans-serif';
-      case "monospace":
-      default:
-        return "monospace, Courier New, Courier, sans-serif";
-    }
-  };
-
   if (loading) {
     return (
       <ThemeProvider theme={theme}>
@@ -540,7 +540,7 @@ const NoteWorkspace = () => {
               position: "fixed", top: 0, left: 0, right: 0, height: 120, zIndex: 1100, pointerEvents: "none",
               background: mode === "dark"
                 ? `linear-gradient(to bottom, rgba(12,12,12,1) 0%, rgba(12,12,12,0.85) 25%, rgba(12,12,12,0.55) 60%, rgba(12,12,12,0.15) 85%, transparent 100%)`
-                : `linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0.88) 25%, rgba(255,255,255,0.58) 60%, rgba(255,255,255,0.18) 85%, transparent 100%)`,
+                : `linear-gradient(to bottom, rgba(255, 255,255,1) 0%, rgba(255,255,255,0.88) 25%, rgba(255,255,255,0.58) 60%, rgba(255,255,255,0.18) 85%, transparent 100%)`,
             }}
           />
 
@@ -611,100 +611,98 @@ const NoteWorkspace = () => {
                 disableUnderline: true,
                 sx: {
                   fontSize: 30, fontWeight: 600, color: mode === "dark" ? "#fff" : "#111", px: 0, transition: "all .25s ease",
+                  fontFamily: getFontFamily(fontStyle),
                   "& input::placeholder": { opacity: 0.5 },
                 },
               }}
             />
 
             {/* Labels View Wrapper List */}
-{/* Labels Suggestions / Attached Labels */}
-<Box
-  sx={{
-    display: "flex",
-    gap: 1,
-    mt: 1,
-    mb: 2,
-    flexWrap: "wrap",
-    alignItems: "center"
-  }}
->
-  {/* 1. Show the labels ALREADY attached to this note */}
-  {noteLabels.map((label) => (
-    <Chip
-      key={`attached-${label}`}
-      label={label}
-      onClick={() => handleToggleLabelMemo(label)}
-      size="small"
-      variant="filled"
-      sx={{
-        px: 0.5,
-        height: 30,
-        borderRadius: 6,
-        fontWeight: 600,
-        transition: "all .25s ease",
-        color: mode === "dark" ? "#000" : "#fff",
-            backgroundColor: mode === "dark" ? "#ffffff" : "rgba(21, 21, 21, 0.86)",
-            boxShadow: mode === "dark"
-            ? `inset 0 1px 1px rgba(52, 52, 52, 0.96), inset 0 -1px 1px rgba(31, 31, 31, 0.68)`
-            : `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`,
-        "&:hover": {
-          transform: "translateY(-2px)",
-          background: theme.palette.primary.dark,
-        },
-      }}
-    />
-  ))}
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1,
+                mt: 1,
+                mb: 2,
+                flexWrap: "wrap",
+                alignItems: "center"
+              }}
+            >
+              {noteLabels.map((label) => (
+                <Chip
+                  key={`attached-${label}`}
+                  label={label}
+                  onClick={() => handleToggleLabelMemo(label)}
+                  size="small"
+                  variant="filled"
+                  sx={{
+                    px: 0.5,
+                    height: 30,
+                    borderRadius: 6,
+                    fontWeight: 600,
+                    transition: "all .25s ease",
+                    color: mode === "dark" ? "#000" : "#fff",
+                    backgroundColor: mode === "dark" ? "#ffffff" : "rgba(21, 21, 21, 0.86)",
+                    boxShadow: mode === "dark"
+                    ? `inset 0 1px 1px rgba(52, 52, 52, 0.96), inset 0 -1px 1px rgba(31, 31, 31, 0.68)`
+                    : `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`,
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      background: theme.palette.primary.dark,
+                    },
+                  }}
+                />
+              ))}
 
-  {/* 2. Show unattached historical labels as suggestions (Limit to 4) */}
-  {labels
-    .filter((label) => !noteLabels.includes(label)) // only show unselected ones
-    .slice(0, 4) // cap at 4 suggestions
-    .map((label) => (
-      <Chip
-        key={`suggested-${label}`}
-        label={label}
-        onClick={() => handleToggleLabelMemo(label)}
-        size="small"
-        variant="outlined"
-        sx={{
-          px: 0.5,
-          height: 30,
-          borderRadius: 6,
-          fontWeight: 600,
-          transition: "all .25s ease",
-          color: mode === "dark" ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.6)",
-          borderStyle: "dashed",
-          background: "transparent",
-          "&:hover": {
-            transform: "translateY(-2px)",
-            background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
-          },
-        }}
-      />
-    ))}
+              {labels
+                .filter((label) => !noteLabels.includes(label))
+                .slice(0, 4)
+                .map((label) => (
+                  <Chip
+                    key={`suggested-${label}`}
+                    label={label}
+                    onClick={() => handleToggleLabelMemo(label)}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      px: 0.5,
+                      height: 30,
+                      borderRadius: 6,
+                      fontWeight: 600,
+                      transition: "all .25s ease",
+                      color: mode === "dark" ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.6)",
+                      borderStyle: "dashed",
+                      background: "transparent",
+                      "&:hover": {
+                        transform: "translateY(-2px)",
+                        background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
+                      },
+                    }}
+                  />
+                ))}
 
-  {/* 3. Conditional Plus Button to prompt full labels drawer management */}
-  <Chip
-    label="+"
-    onClick={() => setLabelsDrawerOpen(true)}
-    size="small"
-    variant="outlined"
-    sx={{
-      height: 30,
-      borderRadius: 6,
-      fontWeight: 700,
-      color: theme.palette.text.main,
-                background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)",
-                backdropFilter: "blur(10px)",
-                boxShadow: theme.palette.mode === "dark"
-                  ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-                  : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
-      cursor: "pointer",
-      transition: "all .2s ease",
-      "& .MuiChip-label": { px: 1.5 },
-    }}
-  />
-</Box>
+              <Chip
+                label="+"
+                onClick={() => setLabelsDrawerOpen(true)}
+                size="small"
+                variant="outlined"
+                sx={{
+                  height: 30,
+                  borderRadius: 6,
+                  fontWeight: 700,
+                  color: theme.palette.text.main,
+                  background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)",
+                  backdropFilter: "blur(10px)",
+                  boxShadow: theme.palette.mode === "dark"
+                    ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                    : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
+                  cursor: "pointer",
+                  transition: "all .2s ease",
+                  "& .MuiChip-label": { px: 1.5 },
+                }}
+              />
+            </Box>
+
             {/* Note Editor Canvas */}
             <TextField
               placeholder="Start writing your note..."
@@ -720,7 +718,7 @@ const NoteWorkspace = () => {
                 flex: 1, mb: 2, py: 2,
                 '& .MuiInputBase-root': {
                   color: mode === 'dark' ? '#f3f4f6' : '#1f2937',
-                  fontFamily: '"Inter", "SF Pro Display", "-apple-system", sans-serif',
+                  fontFamily: getFontFamily(fontStyle),
                   fontSize: '1.05rem', lineHeight: 1.65, letterSpacing: '0.005em', alignItems: 'flex-start',
                 },
                 '& .MuiInputBase-input': { padding: 0, margin: 0, whiteSpace: 'pre-wrap' },
@@ -837,189 +835,174 @@ const NoteWorkspace = () => {
                 </IconButton>
               </Stack>
 
-              {/* COLLABORATORS DYNAMIC FIREBASE FRIENDS SELECTION DRAWER */}
-<SwipeableDrawer
-  anchor="bottom"
-  open={collaboratorsDrawerOpen}
-  onClose={() => {
-    setCollaboratorsDrawerOpen(false);
-    setSearchCollaboratorQuery("");
-  }}
-  onOpen={() => {}}
-  disableSwipeToOpen
-  PaperProps={{
-    sx: {
-      borderRadius: 6,
-      p: 4,
-      minHeight: "50vh",
-      maxHeight: "80vh",
-                background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)",
-                backdropFilter: "blur(10px)",
-                boxShadow: theme.palette.mode === "dark"
-                  ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-                  : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
+              {/* COLLABORATORS DRAWER */}
+              <SwipeableDrawer
+                anchor="bottom"
+                open={collaboratorsDrawerOpen}
+                onClose={() => {
+                  setCollaboratorsDrawerOpen(false);
+                  setSearchCollaboratorQuery("");
+                }}
+                onOpen={() => {}}
+                disableSwipeToOpen
+                PaperProps={{
+                  sx: {
+                    borderRadius: 6,
+                    p: 4,
+                    minHeight: "50vh",
+                    maxHeight: "80vh",
+                    background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.8)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: theme.palette.mode === "dark"
+                      ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                      : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
                     backdropFilter: "blur(20px)", mx :"auto", m: 2
                   },
                 }}
-      ModalProps={{
-        BackdropProps: {
-          sx: {
-            backdropFilter: "blur(10px)",
-            backgroundColor: "rgba(0,0,0,0)",
-          },
-        },
-      }}
->
-  <Typography variant="h6" fontWeight={700} mb={2}>
-    Collaborators
-  </Typography>
+                ModalProps={{
+                  BackdropProps: {
+                    sx: {
+                      backdropFilter: "blur(10px)",
+                      backgroundColor: "rgba(0,0,0,0)",
+                    },
+                  },
+                }}
+              >
+                <Typography variant="h6" fontWeight={700} mb={2}>
+                  Collaborators
+                </Typography>
 
-  <TextField
-    placeholder="Search friends by name or email..."
-    value={searchCollaboratorQuery}
-    onChange={(e) => setSearchCollaboratorQuery(e.target.value)}
-    fullWidth
-    variant="outlined"
-    size="small"
-    InputProps={{
-      startAdornment: (
-        <InputAdornment position="start">
-          <SearchIcon fontSize="small" style={{ color: "gray" }} />
-        </InputAdornment>
-      ),
-    }}
-    
-  sx={{
-    width: "100%",
-    mb: 2,
-    
-    // Style the inner container wrapper
-    "& .MuiOutlinedInput-root": {
-      color: mode === "dark" ? "#fff" : "#111",
-      borderRadius: 3, // Premium rounded capsule
-      
-      // Translucent backgrounds so the backdrop blur actually has something to blend with
-      backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.11)",
-      
-      // Sleek composite shadows (incorporating your inner lighting details)
-      boxShadow: mode === "dark"
-                            ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-                            : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-      
-      // Thin glass perimeter border line
-      border: "0px solid",
-      borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
-      transition: "all 0.2s ease-in-out",
-
-      // Completely strip the default Material fieldset border lines
-      "& fieldset": { border: "none" },
-
-      "&:hover": {
-        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
-        borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)",
-      },
-      
-      "&.Mui-focused": {
-        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)",
-        borderColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "primary.main",
-        boxShadow: mode === "dark"
-          ? `0 0 0 3px rgba(255, 255, 255, 0.05)`
-          : `0 0 0 3px rgba(25, 118, 210, 0.15)`, // Light glowing halo on focus
-      },
-    },
-
-    // Style the placeholder and input text specifically
-    "& .MuiOutlinedInput-input": {
-      py: 1.2,
-      fontSize: "0.9rem",
-      color: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)",
-      "&::placeholder": {
-        color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)",
-        opacity: 1,
-      },
-    },
-  }}
-  />
-
-  {loadingFriends ? (
-    <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-      <CircularProgress size={28} color="inherit" />
-    </Box>
-  ) : (
-    <List dense sx={{ width: '100%', maxHeight: "50vh", overflowY: "auto" }}>
-      {filteredFriends.length > 0 ? (
-        filteredFriends.map((friend) => {
-          const isAdded = collaborators.includes(friend.uid);
-          return (
-            <ListItem
-              key={friend.uid}
-              disablePadding
-              secondaryAction={
-                <IconButton
-                  edge="end"
-                  onClick={() => handleToggleCollaborator(friend.uid)}
-                  color={isAdded ? "success" : "default"}
+                <TextField
+                  placeholder="Search friends by name or email..."
+                  value={searchCollaboratorQuery}
+                  onChange={(e) => setSearchCollaboratorQuery(e.target.value)}
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" style={{ color: "gray" }} />
+                      </InputAdornment>
+                    ),
+                  }}
                   sx={{
-                    borderRadius: "20px",
-                background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)",
-                backdropFilter: "blur(10px)",
-                boxShadow: theme.palette.mode === "dark"
-                  ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-                  : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
-                    "&:hover": {
-                      backgroundColor: isAdded 
-                        ? "rgba(46, 125, 50, 0.2)" 
-                        : mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
-                    }
+                    width: "100%",
+                    mb: 2,
+                    "& .MuiOutlinedInput-root": {
+                      color: mode === "dark" ? "#fff" : "#111",
+                      borderRadius: 3,
+                      backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.11)",
+                      boxShadow: mode === "dark"
+                        ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                        : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+                      border: "0px solid",
+                      borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
+                      transition: "all 0.2s ease-in-out",
+                      "& fieldset": { border: "none" },
+                      "&:hover": {
+                        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
+                        borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)",
+                      },
+                      "&.Mui-focused": {
+                        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)",
+                        borderColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "primary.main",
+                        boxShadow: mode === "dark"
+                          ? `0 0 0 3px rgba(255, 255, 255, 0.05)`
+                          : `0 0 0 3px rgba(25, 118, 210, 0.15)`,
+                      },
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      py: 1.2,
+                      fontSize: "0.9rem",
+                      color: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)",
+                      "&::placeholder": {
+                        color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)",
+                        opacity: 1,
+                      },
+                    },
                   }}
-                >
-                  {isAdded ? (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, px: 0.5 }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: 700 }}>Added</span>
-                    </Box>
-                  ) : (
-                    <AddIcon fontSize="small" />
-                  )}
-                </IconButton>
-              }
-              sx={{ py: 1 }}
-            >
-              <ListItemAvatar>
-                <Avatar 
-                  src={friend.photoURL || friend.profilePic} 
-                  alt={friend.name}
-                  sx={{ 
-                    width: 40, 
-                    height: 40, 
-                    fontWeight: 700,
-                    bgcolor: theme.palette.primary.main,
-                    color: mode === "dark" ? "#000" : "#fff"
-                  }}
-                >
-                  {friend.name.charAt(0).toUpperCase()}
-                </Avatar>
-              </ListItemAvatar>
-              <ListItemText 
-                primary={friend.name} 
-                secondary={friend.username}
-                primaryTypographyProps={{ fontWeight: 600, sx: { pl: 1 } }}
-                secondaryTypographyProps={{ sx: { pl: 1 } }}
-              />
-            </ListItem>
-          );
-        })
-      ) : (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontStyle: "italic", textAlign: "center" }}>
-          {friendsList.length === 0 
-            ? "You haven't added any friends to your account yet." 
-            : "No friends match your search criterion."}
-        </Typography>
-      )}
-    </List>
-  )}
-</SwipeableDrawer>
+                />
 
-              {/* LABELS SELECTION DRAWER */}
+                {loadingFriends ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                    <CircularProgress size={28} color="inherit" />
+                  </Box>
+                ) : (
+                  <List dense sx={{ width: '100%', maxHeight: "50vh", overflowY: "auto" }}>
+                    {filteredFriends.length > 0 ? (
+                      filteredFriends.map((friend) => {
+                        const isAdded = collaborators.includes(friend.uid);
+                        return (
+                          <ListItem
+                            key={friend.uid}
+                            disablePadding
+                            secondaryAction={
+                              <IconButton
+                                edge="end"
+                                onClick={() => handleToggleCollaborator(friend.uid)}
+                                color={isAdded ? "success" : "default"}
+                                sx={{
+                                  borderRadius: "20px",
+                                  background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)",
+                                  backdropFilter: "blur(10px)",
+                                  boxShadow: theme.palette.mode === "dark"
+                                    ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                                    : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
+                                  "&:hover": {
+                                    backgroundColor: isAdded 
+                                      ? "rgba(46, 125, 50, 0.2)" 
+                                      : mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+                                  }
+                                }}
+                              >
+                                {isAdded ? (
+                                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, px: 0.5 }}>
+                                    <span style={{ fontSize: "0.75rem", fontWeight: 700 }}>Added</span>
+                                  </Box>
+                                ) : (
+                                  <AddIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                            }
+                            sx={{ py: 1 }}
+                          >
+                            <ListItemAvatar>
+                              <Avatar 
+                                src={friend.photoURL || friend.profilePic} 
+                                alt={friend.name}
+                                sx={{ 
+                                  width: 40, 
+                                  height: 40, 
+                                  fontWeight: 700,
+                                  bgcolor: theme.palette.primary.main,
+                                  color: mode === "dark" ? "#000" : "#fff"
+                                }}
+                              >
+                                {friend.name.charAt(0).toUpperCase()}
+                              </Avatar>
+                            </ListItemAvatar>
+                            <ListItemText 
+                              primary={friend.name} 
+                              secondary={friend.username}
+                              primaryTypographyProps={{ fontWeight: 600, sx: { pl: 1 } }}
+                              secondaryTypographyProps={{ sx: { pl: 1 } }}
+                            />
+                          </ListItem>
+                        );
+                      })
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontStyle: "italic", textAlign: "center" }}>
+                        {friendsList.length === 0 
+                          ? "You haven't added any friends to your account yet." 
+                          : "No friends match your search criterion."}
+                      </Typography>
+                    )}
+                  </List>
+                )}
+              </SwipeableDrawer>
+
+              {/* LABELS DRAWER */}
               <SwipeableDrawer
                 anchor="bottom"
                 open={labelsDrawerOpen}
@@ -1029,22 +1012,22 @@ const NoteWorkspace = () => {
                 PaperProps={{
                   sx: {
                     borderRadius: 6, p: 4, minHeight: "20vh", maxHeight: "40vh",
-                background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)",
-                backdropFilter: "blur(10px)",
-                boxShadow: theme.palette.mode === "dark"
-                  ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-                  : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
+                    background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.8)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: theme.palette.mode === "dark"
+                      ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                      : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
                     backdropFilter: "blur(20px)", mx :"auto", m: 2
                   },
                 }}
-      ModalProps={{
-        BackdropProps: {
-          sx: {
-            backdropFilter: "blur(10px)",
-            backgroundColor: "rgba(0,0,0,0)",
-          },
-        },
-      }}
+                ModalProps={{
+                  BackdropProps: {
+                    sx: {
+                      backdropFilter: "blur(10px)",
+                      backgroundColor: "rgba(0,0,0,0)",
+                    },
+                  },
+                }}
               >
                 <Typography variant="h6" fontWeight={700} mb={2}>
                   Labels
@@ -1059,69 +1042,55 @@ const NoteWorkspace = () => {
                     variant="outlined"
                     size="small"
                     fullWidth                
-  sx={{
-    width: "100%",
-    
-    // Style the inner container wrapper
-    "& .MuiOutlinedInput-root": {
-      color: mode === "dark" ? "#fff" : "#111",
-      borderRadius: 3, // Premium rounded capsule
-      backdropFilter: "blur(10px)",
-      WebkitBackdropFilter: "blur(10px)",
-      
-      // Translucent backgrounds so the backdrop blur actually has something to blend with
-      backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
-      
-      // Sleek composite shadows (incorporating your inner lighting details)
-      boxShadow: mode === "dark"
-                            ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-                            : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-      
-      // Thin glass perimeter border line
-      border: "0.1px solid",
-      borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
-      transition: "all 0.2s ease-in-out",
-
-      // Completely strip the default Material fieldset border lines
-      "& fieldset": { border: "none" },
-
-      "&:hover": {
-        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
-        borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)",
-      },
-      
-      "&.Mui-focused": {
-        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)",
-        borderColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "primary.main",
-        boxShadow: mode === "dark"
-          ? `0 0 0 3px rgba(255, 255, 255, 0.05)`
-          : `0 0 0 3px rgba(25, 118, 210, 0.15)`, // Light glowing halo on focus
-      },
-    },
-
-    // Style the placeholder and input text specifically
-    "& .MuiOutlinedInput-input": {
-      py: 1.2,
-      fontSize: "0.9rem",
-      color: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)",
-      "&::placeholder": {
-        color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)",
-        opacity: 1,
-      },
-    },
-  }}
+                    sx={{
+                      width: "100%",
+                      "& .MuiOutlinedInput-root": {
+                        color: mode === "dark" ? "#fff" : "#111",
+                        borderRadius: 3,
+                        backdropFilter: "blur(10px)",
+                        WebkitBackdropFilter: "blur(10px)",
+                        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
+                        boxShadow: mode === "dark"
+                          ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                          : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+                        border: "0.1px solid",
+                        borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
+                        transition: "all 0.2s ease-in-out",
+                        "& fieldset": { border: "none" },
+                        "&:hover": {
+                          backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
+                          borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)",
+                        },
+                        "&.Mui-focused": {
+                          backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)",
+                          borderColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "primary.main",
+                          boxShadow: mode === "dark"
+                            ? `0 0 0 3px rgba(255, 255, 255, 0.05)`
+                            : `0 0 0 3px rgba(25, 118, 210, 0.15)`,
+                        },
+                      },
+                      "& .MuiOutlinedInput-input": {
+                        py: 1.2,
+                        fontSize: "0.9rem",
+                        color: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)",
+                        "&::placeholder": {
+                          color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)",
+                          opacity: 1,
+                        },
+                      },
+                    }}
                   />
                   <IconButton 
                     onClick={handleAddNewLabel} 
                     color="primary"
                     disabled={!newLabelText.trim()}
                     sx={{ 
-                        color: mode === "dark" ? "#fff" : "#000",
-                background: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(255,255,255,0.8)",
-                backdropFilter: "blur(10px)",
-                boxShadow: theme.palette.mode === "dark"
-                  ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-                  : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8 }}
+                      color: mode === "dark" ? "#fff" : "#000",
+                      background: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(255,255,255,0.8)",
+                      backdropFilter: "blur(10px)",
+                      boxShadow: theme.palette.mode === "dark"
+                        ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                        : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8 }}
                   >
                     <AddIcon />
                   </IconButton>
@@ -1144,14 +1113,14 @@ const NoteWorkspace = () => {
                           sx={{
                             borderRadius: 6, px: 0.5, fontWeight: 600, border: 0,
                             color: isSelected ? (mode === "dark" ? "#000" : "#fff") : "text.primary",
-            backgroundColor:isSelected ? (mode === "dark" ? "#ffffff" : "rgba(21, 21, 21, 0.86)") : (mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)"),
-            boxShadow: isSelected ? (mode === "dark"
-            ? `inset 0 1px 1px rgba(52, 52, 52, 0.96), inset 0 -1px 1px rgba(31, 31, 31, 0.68)`
-            : `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`)
-            : (mode === "dark"
-                  ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-                  : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`),
-                backdropFilter: "blur(10px)",
+                            backgroundColor:isSelected ? (mode === "dark" ? "#ffffff" : "rgba(21, 21, 21, 0.86)") : (mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)"),
+                            boxShadow: isSelected ? (mode === "dark"
+                            ? `inset 0 1px 1px rgba(52, 52, 52, 0.96), inset 0 -1px 1px rgba(31, 31, 31, 0.68)`
+                            : `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`)
+                            : (mode === "dark"
+                                  ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                                  : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`),
+                            backdropFilter: "blur(10px)",
                           }}
                         />
                       );

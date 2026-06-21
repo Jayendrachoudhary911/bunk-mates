@@ -22,7 +22,12 @@ import {
   DialogContent,
   DialogTitle,
   Zoom,
-  Link
+  Link,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  InputAdornment
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -61,7 +66,8 @@ import {
   arrayUnion,
   onSnapshot,
   serverTimestamp,
-  limit
+  limit,
+  documentId
 } from "firebase/firestore";
 import { weatherColors } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
@@ -228,18 +234,39 @@ const createMdComponents = (mode) => ({
   br: () => null,
 });
 
+// Upgraded Scroll-Safe Long Press Hook
 const useLongPress = (callback, ms = 500) => {
   const timeoutRef = useRef(null);
   const isLongPressTriggeredRef = useRef(false);
+  const coordinatesRef = useRef({ x: 0, y: 0 });
 
   const start = useCallback((event) => {
-    event.persist();
+    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+    
+    coordinatesRef.current = { x: clientX, y: clientY };
     isLongPressTriggeredRef.current = false;
+
     timeoutRef.current = setTimeout(() => {
       isLongPressTriggeredRef.current = true;
       callback(event);
     }, ms);
   }, [callback, ms]);
+
+  const move = useCallback((event) => {
+    if (!timeoutRef.current) return;
+
+    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+
+    const diffX = Math.abs(clientX - coordinatesRef.current.x);
+    const diffY = Math.abs(clientY - coordinatesRef.current.y);
+
+    if (diffX > 10 || diffY > 10) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
 
   const stop = useCallback((event) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -249,6 +276,8 @@ const useLongPress = (callback, ms = 500) => {
   return {
     onMouseDown: start,
     onTouchStart: start,
+    onMouseMove: move,
+    onTouchMove: move,
     onMouseUp: stop,
     onTouchEnd: stop,
     onMouseLeave: () => timeoutRef.current && clearTimeout(timeoutRef.current),
@@ -352,6 +381,20 @@ const NoteCard = React.memo(({ note, onOpen, onMenu, mode, theme, isSelected, ac
   prevProps.mode === nextProps.mode
 );
 
+const getFontFamily = (style) => {
+  switch (style) {
+    case "sans":
+      return '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+    case "serif":
+      return 'Georgia, Cambria, "Times New Roman", Times, serif';
+    case "dyslexic":
+      return '"OpenDyslexic", "Comic Sans MS", cursive, sans-serif';
+    case "monospace":
+    default:
+      return "monospace, Courier New, Courier, sans-serif";
+  }
+};
+
 const Notes = () => {
   const navigate = useNavigate();
   const [notes, setNotes] = useState([]);
@@ -374,27 +417,24 @@ const Notes = () => {
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
   const [addCollaboratorDrawerOpen, setAddCollaboratorDrawerOpen] = useState(false);
   const [addLabelDrawerOpen, setAddLabelDrawerOpen] = useState(false);
-  const [newCollaboratorUsername, setNewCollaboratorUsername] = useState("");
-  const [newLabel, setNewLabel] = useState("");
+  const [newLabelText, setNewLabelText] = useState("");
+  const [searchCollaboratorQuery, setSearchCollaboratorQuery] = useState("");
   const [sortOption, setSortOption] = useState(() => localStorage.getItem("noteSortOption") || "newest");
   const [viewMode, setViewMode] = useState(() => localStorage.getItem("noteViewMode") || "list");
   const [selectedLabelFilter, setSelectedLabelFilter] = useState(() => localStorage.getItem("noteLabelFilter") || "All");
-  const [isPreview, setIsPreview] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState(null);
   const [selectedNotes, setSelectedNotes] = useState([]);
   const [actionMode, setActionMode] = useState(false);
 
+  const [friendsList, setFriendsList] = useState([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+
   const { weather, setWeather } = useWeather();
-  const [autoSaveStatus, setAutoSaveStatus] = useState("");
-  const autoSaveTimerRef = useRef(null);
-  const titleInputRef = useRef("");
-  const contentInputRef = useRef("");
   const searchDebounceRef = useRef(null);
   
   const collaboratorCacheRef = useRef({});
   const snapshotDebounceRef = useRef(null);
-  const isManuallySavedRef = useRef(false);
   const [pageSize] = useState(15);
 
   const { mode, accent } = useThemeToggle();
@@ -403,25 +443,11 @@ const Notes = () => {
   const [, startTransition] = useTransition();
   const deferredSearchTerm = useDeferredValue(searchTerm);
 
-  // Synchronous Stack Listener configurations mapping hardware button responses
-  useEffect(() => {
-    if (actionMode || drawerOpen || addCollaboratorDrawerOpen || addLabelDrawerOpen || detailsDrawerOpen || deleteDialogOpen) {
-      window.history.pushState({ overlayActive: true }, "");
-    }
-  }, [actionMode, drawerOpen, addCollaboratorDrawerOpen, addLabelDrawerOpen, detailsDrawerOpen, deleteDialogOpen]);
+  const dynamicFontFamily = useMemo(() => {
+    return getFontFamily(selectedNote?.fontStyle || "monospace");
+  }, [selectedNote?.fontStyle]);
 
-  useEffect(() => {
-    const handleHardwareBackTrigger = () => {
-      if (actionMode) { setActionMode(false); return; }
-      if (drawerOpen) { setDrawerOpen(false); return; }
-      if (addCollaboratorDrawerOpen) { setAddCollaboratorDrawerOpen(false); return; }
-      if (addLabelDrawerOpen) { setAddLabelDrawerOpen(false); return; }
-      if (detailsDrawerOpen) { setDetailsDrawerOpen(false); return; }
-      if (deleteDialogOpen) { setDeleteDialogOpen(false); return; }
-    };
-    window.addEventListener("popstate", handleHardwareBackTrigger);
-    return () => window.removeEventListener("popstate", handleHardwareBackTrigger);
-  }, [actionMode, drawerOpen, addCollaboratorDrawerOpen, addLabelDrawerOpen, detailsDrawerOpen, deleteDialogOpen]);
+  const mdComponents = useMemo(() => createMdComponents(mode, dynamicFontFamily), [mode, dynamicFontFamily]);
 
   useBackButtonClose(drawerOpen, () => setDrawerOpen(false));
   useBackButtonClose(addCollaboratorDrawerOpen, () => setAddCollaboratorDrawerOpen(false));
@@ -488,6 +514,7 @@ const Notes = () => {
           const note = {
             id: docSnap.id, title: data.title || "", content: data.content || "", createdAt: data.createdAt,
             owners: data.owners || [], pinned: data.pinned ?? false, labels: data.labels || [], sharedWith: data.sharedWith || [],
+            fontStyle: data.fontStyle || "monospace"
           };
           note.owners.forEach((u) => uids.add(u)); note.sharedWith.forEach((u) => uids.add(u));
           fetched.push(note);
@@ -511,31 +538,107 @@ const Notes = () => {
   useEffect(() => { setLabels(labelsFromNotes); }, [labelsFromNotes]);
 
   useEffect(() => {
-    if (editDrawerOpen && selectedNote) {
+    if (selectedNote) {
       setCollaborators(selectedNote.sharedWith || []); setNoteLabels(selectedNote.labels || []);
-    } else if (drawerOpen) {
-      setCollaborators([]); setNoteLabels([]);
     }
-  }, [editDrawerOpen, drawerOpen, selectedNote]);
+  }, [selectedNote]);
 
-  const handleAddCollaboratorFromDrawer = useCallback(async () => {
-    if (!newCollaboratorUsername.trim() || !selectedNote?.id) return;
+  const fetchCurrentUsersFriends = async () => {
+    if (!user) return;
+    setLoadingFriends(true);
     try {
-      const q = query(collection(db, "users"), where("username", "==", newCollaboratorUsername.trim()));
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        const shareUid = snapshot.docs[0].id;
-        if (shareUid === user.uid) { setError("You cannot share with yourself."); return; }
-        await updateDoc(doc(db, "notes", selectedNote.id), { sharedWith: arrayUnion(shareUid), owners: arrayUnion(user.uid, shareUid) });
-        setCollaborators(prev => [...prev, shareUid]); setNewCollaboratorUsername(""); setAddCollaboratorDrawerOpen(false);
-      } else { setError("User not found."); }
-    } catch (e) {}
-  }, [newCollaboratorUsername, selectedNote, user]);
+      const currentUserDocRef = doc(db, "users", user.uid);
+      const currentUserDocSnap = await getDoc(currentUserDocRef);
+      
+      if (currentUserDocSnap.exists()) {
+        const currentUserData = currentUserDocSnap.data();
+        const friendsUids = currentUserData.friends || [];
+        
+        if (friendsUids.length > 0) {
+          const resolvedFriends = [];
+          const chunkSize = 30;
+          
+          for (let i = 0; i < friendsUids.length; i += chunkSize) {
+            const chunk = friendsUids.slice(i, i + chunkSize);
+            const friendsQuery = query(collection(db, "users"), where(documentId(), "in", chunk));
+            const querySnapshot = await getDocs(friendsQuery);
+            querySnapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              resolvedFriends.push({
+                uid: docSnap.id,
+                name: data.name || data.displayName || "Anonymous User",
+                username: data.username || "No username Provided",
+                photoURL: data.photoURL || data.profilePic || "",
+                email: data.email || ""
+              });
+            });
+          }
+          setFriendsList(resolvedFriends);
+        } else {
+          setFriendsList([]);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to query friends list:", err);
+    } finally {
+      setLoadingFriends(false);
+    }
+  };
 
-  const handleAddCustomLabel = useCallback(() => {
-    if (!newLabel.trim()) return;
-    setNoteLabels(prev => [...prev, newLabel.trim()]); setNewLabel(""); setAddLabelDrawerOpen(false);
-  }, [newLabel]);
+  const handleToggleCollaborator = async (uid) => {
+    if (!selectedNote) return;
+    const updatedSharedWith = collaborators.includes(uid)
+      ? collaborators.filter(id => id !== uid)
+      : [...collaborators, uid];
+
+    try {
+      await updateDoc(doc(db, "notes", selectedNote.id), {
+        sharedWith: updatedSharedWith,
+        owners: arrayUnion(user.uid, uid)
+      });
+      setCollaborators(updatedSharedWith);
+    } catch (err) {
+      console.error("Failed to update cloud collaborators:", err);
+    }
+  };
+
+  const handleToggleLabelMemo = async (label) => {
+    if (!selectedNote) return;
+    const updatedLabels = noteLabels.includes(label)
+      ? noteLabels.filter(l => l !== label)
+      : [...noteLabels, label];
+
+    try {
+      await updateDoc(doc(db, "notes", selectedNote.id), { labels: updatedLabels });
+      setNoteLabels(updatedLabels);
+    } catch (err) {
+      console.error("Failed to update labels:", err);
+    }
+  };
+
+  const handleAddNewLabel = async () => {
+    const sanitized = newLabelText.trim();
+    if (!sanitized || !selectedNote) return;
+    if (!labels.includes(sanitized)) {
+      setLabels(prev => [...prev, sanitized].sort((a, b) => a.localeCompare(b)));
+    }
+    if (!noteLabels.includes(sanitized)) {
+      try {
+        await updateDoc(doc(db, "notes", selectedNote.id), { labels: arrayUnion(sanitized) });
+        setNoteLabels(prev => [...prev, sanitized]);
+      } catch (err) {
+        console.error("Failed to write label reference link:", err);
+      }
+    }
+    setNewLabelText("");
+  };
+
+  const filteredFriends = useMemo(() => {
+    return friendsList.filter(f => 
+      f.name.toLowerCase().includes(searchCollaboratorQuery.toLowerCase()) ||
+      (f.email && f.email.toLowerCase().includes(searchCollaboratorQuery.toLowerCase()))
+    );
+  }, [friendsList, searchCollaboratorQuery]);
 
   const handlePinNote = useCallback(async (note) => {
     if (!note) return;
@@ -545,7 +648,7 @@ const Notes = () => {
 
   const handleAddNote = useCallback(async () => {
     if (!noteTitle.trim() && !noteContent.trim()) return;
-    setSaving(true); isManuallySavedRef.current = true;
+    setSaving(true);
     try {
       await addDoc(collection(db, "notes"), {
         owners: [user.uid], title: noteTitle, content: noteContent, createdAt: serverTimestamp(), sharedWith: collaborators, labels: noteLabels, pinned: false,
@@ -575,10 +678,6 @@ const Notes = () => {
     searchDebounceRef.current = setTimeout(() => { startTransition(() => setSearchTerm(value)); }, 350);
   }, [startTransition]);
 
-  const handleToggleLabelMemo = useCallback((label) => {
-    setNoteLabels(prev => prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]);
-  }, []);
-
   const filteredNotes = useMemo(() => {
     const s = (deferredSearchTerm || "").toLowerCase().trim();
     return notes.filter(note => {
@@ -606,13 +705,6 @@ const Notes = () => {
     return { pinnedNotes: pinned, unpinnedNotes: unpinned };
   }, [sortedNotes]);
 
-  const applyFormat = useCallback((format) => {
-    const textarea = noteContentRef.current; if (!textarea) return;
-    const start = textarea.selectionStart || 0; const end = textarea.selectionEnd || 0;
-    const formatted = `**${noteContent.slice(start, end)}**`;
-    setNoteContent(noteContent.slice(0, start) + formatted + noteContent.slice(end));
-  }, [noteContent]);
-
   return (
     <ThemeProvider theme={theme}>
       <BetaAccessGuard>
@@ -628,714 +720,207 @@ const Notes = () => {
                 <Box onClick={() => setActionMode(false)} sx={{ position: "fixed", inset: 0, zIndex: 1300, WebkitOverflowScrolling: "touch", backdropFilter: "blur(10px) saturate(140%)", WebkitBackdropFilter: "blur(10px) saturate(140%)", background: "rgba(0, 0, 0, 0.4)" }} />
                 <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} style={{ position: "fixed", bottom: 20, width: "calc(100% - 32px)", maxWidth: "540px", mx: "auto", zIndex: 1301 }}>
                   <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, p: "8px 16px", width: "100%", boxSizing: "border-box", "& .MuiButton-root": { textTransform: "none", fontWeight: 600, minWidth: 44, height: 38, px: 1.5, color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.7)"} }}>
-<Stack 
-  direction="row" 
-  spacing={1} 
-  sx={{ 
-    width: "100%", 
-    alignItems: "center", 
-    justifyContent: "space-between",
-    "&::-webkit-scrollbar": { display: "none" }, 
-    scrollbarWidth: "none" 
-  }}
->
-    <Tooltip title="Share" TransitionComponent={Zoom} arrow>
-      <IconButton 
-        onClick={() => setAddCollaboratorDrawerOpen(true)}
-        sx={{ color: 'text.secondary', '&:hover': { color: 'success.main', bgcolor: 'success.lighter' },
-        backdropFilter: "blur(25px)", 
-        background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.8)", 
-        padding: 1.8, borderRadius: 8,
-              boxShadow: theme.palette.mode === "dark"
-                ? `
-                  inset 0 1px 2px rgba(255, 255, 255, 0.11),
-                  inset 0 -1px 1px rgba(35, 35, 35, 0.07)
-                `
-                : `
-                  inset 0 1px 1px rgba(255,255,255,0.8),
-                  inset 0 -1px 1px rgba(0,0,0,0.1)
-                `,
-      }}
-      >
-        <ShareIcon fontSize="small" />
-      </IconButton>
-    </Tooltip>
+                    <Stack direction="row" spacing={1} sx={{ width: "100%", alignItems: "center", justifyContent: "space-between" }}>
+                      <Tooltip title="Share" TransitionComponent={Zoom} arrow>
+                        <IconButton 
+                          onClick={() => { setAddCollaboratorDrawerOpen(true); fetchCurrentUsersFriends(); }}
+                          sx={{ color: 'text.secondary', p: 1.8, borderRadius: 8, backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.8)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}
+                        >
+                          <ShareIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
 
-  {/* Left/Main Action Group */}
-  <Stack direction="row" spacing={0.5} 
-  sx={{
-            backdropFilter: "blur(25px)", 
-        background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.8)", p: 0.5, borderRadius: 8,
-              boxShadow: theme.palette.mode === "dark"
-                ? `
-                  inset 0 1px 2px rgba(255, 255, 255, 0.11),
-                  inset 0 -1px 1px rgba(35, 35, 35, 0.07)
-                `
-                : `
-                  inset 0 1px 1px rgba(255,255,255,0.8),
-                  inset 0 -1px 1px rgba(0,0,0,0.1)
-                `,
-  }}>
+                      <Stack direction="row" spacing={0.5} sx={{ backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.8)", p: 0.5, borderRadius: 8, boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}>
+                        <Tooltip title="Labels" TransitionComponent={Zoom} arrow>
+                          <IconButton onClick={() => setAddLabelDrawerOpen(true)} sx={{ color: 'text.secondary', p: 1.5 }}><LabelIcon fontSize="small" /></IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit Note" TransitionComponent={Zoom} arrow>
+                          <IconButton onClick={() => { setNoteTitle(selectedNote.title || ""); setNoteContent(selectedNote.content || ""); navigate(`/notes/${selectedNote.id}/workspace`); setActionMode(false); }} sx={{ color: 'text.secondary', p: 1.5 }}><EditIcon fontSize="small" /></IconButton>
+                        </Tooltip>
+                        <Tooltip title="Pin Note" TransitionComponent={Zoom} arrow>
+                          <IconButton onClick={() => { handlePinNote(selectedNote); setActionMode(false); }} sx={{ color: 'text.secondary', p: 1.5 }}><PushPinIcon fontSize="small" /></IconButton>
+                        </Tooltip>
+                      </Stack>
 
-    <Tooltip title="Labels" TransitionComponent={Zoom} arrow>
-      <IconButton 
-        onClick={() => setAddLabelDrawerOpen(true)}
-        sx={{ color: 'text.secondary', p: 1.5 }}
-      >
-        <LabelIcon fontSize="small" />
-      </IconButton>
-    </Tooltip>
-
-    <Tooltip title="Edit Note" TransitionComponent={Zoom} arrow>
-      <IconButton 
-        onClick={() => { setNoteTitle(selectedNote.title || ""); setNoteContent(selectedNote.content || ""); navigate(`/notes/${selectedNote.id}/workspace`); setActionMode(false); }}
-        sx={{ color: 'text.secondary', p: 1.5, }}
-      >
-        <EditIcon fontSize="small" />
-      </IconButton>
-    </Tooltip>
-
-
-    <Tooltip title="Pin Note" TransitionComponent={Zoom} arrow>
-      <IconButton 
-        onClick={() => { handlePinNote(selectedNote); setActionMode(false); }}
-        sx={{ color: 'text.secondary', p: 1.5, }}
-      >
-        <PushPinIcon fontSize="small" />
-      </IconButton>
-    </Tooltip>
-  </Stack>
-
-  {/* Dangerous Action Group (Destructive) */}
-  <Tooltip title="Delete Note" TransitionComponent={Zoom} arrow>
-    <IconButton 
-      color="error" 
-      onClick={() => { setNoteToDelete(selectedNote); setDeleteDialogOpen(true); }} 
-      sx={{ color: 'text.secondary', '&:hover': { color: 'success.main', bgcolor: 'success.lighter' },
-        backdropFilter: "blur(25px)", 
-        background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.8)", 
-        padding: 1.8, borderRadius: 8,
-              boxShadow: theme.palette.mode === "dark"
-                ? `
-                  inset 0 1px 2px rgba(255, 255, 255, 0.11),
-                  inset 0 -1px 1px rgba(35, 35, 35, 0.07)
-                `
-                : `
-                  inset 0 1px 1px rgba(255,255,255,0.8),
-                  inset 0 -1px 1px rgba(0,0,0,0.1)
-                `,
-      }}
-    >
-      <DeleteOutlineIcon fontSize="small" />
-    </IconButton>
-  </Tooltip>
-
-</Stack>
+                      <Tooltip title="Delete Note" TransitionComponent={Zoom} arrow>
+                        <IconButton 
+                          color="error" onClick={() => { setNoteToDelete(selectedNote); setDeleteDialogOpen(true); }} 
+                          sx={{ color: 'text.secondary', p: 1.8, borderRadius: 8, backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.8)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}
+                        >
+                          <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
                   </Box>
                 </motion.div>
 
-                {/* Highly Configured typography preview modal panel slots overlaying backgrounds */}
                 <motion.div initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} style={{ position: "fixed", mx: "auto", zIndex: 1300, width: "calc(100% - 32px)", maxWidth: "540px", maxHeight: "75vh", display: "flex", flexDirection: "column" }}>
                   <Box>
-                    <Box sx={{ borderRadius: 6, p: 3, mb: 2, height: 150, background: mode === "dark" ? "rgba(20, 20, 20, 0.85)" : "rgba(255, 255, 255, 0.9)", 
-              boxShadow: theme.palette.mode === "dark"
-                ? `
-                  inset 0 1px 2px rgba(255, 255, 255, 0.11),
-                  inset 0 -1px 1px rgba(35, 35, 35, 0.07)
-                `
-                : `
-                  inset 0 1px 1px rgba(255,255,255,0.8),
-                  inset 0 -1px 1px rgba(0,0,0,0.1)
-                `, }}>
-                    <Typography variant="h5" fontWeight={700} sx={{ borderBottom: `2px solid ${theme.palette.divider}`, pb: 1 }}>
-                      {selectedNote.title || "Untitled"}
-                    </Typography>
-<Box 
-  onClick={() => {
-    // Replace this with your actual routing or state-changing navigation logic
-    navigate(`/notes/${selectedNote.id}`);
-  }}
-sx={{ mt: 2, cursor: "pointer",}}  
->
+                    <Box sx={{ borderRadius: 6, p: 3, mb: 2, height: 150, background: mode === "dark" ? "rgba(20, 20, 20, 0.85)" : "rgba(255, 255, 255, 0.9)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}>
+                      <Typography variant="h5" fontWeight={700} sx={{ borderBottom: `2px solid ${theme.palette.divider}`, pb: 1 }}>{selectedNote.title || "Untitled"}</Typography>
+                      <Box onClick={() => navigate(`/notes/${selectedNote.id}`)} sx={{ mt: 2, cursor: "pointer" }}>
+                        {selectedNote?.content ? (
+                          <>
+                            <ReactMarkdown children={selectedNote.content.length > 100 ? `${selectedNote.content.substring(0, 100)}... ` : selectedNote.content} />
+                            {selectedNote.content.length > 140 && <Link component="button" variant="body1" underline="hover" onClick={(e) => { e.stopPropagation(); }} sx={{ fontSize: "0.95rem", fontWeight: 600, color: "#7e7e7e", textDecoration: "underline", ml: 0.5, cursor: "pointer" }}>Read more</Link>}
+                          </>
+                        ) : (
+                          <Typography variant="body1" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>*No Content*</Typography>
+                        )}
+                      </Box>
+                    </Box>
 
-{selectedNote?.content ? (
-  <>
-    {/* This is the only ReactMarkdown component you need */}
-    <ReactMarkdown 
-      children={
-        selectedNote.content.length > 100 
-          ? `${selectedNote.content.substring(0, 100)}... ` 
-          : selectedNote.content
-      }
-    />
+                    <Box sx={{ flex: 1, overflowY: "auto", pr: 1, height: 400, borderRadius: 6, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.85)" : "rgba(255, 255, 255, 0.9)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` }}>
+                      <Typography variant="h6" fontWeight="800" sx={{ mb: 3, textTransform: "uppercase", fontSize: "0.85rem", color: "text.secondary" }}>Note Details</Typography>
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <Box sx={{ p: 2.5, borderRadius: 4, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
+                          <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem" }}>Authors & Sharing</Typography>
+                          <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 4 }}>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Created By:</Typography>
+                              {selectedNote?.owners && selectedNote.owners.length > 0 ? (
+                                <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1, background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderRadius: "20px", pl: 0.5, pr: 1.5, py: 0.5 }}>
+                                  <Avatar src={sharedUsersInfo[selectedNote.owners[0]]?.photoURL || ""} alt={sharedUsersInfo[selectedNote.owners[0]]?.username || "User"} sx={{ width: 22, height: 22, fontSize: 11, bgcolor: theme.palette.secondary.main, color: "#fff" }}>{sharedUsersInfo[selectedNote.owners[0]]?.username ? sharedUsersInfo[selectedNote.owners[0]].username[0].toUpperCase() : "U"}</Avatar>
+                                  <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 13, fontWeight: 500 }}>{sharedUsersInfo[selectedNote.owners[0]]?.username || selectedNote.owners[0].slice(0, 6) + "..."}</Typography>
+                                </Box>
+                              ) : <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>Unknown</Typography>}
+                            </Box>
+                            <Box sx={{ flex: 2 }}>
+                              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Collaborators:</Typography>
+                              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
+                                {selectedNote?.sharedWith && selectedNote.sharedWith.length > 0 ? selectedNote.sharedWith.map((uid) => (
+                                  <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderRadius: "20px", pl: 0.5, pr: 1.5, py: 0.5 }}>
+                                    <Avatar src={sharedUsersInfo[uid]?.photoURL || ""} sx={{ width: 22, height: 22, fontSize: 11, bgcolor: theme.palette.primary.main, color: "#fff" }}>{sharedUsersInfo[uid]?.username ? sharedUsersInfo[uid].username[0].toUpperCase() : "U"}</Avatar>
+                                    <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 13, fontWeight: 500 }}>{sharedUsersInfo[uid]?.username || uid.slice(0, 6) + "..."}</Typography>
+                                  </Box>
+                                )) : <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic", mt: 0.5 }}>Private Note</Typography>}
+                              </Stack>
+                            </Box>
+                          </Box>
+                        </Box>
 
-    {/* The Read more link stays entirely detached outside of the markdown logic */}
-    {selectedNote.content.length > 140 && (
-      <Link
-      component="button"
-      variant="body1"
-      underline="hover"
-        onClick={(e) => {
-          e.stopPropagation(); // Prevents parent Box click
-          console.log("Navigate to details");
-        }}
-        sx={{
-          fontSize: "0.95rem",
-          fontWeight: 600,
-          color: "#7e7e7e",
-          textDecoration: "underline",
-          ml: 0.5,
-          verticalAlign: "baseline",
-          cursor: "pointer"
-        }}
-      >
-        Read more
-      </Link>
-    )}
-  </>
-) : (
-  <Typography variant="body1" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
-    *No Content*
-  </Typography>
-)}
-</Box>
-    </Box>
+                        <Box sx={{ p: 0.5 }}>
+                          <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem" }}>Properties & Style</Typography>
+                          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+                            <Box sx={{ p: 2.5, borderRadius: 4, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
+                              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Labels:</Typography>
+                              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
+                                {selectedNote?.labels && selectedNote.labels.length > 0 ? selectedNote.labels.map((label) => <Chip key={label} icon={<LabelIcon sx={{ color: mode === "dark" ? "#fff" : "#000", fontSize: "14px !important" }} />} label={label} size="small" sx={{ fontSize: "0.75rem", borderRadius: "8px", fontWeight: 500, color: mode === "dark" ? "#fff" : "#000", background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }} />) : <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>No labels assigned</Typography>}
+                              </Stack>
+                            </Box>
+                            <Box sx={{ display: "flex", gap: 2 }}>
+                              <Box sx={{ p: 2.5, width: "50%", borderRadius: 4, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
+                                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 0.5 }}>Status:</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700, color: selectedNote?.pinned ? "success.main" : "text.disabled", fontSize: 13 }}>{selectedNote?.pinned ? "📌 Pinned" : "Regular Note"}</Typography>
+                              </Box>
+                              <Box sx={{ p: 2.5, width: "50%", borderRadius: 4, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
+                                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 0.5 }}>Active Font:</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, textTransform: "capitalize", fontFamily: dynamicFontFamily, color: "primary.main", fontSize: 13 }}>{selectedNote?.fontStyle || "Monospace"}</Typography>
+                              </Box>
+                            </Box>
+                          </Box>
+                        </Box>
 
-<Box
-  sx={{
-    flex: 1,
-    overflowY: "auto",
-    pr: 1,
-    WebkitOverflowScrolling: "touch",
-    height: 400,
-    borderRadius: 6,
-    p: 3,
-    background: mode === "dark" ? "rgba(20, 20, 20, 0.85)" : "rgba(255, 255, 255, 0.9)",
-    boxShadow: theme.palette.mode === "dark"
-      ? `
-        inset 0 1px 2px rgba(255, 255, 255, 0.11),
-        inset 0 -1px 1px rgba(35, 35, 35, 0.07)
-      `
-      : `
-        inset 0 1px 1px rgba(255, 255, 255, 0.8),
-        inset 0 -1px 1px rgba(0, 0, 0, 0.1)
-      `
-  }}
->
-  <Typography variant="h6" fontWeight="800" sx={{ mb: 3, letterSpacing: "0.5px", textTransform: "uppercase", fontSize: "0.85rem", color: "text.secondary" }}>
-    Note Details
-  </Typography>
-
-  <Box
-    sx={{
-      display: "grid",
-      gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-      gap: 2,
-    }}
-  >
-
-    {/* GROUP 1: Authors & Sharing (Created By + Collaborators Side-by-Side) */}
-    <Box
-      sx={{
-        gridColumn: { sm: "span 2" },
-        p: 2.5,
-        borderRadius: 4,
-        background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)",
-        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}`,
-      }}
-    >
-      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
-        Authors & Sharing
-      </Typography>
-      
-      <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 4 }}>
-        {/* Created By Block */}
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Created By:</Typography>
-          {selectedNote?.owners && selectedNote.owners.length > 0 ? (
-            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1, background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderRadius: "20px", pl: 0.5, pr: 1.5, py: 0.5 }}>
-              <Avatar
-                src={sharedUsersInfo[selectedNote.owners[0]]?.photoURL || ""}
-                alt={sharedUsersInfo[selectedNote.owners[0]]?.username || "User"}
-                sx={{ width: 22, height: 22, fontSize: 11, bgcolor: theme.palette.secondary.main, color: "#fff" }}
-              >
-                {sharedUsersInfo[selectedNote.owners[0]]?.username ? sharedUsersInfo[selectedNote.owners[0]].username[0].toUpperCase() : "U"}
-              </Avatar>
-              <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 13, fontWeight: 500 }}>
-                {sharedUsersInfo[selectedNote.owners[0]]?.username || selectedNote.owners[0].slice(0, 6) + "..."}
-              </Typography>
-            </Box>
-          ) : (
-            <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>Unknown</Typography>
-          )}
-        </Box>
-
-        {/* Collaborators Block */}
-        <Box sx={{ flex: 2 }}>
-          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Collaborators:</Typography>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
-            {selectedNote?.sharedWith && selectedNote.sharedWith.length > 0 ? (
-              selectedNote.sharedWith.map((uid) => {
-                const u = sharedUsersInfo[uid];
-                return (
-                  <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderRadius: "20px", pl: 0.5, pr: 1.5, py: 0.5 }}>
-                    <Avatar
-                      src={u?.photoURL || ""}
-                      alt={u?.username || "User"}
-                      sx={{ width: 22, height: 22, fontSize: 11, bgcolor: theme.palette.primary.main, color: "#fff" }}
-                    >
-                      {u?.username ? u.username[0].toUpperCase() : "U"}
-                    </Avatar>
-                    <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 13, fontWeight: 500 }}>
-                      {u?.username || uid.slice(0, 6) + "..."}
-                    </Typography>
-                  </Box>
-                );
-              })
-            ) : (
-              <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic", mt: 0.5 }}>Private Note</Typography>
-            )}
-          </Stack>
-        </Box>
-      </Box>
-    </Box>
-
-    {/* GROUP 2: Organization & Tags (Labels + Pinned Together) */}
-    <Box>
-      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, px: 1, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
-        Organization & Tags
-      </Typography>
-
-      <Box sx={{ display: "flex", flexDirection: "row", gap: 2, alignItems: { sm: "center" } }}>
-        {/* Labels Block */}
-        <Box sx={{ flex: 2,
-        p: 2.5,
-        borderRadius: 4,
-        background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)",
-        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}`, }}>
-          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Labels:</Typography>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
-            {selectedNote?.labels && selectedNote.labels.length > 0 ? (
-              selectedNote.labels.map((label) => (
-                <Chip
-                  key={label}
-                  icon={<LabelIcon sx={{ color: mode === "dark" ? "#fff" : "#000", fontSize: "14px !important" }} />}
-                  label={label}
-                  size="small"
-                  sx={{
-                    fontSize: "0.75rem",
-                    borderRadius: "8px",
-                    fontWeight: 500,
-                    color: mode === "dark" ? "#fff" : "#000",
-                    background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-                  }}
-                />
-              ))
-            ) : (
-              <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>No labels assigned</Typography>
-            )}
-          </Stack>
-        </Box>
-
-        {/* Pinned Status Block */}
-        <Box sx={{ flex: 1, 
-        p: 2.5,
-        borderRadius: 4,
-        background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)",
-        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}`, }}>
-          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Status:</Typography>
-          <Box 
-            sx={{ 
-              display: "inline-flex", 
-              alignItems: "center", 
-              gap: 1, 
-              py: 0.5, 
-              borderRadius: "12px",
-            }}
-          >
-            <Typography variant="body2" sx={{ fontWeight: 700, color: selectedNote?.pinned ? "success.main" : "text.disabled", fontSize: 13 }}>
-              {selectedNote?.pinned ? "📌 Pinned" : "Regular Note"}
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
-    </Box>
-
-    {/* Timestamps & Identifiers (Footer elements) */}
-    <Box
-      sx={{
-        p: 2,
-        borderRadius: 3,
-        background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)",
-        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}`,
-      }}
-    >
-      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mb: 0.5 }}>Created At:</Typography>
-      <Typography variant="body2" sx={{ fontWeight: 500, color: "text.primary" }}>
-        {selectedNote?.createdAt?.toDate
-          ? selectedNote.createdAt.toDate().toLocaleString()
-          : selectedNote?.createdAt
-            ? new Date(selectedNote.createdAt).toLocaleString()
-            : "N/A"}
-      </Typography>
-    </Box>
-
-    <Box
-      sx={{
-        p: 2,
-        borderRadius: 3,
-        background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)",
-        border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}`,
-      }}
-    >
-      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mb: 0.5 }}>Note ID:</Typography>
-      <Typography variant="body2" sx={{ fontFamily: "monospace", color: "text.secondary", fontSize: "0.8rem" }}>
-        {selectedNote?.id || "N/A"}
-      </Typography>
-    </Box>
-  </Box>
-</Box>
+                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+                          <Box sx={{ p: 2, borderRadius: 3, background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}` }}>
+                            <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mb: 0.5 }}>Created On:</Typography>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>{selectedNote?.createdAt?.toDate ? selectedNote.createdAt.toDate().toLocaleDateString(undefined, { dateStyle: 'medium' }) : selectedNote?.createdAt ? new Date(selectedNote.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : "N/A"}</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 500, color: "text.secondary" }}>@ {selectedNote?.createdAt?.toDate ? selectedNote.createdAt.toDate().toLocaleTimeString(undefined, { timeStyle: 'short', hour12: true }) : selectedNote?.createdAt ? new Date(selectedNote.createdAt).toLocaleTimeString(undefined, { timeStyle: 'short', hour12: true }) : "N/A"}</Typography>
+                            </Box>
+                          </Box>
+                          <Box sx={{ p: 2, borderRadius: 3, background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}` }}>
+                            <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mb: 0.5 }}>Note ID:</Typography>
+                            <Typography variant="body2" sx={{ fontFamily: "monospace", color: "text.secondary", fontSize: "0.8rem", pt: 0.3 }}>{selectedNote?.id || "N/A"}</Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Box>
                   </Box>
                 </motion.div>
               </>
             )}
           </AnimatePresence>
 
-<Box 
-  sx={{ 
-    position: "sticky", 
-    top: 0, 
-    zIndex: 10, // Increased zIndex slightly to make sure parent stays above scrolling list
-    pb: 3,
-    px: 0,
-    pt: 6.5,
-    backgroundColor: "transparent", 
-  }}
->
+          <Box sx={{ position: "sticky", top: 0, zIndex: 10, pb: 3, px: 0, pt: 6.5, backgroundColor: "transparent" }}>
+            <Box px={1}>
+              <TextField
+                size="small" placeholder="Search notes..." variant="outlined" value={searchDisplayValue} onChange={handleSearchChange}
+                InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon sx={{ color: mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.4)", mr: 1, fontSize: "1.25rem" }} /></InputAdornment>) }}
+                sx={{
+                  width: "100%", mb: 2,
+                  "& .MuiOutlinedInput-root": {
+                    color: mode === "dark" ? "#fff" : "#111", borderRadius: 3, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
+                    boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+                    border: "0.1px solid", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)", transition: "all 0.2s ease-in-out", "& fieldset": { border: "none" },
+                    "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)" },
+                    "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "primary.main", boxShadow: mode === "dark" ? `0 0 0 3px rgba(255, 255, 255, 0.05)` : `0 0 0 3px rgba(25, 118, 210, 0.15)` }
+                  },
+                  "& .MuiOutlinedInput-input": { py: 1.2, fontSize: "0.9rem", color: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)", "&::placeholder": { color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)", opacity: 1 } }
+                }}
+              />
 
-  <Box px={1}>
-  {/* 1. Search Bar */}
-<TextField
-  size="small"
-  placeholder="Search notes..."
-  variant="outlined"
-  value={searchDisplayValue}
-  onChange={handleSearchChange}
-  InputProps={{
-    startAdornment: (
-      <SearchIcon 
-        sx={{ 
-          color: mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.4)", 
-          mr: 1,
-          fontSize: "1.25rem"
-        }} 
-      />
-    ),
-  }}
-  sx={{
-    width: "100%",
-    mb: 2,
-    
-    // Style the inner container wrapper
-    "& .MuiOutlinedInput-root": {
-      color: mode === "dark" ? "#fff" : "#111",
-      borderRadius: 3, // Premium rounded capsule
-      backdropFilter: "blur(10px)",
-      WebkitBackdropFilter: "blur(10px)",
-      
-      // Translucent backgrounds so the backdrop blur actually has something to blend with
-      backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
-      
-      // Sleek composite shadows (incorporating your inner lighting details)
-      boxShadow: mode === "dark"
-                            ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-                            : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-      
-      // Thin glass perimeter border line
-      border: "0.1px solid",
-      borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
-      transition: "all 0.2s ease-in-out",
+              <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+                <TextField
+                  select label="Sort by" value={sortOption} onChange={(e) => setSortOption(e.target.value)} size="small"
+                  sx={{ minWidth: 150, "& .MuiInputLabel-root": { color: mode === "dark" ? "rgba(255, 255, 255, 0.6)" : "rgba(0, 0, 0, 0.6)" }, "& .MuiInputLabel-root.Mui-focused": { color: mode === "dark" ? "#fff" : "primary.main" } }}
+                  InputLabelProps={{ shrink: true }}
+                  InputProps={{
+                    sx: {
+                      color: mode === "dark" ? "#fff" : "#111", borderRadius: 2.5, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
+                      boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.05)`,
+                      "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)" },
+                      "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.04)" }, "& fieldset": { border: "none" }
+                    }
+                  }}
+                  SelectProps={{
+                    MenuProps: {
+                      PaperProps: {
+                        sx: {
+                          mt: 1, px: 0.6, borderRadius: 4, backdropFilter: "blur(15px)", WebkitBackdropFilter: "blur(15px)", backgroundColor: mode === "dark" ? "rgba(20, 20, 20, 0)" : "rgba(255, 255, 255, 0.75)", backgroundImage: "none",
+                          boxShadow: mode === "dark" ? `inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4)` : `inset 0 1px 1px rgba(255,255,255,0.8), 0 8px 32px rgba(31, 38, 135, 0.05)`, border: "0px solid", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
+                          "& .MuiMenuItem-root": { fontSize: "0.875rem", mx: 0.5, my: 0.3, borderRadius: 2, color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.8)", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.04)" }, "&.Mui-selected": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.16)" : "rgba(0, 0, 0, 0.08)", fontWeight: 600, color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.22)" : "rgba(0, 0, 0, 0.12)" } } }
+                        }
+                      }
+                    }
+                  }}
+                >
+                  <MenuItem value="newest">Newest First</MenuItem>
+                  <MenuItem value="oldest">Oldest First</MenuItem>
+                  <MenuItem value="title-asc">Title A–Z</MenuItem>
+                  <MenuItem value="title-desc">Title Z–A</MenuItem>
+                </TextField>
 
-      // Completely strip the default Material fieldset border lines
-      "& fieldset": { border: "none" },
+                <ToggleButtonGroup
+                  value={viewMode} exclusive onChange={(e, next) => next && setViewMode(next)} size="small"
+                  sx={{
+                    borderRadius: 2.5, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
+                    boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.05)`, p: "3px", border: "none",
+                    "& .MuiToggleButton-root": { border: "none", borderRadius: 2, mx: "1px", px: 1.5, py: 0.5, transition: "all 0.2s ease", color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.04)", color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.8)" }, "&.Mui-selected": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.9)", color: mode === "dark" ? "#ffffff" : "#000000", boxShadow: "none", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 1)" } } }
+                  }}
+                >
+                  <ToggleButton value="list"><ViewListIcon sx={{ color: "inherit", fontSize: "1.15rem" }} /></ToggleButton>
+                  <ToggleButton value="grid"><ViewModuleIcon sx={{ color: "inherit", fontSize: "1.15rem" }} /></ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
 
-      "&:hover": {
-        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
-        borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)",
-      },
-      
-      "&.Mui-focused": {
-        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)",
-        borderColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "primary.main",
-        boxShadow: mode === "dark"
-          ? `0 0 0 3px rgba(255, 255, 255, 0.05)`
-          : `0 0 0 3px rgba(25, 118, 210, 0.15)`, // Light glowing halo on focus
-      },
-    },
-
-    // Style the placeholder and input text specifically
-    "& .MuiOutlinedInput-input": {
-      py: 1.2,
-      fontSize: "0.9rem",
-      color: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)",
-      "&::placeholder": {
-        color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)",
-        opacity: 1,
-      },
-    },
-  }}
-/>
-
-  {/* 2. Sorting & View Modes */}
-<Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-  {/* 1. Styled Sort Dropdown */}
-  <TextField
-    select
-    label="Sort by"
-    value={sortOption}
-    onChange={(e) => setSortOption(e.target.value)}
-    size="small"
-    sx={{ 
-      minWidth: 150,
-      "& .MuiInputLabel-root": {
-        color: mode === "dark" ? "rgba(255, 255, 255, 0.6)" : "rgba(0, 0, 0, 0.6)",
-      },
-      "& .MuiInputLabel-root.Mui-focused": {
-        color: mode === "dark" ? "#fff" : "primary.main",
-      }
-    }}
-    InputLabelProps={{ shrink: true }}
-    InputProps={{
-      sx: {
-        color: mode === "dark" ? "#fff" : "#111",
-        borderRadius: 2.5,
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
-        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
-        boxShadow: mode === "dark"
-          ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-          : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.05)`,
-        
-        "&:hover": {
-          backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
-        },
-        "&.Mui-focused": {
-          backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.04)",
-        },
-        "& fieldset": { border: "none" }, 
-      }
-    }}
-    SelectProps={{
-      MenuProps: {
-        PaperProps: {
-          sx: {
-            mt: 1,
-            px: 0.6,
-            borderRadius: 4,
-            backdropFilter: "blur(15px)",
-            WebkitBackdropFilter: "blur(15px)",
-            backgroundColor: mode === "dark" ? "rgba(20, 20, 20, 0)" : "rgba(255, 255, 255, 0.75)",
-            backgroundImage: "none",
-            boxShadow: mode === "dark"
-              ? `inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4)`
-              : `inset 0 1px 1px rgba(255,255,255,0.8), 0 8px 32px rgba(31, 38, 135, 0.05)`,
-            border: "0px solid",
-            borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
-            
-            "& .MuiMenuItem-root": {
-              fontSize: "0.875rem",
-              mx: 0.5,
-              my: 0.3,
-              borderRadius: 2,
-              color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.8)",
-              "&:hover": {
-                backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.04)",
-              },
-              "&.Mui-selected": {
-                backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.16)" : "rgba(0, 0, 0, 0.08)",
-                fontWeight: 600,
-                color: mode === "dark" ? "#fff" : "#000",
-                "&:hover": {
-                  backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.22)" : "rgba(0, 0, 0, 0.12)",
-                }
-              }
-            }
-          }
-        }
-      }
-    }}
-  >
-    <MenuItem value="newest">Newest First</MenuItem>
-    <MenuItem value="oldest">Oldest First</MenuItem>
-    <MenuItem value="title-asc">Title A–Z</MenuItem>
-    <MenuItem value="title-desc">Title Z–A</MenuItem>
-  </TextField>
-
-  {/* 2. Glassmorphic ToggleButtonGroup Component */}
-  <ToggleButtonGroup
-    value={viewMode}
-    exclusive
-    onChange={(e, next) => next && setViewMode(next)}
-    size="small"
-    sx={{ 
-      borderRadius: 2.5, // Matches the textfield radius
-      backdropFilter: "blur(10px)",
-      WebkitBackdropFilter: "blur(10px)",
-      backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
-      boxShadow: mode === "dark"
-        ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-        : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.05)`,
-      p: "3px", // Creates a capsule frame look around the nested inner elements
-      border: "none",
-
-      // Target individual buttons inside the group wrapper
-      "& .MuiToggleButton-root": {
-        border: "none",
-        borderRadius: 2, // Smooth interior geometry
-        mx: "1px",
-        px: 1.5,
-        py: 0.5,
-        transition: "all 0.2s ease",
-        color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)",
-
-        "&:hover": {
-          backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.04)",
-          color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.8)",
-        },
-
-        // Style for the currently active/selected tab 
-        "&.Mui-selected": {
-          backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.9)",
-          color: mode === "dark" ? "#ffffff" : "#000000",
-          boxShadow: "none",
-          "&:hover": {
-            backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 1)",
-          }
-        }
-      }
-    }}
-  >
-    <ToggleButton value="list">
-      <ViewListIcon sx={{ color: "inherit", fontSize: "1.15rem" }} />
-    </ToggleButton>
-    <ToggleButton value="grid">
-      <ViewModuleIcon sx={{ color: "inherit", fontSize: "1.15rem" }} />
-    </ToggleButton>
-  </ToggleButtonGroup>
-</Box>
-
-  {/* 3. Filter Chips */}
-<Stack direction="row" spacing={1} sx={{ ...OVERFLOW_SX, mb: 1, pb: 0.5 }}>
-  {["All", "Pinned", "Shared", ...labels].map((label) => {
-    const isSelected = selectedLabelFilter === label;
-    
-    return (
-      <Chip
-        key={label}
-        label={label === "Pinned" ? "📌 Pinned" : label}
-        clickable
-        onClick={() => setSelectedLabelFilter(label)}
-        sx={{
-          borderRadius: 4, // Uniform corner rounding with the rest of your inputs
-          fontSize: "0.85rem",
-          fontWeight: isSelected ? 600 : 500,
-          px: 0.5,
-          transition: "all 0.2s ease-in-out",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-          border: "1px solid",
-          
-          // Dynamic styling based on Selected vs. Unselected & Dark vs. Light mode
-          ...(isSelected ? {
-            // Selected State Glass (Stands out crisply)
-            backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)",
-            color: mode === "dark" ? "#000" : "#fff",
-            borderColor: "transparent",
-            boxShadow: mode === "dark" 
-              ? "0 4px 12px rgba(255, 255, 255, 0.1)" 
-              : "0 4px 12px rgba(0, 0, 0, 0.15)",
-            "&:hover": {
-              backgroundColor: mode === "dark" ? "#ffffff" : "#000000",
-            }
-          } : {
-            // Unselected State Glass (Subtle, matches your TextFields)
-            backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
-            color: mode === "dark" ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.65)",
-            borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)",
-            boxShadow: mode === "dark"
-              ? `inset 0 1px 1px rgba(255, 255, 255, 0.08)`
-              : `inset 0 1px 1px rgba(255, 255, 255, 0.6)`,
-            "&:hover": {
-              backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.09)" : "rgba(0, 0, 0, 0.06)",
-              borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.12)",
-              color: mode === "dark" ? "#fff" : "#000",
-            }
-          })
-        }}
-      />
-    );
-  })}
-</Stack>
-</Box>
-  {/* 4. Progressive Blur Overlay (Positioned right below all elements) */}
-<Box
-  sx={{
-    position: "absolute",
-    top: -5,
-    left: 0,
-    right: 0,
-    height: 350,
-    zIndex: -1,
-    mx: -2,
-    pointerEvents: "none",
-
-    /* Glass blur */
-    backdropFilter: "blur(80px)",
-    WebkitBackdropFilter: "blur(80px)",
-
-    /* Premium gradient fade */
-    maskImage: `
-      linear-gradient(
-        to bottom,
-        rgba(0,0,0,1) 0%,
-        rgba(0,0,0,0.92) 18%,
-        rgba(0,0,0,0.72) 38%,
-        rgba(0,0,0,0.42) 62%,
-        rgba(0,0,0,0.12) 82%,
-        rgba(0,0,0,0) 100%
-      )
-    `,
-    WebkitMaskImage: `
-      linear-gradient(
-        to bottom,
-        rgba(0,0,0,1) 0%,
-        rgba(0,0,0,0.92) 18%,
-        rgba(0,0,0,0.72) 38%,
-        rgba(0,0,0,0.42) 62%,
-        rgba(0,0,0,0.12) 82%,
-        rgba(0,0,0,0) 100%
-      )
-    `,
-
-    background:
-      mode === "dark"
-        ? `
-          linear-gradient(
-            to bottom,
-            rgba(0,0,0,0),
-            rgba(0,0,0,0)
-          )
-        `
-        : `
-          linear-gradient(
-            to bottom,
-            rgba(255,255,255,0),
-            rgba(255,255,255,0)
-          )
-        `,
-  }}
-/>
-</Box>
+              <Stack direction="row" spacing={1} sx={{ ...OVERFLOW_SX, mb: 1, pb: 0.5 }}>
+                {["All", "Pinned", "Shared", ...labels].map((label) => {
+                  const isSelected = selectedLabelFilter === label;
+                  return (
+                    <Chip
+                      key={label} label={label === "Pinned" ? "📌 Pinned" : label} clickable onClick={() => setSelectedLabelFilter(label)}
+                      sx={{
+                        borderRadius: 4, fontSize: "0.85rem", fontWeight: isSelected ? 600 : 500, px: 0.5, transition: "all 0.2s ease-in-out", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid",
+                        ...(isSelected ? { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)", color: mode === "dark" ? "#000" : "#fff", borderColor: "transparent", boxShadow: mode === "dark" ? "0 4px 12px rgba(255, 255, 255, 0.1)" : "0 4px 12px rgba(0, 0, 0, 0.15)", "&:hover": { backgroundColor: mode === "dark" ? "#ffffff" : "#000000" } } : { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)", color: mode === "dark" ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.65)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)", boxShadow: mode === "dark" ? `inset 0 1px 1px rgba(255, 255, 255, 0.08)` : `inset 0 1px 1px rgba(255, 255, 255, 0.6)`, "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.09)" : "rgba(0, 0, 0, 0.06)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.12)", color: mode === "dark" ? "#fff" : "#000" } })
+                      }}
+                    />
+                  );
+                })}
+              </Stack>
+            </Box>
+            <Box sx={{ position: "absolute", top: -5, left: 0, right: 0, height: 350, zIndex: -1, mx: -2, pointerEvents: "none", backdropFilter: "blur(80px)", WebkitBackdropFilter: "blur(80px)", maskImage: `linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 18%, rgba(0,0,0,0.72) 38%, rgba(0,0,0,0.42) 62%, rgba(0,0,0,0.12) 82%, rgba(0,0,0,0) 100%)`, WebkitMaskImage: `linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 18%, rgba(0,0,0,0.72) 38%, rgba(0,0,0,0.42) 62%, rgba(0,0,0,0.12) 82%, rgba(0,0,0,0) 100%)`, background: mode === "dark" ? `linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0))` : `linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0))` }} />
+          </Box>
 
           <Box sx={TRANSPARENT_CONTENT_SX} px={1}>
             <CardContent sx={CARD_STATIC_SX}>
@@ -1353,7 +938,6 @@ sx={{ mt: 2, cursor: "pointer",}}
             </CardContent>
           </Box>
 
-          {/* New/Edit Core Fields Form Sheets */}
           <SwipeableDrawer anchor="bottom" open={drawerOpen} onClose={() => setDrawerOpen(false)} onOpen={() => {}} PaperProps={{ sx: { backgroundColor: theme.palette.background.default, p: 3, maxWidth: 480, height: "95vh", mx: "auto" } }}>
             <Box sx={{ display: "flex", flexDirection: "column", pb: 9 }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, mt: 4.5 }}>
@@ -1365,162 +949,191 @@ sx={{ mt: 2, cursor: "pointer",}}
             </Box>
           </SwipeableDrawer>
 
-          {/* Add Collaborator Drawer */}
-          <SwipeableDrawer anchor="bottom" open={addCollaboratorDrawerOpen} onClose={() => setAddCollaboratorDrawerOpen(false)} onOpen={() => {}} PaperProps={{ sx: { p: 3, maxWidth: 400, mx: "auto" } }}>
-            <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Add Collaborator</Typography>
-            <Stack spacing={2}>
-              <TextField label="Username" value={newCollaboratorUsername} onChange={e => setNewCollaboratorUsername(e.target.value)} fullWidth />
-              <Button variant="contained" onClick={handleAddCollaboratorFromDrawer} fullWidth>Add</Button>
-            </Stack>
+          {/* COLLABORATORS DRAWER */}
+          <SwipeableDrawer
+            anchor="bottom"
+            open={addCollaboratorDrawerOpen}
+            onClose={() => { setAddCollaboratorDrawerOpen(false); setSearchCollaboratorQuery(""); }}
+            onOpen={() => {}}
+            disableSwipeToOpen
+            sx={{ zIndex: 1400 }}
+            PaperProps={{
+              sx: {
+                borderRadius: 6, p: 4, minHeight: "50vh", maxHeight: "80vh",backgroundImage: "none",
+                background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(20px)",
+                boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
+                mx: "auto", m: 2
+              },
+            }}
+            ModalProps={{ BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } } }}
+          >
+            <Typography variant="h6" fontWeight={700} mb={2}>Collaborators</Typography>
+            <TextField
+              placeholder="Search friends by name or email..." value={searchCollaboratorQuery} onChange={(e) => setSearchCollaboratorQuery(e.target.value)} fullWidth variant="outlined" size="small"
+              InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon fontSize="small" style={{ color: "gray" }} /></InputAdornment>) }}
+              sx={{
+                width: "100%", mb: 2,
+                "& .MuiOutlinedInput-root": {
+                  color: mode === "dark" ? "#fff" : "#111", borderRadius: 3, backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.11)",
+                  boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`, border: "0px solid", "& fieldset": { border: "none" },
+                  "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)" },
+                  "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)", boxShadow: mode === "dark" ? `0 0 0 3px rgba(255, 255, 255, 0.05)` : `0 0 0 3px rgba(25, 118, 210, 0.15)` }
+                }
+              }}
+            />
+            {loadingFriends ? <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress size={28} color="inherit" /></Box> : (
+              <List dense sx={{ width: '100%', maxHeight: "50vh", overflowY: "auto" }}>
+                {filteredFriends.length > 0 ? filteredFriends.map((friend) => {
+                  const isAdded = collaborators.includes(friend.uid);
+                  return (
+                    <ListItem key={friend.uid} disablePadding secondaryAction={
+                      <IconButton edge="end" onClick={() => handleToggleCollaborator(friend.uid)} color={isAdded ? "success" : "default"} sx={{ borderRadius: "20px", background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` }}>
+                        {isAdded ? <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, px: 0.5 }}><span style={{ fontSize: "0.75rem", fontWeight: 700 }}>Added</span></Box> : <AddIcon fontSize="small" />}
+                      </IconButton>
+                    } sx={{ py: 1 }}>
+                      <ListItemAvatar><Avatar src={friend.photoURL || friend.profilePic} sx={{ width: 40, height: 40, fontWeight: 700, bgcolor: theme.palette.primary.main, color: mode === "dark" ? "#000" : "#fff" }}>{friend.name.charAt(0).toUpperCase()}</Avatar></ListItemAvatar>
+                      <ListItemText primary={friend.name} secondary={friend.username} primaryTypographyProps={{ fontWeight: 600, sx: { pl: 1 } }} secondaryTypographyProps={{ sx: { pl: 1 } }} />
+                    </ListItem>
+                  );
+                }) : <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontStyle: "italic", textAlign: "center" }}>No friends match your search criterion.</Typography>}
+              </List>
+            )}
           </SwipeableDrawer>
 
-          {/* Add Label Drawer */}
-          <SwipeableDrawer anchor="bottom" open={addLabelDrawerOpen} onClose={() => setAddLabelDrawerOpen(false)} onOpen={() => {}} PaperProps={{ sx: { p: 3, maxWidth: 400, mx: "auto" } }}>
-            <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Add Custom Label</Typography>
-            <Stack spacing={2}>
-              <TextField label="Label Name" value={newLabel} onChange={e => setNewLabel(e.target.value)} fullWidth />
-              <Button variant="contained" onClick={handleAddCustomLabel} fullWidth>Add</Button>
-            </Stack>
+          {/* LABELS DRAWER */}
+          <SwipeableDrawer
+            anchor="bottom"
+            open={addLabelDrawerOpen}
+            onClose={() => { setAddLabelDrawerOpen(false); setNewLabelText(""); }}
+            onOpen={() => {}}
+            disableSwipeToOpen
+            sx={{ zIndex: 1400 }}
+            PaperProps={{
+              sx: {
+                borderRadius: 6, p: 4, minHeight: "20vh", maxHeight: "50vh",
+                background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(10px)", backgroundImage: "none",
+                boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
+                mx: "auto", m: 2
+              },
+            }}
+            ModalProps={{ BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } } }}
+          >
+            <Typography variant="h6" fontWeight={700} mb={2}>Labels</Typography>
+            <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
+              <TextField
+                placeholder="Create new label..." value={newLabelText} onChange={(e) => setNewLabelText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddNewLabel()} variant="outlined" size="small" fullWidth                
+                sx={{
+                  width: "100%",
+                  "& .MuiOutlinedInput-root": {
+                    color: mode === "dark" ? "#fff" : "#111", borderRadius: 3, backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
+                    boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`, border: "0.1px solid", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)", "& fieldset": { border: "none" },
+                    "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)" },
+                    "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)", boxShadow: mode === "dark" ? `0 0 0 3px rgba(255, 255, 255, 0.05)` : `0 0 0 3px rgba(25, 118, 210, 0.15)` }
+                  }
+                }}
+              />
+              <IconButton onClick={handleAddNewLabel} color="primary" disabled={!newLabelText.trim()} sx={{ color: mode === "dark" ? "#fff" : "#000", background: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8 }}><AddIcon /></IconButton>
+            </Box>
+            <Typography variant="subtitle2" fontWeight={600} mb={1.5} color="text.secondary">Your Labels Collection</Typography>
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", maxHeight: "25vh", overflowY: "auto" }}>
+              {labels.length > 0 ? labels.map((label) => {
+                const isSelected = noteLabels.includes(label);
+                return (<Chip key={label} label={label} onClick={() => handleToggleLabelMemo(label)} variant={isSelected ? "filled" : "outlined"} sx={{ borderRadius: 6, px: 0.5, fontWeight: 600, border: 0, color: isSelected ? (mode === "dark" ? "#000" : "#fff") : "text.primary", backgroundColor: isSelected ? (mode === "dark" ? "#ffffff" : "rgba(21, 21, 21, 0.86)") : (mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)"), boxShadow: isSelected ? (mode === "dark" ? `inset 0 1px 1px rgba(52, 52, 52, 0.96), inset 0 -1px 1px rgba(31, 31, 31, 0.68)` : `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`) : (mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`), backdropFilter: "blur(10px)" }} />);
+              }) : <Typography variant="body2" color="text.secondary" fontStyle="italic">No labels created yet.</Typography>}
+            </Box>
           </SwipeableDrawer>
 
           {/* Note Details Drawer */}
           <SwipeableDrawer
-            anchor="bottom"
-            open={detailsDrawerOpen}
-            onClose={() => setDetailsDrawerOpen(false)}
-            onOpen={() => {}}
-            disableSwipeToOpen={true}
-            disableDiscovery={true}
-            transitionDuration={{ enter: 200, exit: 150 }}
-            fullWidth
-            maxWidth="sm"
-            variant="temporary"
-            ModalProps={{ keepMounted: true }}
-            // 1. FORCE THE DRAWER LAYER ABOVE THE ACTION MODE OVERLAY
-            sx={{ zIndex: 1400 }} 
-            PaperProps={{
-              sx: {
-                borderRadius: 6,
-                backgroundColor: mode === "dark" ? "rgba(20, 20, 20, 0.85)" : "rgba(255, 255, 255, 0.85)",
-                backgroundImage: "none",
-                p: 3,
-                height: "50vh",
-                mx: "auto",
-                m: 2.5,
-                backdropFilter: "blur(25px)", 
-                WebkitBackdropFilter: "blur(25px)",
-                boxShadow: theme.palette.mode === "dark"
-                  ? `
-                    inset 0 1px 2px rgba(255, 255, 255, 0.11),
-                    inset 0 -1px 1px rgba(35, 35, 35, 0.07),
-                    0 12px 40px rgba(0,0,0,0.5)
-                  `
-                  : `
-                    inset 0 1px 1px rgba(255,255,255,0.8),
-                    inset 0 -1px 1px rgba(0,0,0,0.1),
-                    0 12px 40px rgba(0,0,0,0.15)
-                  `,
-              },
-            }}
+            anchor="bottom" open={detailsDrawerOpen} fullWidth onClose={() => setDetailsDrawerOpen(false)} onOpen={() => {}} disableSwipeToOpen disableDiscovery transitionDuration={{ enter: 200, exit: 150 }}
+            PaperProps={{ sx: { borderRadius: 6, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255, 255, 255, 0.9)", backgroundImage: "none", backdropFilter: "blur(20px)", p: 3, m: 2, height: "auto", maxHeight: "50vh", width: "80%", mx: "auto", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` } }}
           >
-            <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-              Note Details
-            </Typography>
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Title:</Typography>
-                <Typography variant="h5" sx={{ fontSize: "2rem" }}>{selectedNote?.title || "Untitled"}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Labels:</Typography>
-                <Stack direction="row" spacing={1}>
-                  {(selectedNote?.labels || []).map(label => (
-                    <Chip
-                      key={label}
-                      icon={<LabelIcon sx={{ color: "#000" }} />}
-                      label={label}
-                      size="small"
-                      sx={{
-                        fontSize: "0.7rem",
-                        borderRadius: '10px',
-                        color: mode === "dark" ? "#fff" : "#000",
-                        background: mode === "dark" ? "#3a3a3a" : "#bdbdbd83",
-                      }}
-                    />
-                  ))}
-                </Stack>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Collaborators:</Typography>
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                  {(selectedNote?.sharedWith || []).map(uid => {
-                    const u = sharedUsersInfo[uid];
-                    return (
-                      <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: mode === "dark" ? "#171717" : "#acacac7e", borderRadius: 8, px: 0.5, py: 0.5 }}>
-                        <Avatar
-                          src={u?.photoURL || ""}
-                          alt={u?.username || "User"}
-                          sx={{ width: 24, height: 24, fontSize: 14, bgcolor: theme.palette.primary.bg, color: "#000" }}
-                        >
-                          {u?.username ? u.username[0].toUpperCase() : "U"}
-                        </Avatar>
-                        <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 14, marginRight: 1 }}>
-                          {u?.username || uid.slice(0, 6) + "..."}
-                        </Typography>
+            <Box sx={{ display: "flex", justifyContent: "center", py: -1.5, pb: 3 }}><Box sx={{ width: 60, height: 5, borderRadius: 999, background: mode === "dark" ? "#f1f1f127" : "#0c0c0c", backdropFilter: "blur(12px)", cursor: "grab", transition: "all .25s ease", "&:hover": { width: 72 }, "&:active": { cursor: "grabbing", transform: "scale(0.95)" } }} /></Box>
+            <Typography variant="h6" fontWeight="800" sx={{ mb: 3, letterSpacing: "0.5px", textTransform: "uppercase", fontSize: "0.85rem", color: "text.secondary" }}>Note Details</Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2.5, borderRadius: 4, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
+                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>Authors & Sharing</Typography>
+                <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 4 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Created By:</Typography>
+                    {selectedNote?.owners && selectedNote.owners.length > 0 ? (
+                      <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1, background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderRadius: "20px", pl: 0.5, pr: 1.5, py: 0.5 }}>
+                        <Avatar src={sharedUsersInfo[selectedNote.owners[0]]?.photoURL || ""} sx={{ width: 22, height: 22, fontSize: 11, bgcolor: theme.palette.secondary.main, color: "#fff" }}>{sharedUsersInfo[selectedNote.owners[0]]?.username ? sharedUsersInfo[selectedNote.owners[0]].username[0].toUpperCase() : "U"}</Avatar>
+                        <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 13, fontWeight: 500 }}>{sharedUsersInfo[selectedNote.owners[0]]?.username || selectedNote.owners[0].slice(0, 6) + "..."}</Typography>
                       </Box>
-                    );
-                  })}
-                </Stack>
+                    ) : <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>Unknown</Typography>}
+                  </Box>
+                  <Box sx={{ flex: 2 }}>
+                    <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Collaborators:</Typography>
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
+                      {selectedNote?.sharedWith && selectedNote.sharedWith.length > 0 ? selectedNote.sharedWith.map((uid) => (
+                        <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderRadius: "20px", pl: 0.5, pr: 1.5, py: 0.5 }}>
+                          <Avatar src={sharedUsersInfo[uid]?.photoURL || ""} sx={{ width: 22, height: 22, fontSize: 11, bgcolor: theme.palette.primary.main, color: "#fff" }}>{sharedUsersInfo[uid]?.username ? sharedUsersInfo[uid].username[0].toUpperCase() : "U"}</Avatar>
+                          <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 13, fontWeight: 500 }}>{sharedUsersInfo[uid]?.username || uid.slice(0, 6) + "..."}</Typography>
+                        </Box>
+                      )) : <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic", mt: 0.5 }}>Private Note</Typography>}
+                    </Stack>
+                  </Box>
+                </Box>
               </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Created At:</Typography>
-                <Typography variant="body2">
-                  {selectedNote?.createdAt?.toDate
-                    ? selectedNote.createdAt.toDate().toLocaleString()
-                    : selectedNote?.createdAt 
-                      ? new Date(selectedNote.createdAt).toLocaleString()
-                      : "N/A"}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Created By:</Typography>
-                <Stack direction="row" spacing={1}>
-                  {selectedNote?.owners && selectedNote.owners.length > 0 && (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, background: mode === "dark" ? "#171717" : "#acacac7e", borderRadius: 8, px: 0.5, py: 0.5 }}>
-                      <Avatar
-                        src={sharedUsersInfo[selectedNote.owners[0]]?.photoURL || ""}
-                        alt={sharedUsersInfo[selectedNote.owners[0]]?.username || "User"}
-                        sx={{ width: 24, height: 24, fontSize: 14, bgcolor: theme.palette.primary.bg, color: "#000" }}
-                      >
-                        {sharedUsersInfo[selectedNote.owners[0]]?.username
-                          ? sharedUsersInfo[selectedNote.owners[0]].username[0].toUpperCase()
-                          : "U"}
-                      </Avatar>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 14, marginRight: 1 }}>
-                        {sharedUsersInfo[selectedNote.owners[0]]?.username ||
-                          selectedNote.owners[0].slice(0, 6) + "..."}
-                      </Typography>
+
+              <Box sx={{ p: 0.5 }}>
+                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>Properties & Style</Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+                  <Box sx={{ p: 2.5, borderRadius: 4, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
+                    <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Labels:</Typography>
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
+                      {selectedNote?.labels && selectedNote.labels.length > 0 ? selectedNote.labels.map((label) => <Chip key={label} icon={<LabelIcon sx={{ color: mode === "dark" ? "#fff" : "#000", fontSize: "14px !important" }} />} label={label} size="small" sx={{ fontSize: "0.75rem", borderRadius: "8px", fontWeight: 500, color: mode === "dark" ? "#fff" : "#000", background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }} />) : <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>No labels assigned</Typography>}
+                    </Stack>
+                  </Box>
+                  <Box sx={{ display: "flex", gap: 2 }}>
+                    <Box sx={{ p: 2.5, width: "50%", borderRadius: 4, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
+                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 0.5 }}>Status:</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: selectedNote?.pinned ? "success.main" : "text.disabled", fontSize: 13 }}>{selectedNote?.pinned ? "📌 Pinned" : "Regular Note"}</Typography>
                     </Box>
-                  )}
-                </Stack>
+                    <Box sx={{ p: 2.5, width: "50%", borderRadius: 4, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
+                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 0.5 }}>Active Font:</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, textTransform: "capitalize", fontFamily: dynamicFontFamily, color: "primary.main", fontSize: 13 }}>{selectedNote?.fontStyle || "Monospace"}</Typography>
+                    </Box>
+                  </Box>
+                </Box>
               </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Note ID:</Typography>
-                <Typography variant="body2">{selectedNote?.id || "N/A"}</Typography>
+
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+                <Box sx={{ p: 2, borderRadius: 3, background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}` }}>
+                  <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mb: 0.5 }}>Created On:</Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>{selectedNote?.createdAt?.toDate ? selectedNote.createdAt.toDate().toLocaleDateString(undefined, { dateStyle: 'medium' }) : selectedNote?.createdAt ? new Date(selectedNote.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : "N/A"}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 500, color: "text.secondary" }}>{selectedNote?.createdAt?.toDate ? selectedNote.createdAt.toDate().toLocaleTimeString(undefined, { timeStyle: 'short', hour12: true }) : selectedNote?.createdAt ? new Date(selectedNote.createdAt).toLocaleTimeString(undefined, { timeStyle: 'short', hour12: true }) : "N/A"}</Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ p: 2, borderRadius: 3, background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}` }}>
+                  <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mb: 0.5 }}>Note ID:</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: "monospace", color: "text.secondary", fontSize: "0.8rem", pt: 0.3 }}>{selectedNote?.id || "N/A"}</Typography>
+                </Box>
               </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Pinned:</Typography>
-                <Typography variant="body2">{selectedNote?.pinned ? "Yes" : "No"}</Typography>
-              </Box>
-            </Stack>
+            </Box>
           </SwipeableDrawer>
 
-          {/* Delete Dialog Prompt validation card */}
-          <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-            <DialogTitle>Delete Note</DialogTitle>
-            <DialogContent><Typography>Are you sure you want to delete this note?</Typography></DialogContent>
-            <DialogActions><Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button><Button onClick={async () => { await handleDeleteNote(noteToDelete.id); setDeleteDialogOpen(false); setActionMode(false); }} color="error">Delete</Button></DialogActions>
-          </Dialog>
+          {/* Premium Glassmorphic Delete Swipeable Bottom Sheet */}
+          <SwipeableDrawer
+            anchor="bottom" open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} onOpen={() => {}} disableSwipeToOpen sx={{ zIndex: 1500 }}
+            PaperProps={{ sx: { borderRadius: 6, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(20px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, maxWidth: 540, mx: "auto", m: 3 } }}
+            ModalProps={{
+              BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } }
+            }}
+          >
+            <Typography variant="h6" fontWeight="700" sx={{ textAlign: "center", color: mode === "dark" ? "#fff" : "#000", mb: 2 }}>Delete Note</Typography>
+            <Box display="flex" flexDirection="column" alignItems="center" gap={2} sx={{ mb: 3 }}>
+              <Box sx={{ width: 56, height: 56, borderRadius: "50%", backgroundColor: mode === "dark" ? "rgba(229, 57, 53, 0.15)" : "#ffebee", display: "flex", alignItems: "center", justifyContent: "center" }}><Typography sx={{ fontSize: 26 }}>🗑️</Typography></Box>
+              <Typography variant="body1" textAlign="center" sx={{ fontWeight: 500, px: 2 }}>Are you sure you want to permanently delete <strong>{noteToDelete?.title || "this note"}</strong>?</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>This change can't be undone.</Typography>
+            </Box>
+            <Stack direction="row" spacing={2} justifyContent="center" sx={{ pb: 1 }}>
+              <Button variant="outlined" fullWidth onClick={() => setDeleteDialogOpen(false)} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, border: "none", color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255,255,255,0.05)" : "#f5f5f5" } }}>Cancel</Button>
+              <Button variant="contained" fullWidth onClick={async () => { await handleDeleteNote(noteToDelete.id); setDeleteDialogOpen(false); setActionMode(false); }} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(229, 57, 53, 0.18)" : "rgba(255, 102, 102, 0.69)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: "#c62828" } }}>Delete Note</Button>
+            </Stack>
+          </SwipeableDrawer>
 
           <FloatingNewNotes mode={mode} onOpen={() => { setNoteTitle(""); setNoteContent(""); setNoteLabels([]); setCollaborators([]); setSelectedNote(null); setEditDrawerOpen(false); setDrawerOpen(true); }} />
         </Box>
@@ -1529,7 +1142,6 @@ sx={{ mt: 2, cursor: "pointer",}}
   );
 };
 
-// ─── MODULAR DEDICATED INDEPENDENT NOTES VIEW PAGE SUB-ROUTE ─────────────────
 export const ViewNotePage = () => {
   const { noteId } = useParams();
   const navigate = useNavigate();
