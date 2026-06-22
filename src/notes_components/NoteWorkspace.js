@@ -641,6 +641,7 @@ const NoteWorkspace = () => {
                     borderRadius: 6,
                     fontWeight: 600,
                     transition: "all .25s ease",
+                    border: 0,
                     color: mode === "dark" ? "#000" : "#fff",
                     backgroundColor: mode === "dark" ? "#ffffff" : "rgba(21, 21, 21, 0.86)",
                     boxShadow: mode === "dark"
@@ -847,7 +848,7 @@ const NoteWorkspace = () => {
                 disableSwipeToOpen
                 PaperProps={{
                   sx: {
-                    borderRadius: 10,
+                    borderRadius: 8,
                     p: 4, pt: 2,
                     minHeight: "50vh",
                     maxHeight: "80vh",
@@ -1023,7 +1024,7 @@ const NoteWorkspace = () => {
                 disableSwipeToOpen
                 PaperProps={{
                   sx: {
-                    borderRadius: 10, p: 4, pt: 2, minHeight: "20vh", maxHeight: "40vh",
+                    borderRadius: 8, p: 4, pt: 2, minHeight: "20vh", maxHeight: "40vh",
                     background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.39)",
                     backdropFilter: "blur(10px)",
                     boxShadow: theme.palette.mode === "dark"

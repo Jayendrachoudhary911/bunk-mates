@@ -668,7 +668,7 @@ const NoteDetail = () => {
             sx={{ zIndex: 1450 }}
             PaperProps={{
               sx: {
-                borderRadius: 10, p: 4, pt: 2, minHeight: "50vh", maxHeight: "80vh",
+                borderRadius: 8, p: 4, pt: 2, minHeight: "50vh", maxHeight: "80vh",
                 background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255, 255, 255, 0.39)",
                 backdropFilter: "blur(20px)", backgroundImage: "none",
                 boxShadow: theme.palette.mode === "dark"
@@ -821,7 +821,7 @@ const NoteDetail = () => {
             sx={{ zIndex: 1450 }}
             PaperProps={{
               sx: {
-                borderRadius: 10, p: 4, pt: 2, minHeight: "20vh", maxHeight: "50vh",
+                borderRadius: 8, p: 4, pt: 2, minHeight: "20vh", maxHeight: "50vh",
                 background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.39)",
                 backdropFilter: "blur(10px)", backgroundImage: "none",
                 boxShadow: theme.palette.mode === "dark"
@@ -951,7 +951,7 @@ const NoteDetail = () => {
             sx={{ zIndex: 1400 }}
             PaperProps={{
               sx: {
-                borderRadius: 10, pt: 2,
+                borderRadius: 8, pt: 2,
                 background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255, 255, 255, 0.39)",
                 backgroundImage: "none", backdropFilter: "blur(20px)", p: 3, m: 2, height: "auto", maxHeight: "65vh", width: "80%", mx: "auto",
                 boxShadow: theme.palette.mode === "dark"
@@ -1185,7 +1185,7 @@ const NoteDetail = () => {
           {/* Premium Custom Delete Confirm Dialog */}
           <SwipeableDrawer
             anchor="bottom" open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} onOpen={() => {}} disableSwipeToOpen sx={{ zIndex: 1500 }}
-            PaperProps={{ sx: { borderRadius: 10, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(20px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, maxWidth: 540, mx: "auto", m: 3 } }}
+            PaperProps={{ sx: { borderRadius: 8, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(20px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, maxWidth: 540, mx: "auto", m: 3 } }}
             ModalProps={{
               BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } }
             }}

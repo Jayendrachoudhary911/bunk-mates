@@ -756,7 +756,7 @@ const Notes = () => {
 
                 <motion.div initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} style={{ position: "fixed", mx: "auto", zIndex: 1300, width: "calc(100% - 32px)", maxWidth: "540px", maxHeight: "75vh", display: "flex", flexDirection: "column" }}>
                   <Box>
-                    <Box sx={{ borderRadius: 10, p: 3, mb: 2, height: 150, background: mode === "dark" ? "rgba(20, 20, 20, 0.75)" : "rgba(255, 255, 255, 0.55)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}>
+                    <Box sx={{ borderRadius: 8, p: 3, mb: 2, height: 150, background: mode === "dark" ? "rgba(20, 20, 20, 0.75)" : "rgba(255, 255, 255, 0.55)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}>
                       <Typography variant="h5" fontWeight={700} sx={{ borderBottom: `2px solid ${mode === "dark" ? "#f1f1f111" : "#0c0c0c11"}`, pb: 1 }}>{selectedNote.title || "Untitled"}</Typography>
                       <Box onClick={() => navigate(`/notes/${selectedNote.id}`)} sx={{ mt: 2, cursor: "pointer" }}>
                         {selectedNote?.content ? (
@@ -770,7 +770,7 @@ const Notes = () => {
                       </Box>
                     </Box>
 
-                    <Box sx={{ flex: 1, overflowY: "auto", pr: 1, height: 400, borderRadius: 10, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.75)" : "rgba(255, 255, 255, 0.55)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` }}>
+                    <Box sx={{ flex: 1, overflowY: "auto", pr: 1, height: 400, borderRadius: 8, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.75)" : "rgba(255, 255, 255, 0.55)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` }}>
                       <Typography variant="h6" fontWeight="800" sx={{ mb: 3, textTransform: "uppercase", fontSize: "0.85rem", color: "text.secondary" }}>Note Details</Typography>
                       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                         <Box sx={{ p: 2.5, borderRadius: 6, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
@@ -959,7 +959,7 @@ const Notes = () => {
             sx={{ zIndex: 1400 }}
             PaperProps={{
               sx: {
-                borderRadius: 10, p: 4, minHeight: "50vh", maxHeight: "80vh",backgroundImage: "none",
+                borderRadius: 8, p: 4, minHeight: "50vh", maxHeight: "80vh",backgroundImage: "none",
                 background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(20px)",
                 boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
                 mx: "auto", m: 2
@@ -1022,7 +1022,7 @@ const Notes = () => {
             sx={{ zIndex: 1400 }}
             PaperProps={{
               sx: {
-                borderRadius: 10, p: 4, minHeight: "20vh", maxHeight: "50vh",
+                borderRadius: 8, p: 4, minHeight: "20vh", maxHeight: "50vh",
                 background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(10px)", backgroundImage: "none",
                 boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
                 mx: "auto", m: 2
@@ -1070,7 +1070,7 @@ const Notes = () => {
           {/* Note Details Drawer */}
           <SwipeableDrawer
             anchor="bottom" open={detailsDrawerOpen} fullWidth onClose={() => setDetailsDrawerOpen(false)} onOpen={() => {}} disableSwipeToOpen disableDiscovery transitionDuration={{ enter: 200, exit: 150 }}
-            PaperProps={{ sx: { borderRadius: 10, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255, 255, 255, 0.39)", backgroundImage: "none", backdropFilter: "blur(20px)", p: 3, m: 2, height: "auto", maxHeight: "50vh", width: "80%", mx: "auto", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` } }}
+            PaperProps={{ sx: { borderRadius: 8, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255, 255, 255, 0.39)", backgroundImage: "none", backdropFilter: "blur(20px)", p: 3, m: 2, height: "auto", maxHeight: "50vh", width: "80%", mx: "auto", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` } }}
           >
             <Box sx={{ display: "flex", justifyContent: "center", py: -1.5, pb: 3 }}>
               <Box
@@ -1154,7 +1154,7 @@ const Notes = () => {
           {/* Premium Glassmorphic Delete Swipeable Bottom Sheet */}
           <SwipeableDrawer
             anchor="bottom" open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} onOpen={() => {}} disableSwipeToOpen sx={{ zIndex: 1500 }}
-            PaperProps={{ sx: { borderRadius: 10, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(20px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, maxWidth: 540, mx: "auto", m: 3 } }}
+            PaperProps={{ sx: { borderRadius: 8, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(20px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, maxWidth: 540, mx: "auto", m: 3 } }}
             ModalProps={{
               BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } }
             }}
