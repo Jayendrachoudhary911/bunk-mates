@@ -664,7 +664,7 @@ const NoteDetail = () => {
             }}
             onOpen={() => {}}
             disableSwipeToOpen
-            sx={{ zIndex: 1400 }}
+            sx={{ zIndex: 1450 }}
             PaperProps={{
               sx: {
                 borderRadius: 6, p: 4, minHeight: "50vh", maxHeight: "80vh",
@@ -805,7 +805,7 @@ const NoteDetail = () => {
             onClose={() => { setLabelsDrawerOpen(false); setNewLabelText(""); }}
             onOpen={() => {}}
             disableSwipeToOpen
-            sx={{ zIndex: 1400 }}
+            sx={{ zIndex: 1450 }}
             PaperProps={{
               sx: {
                 borderRadius: 6, p: 4, minHeight: "20vh", maxHeight: "50vh",
@@ -964,7 +964,7 @@ const NoteDetail = () => {
                 
                 <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 4 }}>
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Created By:</Typography>
+                    <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Author:</Typography>
                     {note?.owners && note.owners.length > 0 ? (
                       <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1, background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderRadius: "20px", pl: 0.5, pr: 1.5, py: 0.5 }}>
                         <Avatar
@@ -1011,7 +1011,7 @@ const NoteDetail = () => {
                     <Button 
                       startIcon={<AddIcon fontSize="small" />} 
                       size="small" 
-                      onClick={() => { setDetailsDrawerOpen(false); setCollaboratorsDrawerOpen(true); fetchCurrentUsersFriends(); }}
+                      onClick={() => { setCollaboratorsDrawerOpen(true); fetchCurrentUsersFriends(); }}
                       sx={{ textTransform: "none", mt: 1.5, fontWeight: 600 }}
                     >
                       Manage Collaborators
@@ -1051,7 +1051,7 @@ const NoteDetail = () => {
                     <Button 
                       startIcon={<AddIcon fontSize="small" />} 
                       size="small" 
-                      onClick={() => { setDetailsDrawerOpen(false); setLabelsDrawerOpen(true); }}
+                      onClick={() => { setLabelsDrawerOpen(true); }}
                       sx={{ textTransform: "none", mt: 1.5, fontWeight: 600 }}
                     >
                       Manage Labels
