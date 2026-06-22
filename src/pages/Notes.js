@@ -724,13 +724,13 @@ const Notes = () => {
                       <Tooltip title="Share" TransitionComponent={Zoom} arrow>
                         <IconButton 
                           onClick={() => { setAddCollaboratorDrawerOpen(true); fetchCurrentUsersFriends(); }}
-                          sx={{ color: 'text.secondary', p: 1.8, borderRadius: 8, backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.8)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}
+                          sx={{ color: 'text.secondary', p: 1.8, borderRadius: 8, backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.35)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}
                         >
                           <ShareIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
 
-                      <Stack direction="row" spacing={0.5} sx={{ backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.8)", p: 0.5, borderRadius: 8, boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}>
+                      <Stack direction="row" spacing={0.5} sx={{ backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.35)", p: 0.5, borderRadius: 8, boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}>
                         <Tooltip title="Labels" TransitionComponent={Zoom} arrow>
                           <IconButton onClick={() => setAddLabelDrawerOpen(true)} sx={{ color: 'text.secondary', p: 1.5 }}><LabelIcon fontSize="small" /></IconButton>
                         </Tooltip>
@@ -745,7 +745,7 @@ const Notes = () => {
                       <Tooltip title="Delete Note" TransitionComponent={Zoom} arrow>
                         <IconButton 
                           color="error" onClick={() => { setNoteToDelete(selectedNote); setDeleteDialogOpen(true); }} 
-                          sx={{ color: 'text.secondary', p: 1.8, borderRadius: 8, backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.8)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}
+                          sx={{ color: 'text.secondary', p: 1.8, borderRadius: 8, backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.35)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}
                         >
                           <DeleteOutlineIcon fontSize="small" />
                         </IconButton>
@@ -756,8 +756,8 @@ const Notes = () => {
 
                 <motion.div initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} style={{ position: "fixed", mx: "auto", zIndex: 1300, width: "calc(100% - 32px)", maxWidth: "540px", maxHeight: "75vh", display: "flex", flexDirection: "column" }}>
                   <Box>
-                    <Box sx={{ borderRadius: 6, p: 3, mb: 2, height: 150, background: mode === "dark" ? "rgba(20, 20, 20, 0.85)" : "rgba(255, 255, 255, 0.9)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}>
-                      <Typography variant="h5" fontWeight={700} sx={{ borderBottom: `2px solid ${theme.palette.divider}`, pb: 1 }}>{selectedNote.title || "Untitled"}</Typography>
+                    <Box sx={{ borderRadius: 10, p: 3, mb: 2, height: 150, background: mode === "dark" ? "rgba(20, 20, 20, 0.75)" : "rgba(255, 255, 255, 0.55)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}>
+                      <Typography variant="h5" fontWeight={700} sx={{ borderBottom: `2px solid ${mode === "dark" ? "#f1f1f111" : "#0c0c0c11"}`, pb: 1 }}>{selectedNote.title || "Untitled"}</Typography>
                       <Box onClick={() => navigate(`/notes/${selectedNote.id}`)} sx={{ mt: 2, cursor: "pointer" }}>
                         {selectedNote?.content ? (
                           <>
@@ -770,10 +770,10 @@ const Notes = () => {
                       </Box>
                     </Box>
 
-                    <Box sx={{ flex: 1, overflowY: "auto", pr: 1, height: 400, borderRadius: 6, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.85)" : "rgba(255, 255, 255, 0.9)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` }}>
+                    <Box sx={{ flex: 1, overflowY: "auto", pr: 1, height: 400, borderRadius: 10, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.75)" : "rgba(255, 255, 255, 0.55)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` }}>
                       <Typography variant="h6" fontWeight="800" sx={{ mb: 3, textTransform: "uppercase", fontSize: "0.85rem", color: "text.secondary" }}>Note Details</Typography>
                       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        <Box sx={{ p: 2.5, borderRadius: 4, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
+                        <Box sx={{ p: 2.5, borderRadius: 6, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
                           <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem" }}>Authors & Sharing</Typography>
                           <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 4 }}>
                             <Box sx={{ flex: 1 }}>
@@ -800,20 +800,20 @@ const Notes = () => {
                         </Box>
 
                         <Box sx={{ p: 0.5 }}>
-                          <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem" }}>Properties & Style</Typography>
+                          <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700, mb: 2, pl: 1, textTransform: "uppercase", fontSize: "0.75rem" }}>Properties & Style</Typography>
                           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-                            <Box sx={{ p: 2.5, borderRadius: 4, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
+                            <Box sx={{ p: 2.5, borderRadius: 6, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
                               <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 1 }}>Labels:</Typography>
                               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
                                 {selectedNote?.labels && selectedNote.labels.length > 0 ? selectedNote.labels.map((label) => <Chip key={label} icon={<LabelIcon sx={{ color: mode === "dark" ? "#fff" : "#000", fontSize: "14px !important" }} />} label={label} size="small" sx={{ fontSize: "0.75rem", borderRadius: "8px", fontWeight: 500, color: mode === "dark" ? "#fff" : "#000", background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }} />) : <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>No labels assigned</Typography>}
                               </Stack>
                             </Box>
                             <Box sx={{ display: "flex", gap: 2 }}>
-                              <Box sx={{ p: 2.5, width: "50%", borderRadius: 4, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
+                              <Box sx={{ p: 2.5, width: "50%", borderRadius: 6, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
                                 <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 0.5 }}>Status:</Typography>
                                 <Typography variant="body2" sx={{ fontWeight: 700, color: selectedNote?.pinned ? "success.main" : "text.disabled", fontSize: 13 }}>{selectedNote?.pinned ? "📌 Pinned" : "Regular Note"}</Typography>
                               </Box>
-                              <Box sx={{ p: 2.5, width: "50%", borderRadius: 4, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
+                              <Box sx={{ p: 2.5, width: "50%", borderRadius: 6, background: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}` }}>
                                 <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: "block", mb: 0.5 }}>Active Font:</Typography>
                                 <Typography variant="body2" sx={{ fontWeight: 600, textTransform: "capitalize", fontFamily: dynamicFontFamily, color: "primary.main", fontSize: 13 }}>{selectedNote?.fontStyle || "Monospace"}</Typography>
                               </Box>
@@ -822,14 +822,14 @@ const Notes = () => {
                         </Box>
 
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-                          <Box sx={{ p: 2, borderRadius: 3, background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}` }}>
+                          <Box sx={{ p: 2, borderRadius: 6, background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}` }}>
                             <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mb: 0.5 }}>Created On:</Typography>
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
                               <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>{selectedNote?.createdAt?.toDate ? selectedNote.createdAt.toDate().toLocaleDateString(undefined, { dateStyle: 'medium' }) : selectedNote?.createdAt ? new Date(selectedNote.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : "N/A"}</Typography>
                               <Typography variant="body2" sx={{ fontWeight: 500, color: "text.secondary" }}>@ {selectedNote?.createdAt?.toDate ? selectedNote.createdAt.toDate().toLocaleTimeString(undefined, { timeStyle: 'short', hour12: true }) : selectedNote?.createdAt ? new Date(selectedNote.createdAt).toLocaleTimeString(undefined, { timeStyle: 'short', hour12: true }) : "N/A"}</Typography>
                             </Box>
                           </Box>
-                          <Box sx={{ p: 2, borderRadius: 3, background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}` }}>
+                          <Box sx={{ p: 2, borderRadius: 6, background: mode === "dark" ? "rgba(255, 255, 255, 0.005)" : "rgba(0, 0, 0, 0.005)", border: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}` }}>
                             <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mb: 0.5 }}>Note ID:</Typography>
                             <Typography variant="body2" sx={{ fontFamily: "monospace", color: "text.secondary", fontSize: "0.8rem", pt: 0.3 }}>{selectedNote?.id || "N/A"}</Typography>
                           </Box>
@@ -850,9 +850,9 @@ const Notes = () => {
                 sx={{
                   width: "100%", mb: 2,
                   "& .MuiOutlinedInput-root": {
-                    color: mode === "dark" ? "#fff" : "#111", borderRadius: 3, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
+                    color: mode === "dark" ? "#fff" : "#111", borderRadius: 3, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.02)",
                     boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-                    border: "0.1px solid", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)", transition: "all 0.2s ease-in-out", "& fieldset": { border: "none" },
+                    border: "0px solid", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)", transition: "all 0.2s ease-in-out", "& fieldset": { border: "none" },
                     "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)" },
                     "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "primary.main", boxShadow: mode === "dark" ? `0 0 0 3px rgba(255, 255, 255, 0.05)` : `0 0 0 3px rgba(25, 118, 210, 0.15)` }
                   },
@@ -863,21 +863,21 @@ const Notes = () => {
               <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
                 <TextField
                   select label="Sort by" value={sortOption} onChange={(e) => setSortOption(e.target.value)} size="small"
-                  sx={{ minWidth: 150, "& .MuiInputLabel-root": { color: mode === "dark" ? "rgba(255, 255, 255, 0.6)" : "rgba(0, 0, 0, 0.6)" }, "& .MuiInputLabel-root.Mui-focused": { color: mode === "dark" ? "#fff" : "primary.main" } }}
+                  sx={{ minWidth: 150, "& .MuiInputLabel-root": { color: mode === "dark" ? "rgba(255, 255, 255, 0.6)" : "rgba(0, 0, 0, 0.6)" }, "& .MuiInputLabel-root.Mui-focused": { color: mode === "dark" ? "#fff" : "#000" } }}
                   InputLabelProps={{ shrink: true }}
                   InputProps={{
                     sx: {
-                      color: mode === "dark" ? "#fff" : "#111", borderRadius: 2.5, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
+                      color: mode === "dark" ? "#fff" : "#111", borderRadius: 2.5, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.02)",
                       boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.05)`,
                       "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)" },
-                      "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.04)" }, "& fieldset": { border: "none" }
+                      "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.04)", color: mode === "dark" ? "rgba(255, 255, 255, 0.6)" : "rgba(0, 0, 0, 0.6)" }, "& fieldset": { border: "none" }
                     }
                   }}
                   SelectProps={{
                     MenuProps: {
                       PaperProps: {
                         sx: {
-                          mt: 1, px: 0.6, borderRadius: 4, backdropFilter: "blur(15px)", WebkitBackdropFilter: "blur(15px)", backgroundColor: mode === "dark" ? "rgba(20, 20, 20, 0)" : "rgba(255, 255, 255, 0.75)", backgroundImage: "none",
+                          mt: 1, px: 0.6, borderRadius: 4, backdropFilter: "blur(15px)", WebkitBackdropFilter: "blur(15px)", backgroundColor: mode === "dark" ? "rgba(20, 20, 20, 0)" : "rgba(255, 255, 255, 0.5)", backgroundImage: "none",
                           boxShadow: mode === "dark" ? `inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4)` : `inset 0 1px 1px rgba(255,255,255,0.8), 0 8px 32px rgba(31, 38, 135, 0.05)`, border: "0px solid", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
                           "& .MuiMenuItem-root": { fontSize: "0.875rem", mx: 0.5, my: 0.3, borderRadius: 2, color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.8)", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.04)" }, "&.Mui-selected": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.16)" : "rgba(0, 0, 0, 0.08)", fontWeight: 600, color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.22)" : "rgba(0, 0, 0, 0.12)" } } }
                         }
@@ -894,7 +894,7 @@ const Notes = () => {
                 <ToggleButtonGroup
                   value={viewMode} exclusive onChange={(e, next) => next && setViewMode(next)} size="small"
                   sx={{
-                    borderRadius: 2.5, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
+                    borderRadius: 2.5, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.02)",
                     boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.05)`, p: "3px", border: "none",
                     "& .MuiToggleButton-root": { border: "none", borderRadius: 2, mx: "1px", px: 1.5, py: 0.5, transition: "all 0.2s ease", color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.04)", color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.8)" }, "&.Mui-selected": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.9)", color: mode === "dark" ? "#ffffff" : "#000000", boxShadow: "none", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 1)" } } }
                   }}
@@ -911,7 +911,7 @@ const Notes = () => {
                     <Chip
                       key={label} label={label === "Pinned" ? "📌 Pinned" : label} clickable onClick={() => setSelectedLabelFilter(label)}
                       sx={{
-                        borderRadius: 4, fontSize: "0.85rem", fontWeight: isSelected ? 600 : 500, px: 0.5, transition: "all 0.2s ease-in-out", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid",
+                        borderRadius: 4, fontSize: "0.85rem", fontWeight: isSelected ? 600 : 500, px: 0.5, transition: "all 0.2s ease-in-out", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "0px solid",
                         ...(isSelected ? { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)", color: mode === "dark" ? "#000" : "#fff", borderColor: "transparent", boxShadow: mode === "dark" ? "0 4px 12px rgba(255, 255, 255, 0.1)" : "0 4px 12px rgba(0, 0, 0, 0.15)", "&:hover": { backgroundColor: mode === "dark" ? "#ffffff" : "#000000" } } : { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)", color: mode === "dark" ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.65)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)", boxShadow: mode === "dark" ? `inset 0 1px 1px rgba(255, 255, 255, 0.08)` : `inset 0 1px 1px rgba(255, 255, 255, 0.6)`, "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.09)" : "rgba(0, 0, 0, 0.06)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.12)", color: mode === "dark" ? "#fff" : "#000" } })
                       }}
                     />
@@ -959,14 +959,26 @@ const Notes = () => {
             sx={{ zIndex: 1400 }}
             PaperProps={{
               sx: {
-                borderRadius: 6, p: 4, minHeight: "50vh", maxHeight: "80vh",backgroundImage: "none",
-                background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(20px)",
+                borderRadius: 10, p: 4, minHeight: "50vh", maxHeight: "80vh",backgroundImage: "none",
+                background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(20px)",
                 boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
                 mx: "auto", m: 2
               },
             }}
             ModalProps={{ BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } } }}
           >
+            <Box sx={{ display: "flex", justifyContent: "center", py: -1.5, pb: 3 }}>
+              <Box
+                sx={{
+                  width: 60, height: 5, borderRadius: 999,
+                  background: mode === "dark" ? "#f1f1f127" : "#0c0c0c3e",
+                  backdropFilter: "blur(12px)", cursor: "grab", transition: "all .25s ease",
+                  "&:hover": { width: 72 },
+                  "&:active": { cursor: "grabbing", transform: "scale(0.95)" },
+                }}
+              />
+            </Box>
+
             <Typography variant="h6" fontWeight={700} mb={2}>Collaborators</Typography>
             <TextField
               placeholder="Search friends by name or email..." value={searchCollaboratorQuery} onChange={(e) => setSearchCollaboratorQuery(e.target.value)} fullWidth variant="outlined" size="small"
@@ -974,7 +986,7 @@ const Notes = () => {
               sx={{
                 width: "100%", mb: 2,
                 "& .MuiOutlinedInput-root": {
-                  color: mode === "dark" ? "#fff" : "#111", borderRadius: 3, backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.11)",
+                  color: mode === "dark" ? "#fff" : "#111", borderRadius: 3, backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.02)",
                   boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`, border: "0px solid", "& fieldset": { border: "none" },
                   "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)" },
                   "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)", boxShadow: mode === "dark" ? `0 0 0 3px rgba(255, 255, 255, 0.05)` : `0 0 0 3px rgba(25, 118, 210, 0.15)` }
@@ -1010,14 +1022,26 @@ const Notes = () => {
             sx={{ zIndex: 1400 }}
             PaperProps={{
               sx: {
-                borderRadius: 6, p: 4, minHeight: "20vh", maxHeight: "50vh",
-                background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(10px)", backgroundImage: "none",
+                borderRadius: 10, p: 4, minHeight: "20vh", maxHeight: "50vh",
+                background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(10px)", backgroundImage: "none",
                 boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
                 mx: "auto", m: 2
               },
             }}
             ModalProps={{ BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } } }}
           >
+            <Box sx={{ display: "flex", justifyContent: "center", py: -1.5, pb: 3 }}>
+              <Box
+                sx={{
+                  width: 60, height: 5, borderRadius: 999,
+                  background: mode === "dark" ? "#f1f1f127" : "#0c0c0c3e",
+                  backdropFilter: "blur(12px)", cursor: "grab", transition: "all .25s ease",
+                  "&:hover": { width: 72 },
+                  "&:active": { cursor: "grabbing", transform: "scale(0.95)" },
+                }}
+              />
+            </Box>
+
             <Typography variant="h6" fontWeight={700} mb={2}>Labels</Typography>
             <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
               <TextField
@@ -1025,7 +1049,7 @@ const Notes = () => {
                 sx={{
                   width: "100%",
                   "& .MuiOutlinedInput-root": {
-                    color: mode === "dark" ? "#fff" : "#111", borderRadius: 3, backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)",
+                    color: mode === "dark" ? "#fff" : "#111", borderRadius: 3, backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.02)",
                     boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`, border: "0.1px solid", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)", "& fieldset": { border: "none" },
                     "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)" },
                     "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)", boxShadow: mode === "dark" ? `0 0 0 3px rgba(255, 255, 255, 0.05)` : `0 0 0 3px rgba(25, 118, 210, 0.15)` }
@@ -1046,8 +1070,20 @@ const Notes = () => {
           {/* Note Details Drawer */}
           <SwipeableDrawer
             anchor="bottom" open={detailsDrawerOpen} fullWidth onClose={() => setDetailsDrawerOpen(false)} onOpen={() => {}} disableSwipeToOpen disableDiscovery transitionDuration={{ enter: 200, exit: 150 }}
-            PaperProps={{ sx: { borderRadius: 6, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255, 255, 255, 0.9)", backgroundImage: "none", backdropFilter: "blur(20px)", p: 3, m: 2, height: "auto", maxHeight: "50vh", width: "80%", mx: "auto", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` } }}
+            PaperProps={{ sx: { borderRadius: 10, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255, 255, 255, 0.39)", backgroundImage: "none", backdropFilter: "blur(20px)", p: 3, m: 2, height: "auto", maxHeight: "50vh", width: "80%", mx: "auto", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` } }}
           >
+            <Box sx={{ display: "flex", justifyContent: "center", py: -1.5, pb: 3 }}>
+              <Box
+                sx={{
+                  width: 60, height: 5, borderRadius: 999,
+                  background: mode === "dark" ? "#f1f1f127" : "#0c0c0c3e",
+                  backdropFilter: "blur(12px)", cursor: "grab", transition: "all .25s ease",
+                  "&:hover": { width: 72 },
+                  "&:active": { cursor: "grabbing", transform: "scale(0.95)" },
+                }}
+              />
+            </Box>
+
             <Box sx={{ display: "flex", justifyContent: "center", py: -1.5, pb: 3 }}><Box sx={{ width: 60, height: 5, borderRadius: 999, background: mode === "dark" ? "#f1f1f127" : "#0c0c0c", backdropFilter: "blur(12px)", cursor: "grab", transition: "all .25s ease", "&:hover": { width: 72 }, "&:active": { cursor: "grabbing", transform: "scale(0.95)" } }} /></Box>
             <Typography variant="h6" fontWeight="800" sx={{ mb: 3, letterSpacing: "0.5px", textTransform: "uppercase", fontSize: "0.85rem", color: "text.secondary" }}>Note Details</Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -1118,7 +1154,7 @@ const Notes = () => {
           {/* Premium Glassmorphic Delete Swipeable Bottom Sheet */}
           <SwipeableDrawer
             anchor="bottom" open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} onOpen={() => {}} disableSwipeToOpen sx={{ zIndex: 1500 }}
-            PaperProps={{ sx: { borderRadius: 6, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(20px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, maxWidth: 540, mx: "auto", m: 3 } }}
+            PaperProps={{ sx: { borderRadius: 10, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(20px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, maxWidth: 540, mx: "auto", m: 3 } }}
             ModalProps={{
               BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } }
             }}
@@ -1130,7 +1166,7 @@ const Notes = () => {
               <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>This change can't be undone.</Typography>
             </Box>
             <Stack direction="row" spacing={2} justifyContent="center" sx={{ pb: 1 }}>
-              <Button variant="outlined" fullWidth onClick={() => setDeleteDialogOpen(false)} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, border: "none", color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255,255,255,0.05)" : "#f5f5f5" } }}>Cancel</Button>
+              <Button variant="outlined" fullWidth onClick={() => setDeleteDialogOpen(false)} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(255,255,255,0.42)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, border: "none", color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255,255,255,0.05)" : "#f5f5f5" } }}>Cancel</Button>
               <Button variant="contained" fullWidth onClick={async () => { await handleDeleteNote(noteToDelete.id); setDeleteDialogOpen(false); setActionMode(false); }} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(229, 57, 53, 0.18)" : "rgba(255, 102, 102, 0.69)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: "#c62828" } }}>Delete Note</Button>
             </Stack>
           </SwipeableDrawer>

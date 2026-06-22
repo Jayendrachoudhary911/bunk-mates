@@ -63,7 +63,7 @@ const glass = (mode) => ({
   background:
     mode === "dark"
       ? "rgba(30, 30, 30, 0.08)"
-      : "rgba(255, 255, 255, 0.29)",
+      : "rgba(255, 255, 255, 0.07)",
   backdropFilter: "blur(10px)",
   border: "none",
   boxShadow: mode === "dark"
@@ -587,7 +587,7 @@ const NoteWorkspace = () => {
               disabled={saving}
               sx={{
                 borderRadius: 8, px: 3, py: 1.2, color: mode === "dark" ? "#fff" : "#000",
-                background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)",
+                background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0, 0, 0, 0.04)",
                 backdropFilter: "blur(10px)",
                 boxShadow: theme.palette.mode === "dark"
                   ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
@@ -756,7 +756,7 @@ const NoteWorkspace = () => {
                       size="small"
                       sx={{
                         backdropFilter: "blur(20px) saturate(200%)", WebkitBackdropFilter: "blur(20px) saturate(200%)", borderRadius: 6,
-                        background: mode === "dark" ? "rgba(20, 20, 20, 0.85)" : "rgba(255, 255, 255, 0.9)", p: 1.3,
+                        background: mode === "dark" ? "rgba(171, 171, 171, 0.08)" : "rgba(230, 230, 230, 0.29)", p: 1.3,
                         boxShadow: theme.palette.mode === "dark"
                           ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
                           : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
@@ -777,7 +777,7 @@ const NoteWorkspace = () => {
             <Grow in={Boolean(showToolbar)} timeout={200} unmountOnExit>
               <Box display="flex" justifyContent="center" sx={{ transformOrigin: "center bottom" }}>
                 <Stack direction="row" spacing={1.5} sx={{ 
-                  borderRadius: 6, background: mode === "dark" ? "rgba(20, 20, 20, 0.85)" : "rgba(255, 255, 255, 0.9)", p: 1, backdropFilter: "blur(10px) saturate(200%)", WebkitBackdropFilter: "blur(10px) saturate(200%)", alignItems: "center",
+                  borderRadius: 6, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255, 255, 255, 0.29)", p: 1, backdropFilter: "blur(10px) saturate(200%)", WebkitBackdropFilter: "blur(10px) saturate(200%)", alignItems: "center",
                   boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`
                 }}>
                   <Tooltip title="Bold (Ctrl+B)">
@@ -818,7 +818,7 @@ const NoteWorkspace = () => {
 
             {/* Sticky Footer Shortcuts Bar */}
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Stack direction="row" spacing={1} sx={{ ...glass(mode), p: 1, borderRadius: 8, backgroundColor: showToolbar ? (mode === "dark" ? "rgba(255, 255, 255, 0.81)" : "rgba(0, 0, 0, 0.08)") : "transparent" }}>
+              <Stack direction="row" spacing={1} sx={{ ...glass(mode), p: 1, borderRadius: 8, backgroundColor: showToolbar ? (mode === "dark" ? "rgba(255, 255, 255, 0.81)" : "rgba(0, 0, 0, 0.83)") : "transparent" }}>
                 <Tooltip title="Formatting Controls">
                   <IconButton size="small" onClick={() => { setShowToolbar(!showToolbar); setLayoutBar(!layoutBar); }} sx={{ color: showToolbar ? theme.palette.primary.main : "inherit" }}>
                     <TextFieldsIcon fontSize="small" />
@@ -847,11 +847,11 @@ const NoteWorkspace = () => {
                 disableSwipeToOpen
                 PaperProps={{
                   sx: {
-                    borderRadius: 6,
-                    p: 4,
+                    borderRadius: 10,
+                    p: 4, pt: 2,
                     minHeight: "50vh",
                     maxHeight: "80vh",
-                    background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.8)",
+                    background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.39)",
                     backdropFilter: "blur(10px)",
                     boxShadow: theme.palette.mode === "dark"
                       ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
@@ -868,6 +868,18 @@ const NoteWorkspace = () => {
                   },
                 }}
               >
+            <Box sx={{ display: "flex", justifyContent: "center", py: -1.5, pb: 3 }}>
+              <Box
+                sx={{
+                  width: 60, height: 5, borderRadius: 999,
+                  background: mode === "dark" ? "#f1f1f127" : "#0c0c0c3e",
+                  backdropFilter: "blur(12px)", cursor: "grab", transition: "all .25s ease",
+                  "&:hover": { width: 72 },
+                  "&:active": { cursor: "grabbing", transform: "scale(0.95)" },
+                }}
+              />
+            </Box>
+
                 <Typography variant="h6" fontWeight={700} mb={2}>
                   Collaborators
                 </Typography>
@@ -892,7 +904,7 @@ const NoteWorkspace = () => {
                     "& .MuiOutlinedInput-root": {
                       color: mode === "dark" ? "#fff" : "#111",
                       borderRadius: 3,
-                      backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.11)",
+                      backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.02)",
                       boxShadow: mode === "dark"
                         ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
                         : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
@@ -1011,8 +1023,8 @@ const NoteWorkspace = () => {
                 disableSwipeToOpen
                 PaperProps={{
                   sx: {
-                    borderRadius: 6, p: 4, minHeight: "20vh", maxHeight: "40vh",
-                    background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.8)",
+                    borderRadius: 10, p: 4, pt: 2, minHeight: "20vh", maxHeight: "40vh",
+                    background: mode === "dark" ? "rgba(20,20,20,0.08)" : "rgba(255,255,255,0.39)",
                     backdropFilter: "blur(10px)",
                     boxShadow: theme.palette.mode === "dark"
                       ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
@@ -1029,6 +1041,17 @@ const NoteWorkspace = () => {
                   },
                 }}
               >
+            <Box sx={{ display: "flex", justifyContent: "center", py: -1.5, pb: 3 }}>
+              <Box
+                sx={{
+                  width: 60, height: 5, borderRadius: 999,
+                  background: mode === "dark" ? "#f1f1f127" : "#0c0c0c3e",
+                  backdropFilter: "blur(12px)", cursor: "grab", transition: "all .25s ease",
+                  "&:hover": { width: 72 },
+                  "&:active": { cursor: "grabbing", transform: "scale(0.95)" },
+                }}
+              />
+            </Box>
                 <Typography variant="h6" fontWeight={700} mb={2}>
                   Labels
                 </Typography>
