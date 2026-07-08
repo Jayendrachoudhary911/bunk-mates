@@ -27,7 +27,8 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemText,
-  InputAdornment
+  InputAdornment,
+  Menu
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -48,6 +49,8 @@ import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import CloseIcon from "@mui/icons-material/Close";
 import ReactMarkdown from 'react-markdown';
+import FilterListIcon from "@mui/icons-material/FilterList";
+import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import { Search } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 import { SquarePen } from "lucide-react";
@@ -426,7 +429,9 @@ const Notes = () => {
   const [noteToDelete, setNoteToDelete] = useState(null);
   const [selectedNotes, setSelectedNotes] = useState([]);
   const [actionMode, setActionMode] = useState(false);
-
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+const [sortAnchorEl, setSortAnchorEl] = React.useState(null);
+const isSortMenuOpen = Boolean(sortAnchorEl);
   const [friendsList, setFriendsList] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
 
@@ -709,9 +714,11 @@ const Notes = () => {
     <ThemeProvider theme={theme}>
       <BetaAccessGuard>
         <Box sx={{ p: 3, px: 2, backgroundColor: theme.palette.background.default, color: theme.palette.text.primary, minHeight: "100vh", height: "auto", maxWidth: 700, mx: "auto", mt: 4.5, position: "relative" }}>
-          <Box sx={{ display: "flex", flexDirection: "row", gap: 3, justifyContent: "space-between", mb: 2, px: 1 }}>
-            <Typography variant="h4" fontWeight="bold" sx={{ flex: 1, color: mode === "dark" ? "#fff" : "#000" }}>Notes</Typography>
-            <NotificationsPage />
+          <Box sx={{ display: "flex", flexDirection: "row", gap: 3, justifyContent: "space-between", mb: -4, px: 1 }}>
+            <Typography zIndex={12} variant="h4" fontWeight="bold" sx={{ flex: 1, color: mode === "dark" ? "#fff" : "#000" }}>Notes</Typography>
+            <Box zIndex={12} sx={{ display: "flex", flexDirection: "row", gap: 1, alignItems: "center" }}>
+              <NotificationsPage />
+            </Box>
           </Box>
 
           <AnimatePresence>
@@ -842,85 +849,99 @@ const Notes = () => {
             )}
           </AnimatePresence>
 
-          <Box sx={{ position: "sticky", top: 0, zIndex: 10, pb: 3, px: 0, pt: 6.5, backgroundColor: "transparent" }}>
-            <Box px={1}>
-              <TextField
-                size="small" placeholder="Search notes..." variant="outlined" value={searchDisplayValue} onChange={handleSearchChange}
-                InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon sx={{ color: mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.4)", mr: 1, fontSize: "1.25rem" }} /></InputAdornment>) }}
-                sx={{
-                  width: "100%", mb: 2,
-                  "& .MuiOutlinedInput-root": {
-                    color: mode === "dark" ? "#fff" : "#111", borderRadius: 3, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.02)",
-                    boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-                    border: "0px solid", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)", transition: "all 0.2s ease-in-out", "& fieldset": { border: "none" },
-                    "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)" },
-                    "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "primary.main", boxShadow: mode === "dark" ? `0 0 0 3px rgba(255, 255, 255, 0.05)` : `0 0 0 3px rgba(25, 118, 210, 0.15)` }
-                  },
-                  "& .MuiOutlinedInput-input": { py: 1.2, fontSize: "0.9rem", color: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)", "&::placeholder": { color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)", opacity: 1 } }
-                }}
-              />
+<Box sx={{ position: "sticky", top: 0, zIndex: 10, pb: 3, px: 0, pt: 6.5, backgroundColor: "transparent" }}>
+  <Box px={1}>
+    
+    {/* Search Field & Floating Filter Drawer Button Module */}
+    <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", mb: 2 }}>
+      <TextField
+        size="small" 
+        placeholder="Search notes..." 
+        variant="outlined" 
+        value={searchDisplayValue} 
+        onChange={handleSearchChange}
+        InputProps={{ 
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon sx={{ color: mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.4)", mr: 1, fontSize: "1.25rem" }} />
+            </InputAdornment>
+          ) 
+        }}
+        sx={{
+          flex: 1,
+          "& .MuiOutlinedInput-root": {
+            color: mode === "dark" ? "#fff" : "#111", 
+            borderRadius: 8, 
+            height: 44,
+            backdropFilter: "blur(10px)", 
+            WebkitBackdropFilter: "blur(10px)", 
+            backgroundColor: mode === "dark" ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.2)",
+            boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+            border: "0px solid", 
+            borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)", 
+            transition: "all 0.2s ease-in-out", 
+            "& fieldset": { border: "none" },
+            "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)" },
+            "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "primary.main", boxShadow: mode === "dark" ? `0 0 0 3px rgba(255, 255, 255, 0.05)` : `0 0 0 3px rgba(25, 118, 210, 0.15)` }
+          },
+          "& .MuiOutlinedInput-input": { py: 1.2, fontSize: "0.9rem", color: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)", "&::placeholder": { color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)", opacity: 1 } }
+        }}
+      />
 
-              <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-                <TextField
-                  select label="Sort by" value={sortOption} onChange={(e) => setSortOption(e.target.value)} size="small"
-                  sx={{ minWidth: 150, "& .MuiInputLabel-root": { color: mode === "dark" ? "rgba(255, 255, 255, 0.6)" : "rgba(0, 0, 0, 0.6)" }, "& .MuiInputLabel-root.Mui-focused": { color: mode === "dark" ? "#fff" : "#000" } }}
-                  InputLabelProps={{ shrink: true }}
-                  InputProps={{
-                    sx: {
-                      color: mode === "dark" ? "#fff" : "#111", borderRadius: 2.5, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.02)",
-                      boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.05)`,
-                      "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)" },
-                      "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.04)", color: mode === "dark" ? "rgba(255, 255, 255, 0.6)" : "rgba(0, 0, 0, 0.6)" }, "& fieldset": { border: "none" }
-                    }
-                  }}
-                  SelectProps={{
-                    MenuProps: {
-                      PaperProps: {
-                        sx: {
-                          mt: 1, px: 0.6, borderRadius: 4, backdropFilter: "blur(15px)", WebkitBackdropFilter: "blur(15px)", backgroundColor: mode === "dark" ? "rgba(20, 20, 20, 0)" : "rgba(255, 255, 255, 0.5)", backgroundImage: "none",
-                          boxShadow: mode === "dark" ? `inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4)` : `inset 0 1px 1px rgba(255,255,255,0.8), 0 8px 32px rgba(31, 38, 135, 0.05)`, border: "0px solid", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
-                          "& .MuiMenuItem-root": { fontSize: "0.875rem", mx: 0.5, my: 0.3, borderRadius: 2, color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.8)", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.04)" }, "&.Mui-selected": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.16)" : "rgba(0, 0, 0, 0.08)", fontWeight: 600, color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.22)" : "rgba(0, 0, 0, 0.12)" } } }
-                        }
-                      }
-                    }
-                  }}
-                >
-                  <MenuItem value="newest">Newest First</MenuItem>
-                  <MenuItem value="oldest">Oldest First</MenuItem>
-                  <MenuItem value="title-asc">Title A–Z</MenuItem>
-                  <MenuItem value="title-desc">Title Z–A</MenuItem>
-                </TextField>
+      {/* Redesigned Floating Morphic Filter Framework Key Trigger */}
+      <IconButton
+        onClick={() => setFilterDrawerOpen(true)} // Declare state [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+        sx={{
+          width: 44,
+          height: 44,
+          borderRadius: 8,
+          boxShadow: mode === "dark" 
+            ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
+            : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+          backgroundColor: mode === "dark" ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.2)",
+          color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.7)",
+          backdropFilter: "blur(10px)",
+          transition: "all 0.25s cubic-bezier(0.22, 0.61, 0.36, 1)",
+          "&:hover": { 
+            backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
+            transform: "scale(1.03)"
+          }
+        }}
+      >
+        <FilterListIcon />
+      </IconButton>
+    </Box>
 
-                <ToggleButtonGroup
-                  value={viewMode} exclusive onChange={(e, next) => next && setViewMode(next)} size="small"
-                  sx={{
-                    borderRadius: 2.5, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.02)",
-                    boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.05)`, p: "3px", border: "none",
-                    "& .MuiToggleButton-root": { border: "none", borderRadius: 2, mx: "1px", px: 1.5, py: 0.5, transition: "all 0.2s ease", color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.04)", color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.8)" }, "&.Mui-selected": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.9)", color: mode === "dark" ? "#ffffff" : "#000000", boxShadow: "none", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 1)" } } }
-                  }}
-                >
-                  <ToggleButton value="list"><ViewListIcon sx={{ color: "inherit", fontSize: "1.15rem" }} /></ToggleButton>
-                  <ToggleButton value="grid"><ViewModuleIcon sx={{ color: "inherit", fontSize: "1.15rem" }} /></ToggleButton>
-                </ToggleButtonGroup>
-              </Box>
+    {/* Horizontal Context Inline Stream Track */}
+    <Stack direction="row" spacing={1} sx={{ ...OVERFLOW_SX, mb: 1, pb: 0.5 }}>
+      {["All", "Pinned", "Shared", ...labels].map((label) => {
+        const isSelected = selectedLabelFilter === label;
+        return (
+          <Chip
+            key={label} 
+            label={label === "Pinned" ? "📌 Pinned" : label} 
+            clickable 
+            onClick={() => setSelectedLabelFilter(label)}
+            sx={{
+              borderRadius: 4, 
+              fontSize: "0.85rem", 
+              fontWeight: isSelected ? 600 : 500, 
+              px: 0.5, 
+              transition: "all 0.2s ease-in-out", 
+              backdropFilter: "blur(10px)", 
+              WebkitBackdropFilter: "blur(10px)", 
+              border: "0px solid",
+              ...(isSelected ? { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)", color: mode === "dark" ? "#000" : "#fff", borderColor: "transparent", boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.05)`, "&:hover": { backgroundColor: mode === "dark" ? "#ffffff" : "#000000" } } : { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)", color: mode === "dark" ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.65)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)", boxShadow: mode === "dark" ? `inset 0 1px 1px rgba(255, 255, 255, 0.08)` : `inset 0 1px 1px rgba(255, 255, 255, 0.6)`, "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.09)" : "rgba(0, 0, 0, 0.06)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.12)", color: mode === "dark" ? "#fff" : "#000" } })
+            }}
+          />
+        );
+      })}
+    </Stack>
+  </Box>
 
-              <Stack direction="row" spacing={1} sx={{ ...OVERFLOW_SX, mb: 1, pb: 0.5 }}>
-                {["All", "Pinned", "Shared", ...labels].map((label) => {
-                  const isSelected = selectedLabelFilter === label;
-                  return (
-                    <Chip
-                      key={label} label={label === "Pinned" ? "📌 Pinned" : label} clickable onClick={() => setSelectedLabelFilter(label)}
-                      sx={{
-                        borderRadius: 4, fontSize: "0.85rem", fontWeight: isSelected ? 600 : 500, px: 0.5, transition: "all 0.2s ease-in-out", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "0px solid",
-                        ...(isSelected ? { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)", color: mode === "dark" ? "#000" : "#fff", borderColor: "transparent", boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.05)`, "&:hover": { backgroundColor: mode === "dark" ? "#ffffff" : "#000000" } } : { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "rgba(0, 0, 0, 0.03)", color: mode === "dark" ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.65)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)", boxShadow: mode === "dark" ? `inset 0 1px 1px rgba(255, 255, 255, 0.08)` : `inset 0 1px 1px rgba(255, 255, 255, 0.6)`, "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.09)" : "rgba(0, 0, 0, 0.06)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.12)", color: mode === "dark" ? "#fff" : "#000" } })
-                      }}
-                    />
-                  );
-                })}
-              </Stack>
-            </Box>
-            <Box sx={{ position: "absolute", top: -5, left: 0, right: 0, height: 350, zIndex: -1, mx: -2, pointerEvents: "none", backdropFilter: "blur(80px)", WebkitBackdropFilter: "blur(80px)", maskImage: `linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 18%, rgba(0,0,0,0.72) 38%, rgba(0,0,0,0.42) 62%, rgba(0,0,0,0.12) 82%, rgba(0,0,0,0) 100%)`, WebkitMaskImage: `linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 18%, rgba(0,0,0,0.72) 38%, rgba(0,0,0,0.42) 62%, rgba(0,0,0,0.12) 82%, rgba(0,0,0,0) 100%)`, background: mode === "dark" ? `linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0))` : `linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0))` }} />
-          </Box>
+  {/* Apple Photos / iOS Style Deep Blur Top Cover Mask */}
+  <Box sx={{ position: "absolute", top: -5, left: 0, right: 0, height: 350, zIndex: -1, mx: -2, pointerEvents: "none", backdropFilter: "blur(80px)", WebkitBackdropFilter: "blur(80px)", maskImage: `linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 18%, rgba(0,0,0,0.72) 38%, rgba(0,0,0,0.42) 62%, rgba(0,0,0,0.12) 82%, rgba(0,0,0,0) 100%)`, WebkitMaskImage: `linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 18%, rgba(0,0,0,0.72) 38%, rgba(0,0,0,0.42) 62%, rgba(0,0,0,0.12) 82%, rgba(0,0,0,0) 100%)`, background: mode === "dark" ? `linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0))` : `linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0))` }} />
+</Box>
 
           <Box sx={TRANSPARENT_CONTENT_SX} px={1}>
             <CardContent sx={CARD_STATIC_SX}>
@@ -938,16 +959,166 @@ const Notes = () => {
             </CardContent>
           </Box>
 
-          <SwipeableDrawer anchor="bottom" open={drawerOpen} onClose={() => setDrawerOpen(false)} onOpen={() => {}} PaperProps={{ sx: { backgroundColor: theme.palette.background.default, p: 3, maxWidth: 480, height: "95vh", mx: "auto" } }}>
-            <Box sx={{ display: "flex", flexDirection: "column", pb: 9 }}>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, mt: 4.5 }}>
-                <Typography variant="h6" fontWeight="bold">{editDrawerOpen ? "Edit Note" : "New Note"}</Typography>
-                <Button variant="contained" onClick={editDrawerOpen ? handleEditNote : handleAddNote} sx={{ borderRadius: 4, background: theme.palette.primary.bgr }}>Save</Button>
-              </Box>
-              <TextField placeholder="Enter title..." value={noteTitle} onChange={handleTitleChange} fullWidth variant="standard" InputProps={{ disableUnderline: true, sx: { fontSize: 22, fontWeight: 600 } }} />
-              <TextField placeholder="Start writing your note..." value={noteContent} onChange={handleContentChange} fullWidth multiline minRows={12} variant="standard" InputProps={{ disableUnderline: true }} />
+
+{/* Premium Glassmorphic Configuration Matrix Drawer */}
+<SwipeableDrawer
+  anchor="bottom"
+  open={filterDrawerOpen}
+  onClose={() => setFilterDrawerOpen(false)}
+  onOpen={() => {}}
+  disableSwipeToOpen
+  sx={{ zIndex: 1500 }}
+  PaperProps={{
+    sx: {
+      borderRadius: 8,
+      p: 3.5,
+      pb: 4,
+      background: mode === "dark" ? "rgba(20, 20, 20, 0.15)" : "rgba(255, 255, 255, 0.45)",
+      backdropFilter: "blur(30px) saturate(160%)",
+      WebkitBackdropFilter: "blur(30px) saturate(160%)",
+      boxShadow: mode === "dark" 
+        ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07), 0 20px 50px rgba(0,0,0,0.5)` 
+        : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0,0,0,0.05)`,
+      maxWidth: 480,
+      mx: "auto",
+      m: 2
+    }
+  }}
+  ModalProps={{
+    BackdropProps: { sx: { backdropFilter: "blur(12px)", backgroundColor: "rgba(0,0,0,0.25)" } }
+  }}
+>
+
+  
+            <Box sx={{ display: "flex", justifyContent: "center", py: -1.5, pb: 3 }}>
+              <Box
+                sx={{
+                  width: 60, height: 5, borderRadius: 999,
+                  background: mode === "dark" ? "#f1f1f127" : "#0c0c0c3e",
+                  backdropFilter: "blur(12px)", cursor: "grab", transition: "all .25s ease",
+                  "&:hover": { width: 72 },
+                  "&:active": { cursor: "grabbing", transform: "scale(0.95)" },
+                }}
+              />
             </Box>
-          </SwipeableDrawer>
+
+  {/* Header Section */}
+  <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+    <Typography variant="h6" fontWeight={650}>
+      Display Configurations
+    </Typography>
+  </Box>
+
+  <Stack spacing={3}>
+    
+    {/* Deck 1: Sort Order Metric Tab Matrix */}
+    <Box>
+      <Typography variant="caption" sx={{ display: "block", mb: 1, letterSpacing: "0.06em", color: mode === "dark" ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)" }}>
+        SORT ORDER METRIC
+      </Typography>
+      
+      <ToggleButtonGroup
+        value={sortOption}
+        exclusive
+        onChange={(e, next) => next && setSortOption(next)}
+        size="small"
+        fullWidth
+        sx={{
+          borderRadius: 4,
+          backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.02)",
+          border: `1px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)"}`,
+          p: "3px",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "4px",
+          "& .MuiToggleButton-root": {
+            border: "none !important", 
+            borderRadius: 3, 
+            py: 1, 
+            fontWeight: 700, 
+            fontSize: "0.8rem", 
+            textTransform: "none",
+            color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)",
+            transition: "all 0.2s cubic-bezier(0.22, 0.61, 0.36, 1)",
+            "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)" },
+            "&.Mui-selected": {
+              backgroundColor: mode === "dark" ? "#ffffff" : "#111111",
+              color: mode === "dark" ? "#000000" : "#ffffff",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)"
+            }
+          }
+        }}
+      >
+        <ToggleButton value="newest">Newest First</ToggleButton>
+        <ToggleButton value="oldest">Oldest First</ToggleButton>
+        <ToggleButton value="title-asc">Title A–Z</ToggleButton>
+        <ToggleButton value="title-desc">Title Z–A</ToggleButton>
+      </ToggleButtonGroup>
+    </Box>
+
+    {/* Deck 2: Notes Layout Mode Toggle */}
+    <Box>
+      <Typography variant="caption" sx={{ display: "block", mb: 1, letterSpacing: "0.06em", color: mode === "dark" ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)" }}>
+        INTERFACE LAYOUT matrix
+      </Typography>
+      <ToggleButtonGroup
+        value={viewMode}
+        exclusive
+        onChange={(e, next) => next && setViewMode(next)}
+        size="small"
+        fullWidth
+        sx={{
+          borderRadius: 4,
+          backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.02)",
+          border: `1px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)"}`,
+          p: "3px",
+          "& .MuiToggleButton-root": {
+            border: "none", borderRadius: 3, py: 1, fontWeight: 700, fontSize: "0.8rem", textTransform: "none",
+            color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)",
+            transition: "all 0.2s cubic-bezier(0.22, 0.61, 0.36, 1)",
+            "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)" },
+            "&.Mui-selected": {
+              backgroundColor: mode === "dark" ? "#ffffff" : "#111111",
+              color: mode === "dark" ? "#000000" : "#ffffff",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)"
+            }
+          }
+        }}
+      >
+        <ToggleButton value="list"><ViewListIcon sx={{ mr: 1, fontSize: "1.1rem" }} /> Standard List</ToggleButton>
+        <ToggleButton value="grid"><ViewModuleIcon sx={{ mr: 1, fontSize: "1.1rem" }} /> Grid Deck</ToggleButton>
+      </ToggleButtonGroup>
+    </Box>
+
+    {/* Deck 3: Dynamic Label Substructures */}
+    <Box>
+      <Typography variant="caption" sx={{ display: "block", mb: 1, letterSpacing: "0.06em", color: mode === "dark" ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)" }}>
+        LABEL SCOPE REGISTER
+      </Typography>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, p: 1, backgroundColor: "transparent", border: `0px solid ${mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}` }}>
+        {["All", "Pinned", "Shared", ...labels].map((label) => {
+          const isSelected = selectedLabelFilter === label;
+          return (
+            <Chip
+              key={label}
+              label={label === "Pinned" ? "📌 Pinned" : label}
+              clickable
+              onClick={() => { setSelectedLabelFilter(label); setFilterDrawerOpen(false); }}
+              sx={{
+                borderRadius: 3, fontWeight: 700, fontSize: "0.75rem", height: 28,
+                transition: "all 0.2s ease",
+                backgroundColor: isSelected ? (mode === "dark" ? "#fff" : "#111") : (mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"),
+                color: isSelected ? (mode === "dark" ? "#000" : "#fff") : "inherit",
+                border: `1px solid ${isSelected ? "transparent" : mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"}`
+              }}
+            />
+          );
+        })}
+      </Box>
+    </Box>
+
+  </Stack>
+</SwipeableDrawer>
 
           {/* COLLABORATORS DRAWER */}
           <SwipeableDrawer
