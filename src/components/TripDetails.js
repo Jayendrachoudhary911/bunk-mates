@@ -1,5 +1,4 @@
-// ...existing code...
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
     Box,
     Typography,
@@ -24,6 +23,11 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    CircularProgress,
+    Paper,
+    Grid,
+    Chip,
+    Stack,
 } from "@mui/material";
 
 import {
@@ -47,6 +51,11 @@ import {
     Cancel as CancelIcon,
     AddLink as AddLinkIcon,
     Share as ShareIcon,
+    AutoAwesome as AutoAwesomeIcon,
+    Explore as ExploreIcon,
+    EventNote as EventNoteIcon,
+    PlaylistAddCheck as PlaylistAddCheckIcon,
+    Delete as DeleteIcon,
 } from "@mui/icons-material";
 
 import { useParams, useNavigate } from "react-router-dom";
@@ -63,13 +72,11 @@ import {
 import { getAuth } from "firebase/auth";
 import { db } from "../firebase";
 
-import { motion } from "framer-motion";
-
 import { useWeather } from "../contexts/WeatherContext";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 
-// imported sub-components (from attached files)
+// imported sub-components
 import ShareDrawer from "./trips_components/ShareDrawer";
 import ChecklistDrawer from "./trips_components/ChecklistDrawer";
 import TimelineDrawer from "./trips_components/TimelineDrawer";
@@ -130,6 +137,13 @@ export default function TripDetails() {
     const [open, setOpen] = useState(false);
     const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
 
+    // AI Features & Famous Places State
+    const [groqApiKey, setGroqApiKey] = useState("");
+    const [isGeneratingAiTimeline, setIsGeneratingAiTimeline] = useState(false);
+    const [isGeneratingAiChecklist, setIsGeneratingAiChecklist] = useState(false);
+    const [isGeneratingPlaces, setIsGeneratingPlaces] = useState(false);
+    const [famousPlaces, setFamousPlaces] = useState([]);
+
     const [tripLinks, setTripLinks] = useState([]);
     const [newLink, setNewLink] = useState({ title: "", url: "" });
     const [linkDrawerOpen, setLinkDrawerOpen] = useState(false);
@@ -141,7 +155,7 @@ export default function TripDetails() {
     const { mode, setMode, accent, setAccent } = useThemeToggle();
     const theme = getTheme(mode, accent);
 
-    // expense states
+    // Expense states
     const [expenseDrawerOpen, setExpenseDrawerOpen] = useState(false);
     const [newExpense, setNewExpense] = useState({
         name: "",
@@ -155,6 +169,8 @@ export default function TripDetails() {
     const [expenseContributors, setExpenseContributors] = useState([]);
     const [showAllExpenses, setShowAllExpenses] = useState(false);
 
+    const [userData, setUserData] = useState(null);
+
     const [memberDetails, setMemberDetails] = useState([]);
     const [timelineDrafts, setTimelineDrafts] = useState([]);
 
@@ -167,43 +183,49 @@ export default function TripDetails() {
         canEditTrip: "admins",
     });
     const [displaySettings, setDisplaySettings] = useState({
-     layout: "grid",       // 'grid' | 'list'
-     gridCols: 3,         // number of items per row in grid
-     listCols: 1,         // number of columns in list (if applicable)
-     cardType: "regular", // 'regular' | 'detailed'
-   });
+        layout: "grid",
+        gridCols: 3,
+        listCols: 1,
+        cardType: "regular",
+    });
     const [tripAdmins, setTripAdmins] = useState([]);
 
     const visibleExpenses = showAllExpenses ? budget?.expenses || [] : (budget?.expenses || []).slice(0, 4);
 
-    // subscribe to groupChats/{id} to read iconURL (keeps UI in sync if group chat icon is updated)
+    // Fetch user's Groq API Key
     useEffect(() => {
-      if (!id) return;
-      const gcRef = doc(db, "groupChats", id);
-      const unsub = onSnapshot(
-        gcRef,
-        (snap) => {
-          if (!snap.exists()) {
-            setGroupChatIcon("");
-            return;
-          }
-          const data = snap.data();
-          // support both top-level iconURL and drafts.iconURL
-          const icon = data?.iconURL || data?.drafts?.iconURL || "";
-          setGroupChatIcon(icon || "");
-        },
-        (err) => {
-          console.error("groupChats snapshot error:", err);
-        }
-      );
-      return () => unsub();
-    }, [id]);
+        const fetchGroqKey = async () => {
+            if (!currentUseruid) return;
+            try {
+                const userDocSnap = await getDoc(doc(db, "users", currentUseruid));
+                if (userDocSnap.exists() && userDocSnap.data().groqApiKey) {
+                    setGroqApiKey(userDocSnap.data().groqApiKey);
+                }
+            } catch (err) {
+                console.warn("Could not fetch Groq API Key:", err);
+            }
+        };
+        fetchGroqKey();
+    }, [currentUseruid]);
 
-    // --- Subscriptions & initial load ---
+    useEffect(() => {
+        if (!currentUseruid) return;
+        const unsub = onSnapshot(doc(db, "users", currentUseruid), (snap) => {
+            if (snap.exists()) {
+                setUserData(snap.data());
+            }
+        });
+        return () => unsub();
+    }, [currentUseruid]);
+
+    // Check if user is assigned "Dev Beta" type in Firestore
+    const isDevBeta = userData?.type === "Dev Beta";
+
+    // Subscriptions & Initial Load
     useEffect(() => {
         if (!id) return;
 
-        // trip doc
+        // Trip doc
         const tripRef = doc(db, "trips", id);
         const unsubTrip = onSnapshot(tripRef, (snap) => {
             if (!snap.exists()) return;
@@ -214,49 +236,38 @@ export default function TripDetails() {
             setTripAdmins(data.admins || [data.createdBy]);
             setTripLinks(data.links || []);
             if (data.display) {
-             setDisplaySettings((prev) => ({ ...prev, ...data.display }));
-           }
+                setDisplaySettings((prev) => ({ ...prev, ...data.display }));
+            }
             if (data.members?.length) loadMemberDetails(data.members);
             if (data.location) {
-                fetchCoverImage(data.name || data.location).then(setCoverImage).catch(() => {});
+                fetchCoverImage(data.name || data.location).then((url) => {
+                    if (url) setCoverImage(url);
+                }).catch(() => {});
                 getWeather(data.location).then(setWeather).catch(() => {});
-            }
-            if (data.location) {
-                fetchCoverImage(data.name || data.location)
-                  .then((url) => {
-                    if (url) {
-                      setCoverImage(url);
-                      // prefer trip.iconURL if present, else use fetched cover
-                      const iconToSync = data.iconURL || url;
-                      syncGroupChatIcon(iconToSync);
-                    }
-                  })
-                  .catch(() => {});
-                getWeather(data.location).then(setWeather).catch(() => {});
-            }
-            // if trip already has an iconURL, ensure groupChats doc synced
-            if (data.iconURL) {
-              syncGroupChatIcon(data.iconURL);
             }
         });
 
-        // checklist
+        // Famous Places Subcollection
+        const unsubPlaces = onSnapshot(collection(db, `trips/${id}/places`), (snap) => {
+            setFamousPlaces(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        });
+
+        // Checklist
         const unsubChecklist = onSnapshot(collection(db, `trips/${id}/checklist`), (snap) => {
             setChecklist(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
         });
 
-        // photos
+        // Photos
         const unsubPhotos = onSnapshot(collection(db, `trips/${id}/photos`), (snap) => {
             setPhotos(snap.docs.map((d) => d.data().url).filter(Boolean));
         });
 
-        // timeline with auto-reveal logic
+        // Timeline
         const timelineRef = collection(db, `trips/${id}/timeline`);
         const unsubTimeline = onSnapshot(timelineRef, async (snap) => {
             const events = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
             const now = new Date().toISOString();
 
-            // auto reveal scheduled surprises
             await Promise.all(
                 events
                     .filter((e) => e.surprise && e.revealAt && !e.revealed && e.revealAt <= now)
@@ -274,7 +285,7 @@ export default function TripDetails() {
             setTimeline(visibleEvents.sort((a, b) => new Date(a.time) - new Date(b.time)));
         });
 
-        // budget doc
+        // Budget Doc
         const budgetRef = doc(db, "budgets", id);
         const unsubBudget = onSnapshot(budgetRef, (snap) => {
             if (!snap.exists()) {
@@ -289,90 +300,28 @@ export default function TripDetails() {
 
         return () => {
             unsubTrip();
+            unsubPlaces();
             unsubChecklist();
             unsubPhotos();
             unsubTimeline();
             unsubBudget();
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id, currentUseruid]);
 
-    // load trip links separately if needed (kept in trip snapshot above)
-
-    // helper: load member details
-    const loadMemberDetails = (uids) => {
-        if (!Array.isArray(uids) || uids.length === 0) {
-            setMemberDetails([]);
-            return;
+    // Update Display Settings
+    const updateDisplaySettings = async (partial) => {
+        const next = { ...displaySettings, ...partial };
+        setDisplaySettings(next);
+        if (!id) return;
+        try {
+            await updateDoc(doc(db, "trips", id), { display: next });
+            setTrip((t) => (t ? { ...t, display: next } : t));
+        } catch (err) {
+            console.error("Failed to save display settings:", err);
         }
-        const unsubscribes = [];
-        const membersMap = {};
-        uids.forEach((uid) => {
-            const userRef = doc(db, "users", uid);
-            const unsub = onSnapshot(userRef, (snap) => {
-                if (!snap.exists()) return;
-                membersMap[uid] = { uid: snap.id, ...snap.data() };
-                setMemberDetails(Object.values(membersMap));
-            });
-            unsubscribes.push(unsub);
-        });
-        // return cleanup if caller wants it
-        return () => unsubscribes.forEach((u) => u());
     };
 
-  const updateDisplaySettings = async (partial) => {
-    const next = { ...displaySettings, ...partial };
-    setDisplaySettings(next);
-    if (!id) return;
-    try {
-      await updateDoc(doc(db, "trips", id), { display: next });
-      // also update local trip object for immediate consistency
-      setTrip((t) => (t ? { ...t, display: next } : t));
-    } catch (err) {
-      console.error("Failed to save display settings:", err);
-    }
-  };
-
-  const syncGroupChatIcon = async (iconURL) => {
-    if (!iconURL || !id) return;
-    try {
-        const groupChatRef = doc(db, "groupChats", id);
-        const groupChatSnap = await getDoc(groupChatRef);
-        const groupChatData = groupChatSnap.exists() ? groupChatSnap.data() : null;
-
-        const iconURL = groupChatData?.iconURL || null;
-    } catch (err) {
-      console.error("Failed to sync group chat icon:", err);
-    }
-  };
-
-    // simple utility functions
-    const canUserDo = (action) => {
-        if (!currentUseruid) return false;
-        if (tripAdmins.includes(currentUseruid)) return true;
-        return tripPermissions[action] === "all";
-    };
-
-    const getMemberName = (uid) => {
-        const member = memberDetails.find((m) => m.uid === uid);
-        if (uid === currentUseruid) return `${member?.name || "You"} (Me)`;
-        return member?.name || "Unknown";
-    };
-
-    const calculateMemberPayments = (memberUid) => {
-        if (!budget?.expenses) return 0;
-        return budget.expenses.reduce((totalPaid, exp) => {
-            if (exp.payers && exp.payers.length > 0) {
-                const m = exp.payers.find((p) => p.uid === memberUid);
-                if (m) return totalPaid + (Number(m.amount) || 0);
-                return totalPaid;
-            } else if (exp.paidBy === memberUid) {
-                return totalPaid + (Number(exp.amount) || 0);
-            }
-            return totalPaid;
-        }, 0);
-    };
-
+    // Budget & Expense Actions
     const initializeExpenseContributors = (members, mode) =>
         members.map((member) => ({
             uid: member.uid,
@@ -382,196 +331,6 @@ export default function TripDetails() {
             paidAmount: 0,
         }));
 
-    // --- Actions (trimmed but complete) ---
-    const handleAddLink = async () => {
-        if (!newLink.url || !newLink.title) {
-            setSnackbar({ open: true, message: "Please fill both fields." });
-            return;
-        }
-        try {
-            const tripRef = doc(db, "trips", id);
-            const updatedLinks = [
-                ...(tripLinks || []),
-                { id: crypto.randomUUID(), ...newLink, createdBy: currentUseruid, createdAt: new Date().toISOString() },
-            ];
-            await updateDoc(tripRef, { links: updatedLinks });
-            setNewLink({ title: "", url: "" });
-            setLinkDrawerOpen(false);
-            setSnackbar({ open: true, message: "Link added successfully!" });
-        } catch (err) {
-            console.error(err);
-            setSnackbar({ open: true, message: "Failed to add link." });
-        }
-    };
-
-    const handleDeleteLink = async (linkId) => {
-        try {
-            const tripRef = doc(db, "trips", id);
-            const updated = (tripLinks || []).filter((l) => l.id !== linkId);
-            await updateDoc(tripRef, { links: updated });
-            setSnackbar({ open: true, message: "Link removed." });
-        } catch (err) {
-            console.error(err);
-            setSnackbar({ open: true, message: "Failed to remove link." });
-        }
-    };
-
-    // const handleRenameLink = async (linkId, newTitle) => {
-    //     try {
-    //         const tripRef = doc(db, "trips", id);
-    //         const updated = (tripLinks || []).map((l) => (l.id === linkId ? { ...l, title: newTitle } : l));
-    //         await updateDoc(tripRef, { links: updated });
-    //         setEditingLink(null);
-    //         setSnackbar({ open: true, message: "Link renamed successfully!" });
-    //     } catch (err) {
-    //         console.error(err);
-    //         setSnackbar({ open: true, message: "Failed to rename link." });
-    //     }
-    // };
-
-    const getLinkIcon = (url) => {
-        if (!url) return <LinkIcon />;
-        if (url.includes("drive.google")) return <DriveFolderUploadIcon />;
-        if (url.includes("youtube")) return <YouTubeIcon color="error" />;
-        if (url.includes("photos.google")) return <PhotoLibraryIcon color="info" />;
-        return <LinkIcon />;
-    };
-
-    const handleSaveEdit = async () => {
-        if (!id) return;
-        try {
-            const tripRef = doc(db, "trips", id);
-            await updateDoc(tripRef, {
-                name: editTrip.name,
-                location: editTrip.location,
-                startDate: editTrip.startDate,
-                endDate: editTrip.endDate,
-                from: editTrip.from || "",
-                to: editTrip.to || "",
-            });
-            setTrip((prev) => ({ ...prev, ...editTrip }));
-            setEditMode(false);
-            setSnackbar({ open: true, message: "Trip updated successfully!" });
-        } catch (err) {
-            console.error(err);
-            setSnackbar({ open: true, message: "Failed to save changes." });
-        }
-    };
-
-    const handleDeleteTrip = async () => {
-        try {
-            setConfirmDeleteOpen(false);
-            await deleteDoc(doc(db, "trips", id));
-            await deleteDoc(doc(db, "groupChats", id)).catch(() => {});
-            setSnackbar({ open: true, message: "Trip deleted successfully!" });
-            setTimeout(() => navigate("/trips"), 800);
-        } catch (err) {
-            console.error(err);
-            setSnackbar({ open: true, message: "Error deleting trip." });
-        }
-    };
-
-    const handleRemoveMember = async (memberUid) => {
-        if (!trip?.createdBy || trip.createdBy !== currentUseruid) {
-            setSnackbar({ open: true, message: "Only the trip creator can remove members." });
-            return;
-        }
-        if (memberUid === currentUseruid) {
-            setSnackbar({ open: true, message: "You cannot remove yourself." });
-            return;
-        }
-        try {
-            const tripRef = doc(db, "trips", id);
-            const updatedMembers = (trip.members || []).filter((uid) => uid !== memberUid);
-            await updateDoc(tripRef, { members: updatedMembers });
-            setSnackbar({ open: true, message: "Member removed successfully!" });
-        } catch (err) {
-            console.error(err);
-            setSnackbar({ open: true, message: "Failed to remove member." });
-        }
-    };
-
-    const revealSurpriseEvent = async (eventId) => {
-        try {
-            const eventRef = doc(db, `trips/${id}/timeline`, eventId);
-            await updateDoc(eventRef, { revealed: true });
-            setSnackbar({ open: true, message: "Surprise revealed to everyone!" });
-        } catch (err) {
-            console.error(err);
-            setSnackbar({ open: true, message: "Failed to reveal surprise." });
-        }
-    };
-
-    const revealAllSurprises = async () => {
-        try {
-            const hidden = timeline.filter((e) => e.surprise && e.createdBy === currentUseruid && !e.revealed);
-            await Promise.all(hidden.map((e) => updateDoc(doc(db, `trips/${id}/timeline`, e.id), { revealed: true })));
-            setSnackbar({ open: true, message: "All surprise events revealed to members!" });
-        } catch (err) {
-            console.error(err);
-            setSnackbar({ open: true, message: "Failed to reveal some surprises." });
-        }
-    };
-
-    const addTask = async () => {
-        if (!newTask?.trim()) return;
-        await addDoc(collection(db, `trips/${id}/checklist`), { text: newTask.trim(), completed: false });
-        setNewTask("");
-    };
-
-    const toggleTask = async (task) => {
-        try {
-            await updateDoc(doc(db, `trips/${id}/checklist`, task.id), { completed: !task.completed });
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    // timeline add / update / delete
-    const addTimelineEvent = async () => {
-        if (!newEvent.title || !newEvent.time) {
-            setSnackbar({ open: true, message: "Please fill all required fields." });
-            return;
-        }
-        try {
-            const eventData = {
-                title: newEvent.title,
-                time: newEvent.time,
-                note: newEvent.note || "",
-                completed: false,
-                createdBy: currentUseruid,
-                createdAt: new Date().toISOString(),
-                surprise: newEvent.surprise || false,
-                revealed: !newEvent.surprise,
-                revealAt: newEvent.revealAt || null,
-            };
-            await addDoc(collection(db, `trips/${id}/timeline`), eventData);
-            setNewEvent({ title: "", time: getCurrentDate() + "T" + getCurrentTime(), note: "" });
-            setTimelineDrawerOpen(false);
-            setSnackbar({ open: true, message: eventData.surprise ? "Surprise timeline added secretly!" : "Timeline event added successfully!" });
-        } catch (err) {
-            console.error(err);
-            setSnackbar({ open: true, message: "Failed to add timeline event." });
-        }
-    };
-
-    const deleteTimelineEvent = async (eventId) => {
-        try {
-            await deleteDoc(doc(db, `trips/${id}/timeline`, eventId));
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    const toggleEventCompleted = async (event) => {
-        try {
-            await updateDoc(doc(db, `trips/${id}/timeline`, event.id), { completed: !event.completed });
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    // budget / expense functions (saveBudget, addExpense, updateExpense) - implement core flows
     const saveBudget = async () => {
         if (!trip) return;
         try {
@@ -671,17 +430,33 @@ export default function TripDetails() {
         }
     };
 
-    const handleTimelineFileUpload = (event) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const text = e.target.result || "";
-            const lines = text.split("\n").map((l) => l.trim()).filter((l) => /^([-*•]|\d+\.)\s+.+/.test(l)).map((l) => ({ title: l.replace(/^([-*•]|\d+\.)\s*/, "").trim(), time: getCurrentDate() + "T" + getCurrentTime(), note: "" }));
-            if (lines.length === 0) setSnackbar({ open: true, message: "No valid list items found in file." });
-            else setTimelineDrafts(lines);
-        };
-        reader.readAsText(file);
+    // Link Drawer Actions
+    const handleAddLink = async () => {
+        if (!newLink.url || !newLink.title) {
+            setSnackbar({ open: true, message: "Please fill both fields." });
+            return;
+        }
+        try {
+            const tripRef = doc(db, "trips", id);
+            const updatedLinks = [
+                ...(tripLinks || []),
+                { id: crypto.randomUUID(), ...newLink, createdBy: currentUseruid, createdAt: new Date().toISOString() },
+            ];
+            await updateDoc(tripRef, { links: updatedLinks });
+            setNewLink({ title: "", url: "" });
+            setLinkDrawerOpen(false);
+            setSnackbar({ open: true, message: "Link added successfully!" });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to add link." });
+        }
+    };
+
+    // Checklist Drawer Actions
+    const addTask = async () => {
+        if (!newTask?.trim()) return;
+        await addDoc(collection(db, `trips/${id}/checklist`), { text: newTask.trim(), completed: false });
+        setNewTask("");
     };
 
     const handleChecklistFileUpload = (event) => {
@@ -715,367 +490,381 @@ export default function TripDetails() {
         setUploadingBatch(false);
     };
 
-    // const addAllTimelineEvents = async () => {
-    //     if (!timelineDrafts.length) {
-    //         setSnackbar({ open: true, message: "No timeline events to add." });
-    //         return;
-    //     }
-    //     try {
-    //         await Promise.all(timelineDrafts.map((item) => addDoc(collection(db, `trips/${id}/timeline`), { ...item, completed: false })));
-    //         setTimelineDrafts([]);
-    //         setTimelineDrawerOpen(false);
-    //         setSnackbar({ open: true, message: `${timelineDrafts.length} event(s) added!` });
-    //     } catch (err) {
-    //         console.error(err);
-    //         setSnackbar({ open: true, message: "Failed to add timeline events." });
-    //     }
-    // };
-
-    const updateChecklistItem = async (itemId, newText) => {
-        if (!newText?.trim()) return;
-        try {
-            await updateDoc(doc(db, `trips/${id}/checklist`, itemId), { text: newText.trim() });
-            setEditingChecklist(null);
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    const updateTimelineEvent = async (eventId, updatedData) => {
-        if (!updatedData?.title || !updatedData?.time) {
-            setSnackbar({ open: true, message: "Please fill title and time." });
+    // Timeline Drawer Actions
+    const addTimelineEvent = async () => {
+        if (!newEvent.title || !newEvent.time) {
+            setSnackbar({ open: true, message: "Please fill all required fields." });
             return;
         }
         try {
-            await updateDoc(doc(db, `trips/${id}/timeline`, eventId), updatedData);
-            setEditingTimeline(null);
-            setSnackbar({ open: true, message: "Timeline event updated!" });
+            const eventData = {
+                title: newEvent.title,
+                time: newEvent.time,
+                note: newEvent.note || "",
+                completed: false,
+                createdBy: currentUseruid,
+                createdAt: new Date().toISOString(),
+                surprise: newEvent.surprise || false,
+                revealed: !newEvent.surprise,
+                revealAt: newEvent.revealAt || null,
+            };
+            await addDoc(collection(db, `trips/${id}/timeline`), eventData);
+            setNewEvent({ title: "", time: getCurrentDate() + "T" + getCurrentTime(), note: "" });
+            setTimelineDrawerOpen(false);
+            setSnackbar({ open: true, message: eventData.surprise ? "Surprise timeline added secretly!" : "Timeline event added successfully!" });
         } catch (err) {
             console.error(err);
-            setSnackbar({ open: true, message: "Failed to update timeline event." });
+            setSnackbar({ open: true, message: "Failed to add timeline event." });
         }
     };
 
-const fetchCoverImage = async (location) => {
-  // Combine 'travel' + location for the search query
-  const query = location ? `travel ${trip?.location}` : "travel";
+    const handleTimelineFileUpload = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target.result || "";
+            const lines = text.split("\n").map((l) => l.trim()).filter((l) => /^([-*•]|\d+\.)\s+.+/.test(l)).map((l) => ({ title: l.replace(/^([-*•]|\d+\.)\s*/, "").trim(), time: getCurrentDate() + "T" + getCurrentTime(), note: "" }));
+            if (lines.length === 0) setSnackbar({ open: true, message: "No valid list items found in file." });
+            else setTimelineDrafts(lines);
+        };
+        reader.readAsText(file);
+    };
 
-  try {
-    const response = await fetch(
-      `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&client_id=MGCA3bsEUNBsSG6XbcqnJXckFB4dDyN5ZPKVBrD0FeQ`
-    );
-    const data = await response.json();
-    return data?.urls?.regular || "";
-  } catch (error) {
-    console.error("Failed to fetch cover image:", error);
-    return "";
-  }
-};
+    // AI Generate Famous Places & Save to Firestore Subcollection
+    const handleGenerateAiPlaces = async () => {
+        const destLocation = trip?.to || trip?.location || trip?.name;
+        if (!destLocation) {
+            setSnackbar({ open: true, message: "No destination location set for this trip." });
+            return;
+        }
+        if (!groqApiKey) {
+            setSnackbar({ open: true, message: "Please configure your Groq API Key in Profile settings." });
+            return;
+        }
 
-// const fetchTripData = async () => {
-//   if (!id) return;
+        setIsGeneratingPlaces(true);
 
-//   // Fetch trip details
-//   const docRef = doc(db, "trips", id);
-//   const docSnap = await getDoc(docRef);
-//   if (!docSnap.exists()) return;
+        try {
+            const prompt = `Give me 5 famous, must-visit tourist attractions and local places to visit in "${destLocation}".
+Return strictly raw JSON format:
+{
+  "places": [
+    {
+      "name": "Amber Fort",
+      "category": "Historical Monument",
+      "description": "Majestic hilltop fort with stunning mirror work and panoramic vistas.",
+      "suggestedTime": "Morning"
+    }
+  ]
+}
+Do not output markdown.`;
 
-//   const tripData = docSnap.data();
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
+                body: JSON.stringify({
+                    model: "llama-3.3-70b-versatile",
+                    messages: [{ role: "user", content: prompt }],
+                    temperature: 0.3,
+                }),
+            });
 
-//   // Fetch group chat iconURL
-//   const groupChatRef = doc(db, "groupChats", id);
-//   const groupChatSnap = await getDoc(groupChatRef);
-//   const groupChatData = groupChatSnap.exists() ? groupChatSnap.data() : null;
+            const data = await res.json();
+            const cleanJsonStr = (data?.choices?.[0]?.message?.content || "").replace(/```json/g, "").replace(/```/g, "").trim();
+            const parsed = JSON.parse(cleanJsonStr);
 
-//   const iconURL = groupChatData?.iconURL || null;
-
-//   // Combine trip data with iconURL
-//   const combinedData = {
-//     ...tripData,
-//     iconURL
-//   };
-
-//   // Set full trip state
-//   setTrip(combinedData);
-//   setEditTrip(tripData); // preserve separate edit state
-
-//   // Load members
-//   if (tripData.members?.length) {
-//     loadMemberDetails(tripData.members);
-//   }
-
-//   // Fallback image if no icon
-//   const imageQuery = tripData.name || tripData.location || "travel";
-//   const imageUrl = await fetchCoverImage(imageQuery);
-//   setCoverImage(imageUrl);
-
-//   // Fetch weather
-//   if (tripData.location) {
-//     try {
-//       const weatherData = await getWeather(tripData.location); // From WeatherContext
-//       setWeather(weatherData); // assume you have `const [weather, setWeather] = useState(null)`
-//     } catch (err) {
-//       console.error("Failed to fetch weather:", err);
-//     }
-//   }
-// };
-
-//     const renderExpensePayers = (exp) => {
-//     const payers = exp?.payers || [];
-//     const maxShown = 3;
-//     return (
-//         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-//             {payers.slice(0, maxShown).map((p) => {
-//                 const member = memberDetails.find((m) => m.uid === p.uid);
-//                 return (
-//                     <Tooltip key={p.uid} title={`${member?.name || p.name} — ₹${p.amount}`}>
-//                         <Avatar
-//                             src={member?.photoURL}
-//                             sx={{ width: 24, height: 24, fontSize: 12 }}
-//                         >
-//                             {(!member?.photoURL && (member?.name || p.name)) ? (member?.name || p.name)[0] : null}
-//                         </Avatar>
-//                     </Tooltip>
-//                 );
-//             })}
-//             {payers.length > maxShown && (
-//                 <Typography variant="caption">+{payers.length - maxShown}</Typography>
-//             )}
-//         </Box>
-//     );
-// };
-
-    const confirmRemoveMember = async () => {
-    if (!memberToRemove) return;
-    await handleRemoveMember(memberToRemove);
-    setMemberToRemove(null);
-};
-
-    const renderTripLinks = () => {
-      if (!tripLinks || tripLinks.length === 0) {
-        return (
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ pb: 2, textAlign: "center" }}
-          >
-            No links added yet.
-          </Typography>
-        );
-      }
-
-const cardCommon = (link) => ({
-  onClick: () => window.open(link.url, "_blank"),
-  sx: {
-    cursor: "pointer",
-    p: 2,
-    borderRadius: 3,
-    position: "relative",
-    overflow: "hidden",
-
-    background:
-      mode === "dark"
-        ? "linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))"
-        : "linear-gradient(145deg, #ffffff, #f9f9f9)",
-
-    border:
-      mode === "dark"
-        ? "1px solid rgba(255,255,255,0.08)"
-        : "1px solid rgba(0,0,0,0.06)",
-
-    display: "flex",
-    flexDirection:
-      displaySettings.cardType === "detailed" ? "column" : "row",
-    alignItems:
-      displaySettings.cardType === "detailed" ? "flex-start" : "center",
-    gap: 1.5,
-
-    transition: "all 0.25s cubic-bezier(.4,0,.2,1)",
-
-    "&:hover": {
-      transform: "translateY(-4px)",
-      boxShadow:
-        mode === "dark"
-          ? "0 10px 28px rgba(0,0,0,0.6)"
-          : "0 10px 28px rgba(0,0,0,0.08)",
-
-      "& .link-actions": {
-        opacity: 1,
-        transform: "translateY(0)",
-      },
-    },
-  },
-});
-
-      // choose layout: for 'grid' use gridCols, for 'list' use listCols (multi-column list)
-      const cols =
-        displaySettings.layout === "grid"
-          ? Math.max(1, Number(displaySettings.gridCols || 1))
-          : Math.max(1, Number(displaySettings.listCols || 1));
-
-      return (
-  <Box
-    sx={{
-      display: "grid",
-      gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-      gap: 2,
-      mt: 1,
-    }}
-  >
-    {tripLinks.map((link) => (
-      <Box key={link.id || link.url} {...cardCommon(link)}>
-        {/* ---------- Icon ---------- */}
-        <Box
-          sx={{
-            width:
-              displaySettings.cardType === "detailed" ? "100%" : 48,
-            height:
-              displaySettings.cardType === "detailed" ? 44 : 48,
-
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-
-            borderRadius: 2,
-            flexShrink: 0,
-
-            background:
-              mode === "dark"
-                ? "rgba(255,255,255,0.06)"
-                : "rgba(0,0,0,0.04)",
-
-            color: "text.primary",
-          }}
-        >
-          {getLinkIcon(link.url)}
-        </Box>
-
-        {/* ---------- Content ---------- */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
-            variant={
-              displaySettings.cardType === "detailed"
-                ? "subtitle1"
-                : "body1"
+            if (parsed.places?.length) {
+                const placesRef = collection(db, `trips/${id}/places`);
+                for (const item of parsed.places) {
+                    await addDoc(placesRef, {
+                        name: item.name,
+                        category: item.category || "Sightseeing",
+                        description: item.description || "",
+                        suggestedTime: item.suggestedTime || "Flexible",
+                        createdAt: new Date().toISOString(),
+                        createdBy: currentUseruid,
+                    });
+                }
+                setSnackbar({ open: true, message: `✨ Added ${parsed.places.length} famous places for ${destLocation}!` });
             }
-            fontWeight={600}
-            sx={{
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {link.title || link.url}
-          </Typography>
+        } catch (err) {
+            console.error("Failed to generate AI places:", err);
+            setSnackbar({ open: true, message: "Error discovering AI places." });
+        } finally {
+            setIsGeneratingPlaces(false);
+        }
+    };
 
-          {displaySettings.cardType === "detailed" && (
-            <>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{
-                  display: "block",
-                  mt: 0.4,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {link.url}
-              </Typography>
+    const handleAddPlaceToTimeline = async (place) => {
+        try {
+            const eventData = {
+                title: `Visit ${place.name}`,
+                time: `${trip?.startDate || getCurrentDate()}T10:00`,
+                note: place.description || `${place.category} in ${trip?.to || trip?.location}`,
+                completed: false,
+                createdBy: currentUseruid,
+                createdAt: new Date().toISOString(),
+                surprise: false,
+                revealed: true,
+                revealAt: null,
+            };
+            await addDoc(collection(db, `trips/${id}/timeline`), eventData);
+            setSnackbar({ open: true, message: `Added "${place.name}" to Timeline!` });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to add to timeline." });
+        }
+    };
 
-              {link.createdBy && (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ mt: 0.4, display: "block" }}
-                >
-                  Added by {getMemberName(link.createdBy)}
-                </Typography>
-              )}
-            </>
-          )}
-        </Box>
+    const handleAddPlaceToChecklist = async (place) => {
+        try {
+            await addDoc(collection(db, `trips/${id}/checklist`), {
+                text: `Explore ${place.name} (${place.category})`,
+                completed: false,
+            });
+            setSnackbar({ open: true, message: `Added "${place.name}" to Checklist!` });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to add to checklist." });
+        }
+    };
 
-        {/* ---------- Actions ---------- */}
-        {trip?.createdBy === currentUseruid && (
-          <Box
-            className="link-actions"
-            sx={{
-              display: "flex",
-              gap: 0.5,
-              alignItems: "center",
+    const handleDeletePlace = async (placeId) => {
+        try {
+            await deleteDoc(doc(db, `trips/${id}/places`, placeId));
+            setSnackbar({ open: true, message: "Place removed." });
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
-              opacity: 0,
-              transform: "translateY(4px)",
-              transition: "all 0.2s ease",
-            }}
-          >
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingLink(link.id);
-              }}
-              sx={{
-                background:
-                  mode === "dark"
-                    ? "rgba(255,255,255,0.08)"
-                    : "rgba(0,0,0,0.05)",
-              }}
-            >
-              <EditIcon fontSize="small" />
-            </IconButton>
+    const handleGenerateAiTimeline = async () => {
+        if (!groqApiKey) {
+            setSnackbar({ open: true, message: "Please save your Groq API Key in Profile -> AI Features." });
+            return;
+        }
+        if (!trip?.from || !trip?.to) {
+            setSnackbar({ open: true, message: "Origin and Destination required to generate timeline." });
+            return;
+        }
 
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteLink(link.id);
-              }}
-              sx={{
-                background:
-                  mode === "dark"
-                    ? "rgba(255,0,0,0.15)"
-                    : "rgba(255,0,0,0.08)",
-              }}
-            >
-              <CancelIcon color="error" fontSize="small" />
-            </IconButton>
-          </Box>
-        )}
-      </Box>
-    ))}
-  </Box>
-      );
+        setIsGeneratingAiTimeline(true);
+
+        try {
+            let numDays = 3;
+            if (trip?.startDate && trip?.endDate) {
+                const diffTime = Math.abs(new Date(trip.endDate) - new Date(trip.startDate));
+                numDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+            }
+
+            const prompt = `Generate a ${numDays}-day itinerary timeline for travel from "${trip.from}" to "${trip.to}" starting on "${trip.startDate || "N/A"}" and ending on "${trip.endDate || "N/A"}".
+Return strictly raw JSON:
+{
+  "timeline": [
+    {
+      "title": "Day 1 - Arrival & Hotel Check-in",
+      "time": "${trip?.startDate || getCurrentDate()}T10:00",
+      "note": "Transit to destination, check in at hotel, and evening sightseeing."
+    }
+  ]
+}
+Do not output markdown.`;
+
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
+                body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }] }),
+            });
+
+            const data = await res.json();
+            const cleanJsonStr = (data?.choices?.[0]?.message?.content || "").replace(/```json/g, "").replace(/```/g, "").trim();
+            const parsed = JSON.parse(cleanJsonStr);
+
+            if (parsed.timeline?.length) {
+                const timelineRef = collection(db, `trips/${id}/timeline`);
+                for (const item of parsed.timeline) {
+                    await addDoc(timelineRef, {
+                        title: item.title,
+                        time: item.time,
+                        note: item.note || "",
+                        completed: false,
+                        createdBy: currentUseruid,
+                        createdAt: new Date().toISOString(),
+                        revealAt: null,
+                        revealed: true,
+                        surprise: false,
+                    });
+                }
+                setSnackbar({ open: true, message: `✨ Generated ${parsed.timeline.length} timeline events!` });
+            }
+        } catch (err) {
+            console.error("AI Timeline generation failed:", err);
+            setSnackbar({ open: true, message: "Failed to generate AI Timeline." });
+        } finally {
+            setIsGeneratingAiTimeline(false);
+        }
+    };
+
+    const handleGenerateAiChecklist = async () => {
+        if (!groqApiKey) {
+            setSnackbar({ open: true, message: "Please save your Groq API Key in Profile -> AI Features." });
+            return;
+        }
+
+        setIsGeneratingAiChecklist(true);
+
+        try {
+            const prompt = `Generate an essential packing checklist for a trip to "${trip?.to || trip?.location || "Destination"}".
+Return strictly raw JSON:
+{
+  "checklist": ["Government IDs & Tickets", "Phone Chargers", "First Aid Kit", "Comfortable Shoes"]
+}
+Do not output markdown.`;
+
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
+                body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }] }),
+            });
+
+            const data = await res.json();
+            const cleanJsonStr = (data?.choices?.[0]?.message?.content || "").replace(/```json/g, "").replace(/```/g, "").trim();
+            const parsed = JSON.parse(cleanJsonStr);
+
+            if (parsed.checklist?.length) {
+                const checklistRef = collection(db, `trips/${id}/checklist`);
+                for (const textItem of parsed.checklist) {
+                    await addDoc(checklistRef, { text: textItem, completed: false });
+                }
+                setSnackbar({ open: true, message: `✨ Added ${parsed.checklist.length} checklist items!` });
+            }
+        } catch (err) {
+            console.error("AI Checklist generation failed:", err);
+            setSnackbar({ open: true, message: "Failed to generate AI Checklist." });
+        } finally {
+            setIsGeneratingAiChecklist(false);
+        }
+    };
+
+    const loadMemberDetails = (uids) => {
+        if (!Array.isArray(uids) || uids.length === 0) {
+            setMemberDetails([]);
+            return;
+        }
+        const unsubscribes = [];
+        const membersMap = {};
+        uids.forEach((uid) => {
+            const userRef = doc(db, "users", uid);
+            const unsub = onSnapshot(userRef, (snap) => {
+                if (!snap.exists()) return;
+                membersMap[uid] = { uid: snap.id, ...snap.data() };
+                setMemberDetails(Object.values(membersMap));
+            });
+            unsubscribes.push(unsub);
+        });
+        return () => unsubscribes.forEach((u) => u());
+    };
+
+    const canUserDo = (action) => {
+        if (!currentUseruid) return false;
+        if (tripAdmins.includes(currentUseruid)) return true;
+        return tripPermissions[action] === "all";
+    };
+
+    const getMemberName = (uid) => {
+        const member = memberDetails.find((m) => m.uid === uid);
+        if (uid === currentUseruid) return `${member?.name || "You"} (Me)`;
+        return member?.name || "Unknown";
+    };
+
+    const handleSaveEdit = async () => {
+        if (!id) return;
+        try {
+            const tripRef = doc(db, "trips", id);
+            await updateDoc(tripRef, {
+                name: editTrip.name,
+                location: editTrip.location,
+                startDate: editTrip.startDate,
+                endDate: editTrip.endDate,
+                from: editTrip.from || "",
+                to: editTrip.to || "",
+            });
+            setTrip((prev) => ({ ...prev, ...editTrip }));
+            setEditMode(false);
+            setSnackbar({ open: true, message: "Trip updated successfully!" });
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Failed to save changes." });
+        }
+    };
+
+    const handleDeleteTrip = async () => {
+        try {
+            setConfirmDeleteOpen(false);
+            await deleteDoc(doc(db, "trips", id));
+            await deleteDoc(doc(db, "groupChats", id)).catch(() => {});
+            setSnackbar({ open: true, message: "Trip deleted successfully!" });
+            setTimeout(() => navigate("/trips"), 800);
+        } catch (err) {
+            console.error(err);
+            setSnackbar({ open: true, message: "Error deleting trip." });
+        }
+    };
+
+    const toggleTask = async (task) => {
+        try {
+            await updateDoc(doc(db, `trips/${id}/checklist`, task.id), { completed: !task.completed });
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const toggleEventCompleted = async (event) => {
+        try {
+            await updateDoc(doc(db, `trips/${id}/timeline`, event.id), { completed: !event.completed });
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const fetchCoverImage = async (locationName) => {
+        const query = locationName ? `travel ${locationName}` : "travel";
+        try {
+            const response = await fetch(
+                `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&client_id=MGCA3bsEUNBsSG6XbcqnJXckFB4dDyN5ZPKVBrD0FeQ`
+            );
+            const data = await response.json();
+            return data?.urls?.regular || "";
+        } catch (error) {
+            console.error("Failed to fetch cover image:", error);
+            return "";
+        }
     };
 
     const goBack = () => navigate(-1);
     const inviteLink = `${window.location.origin}/join?trip=${id}`;
     const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(trip?.from || "")}&destination=${encodeURIComponent(trip?.to || "")}`;
-    // const now = new Date();
-    // const upcomingIndex = timeline.findIndex((item) => new Date(item.time) > now);
     const displayIconURL = trip?.iconURL || groupChatIcon || coverImage || "";
-    // --- Render ---
+
     return (
         <Box sx={{ color: mode === "dark" ? "#fff" : "#000", minHeight: "100vh" }}>
-
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={goBack}
-          sx={{
-            mb: 2,
-            borderRadius: 8,
-            color: mode === "dark" ? "#fff" : "#000",
-            position: "absolute",
-            top: 46,
-            left: 16,
-            backgroundColor: mode === "dark" ? "#00000047" : "#ffffff36",
-            backdropFilter: "blur(180px)",
-          }}
-        >
-          Back
-        </Button>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={goBack}
+            sx={{
+              mb: 2,
+              borderRadius: 8,
+              color: mode === "dark" ? "#fff" : "#000",
+              position: "absolute",
+              top: 46,
+              left: 16,
+              backgroundColor: mode === "dark" ? "#00000047" : "#ffffff36",
+              backdropFilter: "blur(180px)",
+            }}
+          >
+            Back
+          </Button>
 
           <Box
             sx={{
@@ -1116,1593 +905,557 @@ const cardCommon = (link) => ({
               <GroupIcon />
             </Button>
 
-              {currentUseruid === trip?.createdBy ? (
-    <Button
-      onClick={() => setSettingsDrawerOpen(true)}
-      sx={{
-        mb: 2,
-        borderRadius: 8,
-        color: mode === "dark" ? "#fff" : "#000",
-        backgroundColor: mode === "dark" ? "#00000047" : "#ffffff36",
-        backdropFilter: "blur(180px)",
-        border: "none",
-      }}
-    >
-      <SettingsIcon />
-    </Button>
-  ) : (
-    <Button
-      onClick={() => setSettingsDrawerOpen(true)}
-      sx={{
-        mb: 2,
-        borderRadius: 8,
-        color: mode === "dark" ? "#fff" : "#000",
-        backgroundColor: mode === "dark" ? "#00000047" : "#ffffff36",
-        backdropFilter: "blur(180px)",
-        border: "none",
-      }}
-    >
-      <InfoIcon />
-    </Button>
-  )}
+            <Button
+              onClick={() => setSettingsDrawerOpen(true)}
+              sx={{
+                mb: 2,
+                borderRadius: 8,
+                color: mode === "dark" ? "#fff" : "#000",
+                backgroundColor: mode === "dark" ? "#00000047" : "#ffffff36",
+                backdropFilter: "blur(180px)",
+                border: "none",
+              }}
+            >
+              {currentUseruid === trip?.createdBy ? <SettingsIcon /> : <InfoIcon />}
+            </Button>
           </Box>
 
           <Box
             sx={{
-            backgroundImage:  `url(${displayIconURL})`,
-             backgroundSize: "cover",
-             backgroundPosition: "center",
-             backgroundColor: mode === "dark" ? "#1d1d1dff" : "#ffffff",
-             height: { xs: 470, sm: 320 },
-             boxShadow: "none",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-           }}
-         >
-          {!displayIconURL && (
-            <Box
-              sx={{
-                width: 120,
-                height: 120,
-                borderRadius: 2,
-                backgroundColor: mode === "dark" ? "#222" : "#f2f2f2",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: mode === "dark" ? "#fff" : "#000",
-                fontWeight: 600,
-              }}
-            >
-              {trip?.name ? trip.name.charAt(0).toUpperCase() : "T"}
-            </Box>
-          )}
-         </Box>
-
-        <Container sx={{ py: 0, px: 0, position: "absolute", top: 250}}>
-
-{weather && (
-  <Box
-    m={1.5}
-    sx={{
-      position: "relative",
-      display: "flex",
-      flexDirection: "column",
-      gap: 1,
-      background:
-        mode === "dark"
-          ? "linear-gradient(145deg, rgba(39, 39, 39, 0.35), rgba(25, 25, 25, 0.5))"
-          : "linear-gradient(145deg, rgba(255,255,255,0.58), rgba(245, 245, 245, 0.52))",
-      borderRadius: 4,
-      width: 240,
-      py: 1.5,
-      px: 2,
-      border:"none",
-      backdropFilter: "blur(20px)",
-      boxShadow:"none",
-      cursor: "pointer",
-      transition: "all 0.3s ease",
-    }}
-  >
-    {/* Main Weather Row */}
-    <Box
-      display="flex"
-      alignItems="center"
-      justifyContent="space-between"
-    >
-      <Box display="flex" alignItems="center" gap={1.2}>
-        <Box
-          sx={{
-            backgroundColor:
-              mode === "dark" ? "rgba(255,255,255,0.05)" : "#ffffffb3",
-            p: 0.1,
-            borderRadius: "50%",
-            boxShadow:
-              mode === "dark"
-                ? "0 0 8px rgba(255,255,255,0.05)"
-                : "0 0 5px rgba(0,0,0,0.1)",
-          }}
-        >
-      <Box
-        sx={{
-          fontSize: 28,
-          opacity: 0.8,
-        }}
-      >
-        {weather.temp > 32
-          ? "🔥"
-          : weather.temp < 10
-          ? "❄️"
-          : weather.description?.includes("rain")
-          ? "🌧️"
-          : weather.description?.includes("cloud")
-          ? "⛅"
-          : "☀️"}
-      </Box>
-        </Box>
-
-        <Box>
-          <Typography
-            variant="h6"
-            fontWeight="600"
-            sx={{
-              lineHeight: 1.1,
-              color: mode === "dark" ? "#fff" : "#000",
+              backgroundImage: `url(${displayIconURL})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundColor: mode === "dark" ? "#1d1d1dff" : "#ffffff",
+              height: { xs: 470, sm: 320 },
+              boxShadow: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            {weather.temp ? `${Math.round(weather.temp)}°C` : "—"}
-          </Typography>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              textTransform: "capitalize",
-              letterSpacing: 0.2,
-            }}
-          >
-            {weather.description || "N/A"}
-          </Typography>
-        </Box>
-      </Box>
-
-      {/* Small Icon for Conditions */}
-    <Typography
-      variant="caption"
-      color="text.secondary"
-      sx={{
-        fontWeight: 400,
-        letterSpacing: 0.3,
-        textTransform: "uppercase",
-      }}
-    >
-      in {trip?.location || "—"}
-    </Typography>
-    </Box>
-
-  </Box>
-)}
-
-          <Container sx={{ borderRadius: 5, backgroundColor: mode === "dark" ? "#00000000" : "#ffffff50", backdropFilter: "blur(80px)", py: 2, pb: 6 }}>
-
-          {/* Title + Edit */}
-          <Box display="flex" flexDirection="column" gap={1} px={3} py={2}>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              {editMode ? (
-<TextField
-  value={editTrip.name}
-  onChange={e => setEditTrip({ ...editTrip, name: e.target.value })}
-  fullWidth
-  variant="standard"
-  sx={{
-    mr: 2,
-    fontSize: '2rem',
-    fontWeight: 'bold',
-    '& .MuiInputBase-input': {
-      fontSize: '2rem',
-      fontWeight: 'bold',
-      lineHeight: 1.2,
-      padding: 0,
-    },
-    '& .MuiInput-underline:before': {
-      borderBottom: '1px solid',
-    },
-    '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
-      borderBottom: '2px solid',
-      borderColor: theme => theme.palette.text.primary,
-    },
-    '& .MuiInput-underline:after': {
-      borderBottom: '2px solid',
-    },
-  }}
-/>
-
-              ) : (
-                <Typography variant="h3" fontWeight="bold">{trip?.name}</Typography>
-              )}
-{trip?.createdBy === currentUseruid && canUserDo('canEdit') && (
-  <IconButton onClick={() => setEditMode(!editMode)} size="small">
-    <Edit fontSize="small" />
-  </IconButton>
-)}
-
-            </Box>
-
-            <Typography sx={{ mt: 1 }}>
-              {editMode ? (
-                <TextField
-                  value={editTrip.location}
-                  onChange={e => setEditTrip({ ...editTrip, location: e.target.value })}
-                  variant="standard"
-                  sx={{
-                    mr: 2,
-                    fontWeight: 'bold',
-                    '& .MuiInputBase-input': {
-                      fontWeight: 'bold',
-                      lineHeight: 1.2,
-                      padding: 0,
-                    },
-                    '& .MuiInput-underline:before': {
-                      borderBottom: '1px solid',
-                    },
-                    '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
-                      borderBottom: '2px solid',
-                      borderColor: theme => theme.palette.text.primary,
-                    },
-                    '& .MuiInput-underline:after': {
-                      borderBottom: '2px solid',
-                    },
-                  }}
-                />
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ display: "flex" }}>
-                  <LocationOn sx={{ fontSize: 16, mr: 0.5, color: mode === "dark" ? "#fff" : "#333" }} /> {trip?.location}
-                </Typography>
-              )}
-            </Typography>
-            <Typography>
-<Box>
-  {editMode ? (
-    <Box display="flex" gap={2}>
-      <TextField
-        type="date"
-        label="Start Date"
-        value={editTrip.startDate || ""}
-        onChange={(e) =>
-          setEditTrip({ ...editTrip, startDate: e.target.value })
-        }
-        variant="standard"
-        sx={{
-          mr: 2,             // approximate size similar to h3
-          fontWeight: 'bold',              // h3 is usually bold
-          '& .MuiInputBase-input': {
-            fontWeight: 'bold',
-            lineHeight: 1.2,
-            padding: 0,
-          },
-          '& .MuiInput-underline:before': {
-            borderBottom: '1px solid',
-          },
-          '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
-            borderBottom: '2px solid',
-            borderColor: theme => theme.palette.text.primary,
-          },
-          '& .MuiInput-underline:after': {
-            borderBottom: '2px solid',
-          },
-        }}
-      />
-      <TextField
-        type="date"
-        label="End Date"
-        value={editTrip.endDate || ""}
-        onChange={(e) =>
-          setEditTrip({ ...editTrip, endDate: e.target.value })
-        }
-        variant="standard"
-        sx={{
-          mr: 2,             // approximate size similar to h3
-          fontWeight: 'bold',              // h3 is usually bold
-          '& .MuiInputBase-input': {
-            fontWeight: 'bold',
-            lineHeight: 1.2,
-            padding: 0,
-          },
-          '& .MuiInput-underline:before': {
-            borderBottom: '1px solid',
-          },
-          '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
-            borderBottom: '2px solid',
-            borderColor: theme => theme.palette.text.primary,
-          },
-          '& .MuiInput-underline:after': {
-            borderBottom: '2px solid',
-          },
-        }}
-      />
-    </Box>
-  ) : (
-    <Typography variant="body2" color="text.secondary" sx={{ display: "flex" }}>
-      <AccessTime sx={{ fontSize: 16, mr: 0.5 }} />
-      {trip?.startDate && trip?.endDate
-        ? `${new Date(trip.startDate).toDateString()} → ${new Date(
-            trip.endDate
-          ).toDateString()}`
-        : "Date not set"}
-    </Typography>
-  )}
-</Box>
-
-            </Typography>
-
-{trip?.from && trip?.to && (
-  <Box mt={2}>
-    <Typography variant="subtitle2" color="text.secondary">
-      Route:
-    </Typography>
-    <Box display="flex" gap={1} mt={0.5} justifyContent={"space-between"}>
-      {editMode ? (
-        <Box display="flex" gap={2} alignItems="center" width="100%">
-          <TextField
-            label="From"
-            value={editTrip.from || ""}
-            onChange={(e) => setEditTrip({ ...editTrip, from: e.target.value })}
-            variant="standard"
-            sx={{
-              flex: 1,
-              '& .MuiInput-underline:before': {
-                borderBottom: '1px solid',
-              },
-              '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
-                borderBottom: '2px solid',
-                borderColor: theme.palette.text.primary,
-              },
-              '& .MuiInput-underline:after': {
-                borderBottom: '2px solid',
-              },
-            }}
-          />
-          <Typography>→</Typography>
-          <TextField
-            label="To"
-            value={editTrip.to || ""}
-            onChange={(e) => setEditTrip({ ...editTrip, to: e.target.value })}
-            variant="standard"
-            sx={{
-              flex: 1,
-              '& .MuiInput-underline:before': {
-                borderBottom: '1px solid',
-              },
-              '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
-                borderBottom: '2px solid',
-                borderColor: theme.palette.text.primary,
-              },
-              '& .MuiInput-underline:after': {
-                borderBottom: '2px solid',
-              },
-            }}
-          />
-        </Box>
-      ) : (
-        <Typography variant="body1" fontWeight="bold" gutterBottom>
-          {trip.from} → {trip.to}
-        </Typography>
-      )}
-      <Button
-        href={mapsUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        sx={{
-          backgroundColor: "#ffffff11",
-          width: 40,
-          height: 40,
-          borderRadius: 8,
-          color: mode === "dark" ? "#fff" : "#333",
-        }}
-      >
-        <DirectionsIcon />
-      </Button>
-    </Box>
-  </Box>
-)}
-
-{editMode && (
-  <Button variant="contained" onClick={handleSaveEdit} sx={{ mt: 2, backgroundColor: mode === "dark" ? "#fff" : "#000", color: mode === "dark" ? "#000" : "#fff", borderRadius: 8 }}>
-    Save Changes
-  </Button>
-)}
-
-<Box mt={3}>
-  <Typography variant="h6" fontWeight="bold" mb={1}>
-    Shared Trip Links
-  </Typography>
-
-{renderTripLinks()}
-
-  {trip?.createdBy === currentUseruid && (
-    <Button
-      variant="contained"
-      startIcon={<AddLinkIcon />}
-      onClick={() => setLinkDrawerOpen(true)}
-      sx={{
-        borderRadius: 3,
-        mt: 1,
-        py: 1,
-        fontWeight: "bold",
-        backgroundColor: mode === "dark" ? "#fff" : "#000",
-        color: mode === "dark" ? "#000" : "#fff",
-        "&:hover": {
-          backgroundColor: mode === "dark" ? "#f1f1f1" : "#111",
-        },
-      }}
-    >
-      Add Trip Link
-    </Button>
-  )}
-</Box>
-
-
-          </Box>
-
-          {/* Snackbar */}
-          <Snackbar
-            open={snackbar.open}
-            autoHideDuration={3000}
-            onClose={() => setSnackbar({ ...snackbar, open: false })}
-            message={snackbar.message}
-          />
-
-          <Container sx={{ mb: 4 }}>
-            {/* Budget */}
-            <Box sx={{ mt: 0, p: 2 }}>
-              <Box display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="h6">Budget</Typography>
-                <Box>
-                  <>
-                  {trip?.createdBy === currentUseruid && (
-                    <Button size="small" color={theme.palette.text.primary} onClick={() => setBudgetDrawerOpen(true)}>Edit</Button>
-                  )}
-                    <Button size="small" color={theme.palette.text.primary} onClick={() => setExpenseDrawerOpen(true)} sx={{ ml: 1 }}>
-                      Add Expense
-                    </Button>
-                  </>
-                </Box>
-              </Box>
-
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                ₹{budget?.used || 0} used of ₹{budget?.total || 0}
-              </Typography>
-
-              <LinearProgress
-                value={budget?.total ? (budget.used / budget.total) * 100 : 0}
-                variant="determinate"
+            {!displayIconURL && (
+              <Box
                 sx={{
-                  mt: 0.5,
-                  borderRadius: 20,
-                  height: 7,
-                  bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
-                  "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff", borderRadius: 20 },
+                  width: 120,
+                  height: 120,
+                  borderRadius: 2,
+                  backgroundColor: mode === "dark" ? "#222" : "#f2f2f2",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: mode === "dark" ? "#fff" : "#000",
+                  fontWeight: 600,
                 }}
-              />
-              
-{(budget?.contributors?.length > 0 || budget?.expenses?.length > 0) && (
-  <Box mt={3}>
-    {/* ---------- Contributors Section ---------- */}
-    {budget?.contributors?.length > 0 && (
-      <Box
-        sx={{
-          borderRadius: 3,
-          mb: 1,
-          transition: "all 0.3s ease",
-        }}
-      >
-        {/* Header */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            cursor: "pointer",
-            userSelect: "none",
-          }}
-          onClick={() => setOpen(!open)}
-        >
-          <Typography
-            variant="subtitle1"
-            sx={{
-              fontWeight: 600,
-              color: theme.palette.text.primary,
-            }}
-          >
-            Contributions
-          </Typography>
-          <IconButton
-            size="small"
-            sx={{
-              transform: open ? "rotate(180deg)" : "rotate(0deg)",
-              transition: "transform 0.3s ease",
-            }}
-          >
-            <ExpandMoreIcon />
-          </IconButton>
-        </Box>
+              >
+                {trip?.name ? trip.name.charAt(0).toUpperCase() : "T"}
+              </Box>
+            )}
+          </Box>
 
-        <Collapse in={open} timeout={400}>
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Divider sx={{ my: 1.5 }} />
-            {budget.contributors.map((c, i) => {
-              const intendedContribution = Number(c.amount) || 0;
-              const actualPaid = calculateMemberPayments(c.uid);
-              const remaining = intendedContribution - actualPaid;
+          <Container sx={{ py: 0, px: 0, position: "absolute", top: 250 }}>
+            {weather && (
+              <Box
+                m={1.5}
+                sx={{
+                  position: "relative",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1,
+                  background:
+                    mode === "dark"
+                      ? "linear-gradient(145deg, rgba(39, 39, 39, 0.35), rgba(25, 25, 25, 0.5))"
+                      : "linear-gradient(145deg, rgba(255,255,255,0.58), rgba(245, 245, 245, 0.52))",
+                  borderRadius: 4,
+                  width: 240,
+                  py: 1.5,
+                  px: 2,
+                  border: "none",
+                  backdropFilter: "blur(20px)",
+                  boxShadow: "none",
+                }}
+              >
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Box display="flex" alignItems="center" gap={1.2}>
+                    <Box sx={{ fontSize: 28, opacity: 0.8 }}>
+                      {weather.temp > 32 ? "🔥" : weather.temp < 10 ? "❄️" : weather.description?.includes("rain") ? "🌧️" : weather.description?.includes("cloud") ? "⛅" : "☀️"}
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" fontWeight="600" sx={{ lineHeight: 1.1, color: mode === "dark" ? "#fff" : "#000" }}>
+                        {weather.temp ? `${Math.round(weather.temp)}°C` : "—"}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: "capitalize" }}>
+                        {weather.description || "N/A"}
+                      </Typography>
+                    </Box>
+                  </Box>
 
-              return (
-                <Box
-                  key={i}
-                  sx={{
-                    mb: 1.5,
-                    borderRadius: 2,
-                    transition: "all 0.3s ease",
-                  }}
-                >
-                  <Typography variant="body2" fontWeight="bold">
-                    {getMemberName(c.uid)} — ₹{intendedContribution.toFixed(2)}
-                  </Typography>
-
-                  <Typography
-                    variant="caption"
-                    display="flex"
-                    justifyContent="space-between"
-                    mt={0.3}
-                    color="text.secondary"
-                  >
-                    Paid:
-                    <Typography
-                      component="span"
-                      fontWeight="medium"
-                      color={
-                        actualPaid >= intendedContribution
-                          ? "error.main"
-                          : "text.primary"
-                      }
-                    >
-                      ₹{actualPaid.toFixed(2)}
-                    </Typography>
-                  </Typography>
-
-                  <Typography
-                    variant="caption"
-                    display="flex"
-                    justifyContent="space-between"
-                    color="text.secondary"
-                  >
-                    Remaining:
-                    <Typography
-                      component="span"
-                      fontWeight="bold"
-                      color={remaining > 0 ? "success.main" : "error.main"}
-                    >
-                      ₹{remaining < 0 ? "-" : ""}{Math.abs(remaining).toFixed(2)}
-                    </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase" }}>
+                    in {trip?.location || "—"}
                   </Typography>
                 </Box>
-              );
-            })}
-          </motion.div>
-        </Collapse>
-      </Box>
-    )}
-
-    {/* ---------- Expenses Section ---------- */}
-    {budget.expenses?.length > 0 && (
-      <Box
-        sx={{
-          borderRadius: 3,
-        }}
-      >
-        <Typography
-          variant="subtitle2"
-          color="text.secondary"
-          sx={{ mb: 1.5, fontWeight: 600 }}
-        >
-          Expenses
-        </Typography>
-
-{visibleExpenses.map((exp, idx) => {
-  const canEdit =
-    exp.payers?.some((p) => p.uid === currentUseruid) ||
-    exp.paidBy === currentUseruid;
-
-  const payers = exp.payers?.length
-    ? exp.payers
-    : exp.paidBy
-    ? [{ uid: exp.paidBy, amount: exp.amount }]
-    : [];
-
-  return (
-    <Box
-      key={idx}
-      sx={{
-        p: 1.5,
-        mb: 1.2,
-        borderRadius: 3,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 1.5,
-
-        background:
-          mode === "dark"
-            ? "linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))"
-            : "linear-gradient(145deg, #ffffff, #f8f8f8)",
-
-        border:
-          mode === "dark"
-            ? "1px solid rgba(255,255,255,0.08)"
-            : "1px solid rgba(0,0,0,0.06)",
-
-        transition: "all 0.2s ease",
-
-        "&:hover": {
-          transform: "translateY(-2px)",
-          boxShadow:
-            mode === "dark"
-              ? "0 8px 22px rgba(0,0,0,0.6)"
-              : "0 8px 22px rgba(0,0,0,0.08)",
-        },
-      }}
-    >
-      {/* ---------- Left: Expense Info ---------- */}
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography
-          variant="body1"
-          fontWeight={600}
-          sx={{
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {exp.name || "Unnamed Expense"}
-        </Typography>
-
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: "block", mt: 0.2 }}
-        >
-          ₹{exp.amount}
-        </Typography>
-      </Box>
-
-      {/* ---------- Payers Avatar Group ---------- */}
-      <AvatarGroup
-        max={3}
-        sx={{
-          "& .MuiAvatar-root": {
-            width: 28,
-            height: 28,
-            fontSize: 12,
-            border: "2px solid",
-            borderColor: mode === "dark" ? "#000" : "#fff",
-          },
-        }}
-      >
-        {payers.map((p) => {
-          const member = memberDetails.find((m) => m.uid === p.uid);
-          return (
-            <Tooltip
-              key={p.uid}
-              title={`${member?.name || "Member"} — ₹${p.amount}`}
-            >
-              <Avatar src={member?.photoURL}>
-                {(!member?.photoURL &&
-                  (member?.name || "M")[0]) ||
-                  null}
-              </Avatar>
-            </Tooltip>
-          );
-        })}
-      </AvatarGroup>
-
-      {/* ---------- Right: Meta + Actions ---------- */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          flexShrink: 0,
-        }}
-      >
-        {/* Category Chip */}
-        <Typography
-          variant="caption"
-          sx={{
-            px: 1,
-            py: 0.4,
-            borderRadius: 1.5,
-            background:
-              mode === "dark"
-                ? "rgba(255,255,255,0.1)"
-                : "rgba(0,0,0,0.06)",
-            fontWeight: 500,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {exp.category || "General"}
-        </Typography>
-
-        {/* Edit Action */}
-        {canEdit && (
-          <IconButton
-            size="small"
-            onClick={() => {
-              setEditingExpense(exp);
-              setNewExpense({
-                name: exp.name,
-                amount: exp.amount.toString(),
-                category: exp.category,
-                date: exp.date,
-                time: exp.time,
-                paidBy: exp.paidBy || exp.payers?.[0]?.uid,
-                splitMode: exp.splitMode || "single_payer",
-              });
-              setExpenseContributors(
-                memberDetails.map((member) => ({
-                  uid: member.uid,
-                  name: member.name || "Unknown",
-                  photoURL: member.photoURL,
-                  included:
-                    exp.payers?.some((p) => p.uid === member.uid) ||
-                    exp.paidBy === member.uid,
-                  paidAmount:
-                    exp.payers?.find((p) => p.uid === member.uid)?.amount ||
-                    (exp.paidBy === member.uid ? exp.amount : 0),
-                }))
-              );
-              setExpenseDrawerOpen(true);
-            }}
-            sx={{
-              background:
-                mode === "dark"
-                  ? "rgba(255,255,255,0.08)"
-                  : "rgba(0,0,0,0.05)",
-            }}
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-        )}
-      </Box>
-    </Box>
-  );
-})}
-
-
-        {budget.expenses.length > 4 && (
-          <Button
-            onClick={() => setShowAllExpenses(!showAllExpenses)}
-            size="small"
-            variant="text"
-            sx={{
-              mt: 1.5,
-              textTransform: 'none',
-              color: mode === 'dark' ? '#90caf9' : '#1976d2',
-            }}
-          >
-            {showAllExpenses ? 'Hide' : 'View More'}
-          </Button>
-        )}
-      </Box>
-    )}
-  </Box>
-)}
-
-
-            </Box>
-
-            {/* Checklist */}
-          <Box sx={{ mt: 4, p: 2 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <Typography variant="h5" gutterBottom>
-                Checklist
-              </Typography>
-              <Button
-                variant="outlined"
-                onClick={() => setChecklistDrawerOpen(true)}
-                sx={{ px: 2, color: theme.palette.text.primary, border: "none", backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010', borderRadius: 8 }}
-              >
-                + Add
-              </Button>
-            </Box>
-
-<Box sx={{ position: "relative", backgroundColor: "transparent" }}>
-  <List
-    sx={{
-      maxHeight: "200px",
-      overflowY: "auto",
-      scrollbarWidth: "none",
-      pb: 4,
-    }}
-  >
-
-{checklist.map((task) => (
-  <ListItem
-    key={task.id}
-    onClick={() => toggleTask(task)}
-    disableGutters
-    sx={{
-      backgroundColor: task.completed
-        ? (mode === "dark" ? "#00000000" : "transparent")
-        : (mode === "dark" ? "#f1f1f106" : "#00000006"),
-      mb: 0.5,
-      borderRadius: 2,
-    }}
-  >
-    <ListItemIcon>
-      <Checkbox
-        checked={task.completed}
-        onChange={() => toggleTask(task)}
-        color="success"
-        sx={{ color: task.completed ? undefined : "#999" }}
-        inputProps={{ 'aria-label': 'Toggle checklist item' }}
-      />
-    </ListItemIcon>
-    <ListItemText
-      primary={
-        editingChecklist === task.id ? (
-          <TextField
-            fullWidth
-            defaultValue={task.text}
-            onBlur={(e) => updateChecklistItem(task.id, e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                updateChecklistItem(task.id, e.target.value);
-              }
-            }}
-            autoFocus
-            variant="standard"
-            sx={{
-              '& .MuiInput-underline:before': { borderBottom: '1px solid' },
-              '& .MuiInput-underline:after': { borderBottom: '2px solid' },
-            }}
-          />
-        ) : (
-          <Typography
-            sx={{
-              textDecoration: task.completed ? "line-through" : "none",
-              color: task.completed ? "#888" : "inherit",
-              userSelect: "text",
-            }}
-          >
-            {task.text}
-          </Typography>
-        )
-      }
-    />
-    {!editingChecklist && (
-      <IconButton
-        size="small"
-        onClick={(e) => {
-          e.stopPropagation();
-          setEditingChecklist(task.id);
-        }}
-      >
-        <EditIcon fontSize="small" />
-      </IconButton>
-    )}
-  </ListItem>
-))}
-  </List>
-
-
-  <Box
-    sx={{
-      position: "absolute",
-      bottom: "-2px",
-      left: "-2px",
-      right: "-2px",
-      height: 60,
-      background: mode === "dark" ? 'linear-gradient(to top, #0c0c0c, #0c0c0cd9, #0c0c0cc9, #0c0c0c90, #0c0c0c00)' : 'linear-gradient(to top, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
-      pointerEvents: "none", // allows interaction with list behind
-      borderBottomLeftRadius: 8,
-      borderBottomRightRadius: 8,
-      pt: 6
-    }}
-  />
-
-<Button
-  variant="text"
-  size="small"
-  fullWidth
-  onClick={() => setChecklistViewAllOpen(true)}
-  sx={{
-    textTransform: "none",
-    color: theme => theme.palette.mode === 'dark' ? '#fff' : '#000',
-    backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010',
-    fontWeight: 500,
-    borderRadius: 8,
-    px: 1.5,
-    py: 1,
-  }}
->
-  View All
-</Button>
-
-</Box>
-
-          </Box>
-
-
-<Divider sx={{ my: 2 }} />
-
-{/* Surprise Reveal Card — visible only to creator */}
-{timeline.some(
-  (event) =>
-    event.surprise &&
-    event.createdBy === currentUseruid &&
-    !event.revealed
-) && (
-  <Card
-    sx={{
-      mb: 2,
-      borderRadius: 4,
-      background:
-        mode === "dark"
-          ? "linear-gradient(145deg, #111, #222)"
-          : "linear-gradient(145deg, #fff, #f3f3f3)",
-      boxShadow:
-        mode === "dark"
-          ? "0 0 20px rgba(255,255,255,0.05)"
-          : "0 0 10px rgba(0,0,0,0.05)",
-      p: 3,
-      display: "flex",
-      flexDirection: "column",
-      gap: 1,
-      alignItems: "center",
-      justifyContent: "center",
-    }}
-  >
-    <CelebrationIcon
-      sx={{
-        fontSize: 40,
-        color: mode === "dark" ? "#fff" : "#000",
-        mb: 1,
-      }}
-    />
-    <Typography fontWeight="bold" fontSize={18}>
-      You have surprise events hidden from others!
-    </Typography>
-    <Typography color="text.secondary" fontSize={14}>
-      You can reveal them manually or let them auto-reveal on schedule.
-    </Typography>
-    <Button
-      variant="contained"
-      onClick={revealAllSurprises}
-      sx={{
-        mt: 2,
-        borderRadius: 3,
-        px: 4,
-        py: 1,
-        fontWeight: "bold",
-        backgroundColor: mode === "dark" ? "#fff" : "#000",
-        color: mode === "dark" ? "#000" : "#fff",
-        "&:hover": {
-          backgroundColor: mode === "dark" ? "#f3f3f3" : "#222",
-        },
-      }}
-    >
-      Reveal All Surprises Now
-    </Button>
-  </Card>
-)}
-
-
-            {/* Timeline */}
-<Box sx={{ mt: 4, px: 2, py: 1 }}>
-  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-  <Typography variant="h5" gutterBottom>
-    Trip Timeline
-  </Typography>
-  
-  <Button
-    variant="outlined"
-    onClick={() => setTimelineDrawerOpen(true)}
-    sx={{ px: 2, color: theme.palette.text.primary, border: "none", backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010', borderRadius: 8 }}
-  >
-    + Add
-  </Button>
-  </Box>
-  
-<Box sx={{ position: "relative" }}>
-{timeline.length === 0 ? (
-  <Typography
-    variant="body2"
-    color="text.secondary"
-    backgroundColor="transparent"
-    sx={{ pb: 5, mb: 3, textAlign: "center" }}
-  >
-    No events added yet.
-  </Typography>
-) : (
-  <List
-    sx={{
-      maxHeight: "300px",
-      overflowY: "auto",
-      scrollbarWidth: "none",
-      pb: 5,
-      mb: 1,
-    }}
-  >
-{timeline.map((item, index) => {
-  const itemTime = new Date(item.time);
-  const isCompleted = item.completed;
-  const isCreator = trip?.createdBy === currentUseruid; // Add this line
-  const isUpcoming =
-    !isCompleted &&
-    itemTime > new Date() &&
-    timeline.findIndex(
-      (e) => new Date(e.time) > new Date() && !e.completed
-    ) === index;
-
-  const isLocked =
-    item.surprise &&
-    !item.revealed &&
-    !isCreator &&
-    (!item.revealAt || new Date(item.revealAt) > new Date());
-  const canReveal =
-    item.surprise && isCreator && !item.revealed;
-
-  return (
-    <ListItem
-      key={item.id}
-      sx={{
-        backgroundColor: isLocked
-          ? mode === "dark"
-            ? "#292929"
-            : "#f4f4f4"
-          : isUpcoming
-          ? "#bc751835"
-          : isCompleted
-          ? mode === "dark"
-            ? "#000000"
-            : "#ffffff"
-          : mode === "dark"
-          ? "#1c1c1c"
-          : "#f0f0f0ff",
-        borderRadius: 3,
-        mb: 1,
-        px: 2,
-        py: 1,
-        border: isUpcoming
-          ? "2px solid #bc7518ff"
-          : isLocked
-          ? "1px dashed #888"
-          : "none",
-        boxShadow: isUpcoming
-          ? "0 0 10px #bc751880"
-          : "none",
-        display: "flex",
-        alignItems: "center",
-        transition: "all 0.2s ease",
-      }}
-      secondaryAction={
-        isCompleted &&
-        trip?.createdBy === currentUseruid && (
-          <IconButton onClick={() => deleteTimelineEvent(item.id)}>
-            <CancelIcon color="error" />
-          </IconButton>
-        )
-      }
-    >
-      {!isLocked && (
-        <ListItemIcon>
-          <Checkbox
-            checked={isCompleted}
-            onChange={() => toggleEventCompleted(item)}
-            sx={{ color: "#999" }}
-          />
-        </ListItemIcon>
-      )}
-
-      <ListItemText
-        primary={
-          editingTimeline === item.id ? (
-            <Box>
-              <TextField
-                fullWidth
-                label="Title"
-                defaultValue={item.title}
-                onChange={(e) => setEditingTimeline({ ...editingTimeline, title: e.target.value })}
-                sx={{ mb: 1 }}
-              />
-              <TextField
-                fullWidth
-                type="datetime-local"
-                label="Time"
-                defaultValue={item.time}
-                onChange={(e) => setEditingTimeline({ ...editingTimeline, time: e.target.value })}
-                sx={{ mb: 1 }}
-              />
-              <TextField
-                fullWidth
-                multiline
-                rows={2}
-                label="Note"
-                defaultValue={item.note || ""}
-                onChange={(e) => setEditingTimeline({ ...editingTimeline, note: e.target.value })}
-              />
-              <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
-                <Button
-                  size="small"
-                  onClick={() => updateTimelineEvent(item.id, editingTimeline)}
-                >
-                  Save
-                </Button>
-                <Button
-                  size="small"
-                  onClick={() => setEditingTimeline(null)}
-                >
-                  Cancel
-                </Button>
               </Box>
-            </Box>
-          ) : (
-            <Typography
-              variant="body1"
-              fontWeight={
-                isLocked
-                  ? "bold"
-                  : isUpcoming
-                  ? "bold"
-                  : isCompleted
-                  ? "normal"
-                  : "medium"
-              }
-              color={
-                isLocked
-                  ? "text.secondary"
-                  : isCompleted
-                  ? "#888"
-                  : theme.palette.text.primary
-              }
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 0.8,
-                textDecoration: isCompleted ? "line-through" : "none",
-              }}
-            >
-              {isLocked ? (
-                <>
-                  <LockOutlinedIcon
-                    sx={{
-                      fontSize: 18,
-                      color: mode === "dark" ? "#bbb" : "#555",
-                    }}
-                  />
-                  🎁 Surprise Locked
-                </>
-              ) : (
-                item.title
-              )}
-            </Typography>
-          )
-        }
-        secondary={
-          !editingTimeline && (
-            <>
-              {isLocked ? (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ fontStyle: "italic" }}
-                >
-                  Planned secretly by{" "}
-                  <b>{getMemberName(item.createdBy) || "a member"}</b>
+            )}
+
+            <Container sx={{ borderRadius: 5, backgroundColor: mode === "dark" ? "#00000000" : "#ffffff50", backdropFilter: "blur(80px)", py: 2, pb: 6 }}>
+              {/* Title + Edit */}
+              <Box display="flex" flexDirection="column" gap={1} px={3} py={2}>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  {editMode ? (
+                    <TextField
+                      value={editTrip.name}
+                      onChange={(e) => setEditTrip({ ...editTrip, name: e.target.value })}
+                      fullWidth
+                      variant="standard"
+                      sx={{ mr: 2, fontSize: "2rem", fontWeight: "bold" }}
+                    />
+                  ) : (
+                    <Typography variant="h3" fontWeight="bold">{trip?.name}</Typography>
+                  )}
+                  {trip?.createdBy === currentUseruid && canUserDo("canEdit") && (
+                    <IconButton onClick={() => setEditMode(!editMode)} size="small">
+                      <Edit fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+
+                <Typography sx={{ mt: 1 }}>
+                  {editMode ? (
+                    <TextField
+                      value={editTrip.location}
+                      onChange={(e) => setEditTrip({ ...editTrip, location: e.target.value })}
+                      variant="standard"
+                    />
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ display: "flex" }}>
+                      <LocationOn sx={{ fontSize: 16, mr: 0.5, color: mode === "dark" ? "#fff" : "#333" }} /> {trip?.location}
+                    </Typography>
+                  )}
                 </Typography>
-              ) : (
-                <Typography variant="caption" color="text.secondary">
-                  {itemTime.toLocaleString()}
-                  {item.note && ` — ${item.note}`}
+
+                {trip?.description && (
+                  <Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
+                    {trip.description}
+                  </Typography>
+                )}
+
+                <Typography sx={{ mt: 1 }}>
+                  <Box>
+                    {editMode ? (
+                      <Box display="flex" gap={2}>
+                        <TextField
+                          type="date"
+                          label="Start Date"
+                          value={editTrip.startDate || ""}
+                          onChange={(e) => setEditTrip({ ...editTrip, startDate: e.target.value })}
+                          variant="standard"
+                        />
+                        <TextField
+                          type="date"
+                          label="End Date"
+                          value={editTrip.endDate || ""}
+                          onChange={(e) => setEditTrip({ ...editTrip, endDate: e.target.value })}
+                          variant="standard"
+                        />
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ display: "flex" }}>
+                        <AccessTime sx={{ fontSize: 16, mr: 0.5 }} />
+                        {trip?.startDate && trip?.endDate
+                          ? `${new Date(trip.startDate).toDateString()} → ${new Date(trip.endDate).toDateString()}`
+                          : "Date not set"}
+                      </Typography>
+                    )}
+                  </Box>
                 </Typography>
-              )}
-            </>
-          )
-        }
-      />
 
-      {!editingTimeline && !isLocked && (
-        <IconButton
-          size="small"
-          onClick={() => setEditingTimeline(item)}
-        >
-          <EditIcon fontSize="small" />
-        </IconButton>
-      )}
+                {trip?.from && trip?.to && (
+                  <Box mt={2}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Route:
+                    </Typography>
+                    <Box display="flex" gap={1} mt={0.5} justifyContent={"space-between"}>
+                      <Typography variant="body1" fontWeight="bold" gutterBottom>
+                        {trip.from} → {trip.to}
+                      </Typography>
+                      <Button
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ backgroundColor: "#ffffff11", width: 40, height: 40, borderRadius: 8, color: mode === "dark" ? "#fff" : "#333" }}
+                      >
+                        <DirectionsIcon />
+                      </Button>
+                    </Box>
+                  </Box>
+                )}
 
-      {canReveal && (
-        <Button
-          size="small"
-          variant="outlined"
-          sx={{
-            ml: 1,
-            borderRadius: 2,
-            textTransform: "none",
-            borderColor:
-              mode === "dark" ? "#ffffff60" : "#00000060",
-            color: mode === "dark" ? "#fff" : "#000",
-            "&:hover": {
-              backgroundColor:
-                mode === "dark" ? "#ffffff20" : "#00000010",
-            },
-          }}
-          onClick={() => revealSurpriseEvent(item.id)}
-        >
-          Reveal Now
-        </Button>
-      )}
-    </ListItem>
-  );
-})}
-  </List>
-)}
+                {editMode && (
+                  <Button variant="contained" onClick={handleSaveEdit} sx={{ mt: 2, backgroundColor: mode === "dark" ? "#fff" : "#000", color: mode === "dark" ? "#000" : "#fff", borderRadius: 8 }}>
+                    Save Changes
+                  </Button>
+                )}
+              </Box>
 
-    <Box
-    sx={{
-      position: "absolute",
-      bottom: "-2px",
-      left: "-2px",
-      right: "-2px",
-      height: 60,
-      background: mode === "dark" ? 'linear-gradient(to top, #0c0c0c, #0c0c0cd9, #0c0c0cc9, #0c0c0c90, #0c0c0c00)' : 'linear-gradient(to top, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
-      pointerEvents: "none", // allows interaction with list behind
-      borderBottomLeftRadius: 8,
-      borderBottomRightRadius: 8,
-    }}
-  />
-</Box>
+              <Container sx={{ mb: 4 }}>
+                {/* AI Famous Places Section */}
+                {isDevBeta && (
+                  <Box sx={{ mt: 3, p: 2, borderRadius: 4, bgcolor: mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: "1px solid divider" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1, mb: 2 }}>
+                      <Typography variant="h6" fontWeight="bold" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <ExploreIcon sx={{ color: "#00E676" }} /> Famous Places & Top Attractions
+                      </Typography>
 
-  <Button
-    variant="text"
-    size="small"
-    fullWidth
-    onClick={() => setTimelineAllDrawerOpen(true)}
-    sx={{
-      textTransform: "none",
-      color: theme => theme.palette.mode === 'dark' ? '#fff' : '#000',
-      backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010',
-      fontWeight: 500,
-      borderRadius: 8,
-      px: 1.5,
-      py: 1,
-    }}
-  >
-    View All
-  </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={handleGenerateAiPlaces}
+                        disabled={isGeneratingPlaces}
+                        startIcon={isGeneratingPlaces ? <CircularProgress size={16} /> : <AutoAwesomeIcon sx={{ color: "#00E676" }} />}
+                        sx={{
+                          borderRadius: 8,
+                          textTransform: "none",
+                          fontWeight: 700,
+                          borderColor: "#00E676",
+                          color: mode === "dark" ? "#00E676" : "#00A855",
+                          "&:hover": { bgcolor: "rgba(0, 230, 118, 0.08)", borderColor: "#00E676" },
+                        }}
+                      >
+                        {isGeneratingPlaces ? "Discovering..." : "✨ Discover Places"}
+                      </Button>
+                    </Box>
 
-</Box>
+                    {famousPlaces.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
+                        No places discovered yet. Click <b>"✨ Discover Places"</b> to find top local spots with Groq AI!
+                      </Typography>
+                    ) : (
+                      <Grid container spacing={2}>
+                        {famousPlaces.map((place) => (
+                          <Grid item xs={12} sm={6} key={place.id}>
+                            <Paper
+                              elevation={0}
+                              sx={{
+                                p: 2,
+                                borderRadius: 3,
+                                border: "1px solid divider",
+                                height: "100%",
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "space-between",
+                                bgcolor: mode === "dark" ? "rgba(255,255,255,0.02)" : "#fff",
+                              }}
+                            >
+                              <Box>
+                                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 0.5 }}>
+                                  <Typography variant="subtitle1" fontWeight={700}>
+                                    {place.name}
+                                  </Typography>
+                                  <IconButton size="small" color="error" onClick={() => handleDeletePlace(place.id)}>
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
 
+                                <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                                  <Chip label={place.category} size="small" variant="outlined" sx={{ fontWeight: 600, fontSize: "0.7rem" }} />
+                                  {place.suggestedTime && (
+                                    <Chip label={place.suggestedTime} size="small" sx={{ fontWeight: 600, fontSize: "0.7rem", bgcolor: "rgba(0, 230, 118, 0.15)", color: "#00E676" }} />
+                                  )}
+                                </Stack>
 
-<Divider sx={{ my: 2 }} />
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                  {place.description}
+                                </Typography>
+                              </Box>
 
-            {/* Chat Button */}
-          <Box mt={4} mx={2}>
-            <Typography variant="h6" gutterBottom>
-              Members
-            </Typography>
-<List dense>
-  {memberDetails.map((user) => (
-    <ListItem
-      key={user.uid}
-      disableGutters
-      sx={{
-        borderRadius: 3,
-        mb: 1,
-        py: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        transition: "all 0.2s ease",
-      }}
-    >
-      <Box
-        display="flex"
-        alignItems="center"
-        gap={1.5}
-        sx={{ cursor: "pointer" }}
-        onClick={() => navigate(`/chat/${user.uid}`)}
-      >
-        <Avatar src={user.photoURL} sx={{ width: 40, height: 40 }} />
-        <Box>
-          <Typography fontWeight="medium">
-            {user.uid === currentUseruid
-              ? `${user.name || "You"} (Me)`
-              : user.name || "Unknown"}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {user.email}
-          </Typography>
-        </Box>
-      </Box>
+                              <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  startIcon={<EventNoteIcon />}
+                                  onClick={() => handleAddPlaceToTimeline(place)}
+                                  sx={{
+                                    borderRadius: 2,
+                                    fontSize: "0.72rem",
+                                    textTransform: "none",
+                                    fontWeight: 700,
+                                    bgcolor: mode === "dark" ? "#fff" : "#000",
+                                    color: mode === "dark" ? "#000" : "#fff",
+                                    flex: 1,
+                                  }}
+                                >
+                                  + Timeline
+                                </Button>
 
-      {/* Only show remove button to trip creator */}
-      {tripAdmins.includes(currentUseruid) && user.uid !== currentUseruid && (
-        <Tooltip title="Remove Member">
-          <IconButton
-            size="small"
-            color="error"
-            onClick={(e) => {
-              e.stopPropagation();
-              setMemberToRemove(user.uid);
-            }}
-            sx={{
-              backgroundColor:
-                mode === "dark" ? "#ff000015" : "#ff000010",
-              "&:hover": {
-                backgroundColor:
-                  mode === "dark" ? "#ff000025" : "#ff000020",
-              },
-              borderRadius: 2,
-            }}
-          >
-            <DeleteOutlineIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      )}
-    </ListItem>
-  ))}
-</List>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  startIcon={<PlaylistAddCheckIcon />}
+                                  onClick={() => handleAddPlaceToChecklist(place)}
+                                  sx={{
+                                    borderRadius: 2,
+                                    fontSize: "0.72rem",
+                                    textTransform: "none",
+                                    fontWeight: 700,
+                                    flex: 1,
+                                  }}
+                                >
+                                  + Checklist
+                                </Button>
+                              </Box>
+                            </Paper>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    )}
+                  </Box>
+                )}
 
-<motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-<Dialog
-  open={!!memberToRemove}
-  onClose={() => setMemberToRemove(null)}
-  PaperProps={{
-    sx: {
-      borderRadius: 4,
-      background:
-        mode === "dark"
-          ? "linear-gradient(145deg, #1a1a1a3b, rgba(34, 34, 34, 0.2))"
-          : "linear-gradient(145deg, #fff, #f9f9f9)",
-      boxShadow: "none",
-      backgroundImage: "none",
-      p: 2,
-      backdropFilter: "blur(26px)",
-      width: "100%",
-      maxWidth: 400,
-    },
-  }}
-  TransitionProps={{
-    timeout: 300,
-  }}
->
-  <DialogTitle
-    sx={{
-      textAlign: "center",
-      fontWeight: "700",
-      fontSize: "1.2rem",
-      color: mode === "dark" ? "#fff" : "#000",
-      pb: 0,
-    }}
-  >
-    Remove Member
-  </DialogTitle>
+                {/* Checklist with AI Auto-Generator */}
+                <Box sx={{ mt: 4, p: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
+                    <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>
+                      Checklist
+                    </Typography>
+                    
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      {isDevBeta && (
+                        <Button
+                          variant="outlined"
+                          onClick={handleGenerateAiChecklist}
+                          disabled={isGeneratingAiChecklist}
+                          startIcon={isGeneratingAiChecklist ? <CircularProgress size={16} /> : <AutoAwesomeIcon sx={{ color: "#00E676" }} />}
+                          sx={{
+                            borderRadius: 8,
+                            textTransform: "none",
+                            fontWeight: 700,
+                            borderColor: "#00E676",
+                            color: mode === "dark" ? "#00E676" : "#00A855",
+                            "&:hover": { bgcolor: "rgba(0, 230, 118, 0.08)", borderColor: "#00E676" },
+                          }}
+                        >
+                          {isGeneratingAiChecklist ? "Generating..." : "✨ AI Checklist"}
+                        </Button>
+                      )}
 
-  <DialogContent sx={{ textAlign: "center", mt: 2 }}>
-    <Box
-      display="flex"
-      flexDirection="column"
-      alignItems="center"
-      justifyContent="center"
-      gap={1.5}
-    >
-      <Box
-        sx={{
-          width: 60,
-          height: 60,
-          borderRadius: "50%",
-          backgroundColor: mode === "dark" ? "#2a0000" : "#ffebee",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "none",
-          mb: 1,
-        }}
-      >
-        <Typography sx={{ fontSize: 30 }}>🚫</Typography>
-      </Box>
+                      <Button
+                        variant="outlined"
+                        onClick={() => setChecklistDrawerOpen(true)}
+                        sx={{ px: 2, color: theme.palette.text.primary, border: "none", backgroundColor: mode === "dark" ? "#ffffff10" : "#00000010", borderRadius: 8 }}
+                      >
+                        + Add
+                      </Button>
+                    </Box>
+                  </Box>
 
-      <Typography
-        variant="body1"
-        color="text.primary"
-        sx={{
-          fontWeight: 500,
-          px: 2,
-        }}
-      >
-        Are you sure you want to remove this member from the trip?
-      </Typography>
+                  <Box sx={{ position: "relative", backgroundColor: "transparent", mt: 1.5 }}>
+                    <List sx={{ maxHeight: "200px", overflowY: "auto", scrollbarWidth: "none", pb: 4 }}>
+                      {checklist.map((task) => (
+                        <ListItem key={task.id} onClick={() => toggleTask(task)} disableGutters sx={{ mb: 0.5, borderRadius: 2 }}>
+                          <ListItemIcon>
+                            <Checkbox checked={task.completed} onChange={() => toggleTask(task)} color="success" />
+                          </ListItemIcon>
+                          <ListItemText primary={<Typography sx={{ textDecoration: task.completed ? "line-through" : "none", color: task.completed ? "#888" : "inherit" }}>{task.text}</Typography>} />
+                        </ListItem>
+                      ))}
+                    </List>
 
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ fontStyle: "italic" }}
-      >
-        This action can’t be undone.
-      </Typography>
-    </Box>
-  </DialogContent>
+                    <Button
+                      variant="text"
+                      size="small"
+                      fullWidth
+                      onClick={() => setChecklistViewAllOpen(true)}
+                      sx={{ textTransform: "none", color: (t) => t.palette.mode === "dark" ? "#fff" : "#000", backgroundColor: mode === "dark" ? "#ffffff10" : "#00000010", fontWeight: 500, borderRadius: 8, py: 1 }}
+                    >
+                      View All
+                    </Button>
+                  </Box>
+                </Box>
 
-  <DialogActions
-    sx={{
-      justifyContent: "center",
-      mt: 1,
-      pb: 2,
-      gap: 1.5,
-    }}
-  >
-    <Button
-      variant="outlined"
-      onClick={() => setMemberToRemove(null)}
-      sx={{
-        textTransform: "none",
-        borderRadius: 3,
-        px: 3,
-        fontWeight: 600,
-        borderColor: mode === "dark" ? "#888" : "#ccc",
-        color: mode === "dark" ? "#fff" : "#000",
-        "&:hover": {
-          borderColor: mode === "dark" ? "#aaa" : "#000",
-          backgroundColor: mode === "dark" ? "#222" : "#f0f0f0",
-        },
-      }}
-    >
-      Cancel
-    </Button>
+                <Divider sx={{ my: 2 }} />
 
-    <Button
-      variant="contained"
-      color="error"
-      onClick={confirmRemoveMember}
-      sx={{
-        textTransform: "none",
-        borderRadius: 3,
-        px: 3,
-        fontWeight: 600,
-        boxShadow: "none",
-        backgroundColor: "#e53935",
-        "&:hover": {
-          backgroundColor: "#c62828",
-        },
-      }}
-    >
-      Remove
-    </Button>
-  </DialogActions>
-</Dialog>
-</motion.div>
+                {/* Timeline with AI Auto-Generator */}
+                <Box sx={{ mt: 4, px: 2, py: 1 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
+                    <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>
+                      Trip Timeline
+                    </Typography>
 
-            <Button
-              variant="outlined"
-              fullWidth
-              sx={{ mt: 2, color: theme.palette.text.primary, borderColor: mode === "dark" ? "#fff" : "#000", borderRadius: 3 }}
-              onClick={() => setShareDrawerOpen(true)}
-            >
-              Invite Members
-            </Button>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      {isDevBeta && (
+                        <Button
+                          variant="outlined"
+                          onClick={handleGenerateAiTimeline}
+                          disabled={isGeneratingAiTimeline}
+                          startIcon={isGeneratingAiTimeline ? <CircularProgress size={16} /> : <AutoAwesomeIcon sx={{ color: "#00E676" }} />}
+                          sx={{
+                            borderRadius: 8,
+                            textTransform: "none",
+                            fontWeight: 700,
+                            borderColor: "#00E676",
+                            color: mode === "dark" ? "#00E676" : "#00A855",
+                            "&:hover": { bgcolor: "rgba(0, 230, 118, 0.08)", borderColor: "#00E676" },
+                          }}
+                        >
+                          {isGeneratingAiTimeline ? "Generating..." : "✨ AI Timeline"}
+                        </Button>
+                      )}
 
-<Divider sx={{ my: 2 }} />
+                      <Button
+                        variant="outlined"
+                        onClick={() => setTimelineDrawerOpen(true)}
+                        sx={{ px: 2, color: theme.palette.text.primary, border: "none", backgroundColor: mode === "dark" ? "#ffffff10" : "#00000010", borderRadius: 8 }}
+                      >
+                        + Add
+                      </Button>
+                    </Box>
+                  </Box>
 
-{trip?.createdBy === currentUseruid && (
-  <Button
-    variant="outlined"
-    fullWidth
-    startIcon={<DeleteOutlineIcon />}
-    color="error"
-    sx={{ mt: 1, borderRadius: 3, backgroundColor: "#ff000010" }}
-    onClick={() => setConfirmDeleteOpen(true)} // ✅ Corrected here
-  >
-    Delete Trip
-  </Button>
-)}
+                  <Box sx={{ position: "relative", mt: 1.5 }}>
+                    {timeline.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ pb: 3, textAlign: "center" }}>
+                        No events added yet.
+                      </Typography>
+                    ) : (
+                      <List sx={{ maxHeight: "300px", overflowY: "auto", scrollbarWidth: "none", pb: 2 }}>
+                        {timeline.map((item) => {
+                          const itemTime = new Date(item.time);
+                          return (
+                            <ListItem key={item.id} sx={{ bgcolor: mode === "dark" ? "#1c1c1c" : "#f0f0f0ff", borderRadius: 3, mb: 1, px: 2, py: 1 }}>
+                              <ListItemIcon>
+                                <Checkbox checked={item.completed} onChange={() => toggleEventCompleted(item)} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={<Typography fontWeight={600}>{item.title}</Typography>}
+                                secondary={`${itemTime.toLocaleString()} ${item.note ? `— ${item.note}` : ""}`}
+                              />
+                            </ListItem>
+                          );
+                        })}
+                      </List>
+                    )}
 
+                    <Button
+                      variant="text"
+                      size="small"
+                      fullWidth
+                      onClick={() => setTimelineAllDrawerOpen(true)}
+                      sx={{ textTransform: "none", color: (t) => t.palette.mode === "dark" ? "#fff" : "#000", backgroundColor: mode === "dark" ? "#ffffff10" : "#00000010", fontWeight: 500, borderRadius: 8, py: 1 }}
+                    >
+                      View All
+                    </Button>
+                  </Box>
+                </Box>
 
-          </Box>
+                <Divider sx={{ my: 2 }} />
 
+                {/* Members Section */}
+                <Box mt={4} mx={2}>
+                  <Typography variant="h6" gutterBottom>
+                    Members
+                  </Typography>
+                  <List dense>
+                    {memberDetails.map((user) => (
+                      <ListItem key={user.uid} disableGutters sx={{ borderRadius: 3, mb: 1, py: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Box display="flex" alignItems="center" gap={1.5} sx={{ cursor: "pointer" }} onClick={() => navigate(`/chat/${user.uid}`)}>
+                          <Avatar src={user.photoURL} sx={{ width: 40, height: 40 }} />
+                          <Box>
+                            <Typography fontWeight="medium">{user.uid === currentUseruid ? `${user.name || "You"} (Me)` : user.name || "Unknown"}</Typography>
+                            <Typography variant="caption" color="text.secondary">{user.email}</Typography>
+                          </Box>
+                        </Box>
+                      </ListItem>
+                    ))}
+                  </List>
 
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    sx={{ mt: 2, color: theme.palette.text.primary, borderColor: mode === "dark" ? "#fff" : "#000", borderRadius: 3 }}
+                    onClick={() => setShareDrawerOpen(true)}
+                  >
+                    Invite Members
+                  </Button>
+                </Box>
+              </Container>
+            </Container>
           </Container>
-          </Container>
-        </Container>
 
-            {/* Sub-components (drawers, dialogs) */}
-            <ShareDrawer shareDrawerOpen={shareDrawerOpen} setShareDrawerOpen={setShareDrawerOpen} inviteLink={inviteLink} trip={trip} mode={mode} generateSharePoster={() => {}} setSnackbar={setSnackbar} />
+          {/* Sub-components with userData passed down */}
+          <ShareDrawer
+            shareDrawerOpen={shareDrawerOpen}
+            setShareDrawerOpen={setShareDrawerOpen}
+            inviteLink={inviteLink}
+            trip={trip}
+            mode={mode}
+            setSnackbar={setSnackbar}
+            user={currentUser}
+            db={db}
+          />
 
-            <ChecklistDrawer
-                checklistDrawerOpen={checklistDrawerOpen}
-                setChecklistDrawerOpen={setChecklistDrawerOpen}
-                checklistDrafts={checklistDrafts}
-                setChecklistDrafts={setChecklistDrafts}
-                newTask={newTask}
-                setNewTask={setNewTask}
-                uploadingBatch={uploadingBatch}
-                addTask={addTask}
-                addAllChecklistItems={addAllChecklistItems}
-                addEmptyChecklistDraft={() => setChecklistDrafts((s) => [...s, ""])}
-                updateChecklistDraft={(i, v) => setChecklistDrafts((s) => s.map((it, idx) => (idx === i ? v : it)))}
-                removeChecklistDraft={(i) => setChecklistDrafts((s) => s.filter((_, idx) => idx !== i))}
-                handleChecklistFileUpload={handleChecklistFileUpload}
-                mode={mode}
-            />
+          <ChecklistDrawer 
+            checklistDrawerOpen={checklistDrawerOpen} 
+            setChecklistDrawerOpen={setChecklistDrawerOpen} 
+            checklistDrafts={checklistDrafts} 
+            setChecklistDrafts={setChecklistDrafts} 
+            newTask={newTask} 
+            setNewTask={setNewTask} 
+            uploadingBatch={uploadingBatch} 
+            addTask={addTask} 
+            addAllChecklistItems={addAllChecklistItems} 
+            addEmptyChecklistDraft={() => setChecklistDrafts((s) => [...s, ""])} 
+            updateChecklistDraft={(i, v) => setChecklistDrafts((s) => s.map((it, idx) => (idx === i ? v : it)))} 
+            removeChecklistDraft={(i) => setChecklistDrafts((s) => s.filter((_, idx) => idx !== i))} 
+            handleChecklistFileUpload={handleChecklistFileUpload} 
+            mode={mode} 
+            userData={userData}
+            onAiGenerateChecklist={handleGenerateAiChecklist}
+          />
 
-            <TimelineDrawer
-                timelineDrawerOpen={timelineDrawerOpen}
-                setTimelineDrawerOpen={setTimelineDrawerOpen}
-                timelineDrafts={timelineDrafts}
-                setTimelineDrafts={setTimelineDrafts}
-                newEvent={newEvent}
-                setNewEvent={setNewEvent}
-                addTimelineEvent={addTimelineEvent}
-                addEmptyTimelineDraft={() => setTimelineDrafts((s) => [...s, { title: "", time: getCurrentDate() + "T" + getCurrentTime(), note: "" }])}
-                updateTimelineDraft={(i, item) => setTimelineDrafts((s) => s.map((it, idx) => (idx === i ? item : it)))}
-                removeTimelineDraft={(i) => setTimelineDrafts((s) => s.filter((_, idx) => idx !== i))}
-                handleTimelineFileUpload={handleTimelineFileUpload}
-                mode={mode}
-            />
+          <TimelineDrawer 
+            timelineDrawerOpen={timelineDrawerOpen} 
+            setTimelineDrawerOpen={setTimelineDrawerOpen} 
+            timelineDrafts={timelineDrafts} 
+            setTimelineDrafts={setTimelineDrafts} 
+            newEvent={newEvent} 
+            setNewEvent={setNewEvent} 
+            addTimelineEvent={addTimelineEvent} 
+            addEmptyTimelineDraft={() => setTimelineDrafts((s) => [...s, { title: "", time: getCurrentDate() + "T" + getCurrentTime(), note: "" }])} 
+            updateTimelineDraft={(i, item) => setTimelineDrafts((s) => s.map((it, idx) => (idx === i ? item : it)))} 
+            removeTimelineDraft={(i) => setTimelineDrafts((s) => s.filter((_, idx) => idx !== i))} 
+            handleTimelineFileUpload={handleTimelineFileUpload} 
+            mode={mode} 
+            userData={userData}
+            onAiGenerateTimeline={handleGenerateAiTimeline}
+          />
 
-            <BudgetDrawer budgetDrawerOpen={budgetDrawerOpen} setBudgetDrawerOpen={setBudgetDrawerOpen} editBudget={editBudget} setEditBudget={setEditBudget} saveBudget={saveBudget} mode={mode} />
+          <BudgetDrawer budgetDrawerOpen={budgetDrawerOpen} setBudgetDrawerOpen={setBudgetDrawerOpen} editBudget={editBudget} setEditBudget={setEditBudget} saveBudget={saveBudget} mode={mode} />
 
-            <ExpenseDrawer
-                expenseDrawerOpen={expenseDrawerOpen}
-                setExpenseDrawerOpen={setExpenseDrawerOpen}
-                newExpense={newExpense}
-                setNewExpense={setNewExpense}
-                expenseContributors={expenseContributors}
-                setExpenseContributors={setExpenseContributors}
-                memberDetails={memberDetails}
-                currentUseruid={currentUseruid}
-                getMemberName={getMemberName}
-                initializeExpenseContributors={initializeExpenseContributors}
-                addExpense={addExpense}
-                updateExpense={updateExpense}
-                editingExpense={editingExpense}
-                mode={mode}
-                theme={theme}
-            />
+          <ExpenseDrawer expenseDrawerOpen={expenseDrawerOpen} setExpenseDrawerOpen={setExpenseDrawerOpen} newExpense={newExpense} setNewExpense={setNewExpense} expenseContributors={expenseContributors} setExpenseContributors={setExpenseContributors} memberDetails={memberDetails} currentUseruid={currentUseruid} getMemberName={getMemberName} initializeExpenseContributors={initializeExpenseContributors} addExpense={addExpense} updateExpense={updateExpense} editingExpense={editingExpense} mode={mode} theme={theme} />
 
-            <LinkDrawer linkDrawerOpen={linkDrawerOpen} setLinkDrawerOpen={setLinkDrawerOpen} newLink={newLink} setNewLink={setNewLink} handleAddLink={handleAddLink} mode={mode} />
-            
-            <SettingsDrawer
-                settingsDrawerOpen={settingsDrawerOpen}
-                setSettingsDrawerOpen={setSettingsDrawerOpen}
-                trip={trip}
-                tripAdmins={tripAdmins}
-                memberDetails={memberDetails}
-                tripPermissions={tripPermissions}
-                updatePermissions={async (p) => { await updateDoc(doc(db, "trips", id), { permissions: p }); setTripPermissions(p); setSnackbar({ open: true, message: "Permissions updated!" }); }}
-                promoteToAdmin={async (uid) => { const newAdmins = [...tripAdmins, uid]; await updateDoc(doc(db, "trips", id), { admins: newAdmins }); setTripAdmins(newAdmins); setSnackbar({ open: true, message: "Member promoted to admin!" }); }}
-                demoteAdmin={async (uid) => { const newAdmins = tripAdmins.filter((a) => a !== uid); await updateDoc(doc(db, "trips", id), { admins: newAdmins }); setTripAdmins(newAdmins); setSnackbar({ open: true, message: "Admin demoted!" }); }}
-                mode={mode}
-                setMode={setMode}
-                accent={accent}
-                setAccent={setAccent}
-                confirmDeleteOpen={confirmDeleteOpen}
-                setConfirmDeleteOpen={setConfirmDeleteOpen}
-                getMemberName={getMemberName}
-                currentUseruid={currentUseruid}
-                displaySettings={displaySettings}
-                updateDisplaySettings={updateDisplaySettings}
-            />
+          <LinkDrawer linkDrawerOpen={linkDrawerOpen} setLinkDrawerOpen={setLinkDrawerOpen} newLink={newLink} setNewLink={setNewLink} handleAddLink={handleAddLink} mode={mode} />
+          
+          <SettingsDrawer settingsDrawerOpen={settingsDrawerOpen} setSettingsDrawerOpen={setSettingsDrawerOpen} trip={trip} tripAdmins={tripAdmins} memberDetails={memberDetails} tripPermissions={tripPermissions} updatePermissions={async (p) => { await updateDoc(doc(db, "trips", id), { permissions: p }); setTripPermissions(p); setSnackbar({ open: true, message: "Permissions updated!" }); }} promoteToAdmin={async (uid) => { const newAdmins = [...tripAdmins, uid]; await updateDoc(doc(db, "trips", id), { admins: newAdmins }); setTripAdmins(newAdmins); setSnackbar({ open: true, message: "Member promoted!" }); }} demoteAdmin={async (uid) => { const newAdmins = tripAdmins.filter((a) => a !== uid); await updateDoc(doc(db, "trips", id), { admins: newAdmins }); setTripAdmins(newAdmins); setSnackbar({ open: true, message: "Admin demoted!" }); }} mode={mode} setMode={setMode} accent={accent} setAccent={setAccent} confirmDeleteOpen={confirmDeleteOpen} setConfirmDeleteOpen={setConfirmDeleteOpen} getMemberName={getMemberName} currentUseruid={currentUseruid} displaySettings={displaySettings} updateDisplaySettings={updateDisplaySettings} />
 
-            <ConfirmDeleteDialog confirmDeleteOpen={confirmDeleteOpen} setConfirmDeleteOpen={setConfirmDeleteOpen} handleDeleteTrip={handleDeleteTrip} mode={mode} />
+          <ConfirmDeleteDialog confirmDeleteOpen={confirmDeleteOpen} setConfirmDeleteOpen={setConfirmDeleteOpen} handleDeleteTrip={handleDeleteTrip} mode={mode} />
 
-            <ChecklistViewAllDrawer checklistViewAllOpen={checklistViewAllOpen} setChecklistViewAllOpen={setChecklistViewAllOpen} checklist={checklist} toggleTask={toggleTask} mode={mode} />
+          <ChecklistViewAllDrawer 
+            checklistViewAllOpen={checklistViewAllOpen} 
+            setChecklistViewAllOpen={setChecklistViewAllOpen} 
+            checklist={checklist} 
+            toggleTask={toggleTask} 
+            mode={mode} 
+            userData={userData}
+          />
 
-            <TimelineAllDrawer timelineAllDrawerOpen={timelineAllDrawerOpen} setTimelineAllDrawerOpen={setTimelineAllDrawerOpen} timeline={timeline} toggleEventCompleted={toggleEventCompleted} mode={mode} />
+          <TimelineAllDrawer 
+            timelineAllDrawerOpen={timelineAllDrawerOpen} 
+            setTimelineAllDrawerOpen={setTimelineAllDrawerOpen} 
+            timeline={timeline} 
+            toggleEventCompleted={toggleEventCompleted} 
+            mode={mode} 
+            userData={userData}
+          />
 
-            {/* Snackbar */}
-            <Snackbar open={!!snackbar.open} autoHideDuration={3000} message={snackbar.message} onClose={() => setSnackbar({ open: false, message: "" })} />
+          <Snackbar open={!!snackbar.open} autoHideDuration={3000} message={snackbar.message} onClose={() => setSnackbar({ open: false, message: "" })} />
         </Box>
     );
 }

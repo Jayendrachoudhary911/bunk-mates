@@ -194,6 +194,7 @@ const Home = () => {
   const {
     createDialogOpen,
     step,
+    setStep,
     newTrip,
     setNewTrip,
     selectedMembers,
@@ -206,6 +207,11 @@ const Home = () => {
     handleContributionChange,
     totalContribution,
     handleCreateTrip,
+    isPostCreateAiModalOpen,
+    setIsPostCreateAiModalOpen,
+    createdTripDetails,
+    isGeneratingPostAi,
+    handleGeneratePostAiTimelineAndChecklist,
   } = useCreateTripDrawer();
 
   useEffect(() => {
@@ -1153,11 +1159,13 @@ const Home = () => {
           createDialogOpen={createDialogOpen}
           closeDrawer={closeDrawer}
           step={step}
+          setStep={setStep}
           newTrip={newTrip}
           setNewTrip={setNewTrip}
           handleNext={handleNext}
           handleBack={handleBack}
           selectedMembers={selectedMembers}
+          setSelectedMembers={setSelectedMembers}
           handleRemoveMember={handleRemoveMember}
           handleContributionChange={handleContributionChange}
           totalContribution={totalContribution}
@@ -1167,6 +1175,11 @@ const Home = () => {
           friendCards={friendCards}
           mode={mode}
           theme={theme}
+          isPostCreateAiModalOpen={isPostCreateAiModalOpen}
+          setIsPostCreateAiModalOpen={setIsPostCreateAiModalOpen}
+          createdTripDetails={createdTripDetails}
+          isGeneratingPostAi={isGeneratingPostAi}
+          handleGeneratePostAiTimelineAndChecklist={handleGeneratePostAiTimelineAndChecklist}
         />
       </BetaAccessGuard>
     </ThemeProvider>

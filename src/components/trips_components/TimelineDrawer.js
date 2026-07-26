@@ -4,6 +4,7 @@ import {
   FormControlLabel, Checkbox,
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 
 const TimelineDrawer = ({
   timelineDrawerOpen,
@@ -19,7 +20,12 @@ const TimelineDrawer = ({
   removeTimelineDraft,
   handleTimelineFileUpload,
   mode,
+  userData, // User document object
+  onAiGenerateTimeline,
 }) => {
+  // Access control check for Dev Beta role
+  const isDevBeta = userData?.type === "Dev Beta";
+
   return (
     <SwipeableDrawer
       anchor="bottom"
@@ -67,7 +73,7 @@ const TimelineDrawer = ({
         Add Timeline Events
       </Typography>
 
-      <Box sx={{ display: "flex", gap: 1 }}>
+      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
         <Button
           variant="contained"
           component="label"
@@ -76,7 +82,7 @@ const TimelineDrawer = ({
             boxShadow: "none",
             color: "text.primary",
             borderRadius: 4,
-            backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010',
+            backgroundColor: mode === "dark" ? "#ffffff10" : "#00000010",
           }}
         >
           Upload Events
@@ -96,11 +102,30 @@ const TimelineDrawer = ({
             boxShadow: "none",
             color: "text.primary",
             borderRadius: 4,
-            backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010',
+            backgroundColor: mode === "dark" ? "#ffffff10" : "#00000010",
           }}
         >
           Add Multiple Events
         </Button>
+
+        {/* Dev Beta AI Feature */}
+        {isDevBeta && (
+          <Button
+            variant="outlined"
+            onClick={onAiGenerateTimeline}
+            startIcon={<AutoAwesomeIcon sx={{ color: "#00E676" }} />}
+            sx={{
+              mb: 2,
+              borderRadius: 4,
+              borderColor: "#00E676",
+              color: mode === "dark" ? "#00E676" : "#00A855",
+              fontWeight: 700,
+              textTransform: "none",
+            }}
+          >
+            ✨ AI Auto-Fill Timeline
+          </Button>
+        )}
       </Box>
 
       {/* Drafted timeline preview */}
@@ -162,32 +187,31 @@ const TimelineDrawer = ({
       )}
 
       <FormControlLabel
-  control={
-    <Checkbox
-      checked={newEvent.surprise || false}
-      onChange={(e) =>
-        setNewEvent({ ...newEvent, surprise: e.target.checked })
-      }
-    />
-  }
-  label="Mark as Surprise Timeline (hidden from others)"
-  sx={{ mb: 2 }}
-/>
+        control={
+          <Checkbox
+            checked={newEvent.surprise || false}
+            onChange={(e) =>
+              setNewEvent({ ...newEvent, surprise: e.target.checked })
+            }
+          />
+        }
+        label="Mark as Surprise Timeline (hidden from others)"
+        sx={{ mb: 2 }}
+      />
 
-{newEvent.surprise && (
-  <TextField
-    fullWidth
-    type="datetime-local"
-    label="Auto Reveal Time (optional)"
-    value={newEvent.revealAt || ""}
-    onChange={(e) =>
-      setNewEvent({ ...newEvent, revealAt: e.target.value })
-    }
-    helperText="Leave blank to reveal manually later"
-    sx={{ mb: 2 }}
-  />
-)}
-
+      {newEvent.surprise && (
+        <TextField
+          fullWidth
+          type="datetime-local"
+          label="Auto Reveal Time (optional)"
+          value={newEvent.revealAt || ""}
+          onChange={(e) =>
+            setNewEvent({ ...newEvent, revealAt: e.target.value })
+          }
+          helperText="Leave blank to reveal manually later"
+          sx={{ mb: 2 }}
+        />
+      )}
 
       {/* Single input mode */}
       {timelineDrafts.length === 0 && (

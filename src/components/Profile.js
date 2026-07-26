@@ -67,6 +67,7 @@ import {
   LockOutlined as LockOutlinedIcon,
   BlockOutlined as BlockIcon, // Or just Block
   LocationOnOutlined as LocationOnOutlinedIcon,
+  AutoAwesome, VpnKey, Visibility, VisibilityOff, ElectricBolt, ErrorOutline,
 } from "@mui/icons-material";
 import {
   QrCode,
@@ -255,6 +256,120 @@ const ProfilePic = ({currentUser}) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [backgroundOpen, setBackgroundOpen] = useState(false);
   const [tripsCount, setTripsCount] = useState(0);
+
+  // Groq AI API Key Management State
+  const [groqApiKey, setGroqApiKey] = useState("");
+  const [showGroqKey, setShowGroqKey] = useState(false);
+  const [groqKeyStatus, setGroqKeyStatus] = useState("idle"); // 'idle', 'validating', 'valid', 'invalid'
+  const [groqKeyError, setGroqKeyError] = useState("");
+  const [groqModels, setGroqModels] = useState([]);
+  const [groqValidatedAt, setGroqValidatedAt] = useState(null);
+  const [isValidatingGroq, setIsValidatingGroq] = useState(false);
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const userDocRef = doc(firestore, "users", auth.currentUser.uid);
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.groqApiKey !== undefined) {
+          setGroqApiKey(data.groqApiKey || "");
+        }
+        if (data.groqApiKeyStatus) {
+          setGroqKeyStatus(data.groqApiKeyStatus);
+        }
+        if (data.groqApiKeyValidatedAt) {
+          setGroqValidatedAt(data.groqApiKeyValidatedAt);
+        }
+        if (data.groqModels) {
+          setGroqModels(data.groqModels || []);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleValidateAndSaveGroqKey = async () => {
+    if (!groqApiKey || !groqApiKey.trim()) {
+      setGroqKeyError("Please enter a Groq API key.");
+      setGroqKeyStatus("invalid");
+      return;
+    }
+
+    setIsValidatingGroq(true);
+    setGroqKeyError("");
+
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/models", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${groqApiKey.trim()}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData.error?.message || `API Error (${response.status})`;
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      const availableModels = (data.data || []).map((m) => m.id);
+      const validatedTime = new Date().toLocaleString();
+
+      setGroqKeyStatus("valid");
+      setGroqModels(availableModels);
+      setGroqValidatedAt(validatedTime);
+
+      if (auth.currentUser) {
+        const userRef = doc(firestore, "users", auth.currentUser.uid);
+        await updateDoc(userRef, {
+          groqApiKey: groqApiKey.trim(),
+          groqApiKeyStatus: "valid",
+          groqApiKeyValidatedAt: validatedTime,
+          groqModels: availableModels,
+        });
+      }
+
+      setSnackbar({
+        open: true,
+        message: "✅ Groq API Key validated and saved to your account!",
+      });
+    } catch (err) {
+      console.error("Groq key validation error:", err);
+      setGroqKeyStatus("invalid");
+      setGroqKeyError(err.message || "Failed to validate API key");
+      setSnackbar({
+        open: true,
+        message: `❌ Groq Key Validation Failed: ${err.message}`,
+      });
+    } finally {
+      setIsValidatingGroq(false);
+    }
+  };
+
+  const handleClearGroqKey = async () => {
+    try {
+      setGroqApiKey("");
+      setGroqKeyStatus("idle");
+      setGroqModels([]);
+      setGroqValidatedAt(null);
+      setGroqKeyError("");
+      if (auth.currentUser) {
+        const userRef = doc(firestore, "users", auth.currentUser.uid);
+        await updateDoc(userRef, {
+          groqApiKey: "",
+          groqApiKeyStatus: "idle",
+          groqApiKeyValidatedAt: null,
+          groqModels: [],
+        });
+      }
+      setSnackbar({ open: true, message: "Groq API Key removed from your account." });
+    } catch (err) {
+      console.error("Error clearing key:", err);
+    }
+  };
 
 useEffect(() => {
   if (!auth.currentUser?.uid) return;
@@ -941,7 +1056,7 @@ const handleUnblockUser = async (userIdToUnblock) => {
       // A list of valid pages to prevent opening the drawer for arbitrary URL params
       const validPages = [
         "main", "profile", "accounts", "chats", "generalSettings", 
-        "support", "feedback", "inviteFriend", "about", "featuresChangelog", "adduser", "blockedContacts", "appInfo", "developers"
+        "support", "feedback", "inviteFriend", "about", "featuresChangelog", "adduser", "blockedContacts", "appInfo", "developers", "aiFeatures"
       ];
 
       if (validPages.includes(settingsPage)) {
@@ -1452,6 +1567,17 @@ PaperProps={{
           </ListItemButton>
         </ListItem>
 
+        {/* AI Features */}
+{userData?.type === "Dev Beta" && (
+  <ListItem sx={{ pb: 0 }}>
+    <ListItemButton onClick={() => handleSetDrawerPage("aiFeatures")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
+      <ListItemIcon sx={{ minWidth: 40 }}><AutoAwesome sx={{ color: '#00E676' }} /></ListItemIcon>
+      <ListItemText primary="AI Features" secondary={groqKeyStatus === "valid" ? "Groq API Key Connected & Synced" : "Configure Groq API Key & AI settings"} primaryTypographyProps={{ fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'body2', color: 'text.secondary', noWrap: true }} />
+      {groqKeyStatus === "valid" && <Chip label="Active" size="small" color="success" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }} />}
+    </ListItemButton>
+  </ListItem>
+)}
+
         {/* Help */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("support")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
@@ -1632,173 +1758,293 @@ PaperProps={{
     </List>
 
     {/* --- Privacy Options Menu --- */}
-<Menu
-  anchorEl={privacyMenuAnchor}
-  open={Boolean(privacyMenuAnchor)}
-  onClose={() => setPrivacyMenuAnchor(null)}
-  PaperProps={{
-    elevation: 6,
-    sx: {
-      borderRadius: "16px",
-      mt: 1,
-      minWidth: "72%",
-      backdropFilter: "blur(30px)",
-      px: 1,
-      bgcolor: mode === "dark" ? "#12121250" : "#ffffff80",
-      boxShadow: "none",
-      "& .MuiMenuItem-root": {
-        borderRadius: "12px",
-        mx: 0.5,
-        my: 0.5,
-        transition: "all 0.2s ease",
-      },
-    },
-  }}
->
-  <MenuItem
-    onClick={() => handlePrivacyChange(activePrivacySetting, "everyone")}
-    // ✅ FIX: Check the value within the privacySettings object
-    selected={privacySettings[activePrivacySetting] === "everyone"}
-  >
-    <ListItemIcon>
-      <PublicIcon fontSize="small" />
-    </ListItemIcon>
-    <ListItemText primary="Everyone" />
-    {/* ✅ FIX: Use the same corrected condition here */}
-    {privacySettings[activePrivacySetting] === "everyone" && (
-      <CheckIcon fontSize="small" color="primary" />
-    )}
-  </MenuItem>
+    <Menu
+      anchorEl={privacyMenuAnchor}
+      open={Boolean(privacyMenuAnchor)}
+      onClose={() => setPrivacyMenuAnchor(null)}
+      PaperProps={{
+        elevation: 6,
+        sx: {
+          borderRadius: "16px",
+          mt: 1,
+          minWidth: "72%",
+          backdropFilter: "blur(30px)",
+          px: 1,
+          bgcolor: mode === "dark" ? "#12121250" : "#ffffff80",
+          boxShadow: "none",
+          "& .MuiMenuItem-root": {
+            borderRadius: "12px",
+            mx: 0.5,
+            my: 0.5,
+            transition: "all 0.2s ease",
+          },
+        },
+      }}
+    >
+      <MenuItem
+        onClick={() => handlePrivacyChange(activePrivacySetting, "everyone")}
+        selected={privacySettings[activePrivacySetting] === "everyone"}
+      >
+        <ListItemIcon>
+          <PublicIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText primary="Everyone" />
+        {privacySettings[activePrivacySetting] === "everyone" && (
+          <CheckIcon fontSize="small" color="primary" />
+        )}
+      </MenuItem>
 
-  <MenuItem
-    onClick={() => handlePrivacyChange(activePrivacySetting, "friends")}
-    // ✅ FIX: Check the value within the privacySettings object
-    selected={privacySettings[activePrivacySetting] === "friends"}
-  >
-    <ListItemIcon>
-      <PeopleOutlineIcon fontSize="small" />
-    </ListItemIcon>
-    <ListItemText primary="Friends" />
-    {/* ✅ FIX: Use the same corrected condition here */}
-    {privacySettings[activePrivacySetting] === "friends" && (
-      <CheckIcon fontSize="small" color="primary" />
-    )}
-  </MenuItem>
+      <MenuItem
+        onClick={() => handlePrivacyChange(activePrivacySetting, "friends")}
+        selected={privacySettings[activePrivacySetting] === "friends"}
+      >
+        <ListItemIcon>
+          <PeopleOutlineIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText primary="Friends" />
+        {privacySettings[activePrivacySetting] === "friends" && (
+          <CheckIcon fontSize="small" color="primary" />
+        )}
+      </MenuItem>
 
-  <MenuItem
-    onClick={() => handlePrivacyChange(activePrivacySetting, "nobody")}
-    // ✅ FIX: Check the value within the privacySettings object
-    selected={privacySettings[activePrivacySetting] === "nobody"}
-  >
-    <ListItemIcon>
-      <PersonOffOutlinedIcon fontSize="small" />
-    </ListItemIcon>
-    <ListItemText primary="Nobody" />
-    {/* ✅ FIX: Use the same corrected condition here */}
-    {privacySettings[activePrivacySetting] === "nobody" && (
-      <CheckIcon fontSize="small" color="primary" />
-    )}
-  </MenuItem>
-</Menu>
+      <MenuItem
+        onClick={() => handlePrivacyChange(activePrivacySetting, "nobody")}
+        selected={privacySettings[activePrivacySetting] === "nobody"}
+      >
+        <ListItemIcon>
+          <PersonOffOutlinedIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText primary="Nobody" />
+        {privacySettings[activePrivacySetting] === "nobody" && (
+          <CheckIcon fontSize="small" color="primary" />
+        )}
+      </MenuItem>
+    </Menu>
 
     {/* --- Delete Account Confirmation Dialog --- */}
     <Dialog
-      open={deleteConfirmOpen} 
-      onClose={() => setDeleteConfirmOpen(false)}      
-  PaperProps={{
-    sx: {
-      borderRadius: 3,
-      p: 2,
-      minWidth: 320,
-      backgroundColor: mode === "dark" ? "#00000000" : "#ffffff00",
-      backgroundImage: "none",
-      boxShadow: "none",
-    },
-  }}
-  BackdropProps={{
-    sx: {
-      backdropFilter: "blur(8px)",
-      backgroundColor: mode === "dark" ? "rgba(43, 43, 43, 0.5)" : "rgba(199, 199, 199, 0.2)",
-    },
-  }}
-  transitionDuration={300}
-  >
-  <Box sx={{ textAlign: 'center', mb: 2, opacity: 0.7 }}>
-    <Avatar sx={{ bgcolor: "#ff000044", mx: 'auto', width: 66, height: 66, p: 2 }}>
-      <ChatIcon fontSize="large" sx={{ color: theme.palette.text.primary }} />
-    </Avatar>
-  </Box>
-
-<DialogTitle
-  sx={{
-    textAlign: "center",
-    fontWeight: "bold",
-    pb: 1,
-  }}
->
-  Are you absolutely sure?
-</DialogTitle>
-
-<DialogContent
-  sx={{
-    textAlign: "center",
-    px: 4,
-    py: 2,
-  }}
->
-  <DialogContentText
-    sx={{
-      fontSize: "1rem",
-      lineHeight: 1.6,
-      color: "text.secondary",
-    }}
-  >
-    This will permanently delete your account and all of your data, including
-    trips, chats, and budgets.{" "}
-    <strong style={{ color: "#c03f3fff" }}>This action cannot be undone.</strong>
-  </DialogContentText>
-</DialogContent>
-
-  <DialogActions sx={{ justifyContent: 'center', gap: 2, pb: 2 }}>
-    <Button
-      variant="outlined"
-      onClick={() => setDeleteConfirmOpen(false)}
-      sx={{
-        px: 3,
-        textTransform: "none",
-        borderColor: mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
-        color: theme.palette.text.primary,
-        backdropFilter: "blur(4px)",
-        borderRadius: 8,
-        '&:hover': {
-          backgroundColor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+      open={deleteConfirmOpen}
+      onClose={() => setDeleteConfirmOpen(false)}
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          p: 2,
+          minWidth: 320,
+          backgroundColor: mode === "dark" ? "#00000000" : "#ffffff00",
+          backgroundImage: "none",
+          boxShadow: "none",
         },
       }}
-    >
-      Cancel
-    </Button>
-    <Button
-      variant="contained"
-      onClick={handleDeleteAccount}
-      sx={{
-        px: 3,
-        textTransform: "none",
-        backdropFilter: "blur(4px)",
-        borderRadius: 8,
-        backgroundColor: "#ff000044",
-        boxShadow: "none",
-        color: theme.palette.text.primary,
-        '&:hover': {
-          backgroundColor: "#ff000064",
+      BackdropProps={{
+        sx: {
+          backdropFilter: "blur(8px)",
+          backgroundColor: mode === "dark" ? "rgba(43, 43, 43, 0.5)" : "rgba(199, 199, 199, 0.2)",
         },
       }}
-      autoFocus
+      transitionDuration={300}
     >
-      Delete My Account
-    </Button>
-  </DialogActions>
+      <Box sx={{ textAlign: 'center', mb: 2, opacity: 0.7 }}>
+        <Avatar sx={{ bgcolor: "#ff000044", mx: 'auto', width: 66, height: 66, p: 2 }}>
+          <ChatIcon fontSize="large" sx={{ color: theme.palette.text.primary }} />
+        </Avatar>
+      </Box>
+
+      <DialogTitle sx={{ textAlign: "center", fontWeight: "bold", pb: 1 }}>
+        Are you absolutely sure?
+      </DialogTitle>
+
+      <DialogContent sx={{ textAlign: "center", px: 4, py: 2 }}>
+        <DialogContentText sx={{ fontSize: "1rem", lineHeight: 1.6, color: "text.secondary" }}>
+          This will permanently delete your account and all of your data, including trips, chats, and budgets.{" "}
+          <strong style={{ color: "#c03f3fff" }}>This action cannot be undone.</strong>
+        </DialogContentText>
+      </DialogContent>
+
+      <DialogActions sx={{ justifyContent: 'center', gap: 2, pb: 2 }}>
+        <Button
+          variant="outlined"
+          onClick={() => setDeleteConfirmOpen(false)}
+          sx={{
+            px: 3,
+            textTransform: "none",
+            borderColor: mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
+            color: theme.palette.text.primary,
+            backdropFilter: "blur(4px)",
+            borderRadius: 8,
+            '&:hover': {
+              backgroundColor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+            },
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleDeleteAccount}
+          sx={{
+            px: 3,
+            textTransform: "none",
+            backdropFilter: "blur(4px)",
+            borderRadius: 8,
+            backgroundColor: "#ff000044",
+            boxShadow: "none",
+            color: theme.palette.text.primary,
+            '&:hover': {
+              backgroundColor: "#ff000064",
+            },
+          }}
+          autoFocus
+        >
+          Delete My Account
+        </Button>
+      </DialogActions>
     </Dialog>
+  </Container>
+)}
 
+{drawerPage === "aiFeatures" && (
+  <Container sx={{ mt: -6, mb: 4 }}>
+    {/* Header */}
+    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+      <IconButton
+        onClick={() => navigate(-1)}
+        sx={{
+          mr: 2, borderRadius: 8, color: theme.palette.text.primary,
+          backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+          '&:hover': { backgroundColor: "#f1f1f121" },
+        }}
+      >
+        <ArrowBack />
+      </IconButton>
+      <Box>
+        <Typography variant="h5" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <AutoAwesome sx={{ color: '#00E676' }} /> AI Features Page
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Configure Groq API Key & cross-device AI synchronization
+        </Typography>
+      </Box>
+    </Box>
+
+    {/* Groq Key Input Card */}
+    <Card
+      sx={{
+        p: 3,
+        mb: 3,
+        borderRadius: 4,
+        background: mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(255, 255, 255, 0.8)",
+        backdropFilter: "blur(20px)",
+        border: mode === "dark" ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)",
+      }}
+    >
+      <Typography variant="h6" fontWeight="bold" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <VpnKey color="primary" /> Groq API Key
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+        Add your Groq API key below. It validates automatically, displays available models and usage metrics, and saves directly to Firestore so all your devices use it seamlessly.
+      </Typography>
+
+      <TextField
+        fullWidth
+        label="Groq API Key"
+        type={showGroqKey ? "text" : "password"}
+        value={groqApiKey}
+        onChange={(e) => setGroqApiKey(e.target.value)}
+        placeholder="gsk_..."
+        variant="outlined"
+        error={groqKeyStatus === "invalid"}
+        helperText={groqKeyError || (groqKeyStatus === "valid" ? "Verified & Synced with Firestore" : "")}
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton onClick={() => setShowGroqKey(!showGroqKey)} edge="end">
+                {showGroqKey ? <VisibilityOff /> : <Visibility />}
+              </IconButton>
+            </InputAdornment>
+          ),
+        }}
+        sx={{ mb: 2.5 }}
+      />
+
+      <Stack direction="row" spacing={2}>
+        <Button
+          variant="contained"
+          onClick={handleValidateAndSaveGroqKey}
+          disabled={isValidatingGroq}
+          startIcon={isValidatingGroq ? <CircularProgress size={18} color="inherit" /> : <AutoAwesome />}
+          sx={{
+            borderRadius: 3,
+            px: 3,
+            py: 1.2,
+            fontWeight: 700,
+            textTransform: "none",
+            background: "linear-gradient(135deg, #00E676, #00B0FF)",
+            color: "#000",
+            "&:hover": { opacity: 0.9 },
+          }}
+        >
+          {isValidatingGroq ? "Validating Key..." : "Save & Validate Key"}
+        </Button>
+
+        {groqApiKey && (
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={handleClearGroqKey}
+            sx={{ borderRadius: 3, textTransform: "none", px: 2 }}
+          >
+            Clear Key
+          </Button>
+        )}
+      </Stack>
+    </Card>
+
+    {/* Usage & Status Card */}
+    <Card
+      sx={{
+        p: 3,
+        borderRadius: 4,
+        background: mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(255, 255, 255, 0.8)",
+        backdropFilter: "blur(20px)",
+        border: mode === "dark" ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)",
+      }}
+    >
+      <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <ElectricBolt color="secondary" /> API Usage & Status
+      </Typography>
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+        <Typography variant="body2" color="text.secondary">Key Status:</Typography>
+        {groqKeyStatus === "valid" ? (
+          <Chip icon={<CheckCircle sx={{ color: '#00E676 !important' }} />} label="Active & Verified" color="success" size="small" variant="outlined" />
+        ) : groqKeyStatus === "invalid" ? (
+          <Chip icon={<ErrorOutline color="error" />} label="Invalid / Expired Key" color="error" size="small" variant="outlined" />
+        ) : (
+          <Chip label="Waiting for Key" size="small" variant="outlined" />
+        )}
+      </Box>
+
+      {groqValidatedAt && (
+        <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 2 }}>
+          Last Validated: {groqValidatedAt}
+        </Typography>
+      )}
+
+      <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 1.5, fontWeight: 700 }}>
+        Available Groq AI Models ({groqModels.length || 0}):
+      </Typography>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+        {groqModels.length > 0 ? (
+          groqModels.map((m) => (
+            <Chip key={m} label={m} size="small" sx={{ fontSize: '0.72rem', borderRadius: 2 }} />
+          ))
+        ) : (
+          <Typography variant="caption" color="text.secondary">
+            No models loaded. Click "Save & Validate Key" above to fetch your available Groq models.
+          </Typography>
+        )}
+      </Box>
+    </Card>
   </Container>
 )}
 

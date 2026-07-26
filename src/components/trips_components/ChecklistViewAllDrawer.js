@@ -4,6 +4,7 @@ import {
   List, ListItem, ListItemIcon, ListItemText, Checkbox,
 } from "@mui/material";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 
 const ChecklistViewAllDrawer = ({
   checklistViewAllOpen,
@@ -11,7 +12,11 @@ const ChecklistViewAllDrawer = ({
   checklist,
   toggleTask,
   mode,
+  userData, // User object
+  onAiOptimizeChecklist,
 }) => {
+  const isDevBeta = userData?.type === "Dev Beta";
+
   return (
     <SwipeableDrawer
       fullWidth
@@ -40,86 +45,101 @@ const ChecklistViewAllDrawer = ({
         },
       }}
     >
-    <Box sx={{ px: 0, pt: 0, pb: 2 }}>
-      {/* Drag indicator */}
-      <Box
-        sx={{
-          width: 40,
-          height: 5,
-          bgcolor: "grey.500",
-          opacity: 0.5,
-          borderRadius: 2.5,
-          mx: "auto",
-          mb: 1,
-          cursor: "grab",
-        }}
-      />
-      {/* Header row */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-        <Typography variant="h6" fontWeight={"bolder"}>Full Checklist</Typography>
-        <Button
-          size="small"
-          onClick={() => setChecklistViewAllOpen(false)}
+      <Box sx={{ px: 0, pt: 0, pb: 2 }}>
+        <Box
           sx={{
-            padding: 1,
-            borderRadius: 4,
-            color: (theme) => theme.palette.text.primary,
-            '&:hover': {
-              backgroundColor: mode === "dark" ? "#000" : "#fff",
-            },
+            width: 40,
+            height: 5,
+            bgcolor: "grey.500",
+            opacity: 0.5,
+            borderRadius: 2.5,
+            mx: "auto",
+            mb: 1,
+            cursor: "grab",
           }}
-          aria-label="Close checklist view"
-        >
-          <CloseOutlinedIcon fontSize="small" />
-        </Button>
+        />
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+          <Typography variant="h6" fontWeight={"bolder"}>
+            Full Checklist
+          </Typography>
+
+          <Box display="flex" alignItems="center" gap={1}>
+            {/* AI Action button shown only for Dev Beta users */}
+            {isDevBeta && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<AutoAwesomeIcon sx={{ color: "#00E676" }} />}
+                onClick={onAiOptimizeChecklist}
+                sx={{
+                  borderRadius: 8,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderColor: "#00E676",
+                  color: mode === "dark" ? "#00E676" : "#00A855",
+                }}
+              >
+                ✨ AI Re-organize
+              </Button>
+            )}
+
+            <Button
+              size="small"
+              onClick={() => setChecklistViewAllOpen(false)}
+              sx={{
+                padding: 1,
+                borderRadius: 4,
+                color: (theme) => theme.palette.text.primary,
+              }}
+              aria-label="Close checklist view"
+            >
+              <CloseOutlinedIcon fontSize="small" />
+            </Button>
+          </Box>
+        </Box>
       </Box>
-    </Box>
 
+      <List sx={{ maxHeight: "80vh", overflowY: "auto" }}>
+        {checklist.map((task) => (
+          <ListItem
+            key={task.id}
+            onClick={() => toggleTask(task)}
+            disableGutters
+            sx={{
+              backgroundColor: task.completed
+                ? mode === "dark" ? "#00000011" : "transparent"
+                : mode === "dark" ? "#f1f1f111" : "#0000000d",
+              mb: 0.5,
+              borderRadius: 2,
+            }}
+          >
+            <ListItemIcon>
+              <Checkbox
+                checked={task.completed}
+                onChange={() => toggleTask(task)}
+                color="success"
+                sx={{ color: task.completed ? undefined : "#999" }}
+              />
+            </ListItemIcon>
+            <ListItemText
+              primary={task.text}
+              primaryTypographyProps={{
+                sx: {
+                  textDecoration: task.completed ? "line-through" : "none",
+                  color: task.completed ? "#888" : "inherit",
+                },
+              }}
+            />
+          </ListItem>
+        ))}
 
-  <List sx={{ maxHeight: "80vh", overflowY: "auto" }}>
-{checklist.map((task) => (
-  <ListItem
-    key={task.id}
-    onClick={() => toggleTask(task)}
-    disableGutters
-    sx={{
-      backgroundColor: task.completed
-        ? (mode === "dark" ? "#00000011" : "transparent")
-        : (mode === "dark" ? "#f1f1f111" : "#0000000d"),
-      mb: 0.5,
-      borderRadius: 2,
-    }}
-  >
-    <ListItemIcon>
-      <Checkbox
-        checked={task.completed}
-        onChange={() => toggleTask(task)}
-        color="success"
-        sx={{ color: task.completed ? undefined : "#999" }}
-        inputProps={{ 'aria-label': 'Toggle checklist item' }}
-      />
-    </ListItemIcon>
-    <ListItemText
-      primary={task.text}
-      primaryTypographyProps={{
-        sx: {
-          textDecoration: task.completed ? "line-through" : "none",
-          color: task.completed ? "#888" : "inherit",
-          userSelect: "text",
-        },
-      }}
-    />
-  </ListItem>
-))}
-
-
-    {checklist.length === 0 && (
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: "center" }}>
-        No checklist items yet.
-      </Typography>
-    )}
-  </List>
-</SwipeableDrawer>
+        {checklist.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: "center" }}>
+            No checklist items yet.
+          </Typography>
+        )}
+      </List>
+    </SwipeableDrawer>
   );
 };
 

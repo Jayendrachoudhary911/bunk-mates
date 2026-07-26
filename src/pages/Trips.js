@@ -8,21 +8,15 @@ import {
   CardContent,
   DialogContent,
   TextField,
-  DialogActions,
   AvatarGroup,
   Avatar,
   IconButton,
   Stack,
   ThemeProvider,
   Chip,
-  Fade,
   Tabs,
   Tab,
   Drawer,
-  Stepper,
-  Step,
-  StepLabel,
-  Autocomplete,
   Slider,
   Slide,
   Tooltip,
@@ -39,7 +33,6 @@ import {
 } from "@mui/material";
 import {
   LocationOn,
-  PhotoCamera,
   ArrowForward,
   Search,
   FilterList,
@@ -50,7 +43,7 @@ import ShareIcon from "@mui/icons-material/Share";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import AddIcon from '@mui/icons-material/Add';
-import { db, auth } from "../firebase"; // Preserved verbatim
+import { db, auth } from "../firebase";
 import {
   collection,
   getDocs,
@@ -59,23 +52,22 @@ import {
   where,
   setDoc,
   doc,
-  arrayUnion,
   updateDoc,
   onSnapshot,
   getDoc,
   deleteDoc,
-} from "firebase/firestore"; // Preserved verbatim
-import { useNavigate } from "react-router-dom"; // Preserved verbatim
-import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'; // Preserved verbatim
-import { useThemeToggle } from "../contexts/ThemeToggleContext"; // Preserved
-import { getTheme } from "../theme"; // Preserved
-import Cropper from "react-easy-crop"; // Preserved verbatim
-import Notifications from "../elements/Notifications"; // Preserved verbatim
-import { motion, AnimatePresence, useAnimation } from "framer-motion"; // Preserved verbatim
-import { useBackButtonClose } from "../hooks/useBackButtonClose"; // Preserved verbatim
+} from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
+import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
+import { useThemeToggle } from "../contexts/ThemeToggleContext";
+import { getTheme } from "../theme";
+import Cropper from "react-easy-crop";
+import Notifications from "../elements/Notifications";
+import { motion, AnimatePresence, useAnimation } from "framer-motion";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 import { SquarePen } from "lucide-react"; 
+import CreateTripDrawer from "../components/trips_components/CreateDrawer";
 
-// Pure Liquid Glass & Premium Morphic Design Language Tokens
 const tokens = {
   dark: {
     bg: "#060606",
@@ -154,13 +146,6 @@ const isSameDay = (d1, d2) =>
   d1.getMonth() === d2.getMonth() && 
   d1.getDate() === d2.getDate();
 
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-};
-
 async function getCroppedImg(imageSrc, croppedAreaPixels) {
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
@@ -212,29 +197,24 @@ export default function Trips() {
     name: "", from: "", to: "", location: "", startDate: "", endDate: "", iconDataUri: "", travelType: "Adventure", budgetGoal: ""
   });
   const [selectedMembers, setSelectedMembers] = useState([]);
-  const [memberInput, setMemberInput] = useState("");
-  const [userSuggestions, setUserSuggestions] = useState([]);
   const [friendCards, setFriendCards] = useState([]);
   const [latestTripId, setLatestTripId] = useState(null);
+  const [createdTripDetails, setCreatedTripDetails] = useState(null);
 
-  // User-Scoped Pinned Matrix State Control
   const [pinnedTripIds, setPinnedTripIds] = useState([]);
 
-  // Search & Filter State Control Matrix
   const [searchQuery, setSearchQuery] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterPlace, setFilterPlace] = useState("");
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
 
-  // Crop Canvas Configurations
   const [cropDrawerOpen, setCropDrawerOpen] = useState(false);
   const [uploadedImageSrc, setUploadedImageSrc] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
-  // Notes style interactive focus matrix overlays
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [actionMode, setActionMode] = useState(false);
   const [shareDrawerOpen, setShareDrawerOpen] = useState(false);
@@ -242,27 +222,31 @@ export default function Trips() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loadingFriends, setLoadingFriends] = useState(false);
 
-  const { mode, accent } = useThemeToggle(); // Preserved
-  const theme = getTheme(mode, accent); // Preserved
+  const { mode, accent } = useThemeToggle();
+  const theme = getTheme(mode, accent);
   const isDarkMode = mode === 'dark';
-  const currentTokens = isDarkMode ? tokens.dark : tokens.light;
-  const navigate = useNavigate(); // Preserved
-  const user = auth.currentUser; // Preserved
+  const navigate = useNavigate();
+  const user = auth.currentUser;
   const [randomNatureImage, setRandomNatureImage] = useState("");
 
-  const containerRef = useRef(null);
-  const carouselControls = useAnimation();
   const [expanded, setExpanded] = useState(true);
   const [scrolled, setScrolled] = useState(false);
 
-  useBackButtonClose(createDialogOpen, () => setCreateDialogOpen(false)); // Preserved
-  useBackButtonClose(cropDrawerOpen, () => setCropDrawerOpen(false)); // Preserved
+  useBackButtonClose(createDialogOpen, () => handleCloseDrawer());
+  useBackButtonClose(cropDrawerOpen, () => setCropDrawerOpen(false));
   useBackButtonClose(filterOpen, () => setFilterOpen(false));
   useBackButtonClose(actionMode, () => setActionMode(false));
   useBackButtonClose(shareDrawerOpen, () => setShareDrawerOpen(false));
   useBackButtonClose(deleteDialogOpen, () => setDeleteDialogOpen(false));
 
-  // Initialize and load user-specific pinned states from local storage
+  const handleCloseDrawer = () => {
+    setCreateDialogOpen(false);
+    setStep(0);
+    setNewTrip({ name: "", from: "", to: "", location: "", startDate: "", endDate: "", iconDataUri: "", travelType: "Adventure", budgetGoal: "" });
+    setSelectedMembers([]);
+    setCreatedTripDetails(null);
+  };
+
   useEffect(() => {
     if (user) {
       const savedPinned = localStorage.getItem(`bunkmate.pinnedTrips.${user.uid}`);
@@ -299,21 +283,6 @@ export default function Trips() {
   }, []);
 
   useEffect(() => {
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          setIsFabExtended(window.scrollY <= 60);
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
     if (createDialogOpen && !newTrip.iconDataUri) {
       fetch(`https://api.unsplash.com/photos/random?query=travel,nature,minimal&orientation=landscape&client_id=${UNSPLASH_ACCESS_KEY}`)
         .then(res => res.json())
@@ -325,26 +294,8 @@ export default function Trips() {
   }, [createDialogOpen, newTrip.iconDataUri]);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.iconDataUri?.length > 100000) parsed.iconDataUri = "";
-        setNewTrip(prev => ({ ...prev, ...parsed }));
-      }
-    } catch (e) { console.warn(e); }
-  }, []);
-
-  useEffect(() => {
-    const compact = {
-      name: newTrip.name || "", from: newTrip.from || "", to: newTrip.to || "", location: newTrip.location || "", startDate: newTrip.startDate || "", endDate: newTrip.endDate || "", travelType: newTrip.travelType || "Adventure", budgetGoal: newTrip.budgetGoal || ""
-    };
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(compact));
-  }, [newTrip]);
-
-  useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, "trips"), where("members", "array-contains", user.uid)); // Preserved verbatim
+    const q = query(collection(db, "trips"), where("members", "array-contains", user.uid));
     const unsubscribe = onSnapshot(q, async snapshot => {
       const allTrips = await Promise.all(
         snapshot.docs.map(async docSnap => {
@@ -394,25 +345,9 @@ export default function Trips() {
   }, [createDialogOpen, step, user, selectedMembers]);
 
   const handleNext = () => {
-    const { name, from, to, location, startDate, endDate } = newTrip;
-    if (!name || !from || !to || !location || !startDate || !endDate) return;
-    setStep(1);
+    setStep(prev => prev + 1);
   };
   const handleBack = () => setStep(prev => prev - 1);
-
-  const handleIconUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setUploadedImageSrc(reader.result);
-      setCropDrawerOpen(true);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setCroppedAreaPixels(null);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const onCropComplete = useCallback((_, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
@@ -425,13 +360,6 @@ export default function Trips() {
       setNewTrip(prev => ({ ...prev, iconDataUri: dataUri }));
       setCropDrawerOpen(false);
     } catch (err) { console.error(err); }
-  };
-
-  const handleSearchUsers = async input => {
-    if (!input) { setUserSuggestions([]); return; }
-    const q = query(collection(db, "users"), where("keywords", "array-contains", input.toLowerCase()));
-    const snap = await getDocs(q);
-    setUserSuggestions(snap.docs.map(doc => ({ uid: doc.id, ...doc.data(), contribution: "" })));
   };
 
   useEffect(() => {
@@ -447,37 +375,43 @@ export default function Trips() {
     })();
   }, [user, step]);
 
-  const handleAddMember = member => {
-    if (!selectedMembers.some(m => m.uid === member.uid)) setSelectedMembers(prev => [...prev, member]);
-    setMemberInput("");
-    setUserSuggestions([]);
-  };
-
-  const handleRemoveMember = uid => setSelectedMembers(prev => prev.filter(m => m.uid !== uid));
-  const handleContributionChange = (idx, value) => {
-    setSelectedMembers(prev => {
-      const updated = [...prev];
-      updated[idx].contribution = value;
-      return updated;
-    });
-  };
-
-  const handleCreateTrip = async () => {
-    const { name, from, to, location, startDate, endDate, iconDataUri } = newTrip;
-    if (selectedMembers.length === 0) return;
+  // Updated handleCreateTrip to return trip details and keep drawer open if requested
+  const handleCreateTrip = async (options = {}) => {
+    const { name, from, to, location, startDate, endDate, iconDataUri, description } = newTrip;
     const iconURL = iconDataUri || randomNatureImage;
     const members = selectedMembers.map(m => m.uid);
     const contributors = selectedMembers.map(m => ({ uid: m.uid, name: m.name || m.username, amount: parseInt(m.contribution || 0) }));
     const total = contributors.reduce((sum, c) => sum + c.amount, 0);
 
     try {
-      const tripDoc = await addDoc(collection(db, "trips"), { name, from, to, location, startDate, endDate, members, createdBy: user.uid, createdAt: new Date().toISOString() });
-      await setDoc(doc(db, "groupChats", tripDoc.id), { tripId: tripDoc.id, name: `${from} → ${location}`, members, iconURL, createdBy: user.uid, createdAt: new Date().toISOString() });
+      const tripDoc = await addDoc(collection(db, "trips"), { 
+        name: name || `${from} to ${to}`, 
+        from: from || "", 
+        to: to || "", 
+        location: location || `${from} → ${to}`, 
+        description: description || "",
+        startDate: startDate || "", 
+        endDate: endDate || "", 
+        members, 
+        createdBy: user.uid, 
+        createdAt: new Date().toISOString() 
+      });
+      await setDoc(doc(db, "groupChats", tripDoc.id), { tripId: tripDoc.id, name: `${from} → ${to}`, members, iconURL, createdBy: user.uid, createdAt: new Date().toISOString() });
       await setDoc(doc(db, "budgets", tripDoc.id), { tripId: tripDoc.id, tripName: name, total, used: 0, contributors, createdBy: user.uid, createdAt: new Date().toISOString() });
-      setStep(0); setCreateDialogOpen(false);
-      setNewTrip({ name: "", from: "", to: "", location: "", startDate: "", endDate: "", iconDataUri: "", travelType: "Adventure", budgetGoal: "" });
-      setSelectedMembers([]);
-    } catch (error) { alert(error.message); }
+      
+      const tripDetails = { id: tripDoc.id, name, from, to, location, startDate, endDate, members };
+      setCreatedTripDetails(tripDetails);
+      setLatestTripId(tripDoc.id);
+
+      if (!options?.keepOpen) {
+        handleCloseDrawer();
+      }
+
+      return tripDetails;
+    } catch (error) { 
+      alert(error.message); 
+      throw error;
+    }
   };
 
   const fetchFriendsNetwork = async () => {
@@ -552,29 +486,20 @@ export default function Trips() {
     });
   }, [trips, searchQuery, filterPlace, filterStartDate, filterEndDate]);
 
-  
-const sortPinnedFirst = useCallback((a, b) => {
-  const aPinned = pinnedTripIds.includes(a.id);
-  const bPinned = pinnedTripIds.includes(b.id);
-  return (bPinned ? 1 : 0) - (aPinned ? 1 : 0); // Pinned elements jump cleanly to the top
-}, [pinnedTripIds]);
+  const sortPinnedFirst = useCallback((a, b) => {
+    const aPinned = pinnedTripIds.includes(a.id);
+    const bPinned = pinnedTripIds.includes(b.id);
+    return (bPinned ? 1 : 0) - (aPinned ? 1 : 0);
+  }, [pinnedTripIds]);
 
-// 2. These filter scopes use that custom sort function to format your decks
-const { upcomingTrips, ongoingTrips, pastTrips } = useMemo(() => {
-  const pooled = [...filteredTrips].sort(sortPinnedFirst); // Spreads and re-sorts array elements
-  return {
-    upcomingTrips: pooled.filter(t => new Date(t.startDate) > today),
-    ongoingTrips: pooled.filter(t => new Date(t.startDate) <= today && new Date(t.endDate) >= today),
-    pastTrips: pooled.filter(t => new Date(t.endDate) < today)
-  };
-}, [filteredTrips, today, sortPinnedFirst]);
-
-  const uniqueCountries = useMemo(() => new Set(trips.map(t => t.location?.split(',').pop()?.trim())).size || 0, [trips]);
-  const totalBudgetSpent = useMemo(() => trips.reduce((acc, t) => acc + (t.budget?.used || 0), 0), [trips]);
-  const totalDaysTravelled = useMemo(() => trips.reduce((acc, t) => {
-    const diff = new Date(t.endDate) - new Date(t.startDate);
-    return acc + Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-  }, 0), [trips]);
+  const { upcomingTrips, ongoingTrips, pastTrips } = useMemo(() => {
+    const pooled = [...filteredTrips].sort(sortPinnedFirst);
+    return {
+      upcomingTrips: pooled.filter(t => new Date(t.startDate) > today),
+      ongoingTrips: pooled.filter(t => new Date(t.startDate) <= today && new Date(t.endDate) >= today),
+      pastTrips: pooled.filter(t => new Date(t.endDate) < today)
+    };
+  }, [filteredTrips, today, sortPinnedFirst]);
 
   const allTabsData = useMemo(() => [
     [...filteredTrips].sort(sortPinnedFirst),
@@ -651,7 +576,7 @@ const { upcomingTrips, ongoingTrips, pastTrips } = useMemo(() => {
                 timeoutRef.current = null;
               }
             }}
-            onClick={(e) => navigate(`/trips/${trip.id}`)}
+            onClick={() => navigate(`/trips/${trip.id}`)}
             sx={{
               backdropFilter: "blur(12px)",
               backgroundImage: `url(${trip?.iconURL})`,
@@ -825,7 +750,7 @@ const { upcomingTrips, ongoingTrips, pastTrips } = useMemo(() => {
     );
   };
 
-const HorizontalInfiniteCalendar = React.memo(({ trips = [] }) => {
+  const HorizontalInfiniteCalendar = React.memo(({ trips = [] }) => {
     const [days, setDays] = useState([]);
     
     useEffect(() => {
@@ -848,11 +773,7 @@ const HorizontalInfiniteCalendar = React.memo(({ trips = [] }) => {
                 onClick={() => { 
                   if (hasTrips) {
                     const targetTrip = active[0];
-                    
-                    // 1. Smoothly scroll to and highlight the targeted timeline element frame
                     scrollToAndHighlightTrip(targetTrip.id, markerColor);
-                    
-                    // 2. Instantly queue and launch the liquidy fluffy popup action layer
                     setSelectedTrip(targetTrip);
                     setActionMode(true);
                   } 
@@ -886,7 +807,6 @@ const HorizontalInfiniteCalendar = React.memo(({ trips = [] }) => {
   });
   HorizontalInfiniteCalendar.displayName = "HorizontalInfiniteCalendar";
 
-  // Check if current focused card is pinned locally
   const isSelectedTripPinned = useMemo(() => {
     return selectedTrip ? pinnedTripIds.includes(selectedTrip.id) : false;
   }, [selectedTrip, pinnedTripIds]);
@@ -905,7 +825,6 @@ const HorizontalInfiniteCalendar = React.memo(({ trips = [] }) => {
             </Box>
           </Box>
           
-          {/* Liquid Masked Dynamic Scrim Top Panel Controller */}
           <Box sx={{ 
             position: 'sticky', 
             top: 0, 
@@ -933,17 +852,17 @@ const HorizontalInfiniteCalendar = React.memo(({ trips = [] }) => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 InputProps={{ startAdornment: (<InputAdornment position="start"><Search sx={{ color: mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.4)", mr: 1, fontSize: "1.25rem" }} /></InputAdornment>) }}
-                  sx={{
-                    width: "100%",
-                    "& .MuiOutlinedInput-root": {
-                      color: mode === "dark" ? "#fff" : "#111", borderRadius: 8, height: 44, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.2)",
-                      boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-                      border: "0px solid", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)", transition: "all 0.2s ease-in-out", "& fieldset": { border: "none" },
-                      "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)" },
-                      "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "primary.main", boxShadow: mode === "dark" ? `0 0 0 3px rgba(255, 255, 255, 0.05)` : `0 0 0 3px rgba(25, 118, 210, 0.15)` }
-                    },
-                    "& .MuiOutlinedInput-input": { py: 1.2, fontSize: "0.9rem", color: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)", "&::placeholder": { color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)", opacity: 1 } }
-                  }}
+                sx={{
+                  width: "100%",
+                  "& .MuiOutlinedInput-root": {
+                    color: mode === "dark" ? "#fff" : "#111", borderRadius: 8, height: 44, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.2)",
+                    boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+                    border: "0px solid", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)", transition: "all 0.2s ease-in-out", "& fieldset": { border: "none" },
+                    "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)" },
+                    "&.Mui-focused": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.8)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0)" : "primary.main", boxShadow: mode === "dark" ? `0 0 0 3px rgba(255, 255, 255, 0.05)` : `0 0 0 3px rgba(25, 118, 210, 0.15)` }
+                  },
+                  "& .MuiOutlinedInput-input": { py: 1.2, fontSize: "0.9rem", color: mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.85)", "&::placeholder": { color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)", opacity: 1 } }
+                }}
               />
               {(() => {
                 const activeFiltersCount = [filterPlace, filterStartDate, filterEndDate].filter(Boolean).length;
@@ -1000,7 +919,6 @@ const HorizontalInfiniteCalendar = React.memo(({ trips = [] }) => {
             <HorizontalInfiniteCalendar trips={filteredTrips} />
           </Box>
 
-          {/* Cleaned Standard Responsive Active Tab Container View Grid */}
           <Box sx={{ width: "100%", px: 2.3, mb: 7, boxSizing: "border-box" }}>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
               {allTabsData[currentTab] && allTabsData[currentTab].length > 0 ? (
@@ -1015,408 +933,388 @@ const HorizontalInfiniteCalendar = React.memo(({ trips = [] }) => {
           </Box>
         </Container>
 
-<AnimatePresence>
-  {actionMode && selectedTrip && (
-    <>
-      {/* 1. Backdrop Scrim Layer */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.25, ease: "easeInOut" }}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 1300,
-          WebkitOverflowScrolling: "touch",
-          backdropFilter: "blur(10px) saturate(140%)",
-          WebkitBackdropFilter: "blur(10px) saturate(140%)",
-          background: "rgba(0, 0, 0, 0.1)",
-          overflowY: "auto"
-        }}
-        onClick={() => setActionMode(false)}
-      />
+        <AnimatePresence>
+          {actionMode && selectedTrip && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 1300,
+                  WebkitOverflowScrolling: "touch",
+                  backdropFilter: "blur(10px) saturate(140%)",
+                  WebkitBackdropFilter: "blur(10px) saturate(140%)",
+                  background: "rgba(0, 0, 0, 0.1)",
+                  overflowY: "auto"
+                }}
+                onClick={() => setActionMode(false)}
+              />
 
-      {/* 2. Main Content Details Panel - Liquidy Bouncy Spring Pop */}
-      <motion.div 
-        initial={{ scale: 0.75, opacity: 0, y: 80 }} 
-        animate={{ scale: 1, opacity: 1, y: 0 }} 
-        exit={{ scale: 0.8, opacity: 0, y: 50 }}
-        transition={{ 
-          type: "spring", 
-          damping: 14,     // Lower damping = more fluid, fluffy bounce
-          stiffness: 240,  // Higher stiffness = snappy responsiveness
-          mass: 0.8        // Lower mass = lighter, more cloud-like pop
-        }}
-        style={{ 
-          position: "fixed", 
-          top: "7%", 
-          left: 0,
-          right: 0,
-          margin: "0 auto",
-          zIndex: 1302, 
-          width: "calc(100% - 32px)", 
-          maxWidth: "540px",
-          maxHeight: "68vh", 
-          display: "flex", 
-          flexDirection: "column" 
-        }}
-      >
-        <Box sx={{ mx: "auto", width: "100%", height: 400 }}>
-          <Box
-            sx={(theme) => ({
-              borderRadius: 8,
-              mb: 2,
-              overflow: "hidden",
-              position: "relative",
-              backgroundImage: `url(${selectedTrip.iconURL})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              height: "calc(100% - 32px)", 
-              maxHeight: 280,
-              boxShadow:
-                theme.palette.mode === "dark"
-                  ? `inset 0 1px 2px rgba(255,255,255,0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-                  : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-            })}
-          >
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                zIndex: 1,
-                height: 250,
-                pointerEvents: "none",
-                backdropFilter: "blur(80px)", 
-                WebkitBackdropFilter: "blur(80px)", 
-                maskImage: `linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 18%, rgba(0,0,0,0.72) 38%, rgba(0,0,0,0.42) 62%, rgba(0,0,0,0.12) 82%, rgba(0,0,0,0) 100%)`, 
-                WebkitMaskImage: `linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 18%, rgba(0,0,0,0.72) 38%, rgba(0,0,0,0.42) 62%, rgba(0,0,0,0.12) 82%, rgba(0,0,0,0) 100%)`, 
-                background: mode === "dark" 
-                  ? `linear-gradient(to top, rgba(0, 0, 0, 0.5), rgba(0,0,0,0))` 
-                  : `linear-gradient(to top, rgba(255, 255, 255, 0.0), rgba(255,255,255,0))`
-              }}
-            />
-
-            {/* Content */}
-            <Box
-              sx={{
-                position: "absolute",
-                zIndex: 2,
-                bottom: 0,
-                p: 3,
-                pt: selectedTrip.iconURL ? 2 : 3,
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 1,
-                  color: mode === "dark" ? "#fff" : "#000000",
+              <motion.div 
+                initial={{ scale: 0.75, opacity: 0, y: 80 }} 
+                animate={{ scale: 1, opacity: 1, y: 0 }} 
+                exit={{ scale: 0.8, opacity: 0, y: 50 }}
+                transition={{ 
+                  type: "spring", 
+                  damping: 14,
+                  stiffness: 240,
+                  mass: 0.8
+                }}
+                style={{ 
+                  position: "fixed", 
+                  top: "7%", 
+                  left: 0,
+                  right: 0,
+                  margin: "0 auto",
+                  zIndex: 1302, 
+                  width: "calc(100% - 32px)", 
+                  maxWidth: "540px",
+                  maxHeight: "68vh", 
+                  display: "flex", 
+                  flexDirection: "column" 
                 }}
               >
-              <Typography
-                variant="h5"
-                fontWeight={700}
-                sx={{
-                  borderBottom: `2px solid ${mode === "dark" ? "#f1f1f172" : "#0000007c"}`,
-                  pb: 1,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                {selectedTrip.name}
-
-              </Typography>
-<Stack direction="row" spacing={1} alignItems="center">
-  {isSelectedTripPinned && (
-    <Chip
-      label="Pinned"
-      size="small"
-      variant="filled"
-      sx={{
-        fontWeight: 800,
-        fontSize: "0.65rem",
-        letterSpacing: "0.02em",
-        height: 22,
-        borderRadius: 8,
-        textTransform: "uppercase",
-        backdropFilter: "blur(8px) saturate(120%)",
-        WebkitBackdropFilter: "blur(8px) saturate(120%)",
-        
-        // Liquid amber glow profile matching your accent tokens
-        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.92)" : "rgba(0, 0, 0, 0.53)",
-        color: mode === "dark" ? "#000000" : "#ffffff",
-        
-        // Specular inner reflection matrix
-        boxShadow: mode === "dark"
-          ? `inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 4px 12px rgba(35, 35, 35, 0.07)`
-          : `inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 4px 12px rgba(245, 158, 11, 0.05)`,
-        
-        "& .MuiChip-label": { px: 1 }
-      }}
-    />
-  )}
-
-  <Chip
-    label={selectedTrip.travelType || "Adventure"}
-    size="small"
-    variant="outlined"
-    sx={{
-      fontWeight: 700,
-      fontSize: "0.68rem",
-      height: 22,
-      borderRadius: 8,
-      backdropFilter: "blur(10px) saturate(120%)",
-      WebkitBackdropFilter: "blur(10px) saturate(120%)",
-      
-      // Neutral Glass Specular styling
-      backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.03)",
-      border: `0px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)"}`,
-      color: mode === "dark" ? "rgba(255, 255, 255, 0.85)" : "rgba(0, 0, 0, 0.8)",
-      
-      boxShadow: mode === "dark"
-        ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-        : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
-      
-      "& .MuiChip-label": { px: 1 }
-    }}
-  />
-</Stack>
-</Box>
-
-              <Box sx={{ mt: 1.5 }}>
-                <Typography variant="body1" sx={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}>
-                  <LocationOn fontSize="small" />
-                  {selectedTrip.location}
-                </Typography>
-                <Typography variant="body2" color="text.primary" sx={{ mt: 0.5, pl: 3 }}>
-                  Route Direction Matrix: {selectedTrip.from} → {selectedTrip.to}
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-
-          {/* Scrollable Inventory Deck */}
-          <Box sx={{ overflowY: "auto", pr: 1, height: "auto", borderRadius: 8, p: 1, background: "transparent" }}>
-            <Stack spacing={2}>
-{selectedTrip.budget && (
-  <Box 
-    sx={{ 
-      p: 2.5, 
-      borderRadius: 6, 
-      display: "flex",
-      alignItems: "center",
-      gap: 2.5,
-      backdropFilter: "blur(20px) saturate(180%)", 
-      WebkitBackdropFilter: "blur(20px) saturate(180%)", 
-      background: mode === "dark" ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.02)", 
-      border: `1px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)"}`,
-      boxShadow: theme.palette.mode === "dark" 
-        ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
-        : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.05)` 
-    }}
-  >
-    {/* Concentric Progress Ring Structure */}
-    <Box sx={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
-      {/* Underlying Glass Track Frame */}
-      <CircularProgress
-        variant="determinate"
-        value={100}
-        size={58}
-        thickness={5}
-        sx={{ color: mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.06)", position: "absolute", left: 0 }}
-      />
-      {/* Active Indicator Ring */}
-      <CircularProgress
-        variant="determinate"
-        value={Math.min(100, selectedTrip.budget.amount ? (selectedTrip.budget.used / selectedTrip.budget.amount) * 100 : 0)}
-        size={58}
-        thickness={5}
-        sx={{ 
-          color: selectedTrip.budget.used > selectedTrip.budget.amount ? "error.main" : isDarkMode ? "#ffffff" : "#111111",
-          strokeLinecap: "round",
-          filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.1))"
-        }}
-      />
-      <Box sx={{ inset: 0, position: "absolute", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Typography variant="caption" fontWeight={900} sx={{ fontSize: "0.72rem", color: mode === "dark" ? "#fff" : "#111", fontVariantNumeric: "tabular-nums" }}>
-          {Math.round(selectedTrip.budget.amount ? (selectedTrip.budget.used / selectedTrip.budget.amount) * 100 : 0)}%
-        </Typography>
-      </Box>
-    </Box>
-
-    {/* Typography Matrix Fields */}
-    <Box sx={{ flex: 1, minWidth: 0 }}>
-      <Typography 
-        variant="caption" 
-        sx={{ 
-          fontWeight: 800, 
-          display: "block", 
-          mb: 0.5, 
-          letterSpacing: "0.05em", 
-          fontSize: "0.65rem",
-          color: mode === "dark" ? "rgba(255, 255, 255, 0.45)" : "rgba(0, 0, 0, 0.45)" 
-        }}
-      >
-        BUDGET UTILIZATION SPECTRUM
-      </Typography>
-      <Typography 
-        variant="body2" 
-        sx={{ 
-          fontWeight: 800, 
-          fontSize: "0.9rem",
-          color: mode === "dark" ? "#ffffff" : "#111111",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis"
-        }}
-      >
-        ₹{selectedTrip.budget.used || 0} <span style={{ fontWeight: 400, opacity: 0.5, fontSize: "0.8rem" }}>used of</span> ₹{selectedTrip.budget.amount || 0}
-      </Typography>
-    </Box>
-  </Box>
-)}
-
-              <Box sx={{ p: 2, borderRadius: 6, backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)", background: mode === "dark" ? "rgba(20, 20, 20, 0.05)" : "rgba(255, 255, 255, 0.2)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: "block", mb: 0.5 }}>TIMELINE SPAN HORIZON</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {new Date(selectedTrip.startDate).toLocaleDateString(undefined, { dateStyle: 'medium' })} — {new Date(selectedTrip.endDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-                </Typography>
-              </Box>
-
-              <Box sx={{ p: 2, borderRadius: 6, backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)", background: mode === "dark" ? "rgba(20, 20, 20, 0.05)" : "rgba(255, 255, 255, 0.2)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: "block", mb: 1 }}>ACCOUNT SYSTEM DEPLOYED MEMBERS</Typography>
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
-                  {selectedTrip.memberProfiles?.map((m) => (
-                    <Chip 
-                      key={m.uid} 
-                      avatar={
-                        <Avatar 
-                          src={m.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${m.uid}`} 
-                          sx={{
-                            width: 20,
-                            height: 20,
-                            boxShadow: mode === "dark"
-                              ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
-                              : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-                          }}
-                        />
-                      } 
-                      label={m.name || m.username} 
-                      size="small" 
-                      sx={{ 
-                        fontWeight: 700, 
-                        fontSize: "0.72rem",
-                        height: 26,
-                        borderRadius: 3, 
-                        backdropFilter: "blur(10px) saturate(120%)",
-                        WebkitBackdropFilter: "blur(10px) saturate(120%)",
-                        backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.03)",
-                        border: `0px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)"}`,
-                        color: mode === "dark" ? "rgba(255, 255, 255, 0.85)" : "rgba(0, 0, 0, 0.8)",
-                        boxShadow: mode === "dark" 
-                          ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
+                <Box sx={{ mx: "auto", width: "100%", height: 400 }}>
+                  <Box
+                    sx={(theme) => ({
+                      borderRadius: 8,
+                      mb: 2,
+                      overflow: "hidden",
+                      position: "relative",
+                      backgroundImage: `url(${selectedTrip.iconURL})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                      height: "calc(100% - 32px)", 
+                      maxHeight: 280,
+                      boxShadow:
+                        theme.palette.mode === "dark"
+                          ? `inset 0 1px 2px rgba(255,255,255,0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
                           : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-                        "& .MuiChip-label": { px: 1 },
-                        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                        "&:hover": {
-                          backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
-                        }
+                    })}
+                  >
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        zIndex: 1,
+                        height: 250,
+                        pointerEvents: "none",
+                        backdropFilter: "blur(80px)", 
+                        WebkitBackdropFilter: "blur(80px)", 
+                        maskImage: `linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 18%, rgba(0,0,0,0.72) 38%, rgba(0,0,0,0.42) 62%, rgba(0,0,0,0.12) 82%, rgba(0,0,0,0) 100%)`, 
+                        WebkitMaskImage: `linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 18%, rgba(0,0,0,0.72) 38%, rgba(0,0,0,0.42) 62%, rgba(0,0,0,0.12) 82%, rgba(0,0,0,0) 100%)`, 
+                        background: mode === "dark" 
+                          ? `linear-gradient(to top, rgba(0, 0, 0, 0.5), rgba(0,0,0,0))` 
+                          : `linear-gradient(to top, rgba(255, 255, 255, 0.0), rgba(255,255,255,0))`
                       }}
                     />
-                  ))}
-                </Stack>
-              </Box>
-            </Stack>
-          </Box>
-        </Box>
-      </motion.div>
 
-      {/* 3. Bottom Action Tray - Staggered Bouncy Spring Slide */}
-      <motion.div 
-        initial={{ y: 100, scale: 0.9, opacity: 0 }} 
-        animate={{ y: 0, scale: 1, opacity: 1 }} 
-        exit={{ y: 80, scale: 0.95, opacity: 0 }} 
-        transition={{ 
-          type: "spring", 
-          damping: 15,     // Soft bounce matching the main modal layer
-          stiffness: 220, 
-          mass: 0.85,
-          delay: 0.05      // Minor delay creates an organic, multi-layered liquid feel
-        }}
-        style={{ 
-          position: "fixed", 
-          bottom: 20, 
-          left: 0,
-          right: 0,
-          margin: "0 auto",
-          width: "calc(100% - 32px)", 
-          maxWidth: "540px", 
-          zIndex: 1301 
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, p: "8px 16px", width: "100%", boxSizing: "border-box", mx: "auto", "& .MuiButton-root": { textTransform: "none", fontWeight: 600, minWidth: 44, height: 38, px: 1.5, color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.7)"} }}>
-          <Stack direction="row" spacing={1} sx={{ width: "100%", alignItems: "center", justifyContent: "space-between" }}>
-            <Tooltip title="Share Network Matrix" TransitionComponent={Zoom} arrow>
-              <IconButton 
-                onClick={() => { setShareDrawerOpen(true); fetchFriendsNetwork(); }}
-                sx={{ color: 'text.secondary', p: 1.8, borderRadius: 8, backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.35)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        zIndex: 2,
+                        bottom: 0,
+                        p: 3,
+                        pt: selectedTrip.iconURL ? 2 : 3,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 1,
+                          color: mode === "dark" ? "#fff" : "#000000",
+                        }}
+                      >
+                        <Typography
+                          variant="h5"
+                          fontWeight={700}
+                          sx={{
+                            borderBottom: `2px solid ${mode === "dark" ? "#f1f1f172" : "#0000007c"}`,
+                            pb: 1,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          {selectedTrip.name}
+                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          {isSelectedTripPinned && (
+                            <Chip
+                              label="Pinned"
+                              size="small"
+                              variant="filled"
+                              sx={{
+                                fontWeight: 800,
+                                fontSize: "0.65rem",
+                                letterSpacing: "0.02em",
+                                height: 22,
+                                borderRadius: 8,
+                                textTransform: "uppercase",
+                                backdropFilter: "blur(8px) saturate(120%)",
+                                WebkitBackdropFilter: "blur(8px) saturate(120%)",
+                                backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.92)" : "rgba(0, 0, 0, 0.53)",
+                                color: mode === "dark" ? "#000000" : "#ffffff",
+                                boxShadow: mode === "dark"
+                                  ? `inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 4px 12px rgba(35, 35, 35, 0.07)`
+                                  : `inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 4px 12px rgba(245, 158, 11, 0.05)`,
+                                "& .MuiChip-label": { px: 1 }
+                              }}
+                            />
+                          )}
+
+                          <Chip
+                            label={selectedTrip.travelType || "Adventure"}
+                            size="small"
+                            variant="outlined"
+                            sx={{
+                              fontWeight: 700,
+                              fontSize: "0.68rem",
+                              height: 22,
+                              borderRadius: 8,
+                              backdropFilter: "blur(10px) saturate(120%)",
+                              WebkitBackdropFilter: "blur(10px) saturate(120%)",
+                              backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.03)",
+                              border: `0px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)"}`,
+                              color: mode === "dark" ? "rgba(255, 255, 255, 0.85)" : "rgba(0, 0, 0, 0.8)",
+                              boxShadow: mode === "dark"
+                                ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                                : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
+                              "& .MuiChip-label": { px: 1 }
+                            }}
+                          />
+                        </Stack>
+                      </Box>
+
+                      <Box sx={{ mt: 1.5 }}>
+                        <Typography variant="body1" sx={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}>
+                          <LocationOn fontSize="small" />
+                          {selectedTrip.location}
+                        </Typography>
+                        <Typography variant="body2" color="text.primary" sx={{ mt: 0.5, pl: 3 }}>
+                          Route Direction Matrix: {selectedTrip.from} → {selectedTrip.to}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ overflowY: "auto", pr: 1, height: "auto", borderRadius: 8, p: 1, background: "transparent" }}>
+                    <Stack spacing={2}>
+                      {selectedTrip.budget && (
+                        <Box 
+                          sx={{ 
+                            p: 2.5, 
+                            borderRadius: 6, 
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 2.5,
+                            backdropFilter: "blur(20px) saturate(180%)", 
+                            WebkitBackdropFilter: "blur(20px) saturate(180%)", 
+                            background: mode === "dark" ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.02)", 
+                            border: `1px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)"}`,
+                            boxShadow: theme.palette.mode === "dark" 
+                              ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
+                              : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.05)` 
+                          }}
+                        >
+                          <Box sx={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+                            <CircularProgress
+                              variant="determinate"
+                              value={100}
+                              size={58}
+                              thickness={5}
+                              sx={{ color: mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.06)", position: "absolute", left: 0 }}
+                            />
+                            <CircularProgress
+                              variant="determinate"
+                              value={Math.min(100, selectedTrip.budget.amount ? (selectedTrip.budget.used / selectedTrip.budget.amount) * 100 : 0)}
+                              size={58}
+                              thickness={5}
+                              sx={{ 
+                                color: selectedTrip.budget.used > selectedTrip.budget.amount ? "error.main" : isDarkMode ? "#ffffff" : "#111111",
+                                strokeLinecap: "round",
+                                filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.1))"
+                              }}
+                            />
+                            <Box sx={{ inset: 0, position: "absolute", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <Typography variant="caption" fontWeight={900} sx={{ fontSize: "0.72rem", color: mode === "dark" ? "#fff" : "#111", fontVariantNumeric: "tabular-nums" }}>
+                                {Math.round(selectedTrip.budget.amount ? (selectedTrip.budget.used / selectedTrip.budget.amount) * 100 : 0)}%
+                              </Typography>
+                            </Box>
+                          </Box>
+
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                fontWeight: 800, 
+                                display: "block", 
+                                mb: 0.5, 
+                                letterSpacing: "0.05em", 
+                                fontSize: "0.65rem",
+                                color: mode === "dark" ? "rgba(255, 255, 255, 0.45)" : "rgba(0, 0, 0, 0.45)" 
+                              }}
+                            >
+                              BUDGET UTILIZATION SPECTRUM
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                fontWeight: 800, 
+                                fontSize: "0.9rem",
+                                color: mode === "dark" ? "#ffffff" : "#111111",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis"
+                              }}
+                            >
+                              ₹{selectedTrip.budget.used || 0} <span style={{ fontWeight: 400, opacity: 0.5, fontSize: "0.8rem" }}>used of</span> ₹{selectedTrip.budget.amount || 0}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+
+                      <Box sx={{ p: 2, borderRadius: 6, backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)", background: mode === "dark" ? "rgba(20, 20, 20, 0.05)" : "rgba(255, 255, 255, 0.2)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: "block", mb: 0.5 }}>TIMELINE SPAN HORIZON</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {new Date(selectedTrip.startDate).toLocaleDateString(undefined, { dateStyle: 'medium' })} — {new Date(selectedTrip.endDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ p: 2, borderRadius: 6, backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)", background: mode === "dark" ? "rgba(20, 20, 20, 0.05)" : "rgba(255, 255, 255, 0.2)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)` }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: "block", mb: 1 }}>ACCOUNT SYSTEM DEPLOYED MEMBERS</Typography>
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ gap: 0.5 }}>
+                          {selectedTrip.memberProfiles?.map((m) => (
+                            <Chip 
+                              key={m.uid} 
+                              avatar={
+                                <Avatar 
+                                  src={m.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${m.uid}`} 
+                                  sx={{
+                                    width: 20,
+                                    height: 20,
+                                    boxShadow: mode === "dark"
+                                      ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
+                                      : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+                                  }}
+                                />
+                              } 
+                              label={m.name || m.username} 
+                              size="small" 
+                              sx={{ 
+                                fontWeight: 700, 
+                                fontSize: "0.72rem",
+                                height: 26,
+                                borderRadius: 3, 
+                                backdropFilter: "blur(10px) saturate(120%)",
+                                WebkitBackdropFilter: "blur(10px) saturate(120%)",
+                                backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.03)",
+                                border: `0px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)"}`,
+                                color: mode === "dark" ? "rgba(255, 255, 255, 0.85)" : "rgba(0, 0, 0, 0.8)",
+                                boxShadow: mode === "dark" 
+                                  ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
+                                  : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
+                                "& .MuiChip-label": { px: 1 },
+                                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                                "&:hover": {
+                                  backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
+                                }
+                              }}
+                            />
+                          ))}
+                        </Stack>
+                      </Box>
+                    </Stack>
+                  </Box>
+                </Box>
+              </motion.div>
+
+              <motion.div 
+                initial={{ y: 100, scale: 0.9, opacity: 0 }} 
+                animate={{ y: 0, scale: 1, opacity: 1 }} 
+                exit={{ y: 80, scale: 0.95, opacity: 0 }} 
+                transition={{ 
+                  type: "spring", 
+                  damping: 15,
+                  stiffness: 220, 
+                  mass: 0.85,
+                  delay: 0.05
+                }}
+                style={{ 
+                  position: "fixed", 
+                  bottom: 20, 
+                  left: 0,
+                  right: 0,
+                  margin: "0 auto",
+                  width: "calc(100% - 32px)", 
+                  maxWidth: "540px", 
+                  zIndex: 1301 
+                }}
               >
-                <ShareIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, p: "8px 16px", width: "100%", boxSizing: "border-box", mx: "auto", "& .MuiButton-root": { textTransform: "none", fontWeight: 600, minWidth: 44, height: 38, px: 1.5, color: mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.7)"} }}>
+                  <Stack direction="row" spacing={1} sx={{ width: "100%", alignItems: "center", justifyContent: "space-between" }}>
+                    <Tooltip title="Share Network Matrix" TransitionComponent={Zoom} arrow>
+                      <IconButton 
+                        onClick={() => { setShareDrawerOpen(true); fetchFriendsNetwork(); }}
+                        sx={{ color: 'text.secondary', p: 1.8, borderRadius: 8, backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.35)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}
+                      >
+                        <ShareIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
 
-            <Stack direction="row" spacing={0.5} sx={{ backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.35)", p: 0.5, borderRadius: 8, boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}>
-              <Tooltip title="Export iCal Sync Engine" TransitionComponent={Zoom} arrow>
-                <IconButton onClick={() => exportToICS(selectedTrip)} sx={{ color: 'text.secondary', p: 1.5 }}><CalendarTodayIcon fontSize="small" /></IconButton>
-              </Tooltip>
-              
-              <Tooltip title="Pin Trip Matrix to Top" TransitionComponent={Zoom} arrow>
-                <IconButton 
-                  onClick={() => {
-                    if (!selectedTrip || !user) return;
-                    setPinnedTripIds(prev => {
-                      const isPinned = prev.includes(selectedTrip.id);
-                      const updated = isPinned 
-                        ? prev.filter(id => id !== selectedTrip.id) 
-                        : [...prev, selectedTrip.id];
-                      localStorage.setItem(`bunkmate.pinnedTrips.${user.uid}`, JSON.stringify(updated));
-                      return updated;
-                    });
-                  }} 
-                  sx={{ backgroundColor: isSelectedTripPinned ? mode === "dark" ? "rgba(25, 25, 25, 0.84)" : "rgba(255, 255, 255, 0.9)" : "transparent", color: isSelectedTripPinned ? "text.primary" : "text.secondary", p: 1.5 }}
-                >
-                  <PushPinIcon fontSize="small" style={{ transform: isSelectedTripPinned ? "none" : "rotate(45deg)", transition: "transform 0.2s ease" }} />
-                </IconButton>
-              </Tooltip>
+                    <Stack direction="row" spacing={0.5} sx={{ backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.35)", p: 0.5, borderRadius: 8, boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}>
+                      <Tooltip title="Export iCal Sync Engine" TransitionComponent={Zoom} arrow>
+                        <IconButton onClick={() => exportToICS(selectedTrip)} sx={{ color: 'text.secondary', p: 1.5 }}><CalendarTodayIcon fontSize="small" /></IconButton>
+                      </Tooltip>
+                      
+                      <Tooltip title="Pin Trip Matrix to Top" TransitionComponent={Zoom} arrow>
+                        <IconButton 
+                          onClick={() => {
+                            if (!selectedTrip || !user) return;
+                            setPinnedTripIds(prev => {
+                              const isPinned = prev.includes(selectedTrip.id);
+                              const updated = isPinned 
+                                ? prev.filter(id => id !== selectedTrip.id) 
+                                : [...prev, selectedTrip.id];
+                              localStorage.setItem(`bunkmate.pinnedTrips.${user.uid}`, JSON.stringify(updated));
+                              return updated;
+                            });
+                          }} 
+                          sx={{ backgroundColor: isSelectedTripPinned ? mode === "dark" ? "rgba(25, 25, 25, 0.84)" : "rgba(255, 255, 255, 0.9)" : "transparent", color: isSelectedTripPinned ? "text.primary" : "text.secondary", p: 1.5 }}
+                        >
+                          <PushPinIcon fontSize="small" style={{ transform: isSelectedTripPinned ? "none" : "rotate(45deg)", transition: "transform 0.2s ease" }} />
+                        </IconButton>
+                      </Tooltip>
 
-              <Tooltip title="Open Trip Horizon View" TransitionComponent={Zoom} arrow>
-                <IconButton onClick={() => { navigate(`/trips/${selectedTrip.id}`); setActionMode(false); }} sx={{ color: 'text.secondary', p: 1.5 }}><ArrowForward fontSize="small" /></IconButton>
-              </Tooltip>
-            </Stack>
+                      <Tooltip title="Open Trip Horizon View" TransitionComponent={Zoom} arrow>
+                        <IconButton onClick={() => { navigate(`/trips/${selectedTrip.id}`); setActionMode(false); }} sx={{ color: 'text.secondary', p: 1.5 }}><ArrowForward fontSize="small" /></IconButton>
+                      </Tooltip>
+                    </Stack>
 
-            <Tooltip title="Delete Frame instance" TransitionComponent={Zoom} arrow>
-              <IconButton 
-                color="error" onClick={() => setDeleteDialogOpen(true)} 
-                sx={{ color: 'text.secondary', p: 1.8, borderRadius: 8, backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.35)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}
-              >
-                <DeleteOutlineIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-        </Box>
-      </motion.div>
-    </>
-  )}
-</AnimatePresence>
+                    <Tooltip title="Delete Frame instance" TransitionComponent={Zoom} arrow>
+                      <IconButton 
+                        color="error" onClick={() => setDeleteDialogOpen(true)} 
+                        sx={{ color: 'text.secondary', p: 1.8, borderRadius: 8, backdropFilter: "blur(25px)", background: mode === "dark" ? "rgba(25, 25, 25, 0.75)" : "rgba(255, 255, 255, 0.35)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)` }}
+                      >
+                        <DeleteOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </Box>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
-        {/* Liquid Action FAB Trigger Node */}
         <Box 
           sx={{ 
             position: "fixed", 
@@ -1566,7 +1464,6 @@ const HorizontalInfiniteCalendar = React.memo(({ trips = [] }) => {
           </Button>
         </Box>
 
-        {/* Advanced Filter Modal Sheet Drawer */}
         <SwipeableDrawer
           anchor="bottom" 
           open={filterOpen} 
@@ -1701,193 +1598,188 @@ const HorizontalInfiniteCalendar = React.memo(({ trips = [] }) => {
           </Stack>
         </SwipeableDrawer>
 
-        {/* Premium Shared Collaborators Sheet Platform */}
-<SwipeableDrawer
-  anchor="bottom"
-  open={shareDrawerOpen}
-  onClose={() => { setShareDrawerOpen(false); setSearchFriendQuery(""); }}
-  onOpen={() => {}}
-  disableSwipeToOpen
-  sx={{ zIndex: 1400 }}
-  PaperProps={{
-    sx: {
-      borderRadius: 8, 
-      p: 4, 
-      minHeight: "45vh", 
-      maxHeight: "80vh",
-      background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255, 255, 255, 0.39)", 
-      backdropFilter: "blur(20px)",
-      boxShadow: theme.palette.mode === "dark" 
-        ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
-        : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
-      mx: "auto", 
-      m: 2, 
-      maxWidth: 540
-    },
-  }}
-  ModalProps={{ BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } } }}
->
-  <Typography variant="h6" fontWeight={950} letterSpacing="-0.5px" mb={2}>
-    Trip Matrix Access Network
-  </Typography>
-  
-  <TextField
-    placeholder="Search account connections..." 
-    value={searchFriendQuery} 
-    onChange={(e) => setSearchFriendQuery(e.target.value)} 
-    fullWidth 
-    variant="outlined" 
-    size="small"
-    InputProps={{ 
-      startAdornment: (
-        <InputAdornment position="start">
-          <Search sx={{ fontSize: "1.1rem", color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)" }} />
-        </InputAdornment>
-      ) 
-    }}
-    sx={{
-      width: "100%", 
-      mb: 2,
-      "& .MuiOutlinedInput-root": {
-        color: mode === "dark" ? "#fff" : "#111", 
-        borderRadius: 4, 
-        backgroundColor: mode === "dark" ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.2)",
-        boxShadow: mode === "dark" 
-          ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
-          : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, 
-        border: "0px solid", 
-        "& fieldset": { border: "none" }
-      }
-    }}
-  />
-  
-  {loadingFriends ? (
-    <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-      <CircularProgress size={28} color="inherit" />
-    </Box>
-  ) : (
-    <List dense sx={{ width: '100%', maxHeight: "40vh", overflowY: "auto", pr: 0.5 }}>
-      {filteredFriends.map((friend) => {
-        const isAdded = selectedTrip?.members.includes(friend.uid);
-        const isAdmin = selectedTrip?.createdBy === user?.uid;
+        <SwipeableDrawer
+          anchor="bottom"
+          open={shareDrawerOpen}
+          onClose={() => { setShareDrawerOpen(false); setSearchFriendQuery(""); }}
+          onOpen={() => {}}
+          disableSwipeToOpen
+          sx={{ zIndex: 1400 }}
+          PaperProps={{
+            sx: {
+              borderRadius: 8, 
+              p: 4, 
+              minHeight: "45vh", 
+              maxHeight: "80vh",
+              background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255, 255, 255, 0.39)", 
+              backdropFilter: "blur(20px)",
+              boxShadow: theme.palette.mode === "dark" 
+                ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
+                : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
+              mx: "auto", 
+              m: 2, 
+              maxWidth: 540
+            },
+          }}
+          ModalProps={{ BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } } }}
+        >
+          <Typography variant="h6" fontWeight={950} letterSpacing="-0.5px" mb={2}>
+            Trip Matrix Access Network
+          </Typography>
+          
+          <TextField
+            placeholder="Search account connections..." 
+            value={searchFriendQuery} 
+            onChange={(e) => setSearchFriendQuery(e.target.value)} 
+            fullWidth 
+            variant="outlined" 
+            size="small"
+            InputProps={{ 
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ fontSize: "1.1rem", color: mode === "dark" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)" }} />
+                </InputAdornment>
+              ) 
+            }}
+            sx={{
+              width: "100%", 
+              mb: 2,
+              "& .MuiOutlinedInput-root": {
+                color: mode === "dark" ? "#fff" : "#111", 
+                borderRadius: 4, 
+                backgroundColor: mode === "dark" ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.2)",
+                boxShadow: mode === "dark" 
+                  ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
+                  : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, 
+                border: "0px solid", 
+                "& fieldset": { border: "none" }
+              }
+            }}
+          />
+          
+          {loadingFriends ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress size={28} color="inherit" />
+            </Box>
+          ) : (
+            <List dense sx={{ width: '100%', maxHeight: "40vh", overflowY: "auto", pr: 0.5 }}>
+              {filteredFriends.map((friend) => {
+                const isAdded = selectedTrip?.members.includes(friend.uid);
+                const isAdmin = selectedTrip?.createdBy === user?.uid;
 
-        return (
-          <ListItem 
-            key={friend.uid} 
-            disablePadding 
-            secondaryAction={
-              isAdded ? (
-                isAdmin ? (
-                  // Admin layout layer: Active removal button actions are fully interactive
-                  <Button
-                    onClick={() => handleToggleTripCollaborator(friend.uid)}
-                    size="small"
-                    sx={{
-                      borderRadius: 3,
-                      height: 28,
-                      textTransform: "none",
-                      fontWeight: 700,
-                      fontSize: "0.72rem",
-                      backdropFilter: "blur(10px)",
-                      WebkitBackdropFilter: "blur(10px)",
-                      backgroundColor: "rgba(74, 222, 128, 0.15)",
-                      border: "1px solid rgba(74, 222, 128, 0.3)",
-                      color: tokens.accent.green,
-                      boxShadow: mode === "dark" 
-                        ? `inset 0 1px 1px rgba(255, 255, 255, 0.05)` 
-                        : `inset 0 1px 1px rgba(255, 255, 255, 0.4)`,
-                      transition: "all 0.2s ease-in-out",
-                      "&:hover": {
-                        backgroundColor: "rgba(239, 68, 68, 0.15)",
-                        border: "1px solid rgba(239, 68, 68, 0.3)",
-                        color: "#F87171",
-                        content: '"Remove"',
-                        "& .status-text": { display: "none" },
-                        "&::after": { content: '"Remove"' }
-                      }
-                    }}
+                return (
+                  <ListItem 
+                    key={friend.uid} 
+                    disablePadding 
+                    secondaryAction={
+                      isAdded ? (
+                        isAdmin ? (
+                          <Button
+                            onClick={() => handleToggleTripCollaborator(friend.uid)}
+                            size="small"
+                            sx={{
+                              borderRadius: 3,
+                              height: 28,
+                              textTransform: "none",
+                              fontWeight: 700,
+                              fontSize: "0.72rem",
+                              backdropFilter: "blur(10px)",
+                              WebkitBackdropFilter: "blur(10px)",
+                              backgroundColor: "rgba(74, 222, 128, 0.15)",
+                              border: "1px solid rgba(74, 222, 128, 0.3)",
+                              color: tokens.accent.green,
+                              boxShadow: mode === "dark" 
+                                ? `inset 0 1px 1px rgba(255, 255, 255, 0.05)` 
+                                : `inset 0 1px 1px rgba(255, 255, 255, 0.4)`,
+                              transition: "all 0.2s ease-in-out",
+                              "&:hover": {
+                                backgroundColor: "rgba(239, 68, 68, 0.15)",
+                                border: "1px solid rgba(239, 68, 68, 0.3)",
+                                color: "#F87171",
+                                content: '"Remove"',
+                                "& .status-text": { display: "none" },
+                                "&::after": { content: '"Remove"' }
+                              }
+                            }}
+                          >
+                            <span className="status-text">Active</span>
+                          </Button>
+                        ) : (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              px: 2,
+                              height: 28,
+                              borderRadius: 3,
+                              backdropFilter: "blur(10px)",
+                              WebkitBackdropFilter: "blur(10px)",
+                              backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.04)",
+                              border: `1px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)"}`,
+                              color: mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)",
+                              fontSize: "0.72rem",
+                              fontWeight: 700
+                            }}
+                          >
+                            Active
+                          </Box>
+                        )
+                      ) : (
+                        <IconButton 
+                          edge="end" 
+                          onClick={() => handleToggleTripCollaborator(friend.uid)} 
+                          sx={{ 
+                            borderRadius: 3, 
+                            width: 32,
+                            height: 32,
+                            backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.03)", 
+                            border: `1px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)"}`,
+                            backdropFilter: "blur(10px)",
+                            color: mode === "dark" ? "#fff" : "#000",
+                            transition: "all 0.2s ease",
+                            "&:hover": {
+                              backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
+                              transform: "scale(1.05)"
+                            }
+                          }}
+                        >
+                          <AddIcon fontSize="small" />
+                        </IconButton>
+                      )
+                    } 
+                    sx={{ py: 1.2 }}
                   >
-                    <span className="status-text">Active</span>
-                  </Button>
-                ) : (
-                  // Regular Member layout layer: Non-interactive glass info chip
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      px: 2,
-                      height: 28,
-                      borderRadius: 3,
-                      backdropFilter: "blur(10px)",
-                      WebkitBackdropFilter: "blur(10px)",
-                      backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.04)",
-                      border: `1px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)"}`,
-                      color: mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)",
-                      fontSize: "0.72rem",
-                      fontWeight: 700
-                    }}
-                  >
-                    Active
-                  </Box>
-                )
-              ) : (
-                // Add action allowed for all network structure nodes
-                <IconButton 
-                  edge="end" 
-                  onClick={() => handleToggleTripCollaborator(friend.uid)} 
-                  sx={{ 
-                    borderRadius: 3, 
-                    width: 32,
-                    height: 32,
-                    backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.03)", 
-                    border: `1px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)"}`,
-                    backdropFilter: "blur(10px)",
-                    color: mode === "dark" ? "#fff" : "#000",
-                    transition: "all 0.2s ease",
-                    "&:hover": {
-                      backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
-                      transform: "scale(1.05)"
-                    }
-                  }}
-                >
-                  <AddIcon fontSize="small" />
-                </IconButton>
-              )
-            } 
-            sx={{ py: 1.2 }}
-          >
-            <ListItemAvatar>
-              <Avatar 
-                src={friend.photoURL} 
-                sx={{ 
-                  width: 42, 
-                  height: 42, 
-                  fontWeight: 800, 
-                  fontSize: "0.9rem",
-                  bgcolor: theme.palette.primary.main,
-                  boxShadow: mode === "dark"
-                    ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
-                    : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`
-                }}
-              >
-                {friend.name.charAt(0)}
-              </Avatar>
-            </ListItemAvatar>
-            <ListItemText 
-              primary={friend.name} 
-              secondary={`@${friend.username}`} 
-              primaryTypographyProps={{ fontWeight: 700, sx: { pl: 1, color: mode === "dark" ? "#fff" : "#111" } }} 
-              secondaryTypographyProps={{ sx: { pl: 1, fontWeight: 500, color: "text.secondary" } }} 
-            />
-          </ListItem>
-        );
-      })}
-    </List>
-  )}
-</SwipeableDrawer>
+                    <ListItemAvatar>
+                      <Avatar 
+                        src={friend.photoURL} 
+                        sx={{ 
+                          width: 42, 
+                          height: 42, 
+                          fontWeight: 800, 
+                          fontSize: "0.9rem",
+                          bgcolor: theme.palette.primary.main,
+                          boxShadow: mode === "dark"
+                            ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
+                            : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`
+                        }}
+                      >
+                        {friend.name.charAt(0)}
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText 
+                      primary={friend.name} 
+                      secondary={`@${friend.username}`} 
+                      primaryTypographyProps={{ fontWeight: 700, sx: { pl: 1, color: mode === "dark" ? "#fff" : "#111" } }} 
+                      secondaryTypographyProps={{ sx: { pl: 1, fontWeight: 500, color: "text.secondary" } }} 
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+          )}
+        </SwipeableDrawer>
 
-        {/* Premium Glassmorphic Delete Swipeable Bottom Sheet Drawer Node */}
         <SwipeableDrawer
           anchor="bottom" open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} onOpen={() => {}} disableSwipeToOpen sx={{ zIndex: 1500 }}
           PaperProps={{ sx: { borderRadius: 8, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(20px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, maxWidth: 540, mx: "auto", m: 3 } }}
@@ -1905,88 +1797,26 @@ const HorizontalInfiniteCalendar = React.memo(({ trips = [] }) => {
           </Stack>
         </SwipeableDrawer>
 
-        {/* Architectural Creation Frame Drawer Component */}
-        <Drawer anchor="bottom" open={createDialogOpen} onClose={() => { setCreateDialogOpen(false); setStep(0); }} sx={{ "& .MuiDrawer-paper": { height: "100vh", backgroundColor: isDarkMode ? tokens.dark.bg : tokens.light.bg, color: isDarkMode ? "#FFF" : "#000" } }}>
-          <Box sx={{ position: "relative", height: "22vh", overflow: "hidden" }}>
-            <Box sx={{ width: "100%", height: "100%", backgroundImage: `url(${newTrip.iconDataUri || randomNatureImage || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1000&q=80'})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-            <Box sx={{ position: "absolute", inset: 0, background: currentTokens.glassMelt }} />
-            <IconButton onClick={() => { setCreateDialogOpen(false); setStep(0); }} sx={{ position: "absolute", top: 16, right: 16, backgroundColor: "rgba(0,0,0,0.45)", color: "#FFF" }}><CloseOutlinedIcon /></IconButton>
-            <Box sx={{ position: "absolute", bottom: 16, left: 24 }}><Typography variant="h4" sx={{ fontWeight: 950, color: "#FFF", letterSpacing: "-1px" }}>Build Adventure</Typography></Box>
-            <Button component="label" startIcon={<PhotoCamera />} sx={{ position: "absolute", bottom: 16, right: 24, borderRadius: "8px", textTransform: "none", fontSize: "0.68rem", fontWeight: 800, backgroundColor: "rgba(255,255,255,0.12)", color: "#FFF", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.1)" }}>Cover<input type="file" accept="image/*" hidden onChange={handleIconUpload} /></Button>
-          </Box>
-
-          <Box sx={{ p: 3, mx: "auto", maxWidth: 460, width: "100%" }}>
-            <Stepper activeStep={step} alternativeLabel sx={{ mb: 4, "& .MuiStepIcon-root.Mui-active, & .MuiStepIcon-root.Mui-completed": { color: tokens.accent.blue } }}>
-              <Step><StepLabel>Parameters</StepLabel></Step>
-              <Step><StepLabel>Deploy Matrix</StepLabel></Step>
-            </Stepper>
-
-            <Fade in>
-              <Box>
-                {step === 0 ? (
-                  <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column", gap: 2.5 }}>
-                    <TextField label="Trip Designation Name" fullWidth value={newTrip.name} onChange={e => setNewTrip({ ...newTrip, name: e.target.value })} InputProps={{ sx: { borderRadius: "12px" } }} />
-                    <Box display="flex" gap={2}>
-                      <TextField label="Origin" fullWidth value={newTrip.from} onChange={e => setNewTrip({ ...newTrip, from: e.target.value })} InputProps={{ sx: { borderRadius: "12px" } }} />
-                      <TextField label="Destination" fullWidth value={newTrip.to} onChange={e => setNewTrip({ ...newTrip, to: e.target.value })} InputProps={{ sx: { borderRadius: "12px" } }} />
-                    </Box>
-                    <TextField label="Spatial Route Coordinates" fullWidth value={newTrip.location} onChange={e => setNewTrip({ ...newTrip, location: e.target.value })} InputProps={{ sx: { borderRadius: "12px" } }} />
-                    <Box display="flex" gap={2}>
-                      <TextField label="Start" type="date" InputLabelProps={{ shrink: true }} fullWidth value={newTrip.startDate} onChange={e => setNewTrip({ ...newTrip, startDate: e.target.value })} InputProps={{ sx: { borderRadius: "12px" } }} />
-                      <TextField label="End" type="date" InputLabelProps={{ shrink: true }} fullWidth value={newTrip.endDate} onChange={e => setNewTrip({ ...newTrip, endDate: e.target.value })} InputProps={{ sx: { borderRadius: "12px" } }} />
-                    </Box>
-                    <Box display="flex" gap={2}>
-                      <Autocomplete options={["Adventure", "Leisure", "Business", "Backpacking"]} value={newTrip.travelType} onChange={(_, v) => setNewTrip({ ...newTrip, travelType: v || "Adventure" })} renderInput={(p) => <TextField {...p} label="Vector Category" />} fullWidth sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }} />
-                      <TextField label="Target Allocation (₹)" type="number" fullWidth value={newTrip.budgetGoal} onChange={e => setNewTrip({ ...newTrip, budgetGoal: e.target.value })} InputProps={{ sx: { borderRadius: "12px" } }} />
-                    </Box>
-                    <DialogActions sx={{ mt: 3, p: 0, gap: 2 }}>
-                      <Button fullWidth onClick={() => setCreateDialogOpen(false)} sx={{ borderRadius: "12px", height: 46, textTransform: "none", fontWeight: 800, border: `1px solid ${isDarkMode ? "#222" : "#E2E2E2"}`, color: "inherit" }}>Cancel</Button>
-                      <Button fullWidth variant="contained" onClick={handleNext} endIcon={<ArrowForward />} sx={{ borderRadius: "12px", height: 46, textTransform: "none", fontWeight: 800, background: isDarkMode ? "#FFF" : "#000", color: isDarkMode ? "#000" : "#FFF" }}>Continue</Button>
-                    </DialogActions>
-                  </DialogContent>
-                ) : (
-                  <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column", gap: 2.5 }}>
-                    <Autocomplete freeSolo options={userSuggestions} getOptionLabel={o => `${o.name || o.username} (${o.email})`} inputValue={memberInput} onInputChange={(_, v) => { setMemberInput(v); handleSearchUsers(v); }} onChange={(_, value) => value && handleAddMember(value)} renderInput={params => <TextField {...params} label="Search Account Network" InputProps={{ ...params.InputProps, sx: { borderRadius: "12px" } }} />} />
-                    
-                    {friendCards.length > 0 && (
-                      <Box>
-                        <Stack direction="row" spacing={1} sx={{ overflowX: "auto", pb: 0.5, "&::-webkit-scrollbar": { display: "none" } }}>
-                          {friendCards.map(friend => (
-                            <Card key={friend.uid} sx={{ p: 1.5, minWidth: 96, textAlign: "center", borderRadius: "14px", background: "rgba(128,128,128,0.03)", boxShadow: "none", border: "inherit" }}>
-                              <Avatar src={friend.photoURL} sx={{ mx: "auto", width: 36, height: 36, mb: 0.5 }} />
-                              <Typography variant="caption" noWrap sx={{ fontWeight: 800, display: "block", fontSize: "0.65rem" }}>{friend.name || friend.username}</Typography>
-                              <Button size="small" onClick={() => handleAddMember(friend)} sx={{ mt: 0.5, height: 20, fontSize: "0.6rem", background: isDarkMode ? "#FFF" : "#000", color: isDarkMode ? "#000" : "#FFF", textTransform: "none" }}>Add</Button>
-                            </Card>
-                          ))}
-                        </Stack>
-                      </Box>
-                    )}
-
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {selectedMembers.map(m => <Chip key={m.uid} avatar={<Avatar src={m.photoURL} />} label={m.name} onDelete={() => handleRemoveMember(m.uid)} sx={{ borderRadius: "8px" }} />)}
-                    </Box>
-
-                    <Stack spacing={1} sx={{ maxHeight: "20vh", overflowY: "auto" }}>
-                      {selectedMembers.map((m, i) => (
-                        <Box key={m.uid} display="flex" alignItems="center" justifyContent="space-between" sx={{ p: 1, borderRadius: "10px", background: "rgba(128,128,128,0.02)" }}>
-                          <Box display="flex" alignItems="center" gap={1}><Avatar src={m.photoURL} sx={{ width: 32, height: 32 }} /><Typography variant="caption" fontWeight={700}>{m.name}</Typography></Box>
-                          <TextField label="Contribution" size="small" type="number" value={m.contribution} onChange={e => handleContributionChange(i, e.target.value)} sx={{ width: 100, "& .MuiOutlinedInput-root": { borderRadius: "8px" } }} />
-                        </Box>
-                      ))}
-                    </Stack>
-
-                    <DialogActions sx={{ mt: 2, p: 0, gap: 2 }}>
-                      <Button fullWidth onClick={handleBack} sx={{ borderRadius: "12px", height: 46, textTransform: "none", fontWeight: 800, border: `1px solid ${isDarkMode ? "#222" : "#E2E2E2"}`, color: "inherit" }}>Back</Button>
-                      <Button fullWidth variant="contained" onClick={handleCreateTrip} sx={{ borderRadius: "12px", height: 46, textTransform: "none", fontWeight: 800, background: tokens.accent.green, color: "#000" }}>Deploy Framework</Button>
-                    </DialogActions>
-                  </DialogContent>
-                )}
-              </Box>
-            </Fade>
-          </Box>
-        </Drawer>
-
-        {/* Spec Crop drawer Utility Layer */}
+        <CreateTripDrawer
+          createDialogOpen={createDialogOpen}
+          closeDrawer={handleCloseDrawer}
+          step={step}
+          setStep={setStep}
+          newTrip={newTrip}
+          setNewTrip={setNewTrip}
+          selectedMembers={selectedMembers}
+          setSelectedMembers={setSelectedMembers}
+          randomNatureImage={randomNatureImage}
+          handleNext={handleNext}
+          handleBack={handleBack}
+          handleCreateTrip={handleCreateTrip}
+          createdTripDetails={createdTripDetails}
+          setCreatedTripDetails={setCreatedTripDetails}
+          user={user}
+          db={db}
+          mode={mode}
+        />
+        
         <Drawer anchor="bottom" open={cropDrawerOpen} onClose={() => setCropDrawerOpen(false)} sx={{ zIndex: 1400 }}>
           <DialogContent sx={{ p: 3, maxWidth: 420, mx: "auto", width: "100%", backgroundColor: isDarkMode ? "#121212" : "#FFF" }}>
             {uploadedImageSrc && (
