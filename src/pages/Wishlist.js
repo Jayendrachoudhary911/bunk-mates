@@ -11,13 +11,14 @@ import {
   Fade,
   GlobalStyles,
 } from "@mui/material";
-import { RocketLaunch, Person, Email } from "@mui/icons-material";
+import { RocketLaunch, Person, Email } from "../icons";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { Mountain, Plane, Camera, Tent, Compass, MapPin, Stars } from "lucide-react";
 import { db } from "../firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+import { designTokens, glass, ctaButtonSx, cardHover, glassInputSx } from "../theme/designSystem";
 
 // Inject Nunito font from Google Fonts
 const nunitoFontUrl =
@@ -61,125 +62,6 @@ const theme = createTheme({
         },
       },
     },
-  },
-});
-
-const glassInputStyles = (theme) => ({
-  position: "relative",
-
-  "& .MuiOutlinedInput-root": {
-    position: "relative", // ✅ required for ripple
-    borderRadius: "18px",
-    backdropFilter: "blur(5px)",
-    background: "rgba(133, 133, 133, 0)",
-    color: theme.palette.mode === "dark" ? "#fff" : "#000",
-    overflow: "hidden",
-    transition: "all 0.35s ease",
-
-    "& fieldset": {
-      borderColor:
-        theme.palette.mode === "dark"
-          ? "rgba(255, 255, 255, 0.14)"
-          : "rgba(0, 0, 0, 0.15)",
-    },
-
-    "&:hover fieldset": {
-      borderColor: "rgba(255,180,120,0.7)",
-    },
-
-    "&.Mui-focused fieldset": {
-      borderColor: "#ffb48a",
-      boxShadow: "0 0 20px rgba(255,180,120,0.5)",
-    },
-
-    /* 🌊 Liquid ripple */
-    "&::after": {
-      content: '""',
-      position: "absolute",
-      width: 0,
-      height: 0,
-      background:
-        "radial-gradient(circle, rgba(255,180,120,0.25), transparent)",
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)",
-      transition: "width 0.5s ease, height 0.5s ease",
-      borderRadius: "50%",
-      pointerEvents: "none",
-      zIndex: 0, // behind text
-    },
-
-    "&.Mui-focused::after": {
-      width: "250%",
-      height: "250%",
-    },
-
-    /* Ensure content is above ripple */
-    "& input, & textarea": {
-      position: "relative",
-      zIndex: 1,
-    },
-  },
-
-  /* 🔥 Floating label */
-  "& .MuiInputLabel-root": {
-    color: theme.palette.mode === "dark" ? "#fff" : "#000",
-    transition: "all 0.3s ease",
-  },
-
-  "& .MuiInputLabel-root.Mui-focused": {
-    color: "#ffb48a",
-  },
-});
-
-const glassButtonStyles = (theme) => ({
-  position: "relative",
-  overflow: "hidden",
-  borderRadius: "18px",
-  padding: "12px 16px",
-  fontWeight: 600,
-  fontSize: "1.05rem",
-  letterSpacing: "0.5px",
-
-  backdropFilter: "blur(20px)",
-  background:
-    theme.palette.mode === "dark"
-      ? "rgb(255, 255, 255)"
-      : "rgb(0, 0, 0)",
-
-  color: theme.palette.mode === "dark" ? "#000000" : "#ffffff",
-
-  border: "1px solid rgba(134, 134, 134, 0.2)",
-
-  transition: "all 0.25s ease",
-
-  "&:hover": {
-    boxShadow: "0 15px 40px rgba(255,180,120,0.35)",
-  },
-
-  "&:active": {
-    transform: "scale(0.97)",
-  },
-
-  /* 🌊 Ripple layer */
-  "&::after": {
-    content: '""',
-    position: "absolute",
-    width: 0,
-    height: 0,
-    top: "var(--y, 50%)",
-    left: "var(--x, 50%)",
-    transform: "translate(-50%, -50%)",
-    background:
-      "radial-gradient(circle, rgba(255,180,120,0.4), transparent 60%)",
-    borderRadius: "50%",
-    transition: "width 0.4s ease, height 0.4s ease",
-    pointerEvents: "none",
-  },
-
-  "&:active::after": {
-    width: "300px",
-    height: "300px",
   },
 });
 
@@ -321,7 +203,7 @@ const Wishlist = () => {
                       InputProps={{
                         startAdornment: <Person sx={{ mr: 1, color: mode === "dark" ? "#fff" : "#000" }} />,
                       }}
-                      sx={glassInputStyles}
+                      sx={glassInputSx(mode)}
                     />
                     <TextField
                       name="email"
@@ -334,7 +216,7 @@ const Wishlist = () => {
                       InputProps={{
                         startAdornment: <Email sx={{ mr: 1, color: mode === "dark" ? "#fff" : "#000" }} />,
                       }}
-                      sx={glassInputStyles}
+                      sx={glassInputSx(mode)}
                     />
                     <TextField
                       name="reason"
@@ -345,13 +227,13 @@ const Wishlist = () => {
                       required
                       multiline
                       minRows={3}
-                      sx={glassInputStyles}
+                      sx={glassInputSx(mode)}
                     />
                     <Button
                       type="submit"
                       variant="contained"
                       fullWidth
-                      sx={glassButtonStyles}
+                      sx={ctaButtonSx(mode, "primary", { py: 1.6, fontSize: "1.05rem" })}
                       disabled={loading}
                       endIcon={<RocketLaunch />}
                     >

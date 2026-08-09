@@ -28,30 +28,42 @@ import {
   ListItemAvatar,
   ListItemText,
   InputAdornment,
-  Menu
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import ShareIcon from "@mui/icons-material/Share";
-import SearchIcon from "@mui/icons-material/Search";
-import FormatBoldIcon from "@mui/icons-material/FormatBold";
-import FormatItalicIcon from "@mui/icons-material/FormatItalic";
-import CodeIcon from "@mui/icons-material/Code";
-import PushPinIcon from "@mui/icons-material/PushPin";
-import LabelIcon from "@mui/icons-material/Label";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import PersonAddIcon from "@mui/icons-material/PersonAdd";
-import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
-import ViewListIcon from '@mui/icons-material/ViewList';
-import ViewModuleIcon from '@mui/icons-material/ViewModule';
-import CloseIcon from "@mui/icons-material/Close";
+import {
+  Add,
+  Add as AddIcon,
+  Edit,
+  Edit as EditIcon,
+  DeleteOutline,
+  DeleteOutline as DeleteOutlineIcon,
+  MoreVert,
+  MoreVert as MoreVertIcon,
+  ArrowBack,
+  ArrowBack as ArrowBackIcon,
+  Share,
+  Share as ShareIcon,
+  Search,
+  Search as SearchIcon,
+  FormatBold,
+  FormatItalic,
+  Code,
+  PushPin,
+  PushPin as PushPinIcon,
+  Label,
+  Label as LabelIcon,
+  InfoOutlined,
+  PersonAdd,
+  LabelOutlined,
+  ViewList,
+  ViewList as ViewListIcon,
+  ViewModule,
+  ViewModule as ViewModuleIcon,
+  Close,
+  CloseOutlined,
+  FilterList,
+  FilterList as FilterListIcon,
+} from "../icons";
 import ReactMarkdown from 'react-markdown';
-import FilterListIcon from "@mui/icons-material/FilterList";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import { Search } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 import { SquarePen } from "lucide-react";
 import { db, auth } from "../firebase";
@@ -80,25 +92,21 @@ import { getTheme } from "../theme";
 import NotificationsPage from "../elements/Notifications";
 import { useNavigate, useParams } from "react-router-dom";
 import { useBackButtonClose } from "../hooks/useBackButtonClose";
+import {
+  designTokens,
+  glass,
+  cardHover,
+  drawerPaperSx,
+  drawerBackdropSx,
+  drawerHandleSx,
+  searchFieldSx,
+  filterChipSx,
+  toggleGroupSx,
+  floatingButtonSx,
+  DrawerHandle,
+} from "../theme/designSystem";
 
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
-
-const glass = (mode) => ({
-  background: mode === "dark" ? "rgba(30, 30, 30, 0.22)" : "rgba(255, 255, 255, 0.4)",
-  backdropFilter: "blur(22px)",
-  border: "none",
-  boxShadow: mode === "dark"
-    ? `inset 0 1px 1px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
-    : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
-});
-
-const cardHover = {
-  transition: "transform .2s ease",
-  "&:hover": {
-    transform: "translateY(-1px)",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-  },
-};
 
 const CARD_CONTENT_SX = { pb: 1.5 };
 const OVERFLOW_SX = { overflowX: "auto", mb: 2 };

@@ -10,7 +10,8 @@ import {
   Tooltip,
   Button,
 } from "@mui/material";
-import { LocationOn, AccessTime } from "../../icons/LucideIcons";
+import { LocationOn, AccessTime } from "../../icons";
+import { designTokens, glass, cardHover, ctaButtonSx } from "../../theme/designSystem";
 
 export default function YourTrips({
   myTrips,
@@ -114,36 +115,19 @@ export default function YourTrips({
                       sx={{
                         position: "relative",
                         overflow: "hidden",
-                        borderRadius: "24px",
+                        borderRadius: designTokens.radii.card,
                         cursor: "pointer",
                         height: 125,
                         display: "flex",
                         flexDirection: "column",
                         justifyContent: "flex-end",
-
-                        background:
-                          mode === "dark"
-                            ? "linear-gradient(135deg, #1e1e1e00, #2c2c2c00)"
-                            : "linear-gradient(135deg, #f5f5f501, #e0e0e001)",
-
-                        boxShadow:
-                          mode === "dark"
-                            ? `
-                              inset 0 1px 1px rgba(255, 255, 255, 0.11),
-                              inset 0 -1px 1px rgba(255, 255, 255, 0.07),
-                              0 1px 0px rgba(0,0,0,0.1)
-                            `
-                            : `
-                              inset 0 1px 1px rgba(255,255,255,0.8),
-                              inset 0 -1px 1px rgba(0,0,0,0.1),
-                              0 1px 0px rgba(0,0,0,0.1)
-                            `,
-
-                        transition: "all 0.35s ease",
-
-                        "&:hover": {
-                          boxShadow: "none",
-                        },
+                        ...glass(mode, {
+                          background:
+                            mode === "dark"
+                              ? "linear-gradient(135deg, #1e1e1e00, #2c2c2c00)"
+                              : "linear-gradient(135deg, #f5f5f501, #e0e0e001)",
+                        }),
+                        ...cardHover,
 
                         // Transparent image layer
                         "&::after": tripGroupsMap[tripInfo.id]?.iconURL

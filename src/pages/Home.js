@@ -10,7 +10,7 @@ import { getTheme } from "../theme";
 import { Backgrounds } from "../theme/backgroundPresets";
 import { useBackground } from "../contexts/BackgroundContext";
 import placesData from "../data/data.json";
-import { Search } from "../icons/LucideIcons";
+import { Search } from "../icons";
 import { useCreateTripDrawer } from "../hooks/useCreateTripDrawer";
 import FloatingSearch from "../elements/FloatingSearch";
 import {
@@ -30,6 +30,18 @@ import {
 } from "@mui/material";
 import BetaAccessGuard from "../components/BetaAccessGuard";
 import Notifications from "../elements/Notifications";
+import {
+  designTokens,
+  glass,
+  cardHover,
+  drawerPaperSx,
+  drawerBackdropSx,
+  drawerHandleSx,
+  searchFieldSx,
+  ctaButtonSx,
+  filterChipSx,
+  DrawerHandle,
+} from "../theme/designSystem";
 
 // Import our new home components
 import WeatherWidget from "../components/home_components/WeatherWidget";
@@ -1016,6 +1028,7 @@ const Home = () => {
                     backgroundColor: 'transparent',
                     color: mode === "dark" ? "#f5f5f5" : "#111",
                     boxShadow: 'none',
+                    border: 'none',
                     minWidth: 260,
                     maxWidth: 480,
                     gap: 1,

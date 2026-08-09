@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { auth, firestore } from "../firebase"; // Firebase auth and firestore
+import { auth, firestore } from "../firebase";
 import { TextField, Button, Container, Box, Avatar, Typography, CircularProgress, Skeleton } from "@mui/material";
 import { updateProfile } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore"; // Use getDoc instead of get()
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import { designTokens, glass, ctaButtonSx, glassInputSx } from "../theme/designSystem";
 
 const Profile = () => {
   const navigate = useNavigate();

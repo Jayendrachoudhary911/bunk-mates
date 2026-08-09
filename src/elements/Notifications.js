@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 import {
   NotificationsNoneOutlined,
-} from "../icons/LucideIcons";
+} from "../icons";
 
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";

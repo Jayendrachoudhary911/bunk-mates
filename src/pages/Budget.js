@@ -31,18 +31,14 @@ import {
 } from "@mui/material";
 import {
   Add as AddIcon,
-  // Fix: DeleteOutline not found, using CloseOutlined or standard Close
-  CloseOutlined as DeleteOutlineIcon,
-  // Fix: Edit not found, using StickyNote2Outlined (symbolizes writing/editing)
-  StickyNote2Outlined as EditIcon,
-  StickyNote2Outlined as EditOutlinedIcon,
-  // Fix: ArrowBack not found, using ChevronLeft
-  ChevronLeft as ArrowBackIcon,
+  DeleteOutline as DeleteOutlineIcon,
+  Edit as EditIcon,
+  EditOutlined as EditOutlinedIcon,
+  ArrowBack as ArrowBackIcon,
   Search as SearchIcon,
   InfoOutlined as InfoOutlinedIcon,
-  // Fix: ViewModule/List not found, using Category/Explore variants
-  CategoryOutlined as ViewModuleIcon,
-  ExploreOutlined as ViewListIcon,
+  ViewModule as ViewModuleIcon,
+  ViewList as ViewListIcon,
   RestaurantOutlined as RestaurantOutlinedIcon,
   TravelExploreOutlined as TravelExploreOutlinedIcon,
   HomeOutlined as HomeOutlinedIcon,
@@ -54,11 +50,9 @@ import {
   MovieOutlined as MovieOutlinedIcon,
   LocalAtmOutlined as LocalAtmOutlinedIcon,
   CategoryOutlined as CategoryOutlinedIcon,
-} from "../icons/LucideIcons";
+} from "../icons";
 import Card from "@mui/material/Card";
 import Tooltip from '@mui/material/Tooltip';
-
-
 import { useNavigate, useLocation } from 'react-router-dom';
 import { doc, getDoc, setDoc, query, collection, where, getDocs } from "firebase/firestore";
 import { db } from "../firebase"; // Your Firebase config export
@@ -67,6 +61,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSettings } from "../contexts/SettingsContext";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+import {
+  designTokens,
+  glass,
+  cardHover,
+  drawerPaperSx,
+  drawerBackdropSx,
+  drawerHandleSx,
+  searchFieldSx,
+  ctaButtonSx,
+  filterChipSx,
+  DrawerHandle,
+} from "../theme/designSystem";
 
 import ProfilePic from "../components/Profile";
 import BetaAccessGuard from "../components/BetaAccessGuard";

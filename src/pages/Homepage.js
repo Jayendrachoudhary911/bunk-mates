@@ -30,7 +30,7 @@ import {
   FavoriteBorder,
   Bookmark,
   BookmarkBorder
-} from "../icons/LucideIcons";
+} from "../icons";
 import { useCreateTripDrawer } from "../hooks/useCreateTripDrawer";
 import FloatingSearch from "../elements/FloatingSearch";
 import { createPortal } from "react-dom";
@@ -65,7 +65,7 @@ import {
   LocationOn,
   AccessTime,
   WbSunnyOutlined, // Added weather icon
-} from "../icons/LucideIcons";
+} from "../icons";
 import Notifications from "../elements/Notifications";
 import BetaAccessGuard from "../components/BetaAccessGuard";
 import {
@@ -76,7 +76,7 @@ import {
   InfoOutlined,
   CalendarMonth,
   NotificationsNone,
-} from "../icons/LucideIcons";
+} from "../icons";
 
 import { MapContainer, TileLayer, Polyline, Marker } from "react-leaflet";
 import L from "leaflet";

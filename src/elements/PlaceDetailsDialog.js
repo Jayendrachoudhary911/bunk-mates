@@ -14,7 +14,8 @@ import {
   Bookmark as BookmarkIcon, 
   BookmarkBorder as BookmarkBorderIcon, 
   Close as CloseIcon 
-} from "../icons/LucideIcons";
+} from "../icons";
+import { glassIconBtnSx, ctaButtonSx, designTokens } from "../theme/designSystem";
 
 const CLOSE_THRESHOLD = 120;
 const NEXT_THRESHOLD = -120;
@@ -152,14 +153,7 @@ const PlaceDetailsDialog = ({
               top: 16,
               right: 16,
               zIndex: 3,
-              backdropFilter: "blur(18px)",
-              background: "rgba(0,0,0,0.35)",
-              color: "#fff",
-              borderRadius: 4,
-              "&:hover": {
-                background: "rgba(0,0,0,0.6)",
-                transform: "scale(1.05)",
-              },
+              ...glassIconBtnSx("dark"),
             }}
           >
             <CloseIcon />
@@ -238,27 +232,13 @@ const PlaceDetailsDialog = ({
       e.stopPropagation();
       onPlanTrip?.(place);
     }}
-    sx={{
+    sx={ctaButtonSx("dark", "primary", {
       flex: 1,
       height: 48,
       ml: 0.5,
       borderRadius: 6,
-
-      fontWeight: 500,
       fontSize: "0.95rem",
-      textTransform: "none",
-
-      background: "#ffffff",
-      color: "#000",
-
-      boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
-
-      "&:hover": {
-        background: "#f4f4f4",
-        transform: "translateY(-1px)",
-      },
-      transition: "all .25s cubic-bezier(.34,1.56,.64,1)",
-    }}
+    })}
   >
     Plan this Trip
   </Button>

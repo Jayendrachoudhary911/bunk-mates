@@ -2,20 +2,19 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  HomeOutlined as Home, // Using Outlined as default Home
+  HomeOutlined as Home,
   HomeOutlined,
   StickyNote2Outlined,
   StickyNote2Outlined as StickyNote2,
   ExploreOutlined,
   ExploreOutlined as Explore,
-  Search as SearchOutlined, // Map Search to SearchOutlined
+  Search as SearchOutlined,
   Search,
   ChatBubbleOutline,
   ChatBubbleOutline as Chat,
   ChatBubbleOutline as ChatBubble,
   ChevronLeft,
   ChevronRight,
-  // Fix: Hamburger & Menu not found, using CategoryOutlined as substitute
   CategoryOutlined as Hamburger,
   CategoryOutlined as Menu,
   ArrowDropDown as ArrowDropDownIcon,
@@ -25,6 +24,7 @@ import {
 import { Box, Button, Badge, Zoom, keyframes, Typography, CircularProgress, Stack, Tooltip, useMediaQuery, IconButton, Avatar } from "@mui/material";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+import { designTokens, glass } from "../theme/designSystem";
 import { db } from "../firebase";
 import {
   doc,
@@ -615,30 +615,13 @@ return (
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background:
-            mode === "dark"
-              ? "rgba(0, 0, 0, 0.55)"
-              : "rgba(255, 255, 255, 0.25)",
-              color: 
-                 mode === "dark"
-                  ? "#fff"
-                  : "#000",
-              backdropFilter: "blur(2px)",
-              border: mode === "dark"
-                ? "0px solid rgba(255,255,255,0.07)"
-                : "0px solid rgba(0,0,0,0.07)",
-          boxShadow:
-            mode === "dark"
-              ? `
-                inset 0 1px 1px rgba(255, 255, 255, 0.11),
-                inset 0 -1px 1px rgba(255, 255, 255, 0.07),
-                0 1px 0px rgba(0,0,0,0.1)
-              `
-              : `
-                inset 0 1px 1px rgba(255,255,255,0.8),
-                inset 0 -1px 1px rgba(0,0,0,0.1),
-                0 1px 0px rgba(0,0,0,0.1)
-              `,
+              color: mode === "dark" ? "#fff" : "#000",
+              ...glass(mode, {
+                background:
+                  mode === "dark"
+                    ? "rgba(0, 0, 0, 0.55)"
+                    : "rgba(255, 255, 255, 0.25)",
+              }),
               transition: "all 0.3s ease",
               transform: "scale(1)",
               cursor: 'pointer',

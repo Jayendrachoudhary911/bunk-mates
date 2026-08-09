@@ -2,8 +2,14 @@ import React from "react";
 import {
   Box, Typography, Button, TextField, SwipeableDrawer,
 } from "@mui/material";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import { DeleteOutline, AutoAwesome } from "../../icons";
+import {
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+  glassInputSx,
+  ctaButtonSx,
+} from "../../theme/designSystem";
 
 const ChecklistDrawer = ({
   checklistDrawerOpen,
@@ -34,39 +40,21 @@ const ChecklistDrawer = ({
         setChecklistDrafts([]);
         setNewTask("");
       }}
+      onOpen={() => {}}
       ModalProps={{
         BackdropProps: {
-          sx: {
-            p: 3,
-            backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-            backdropFilter: "blur(5px)",
-          },
+          sx: drawerBackdropSx,
         },
       }}
       PaperProps={{
         sx: {
-          p: 3,
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          maxHeight: "70vh",
+          ...drawerPaperSx(mode),
+          maxHeight: "75vh",
           overflowY: "auto",
-          backgroundColor: mode === "dark" ? "#000000ff" : "#fff",
-          boxShadow: "none",
         },
       }}
     >
-      <Box
-        sx={{
-          width: 40,
-          height: 5,
-          bgcolor: "grey.500",
-          opacity: 0.5,
-          borderRadius: 2.5,
-          mx: "auto",
-          mb: 2,
-          cursor: "grab",
-        }}
-      />
+      <DrawerHandle mode={mode} />
 
       <Typography variant="h6" mb={2}>
         Add Checklist Items
@@ -112,7 +100,7 @@ const ChecklistDrawer = ({
           <Button
             variant="outlined"
             onClick={onAiGenerateChecklist}
-            startIcon={<AutoAwesomeIcon sx={{ color: "#00E676" }} />}
+            startIcon={<AutoAwesome sx={{ color: "#00E676" }} />}
             sx={{
               mb: 2,
               borderRadius: 4,
@@ -183,7 +171,7 @@ const ChecklistDrawer = ({
                 }}
                 aria-label={`Remove item ${index + 1}`}
               >
-                <DeleteOutlineIcon fontSize="small" />
+                <DeleteOutline fontSize="small" />
               </Button>
             </Box>
           ))}

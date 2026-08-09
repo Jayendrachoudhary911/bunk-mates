@@ -18,7 +18,7 @@ import {
 import { 
   LockOutlined, 
   ChevronRight,
-} from "../icons/LucideIcons";
+} from "../icons";
 import { Info, X, ShieldCheck, Zap, Users, Compass, MapPin, Stars, Mountain, Plane, Camera, Tent, } from "lucide-react";
 import { ThemeProvider } from "@mui/material/styles";
 import { auth, db } from "../firebase";

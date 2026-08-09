@@ -75,32 +75,51 @@ export function useCreateTripDrawer() {
       .catch(() => setRandomNatureImage(""));
   }, [createDialogOpen, newTrip.iconDataUri]);
 
-  // Auto-resolve current location for "from" when drawer opens in auto mode
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+
+  // Auto-resolve current location for "from" when drawer opens
   useEffect(() => {
     if (!createDialogOpen) return;
-    if (startLocationMode !== "auto") return;
     if (!navigator.geolocation) return;
+
+    setIsFetchingLocation(true);
+    setNewTrip((prev) => ({
+      ...prev,
+      from: prev.from && !prev.from.includes("Fetching") ? prev.from : "📍 Fetching your current location...",
+    }));
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const { latitude, longitude } = position.coords;
-        const pretty = await reverseGeocode(latitude, longitude);
-        setResolvedStartLocation(pretty);
-        setNewTrip((prev) => ({
-          ...prev,
-          from: prev.from || pretty,
-        }));
+        try {
+          const { latitude, longitude } = position.coords;
+          const pretty = await reverseGeocode(latitude, longitude);
+          setResolvedStartLocation(pretty);
+          setNewTrip((prev) => ({
+            ...prev,
+            from: pretty,
+            currentLatLon: [latitude, longitude],
+          }));
+        } catch (e) {
+          setResolvedStartLocation("My Location");
+          setNewTrip((prev) => ({
+            ...prev,
+            from: "My Location",
+          }));
+        } finally {
+          setIsFetchingLocation(false);
+        }
       },
       () => {
         setResolvedStartLocation("My Location");
         setNewTrip((prev) => ({
           ...prev,
-          from: prev.from || "My Location",
+          from: prev.from && !prev.from.includes("Fetching") ? prev.from : "My Location",
         }));
+        setIsFetchingLocation(false);
       },
       { timeout: 10000 }
     );
-  }, [createDialogOpen, startLocationMode]);
+  }, [createDialogOpen]);
 
   // Ensure creator as member when on step 1
   useEffect(() => {
@@ -426,9 +445,9 @@ Do not output markdown code blocks. Raw JSON only.`;
     handleContributionChange,
     totalContribution,
     handleCreateTrip,
-    isPostCreateAiModalOpen,
-    setIsPostCreateAiModalOpen,
+    isFetchingLocation,
     createdTripDetails,
+    setCreatedTripDetails,
     isGeneratingPostAi,
     handleGeneratePostAiTimelineAndChecklist,
   };

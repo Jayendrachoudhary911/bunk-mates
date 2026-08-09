@@ -2,16 +2,19 @@ import React, { useState, useEffect, useRef, memo } from "react";
 import {
   Box, TextField, IconButton, Typography, Avatar, Paper, Fade, Collapse
 } from "@mui/material";
-import SendRoundedIcon from "@mui/icons-material/SendRounded";
-import SmartToyRoundedIcon from "@mui/icons-material/SmartToyRounded";
-import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
-import CodeIcon from "@mui/icons-material/Code";
+import {
+  SendRounded as SendRoundedIcon,
+  SmartToyRounded as SmartToyRoundedIcon,
+  PersonRounded as PersonRoundedIcon,
+  Code as CodeIcon,
+} from "../icons";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { askTravelAI } from "../utils/groq";
 import { auth } from "../firebase";
 import AIResponseRenderer from "../components/AIResponseRenderer";
+import { designTokens, glass, cardHover, searchFieldSx, ctaButtonSx } from "../theme/designSystem";
 
 import {
   getUserMemory,

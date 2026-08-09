@@ -61,6 +61,18 @@ import { getToken, onMessage } from "firebase/messaging";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { getDynamicBorderRadius } from "../utils/uiHelpers";
+import {
+  designTokens,
+  glass,
+  glassIconBtnSx,
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+  glassItemSx,
+  ctaButtonSx,
+  glassInputSx,
+  searchFieldSx,
+} from "../theme/designSystem";
 import Cropper from 'react-easy-crop';
 import ColorThief from 'colorthief';
 import { FastAverageColor } from "fast-average-color";
@@ -90,12 +102,12 @@ function showLocalNotification(title, options) {
     }
   `;
 
-// --- NEW CONSTANT FOR BACKDROP BLUR STYLE ---
+// --- BACKDROP BLUR STYLE using designSystem token ---
 const backdropBlurStyle = {
-  backdropFilter: 'blur(10px)',
-  WebkitBackdropFilter: 'blur(10px)', // For Safari support
+  backdropFilter: designTokens.blurs.subtle,
+  WebkitBackdropFilter: designTokens.blurs.subtle,
 };
-// --------------------------------------------
+// --------------------------------------------------
 
 const getMessageShape = (messages, index, currentUserId) => {
   const msg = messages[index];

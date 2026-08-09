@@ -2,7 +2,8 @@ import React, { useRef, useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Typography, IconButton, Button } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarMonth, NotificationsNone, Check } from "../../icons/LucideIcons";
+import { CalendarMonth, NotificationsNone, Check } from "../../icons";
+import { designTokens, glass, cardHover } from "../../theme/designSystem";
 
 const REMCARD_WIDTH = 140;
 const MAX_VISIBLE = 4;
@@ -247,43 +248,36 @@ const ReminderCard = ({ rem, mode, onToggleComplete }) => {
         sx={{
           minWidth: 180,
           height: 75,
-          borderRadius: 5,
+          borderRadius: designTokens.radii.card,
           p: 2,
           position: "relative",
           overflow: "hidden",
-          background: `
-            linear-gradient(
-              120deg,
-              ${accent}22,
-              ${
-                mode === "dark"
-                  ? "rgba(255,255,255,0.04)"
-                  : "rgba(255,255,255,0.85)"
-              },
-              ${accent}22
-            ),
-            repeating-linear-gradient(
-                0deg,
-                rgba(255,255,255,0.04),
-                rgba(255,255,255,0.04) 1px,
-                transparent 1px,
-                transparent 18px
-              )
-          `,
+          ...glass(mode, {
+            background: `
+              linear-gradient(
+                120deg,
+                ${accent}22,
+                ${
+                  mode === "dark"
+                    ? "rgba(255,255,255,0.04)"
+                    : "rgba(255,255,255,0.85)"
+                },
+                ${accent}22
+              ),
+              repeating-linear-gradient(
+                  0deg,
+                  rgba(255,255,255,0.04),
+                  rgba(255,255,255,0.04) 1px,
+                  transparent 1px,
+                  transparent 18px
+                )
+            `,
+          }),
           backgroundSize: "300% 300%",
           animation: isCompleted ? "none" : "gradientShift 8s ease infinite",
-          "@keyframes gradientShift": {
-            "0%": { backgroundPosition: "0% 50%" },
-            "50%": { backgroundPosition: "100% 50%" },
-            "100%": { backgroundPosition: "0% 50%" },
-          },
-          border:
-            mode === "dark"
-              ? "1px solid rgba(255,255,255,0.14)"
-              : "1px solid rgba(0,0,0,0.08)",
           boxShadow: isOverdue
             ? "0 0 0 1px rgba(239,68,68,0.4), 0 18px 40px rgba(239,68,68,0.25)"
-            : "none",
+            : undefined,
           opacity: isCompleted ? 0.7 : 1,
         }}
       >

@@ -53,27 +53,48 @@ import {
   CheckCircle, ChatBubbleOutline, Search, Share,
   Close, ArrowForwardIos, PhotoCamera, WbSunnyOutlined, LockOutlined,
   ContentCopyOutlined, DownloadOutlined, EngineeringOutlined, Mail,
-  EditLocationOutlined, Settings, HelpOutline as HelpOutlineIcon,
-  FeedbackOutlined, PersonAddOutlined, Brightness4 as Brightness4Icon,
+  Settings, HelpOutline as HelpOutlineIcon,
+  FeedbackOutlined, PersonAddOutlined,
   PaletteOutlined as PaletteOutlinedIcon, WallpaperOutlined as WallpaperOutlinedIcon,
   FormatSizeOutlined as FormatSizeOutlinedIcon, DeleteSweepOutlined as DeleteSweepOutlinedIcon,
-  DeleteForeverOutlined as DeleteForeverOutlinedIcon, GroupAddOutlined as GroupAddOutlinedIcon,
-  CardTravelOutlined as CardTravelOutlinedIcon, BlockOutlined as BlockOutlinedIcon,
+  DeleteForeverOutlined as DeleteForeverOutlinedIcon, PersonAddOutlined as GroupAddOutlinedIcon,
+  Luggage as CardTravelOutlinedIcon, BlockOutlined as BlockOutlinedIcon,
   Public as PublicIcon, PeopleOutline as PeopleOutlineIcon, PersonOffOutlined as PersonOffOutlinedIcon,
-  Check as CheckIcon, Chat as ChatIcon, MyLocationOutlined as MyLocationOutlinedIcon,
+  Check as CheckIcon, Chat as ChatIcon, LocationOnOutlined as MyLocationOutlinedIcon,
   WhatsApp as WhatsAppIcon, Email as EmailIcon, Telegram as TelegramIcon, Share as ShareIcon,
-  Instagram, YouTube, LayersOutlined, DeleteForever as DeleteForeverIcon, DarkModeOutlined as DarkModeOutlinedIcon,
-  EngineeringOutlined as EngineeringOutlinedIcon,
   LockOutlined as LockOutlinedIcon,
-  BlockOutlined as BlockIcon, // Or just Block
+  Block as BlockIcon,
   LocationOnOutlined as LocationOnOutlinedIcon,
+  LocationOnOutlined as EditLocationOutlined,
+  WbSunnyOutlined as Brightness4Icon,
+  WbSunnyOutlined as DarkModeOutlinedIcon,
+  DeleteForever as DeleteForeverIcon,
+  EngineeringOutlined as EngineeringOutlinedIcon,
+  LayersOutlined, Instagram, YouTube,
   AutoAwesome, VpnKey, Visibility, VisibilityOff, ElectricBolt, ErrorOutline,
-} from "@mui/icons-material";
+  QrCode, Edit3, Luggage,
+} from "../icons";
 import {
-  QrCode,
-  Edit3,
-  Luggage,
-} from "lucide-react";
+  designTokens,
+  glass,
+  cardHover,
+  drawerPaperSx,
+  drawerBackdropSx,
+  drawerHandleSx,
+  DrawerHandle,
+  ctaButtonSx,
+  glassIconBtnSx,
+  glassInputSx,
+  searchFieldSx,
+  glassItemSx,
+  toggleGroupSx,
+  filterChipSx,
+  glassPillSx,
+  glassCard,
+  flexBetweenSx,
+  flexRowSx,
+  flexCenterSx,
+} from "../theme/designSystem";
 import { signOut, updateProfile, getAuth, deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
 import { doc, updateDoc, arrayUnion, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, arrayRemove, deleteDoc } from "firebase/firestore";
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
@@ -98,7 +119,6 @@ import { AccountCircleOutlined } from "@mui/icons-material";
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
 
-// Fade-in animation keyframes
 const fadeIn = keyframes`
   from {
     opacity: 0;
@@ -152,7 +172,7 @@ const ProfilePic = ({currentUser}) => {
   const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
-  // User data states
+  
   const [userData, setUserData] = useState({
     name: "",
     username: "",
@@ -183,16 +203,17 @@ const ProfilePic = ({currentUser}) => {
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
 
   const [cropDrawerOpen, setCropDrawerOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null); // URL of selected file
+  const [selectedImage, setSelectedImage] = useState(null); 
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const [croppedImageDataUri, setCroppedImageDataUri] = useState(""); // base64 string to save
+  const [croppedImageDataUri, setCroppedImageDataUri] = useState(""); 
   const [selectedImageFile, setSelectedImageFile] = useState(null);
 
   const [tapCount, setTapCount] = React.useState(0);
   const [showDevDialog, setShowDevDialog] = React.useState(false);
   const [enteredKey, setEnteredKey] = React.useState("");
+  const [showDevKey, setShowDevKey] = React.useState(false);
   const [isDeveloper, setIsDeveloper] = React.useState(
     localStorage.getItem("isDeveloper") === "true"
   );
@@ -216,16 +237,12 @@ const ProfilePic = ({currentUser}) => {
   const [userIssues, setUserIssues] = useState([]);
   const [userReports, setUserReports] = useState([]);
 
-  // const [language, setLanguage] = useState('en-US'); // Default language
-  // const [languageDrawerOpen, setLanguageDrawerOpen] = useState(false);
-  // const [searchTerm, setSearchTerm] = useState('');
-
   const [chatTheme, setChatTheme] = useState(localStorage.getItem('bunkmate_chatTheme') || 'system');
   const [fontSize, setFontSize] = useState(parseInt(localStorage.getItem('bunkmate_fontSize'), 10) || 14);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [wallpaperDrawerOpen, setWallpaperDrawerOpen] = useState(false); // ⭐️ State for the drawer
-  const [fontDrawerOpen, setFontDrawerOpen] = useState(false); // ⭐️ State for the drawer
+  const [wallpaperDrawerOpen, setWallpaperDrawerOpen] = useState(false);
+  const [fontDrawerOpen, setFontDrawerOpen] = useState(false);
 
   const [isQrDrawerOpen, setQrDrawerOpen] = useState(false);
   const handleQrDrawerOpen = () => setQrDrawerOpen(true);
@@ -241,9 +258,9 @@ const ProfilePic = ({currentUser}) => {
   const [activePrivacySetting, setActivePrivacySetting] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [privacySettings, setPrivacySettings] = useState({
-    profileVisibility: 'public', // 'public' or 'private'
-    canBeAddedToGroups: 'everyone', // 'everyone' or 'friends'
-    canBeAddedToTrips: 'everyone', // 'everyone' or 'friends'
+    profileVisibility: 'public',
+    canBeAddedToGroups: 'everyone',
+    canBeAddedToTrips: 'everyone',
   });
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [isLoadingBlocked, setIsLoadingBlocked] = useState(false);
@@ -251,16 +268,15 @@ const ProfilePic = ({currentUser}) => {
   const [scannedUserData, setScannedUserData] = useState(null);
   const [showScannedUserDrawer, setShowScannedUserDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState('myCode');
-  const [viewMode, setViewMode] = useState('avatar'); // 'avatar' or 'qr'
+  const [viewMode, setViewMode] = useState('avatar');
   const [snackbar, setSnackbar] = useState({ open: false, message: '' });
   const [unreadCount, setUnreadCount] = useState(0);
   const [backgroundOpen, setBackgroundOpen] = useState(false);
   const [tripsCount, setTripsCount] = useState(0);
 
-  // Groq AI API Key Management State
   const [groqApiKey, setGroqApiKey] = useState("");
   const [showGroqKey, setShowGroqKey] = useState(false);
-  const [groqKeyStatus, setGroqKeyStatus] = useState("idle"); // 'idle', 'validating', 'valid', 'invalid'
+  const [groqKeyStatus, setGroqKeyStatus] = useState("idle");
   const [groqKeyError, setGroqKeyError] = useState("");
   const [groqModels, setGroqModels] = useState([]);
   const [groqValidatedAt, setGroqValidatedAt] = useState(null);
@@ -371,322 +387,289 @@ const ProfilePic = ({currentUser}) => {
     }
   };
 
-useEffect(() => {
-  if (!auth.currentUser?.uid) return;
+  useEffect(() => {
+    if (!auth.currentUser?.uid) return;
 
-  const q = query(
-    collection(db, "trips"),
-    where("members", "array-contains", auth.currentUser.uid)
-  );
+    const q = query(
+      collection(db, "trips"),
+      where("members", "array-contains", auth.currentUser.uid)
+    );
 
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    setTripsCount(snapshot.size);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setTripsCount(snapshot.size);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleSwiped = (eventData) => {
+    if (eventData.dir === 'Left' && activeTab === 'myCode') {
+      setActiveTab('scanCode');
+    }
+    if (eventData.dir === 'Right' && activeTab === 'scanCode') {
+      setActiveTab('myCode');
+    }
+  };
+
+  const swipeHandlers = useSwipeable({
+    onSwiped: handleSwiped,
+    trackMouse: true,
   });
 
-  return () => unsubscribe();
-}, []);
+  const [chatWallpaper, setChatWallpaper] = useState(() => {
+    const savedWallpaper = localStorage.getItem('bunkmate_chatWallpaper');
+    return savedWallpaper || 'none'; 
+  });
 
-  // Place this at the top level of your component, with your other hooks
-
-const handleSwiped = (eventData) => {
-  if (eventData.dir === 'Left' && activeTab === 'myCode') {
-    setActiveTab('scanCode');
-  }
-  if (eventData.dir === 'Right' && activeTab === 'scanCode') {
-    setActiveTab('myCode');
-  }
-};
-
-const swipeHandlers = useSwipeable({
-  onSwiped: handleSwiped,
-  trackMouse: true, // Allows swiping with a mouse for testing
-});
-
-const [chatWallpaper, setChatWallpaper] = useState(() => {
-  // On initial load, try to get the wallpaper from localStorage
-  const savedWallpaper = localStorage.getItem('bunkmate_chatWallpaper');
-  
-  // If a wallpaper was saved, use it. Otherwise, use a default value.
-  return savedWallpaper || 'none'; 
-});
-
-// Your existing handler function works perfectly with this setup
-const handleWallpaperSelect = (wallpaperUrl) => {
-    setChatWallpaper(wallpaperUrl);
-    localStorage.setItem('bunkmate_chatWallpaper', wallpaperUrl);
-};
+  const handleWallpaperSelect = (wallpaperUrl) => {
+      setChatWallpaper(wallpaperUrl);
+      localStorage.setItem('bunkmate_chatWallpaper', wallpaperUrl);
+  };
   const themeWallpapers = useMemo(() => {
     return wallpapers.filter(w => w.theme === mode || w.theme === 'both');
   }, [wallpapers, mode]);
 
   useEffect(() => {
-  let defaultWallpaperUrl;
+    let defaultWallpaperUrl;
+    if (mode === 'dark') {
+      defaultWallpaperUrl = wallpapers.find(w => w.id === 'default-dark')?.url;
+    } else {
+      defaultWallpaperUrl = wallpapers.find(w => w.id === 'default-light')?.url;
+    }
 
-  // Check the current theme mode
-  if (mode === 'dark') {
-    // Find the default dark wallpaper by its unique ID
-    defaultWallpaperUrl = wallpapers.find(w => w.id === 'default-dark')?.url;
-  } else {
-    // Find the default light wallpaper by its unique ID
-    defaultWallpaperUrl = wallpapers.find(w => w.id === 'default-light')?.url;
-  }
-
-  // If a default wallpaper was found, select it
-  // (This assumes you have a function like 'handleWallpaperSelect' that sets the state)
-  if (defaultWallpaperUrl) {
-    handleWallpaperSelect(defaultWallpaperUrl);
-  }
-}, [mode]); // This dependency array ensures the hook only runs when 'mode' changes
+    if (defaultWallpaperUrl) {
+      handleWallpaperSelect(defaultWallpaperUrl);
+    }
+  }, [mode]);
 
   const buttonWeatherBg =
-  weather && weatherColors[weather.main]
-    ? weatherColors[weather.main]
-    : weatherColors.Default;
-    
-const toggleDropdown = (key) => {
-  setActiveDropdown(activeDropdown === key ? null : key);
-};
-
-const handleScanCode = () => {
-  handleQrDrawerClose(); // Close the previous drawer
-  setScannerOpen(true);   // Open the scanner modal
-};
-
-// This handler receives the decoded text directly
-const handleScanSuccess = async (decodedText) => {
-  if (isProcessing) return;
-  setIsProcessing(true);
-  setScannerOpen(false); // Close scanner on success
-
-  // ... The rest of your existing logic for fetching and displaying the user profile
-  // is exactly the same and does not need to be changed.
-  const friendUid = decodedText;
-
-  if (!friendUid || friendUid === auth.currentUser.uid) {
-    alert(friendUid ? "You can't add yourself!" : "Invalid QR Code.");
-    setIsProcessing(false);
-    return;
-  }
-
-  try {
-    const userDocRef = doc(db, "users", friendUid);
-    const docSnap = await getDoc(userDocRef);
-
-    if (docSnap.exists()) {
-      setScannedUserData({ id: docSnap.id, ...docSnap.data() });
-      setShowScannedUserDrawer(true);
-    } else {
-      alert("User not found.");
-    }
-  } catch (error) {
-    console.error("Error fetching user by UID:", error);
-    alert("Could not find user.");
-  } finally {
-    setIsProcessing(false);
-  }
-};
-
-    useEffect(() => {
-        if (!auth.currentUser) return;
-
-        const userId = auth.currentUser.uid;
-        const notificationsQuery = query(
-            collection(db, "notifications"),
-            where("uid", "==", userId),
-            where("seen", "==", false)
-        );
-
-        const unsubscribe = onSnapshot(notificationsQuery, (querySnapshot) => {
-            setUnreadCount(querySnapshot.size);
-        });
-
-        // Cleanup listener on component unmount
-        return () => unsubscribe();
-    }, []);
-
-// This handler receives the error message
-const handleScanError = (errorMessage) => {
-  // We can ignore common errors, but log others
-  if (!errorMessage.includes("QR code parse error")) {
-      console.error("QR Scanner Error:", errorMessage);
-  }
-};
-
-// This new function handles the logic for adding the friend
-const handleAddFriend = async () => {
-  if (!scannedUserData) return;
-
-  const friendUid = scannedUserData.id;
-
-  try {
-    const currentUserRef = doc(db, "users", auth.currentUser.uid);
-    await updateDoc(currentUserRef, {
-      friends: arrayUnion(friendUid),
-    });
-
-    const friendRef = doc(db, "users", friendUid);
-    await updateDoc(friendRef, {
-      friends: arrayUnion(auth.currentUser.uid),
-    });
-
-    alert("Friend added successfully! 🎉");
-    // Close the drawer and clear the state after adding
-    setShowScannedUserDrawer(false);
-    setScannedUserData(null);
-
-  } catch (error) {
-    console.error("Error adding friend:", error);
-    alert("An error occurred while adding the friend.");
-  }
-};
-
-// No changes needed for handleError
-const handleError = (error) => {
-  if (!error.message.includes("NotFoundException")) {
-    console.error("QR Scanner Error:", error?.message);
-  }
-};
-
-const handleShare = async () => {
-  // 1. Prepare the data to be shared.
-  const shareData = {
-    title: `Check out ${userData.name}'s profile`,
-    message: `Here's a link to ${userData.name}'s profile on BunkMate.`, // Used for both native and web
-    url: `${window.location.origin}/profile/${userData.uid}`,
+    weather && weatherColors[weather.main]
+      ? weatherColors[weather.main]
+      : weatherColors.Default;
+      
+  const toggleDropdown = (key) => {
+    setActiveDropdown(activeDropdown === key ? null : key);
   };
 
-  try {
-    // 2. Check for the native app bridge first.
-    // This 'nativeBridge' is the custom object we defined for the WebView.
-    if (window.nativeBridge && typeof window.nativeBridge.share === 'function') {
-      window.nativeBridge.share({
-        title: shareData.title,
-        message: shareData.message,
-        url: shareData.url,
+  const handleScanCode = () => {
+    handleQrDrawerClose();
+    setScannerOpen(true);
+  };
+
+  const handleScanSuccess = async (decodedText) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    setScannerOpen(false);
+
+    const friendUid = decodedText;
+
+    if (!friendUid || friendUid === auth.currentUser.uid) {
+      alert(friendUid ? "You can't add yourself!" : "Invalid QR Code.");
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      const userDocRef = doc(db, "users", friendUid);
+      const docSnap = await getDoc(userDocRef);
+
+      if (docSnap.exists()) {
+        setScannedUserData({ id: docSnap.id, ...docSnap.data() });
+        setShowScannedUserDrawer(true);
+      } else {
+        alert("User not found.");
+      }
+    } catch (error) {
+      console.error("Error fetching user by UID:", error);
+      alert("Could not find user.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  useEffect(() => {
+      if (!auth.currentUser) return;
+
+      const userId = auth.currentUser.uid;
+      const notificationsQuery = query(
+          collection(db, "notifications"),
+          where("uid", "==", userId),
+          where("seen", "==", false)
+      );
+
+      const unsubscribe = onSnapshot(notificationsQuery, (querySnapshot) => {
+          setUnreadCount(querySnapshot.size);
       });
+
+      return () => unsubscribe();
+  }, []);
+
+  const handleScanError = (errorMessage) => {
+    if (!errorMessage.includes("QR code parse error")) {
+        console.error("QR Scanner Error:", errorMessage);
     }
-    // 3. If no native bridge, check for the browser's Web Share API.
-    else if (navigator.share) {
-      await navigator.share({
-        title: shareData.title,
-        text: shareData.message, // Note: Web Share API uses 'text' instead of 'message'
-        url: shareData.url,
+  };
+
+  const handleAddFriend = async () => {
+    if (!scannedUserData) return;
+
+    const friendUid = scannedUserData.id;
+
+    try {
+      const currentUserRef = doc(db, "users", auth.currentUser.uid);
+      await updateDoc(currentUserRef, {
+        friends: arrayUnion(friendUid),
       });
+
+      const friendRef = doc(db, "users", friendUid);
+      await updateDoc(friendRef, {
+        friends: arrayUnion(auth.currentUser.uid),
+      });
+
+      alert("Friend added successfully! 🎉");
+      setShowScannedUserDrawer(false);
+      setScannedUserData(null);
+
+    } catch (error) {
+      console.error("Error adding friend:", error);
+      alert("An error occurred while adding the friend.");
     }
-    // 4. If all else fails, fall back to copying the link to the clipboard.
-    else {
-      await navigator.clipboard.writeText(shareData.url);
-      setSnackbar({ open: true, message: 'Share not supported, link copied instead!' });
+  };
+
+  const handleError = (error) => {
+    if (!error.message.includes("NotFoundException")) {
+      console.error("QR Scanner Error:", error?.message);
     }
-  } catch (error) {
-    console.error('Error sharing:', error);
-    // Optionally, show an error message to the user
-    setSnackbar({ open: true, message: 'Could not complete the action.' });
-  }
-};
+  };
 
-const handleCopyLink = async () => {
-  const profileLink = `${window.location.origin}/profile/${auth.currentUser.uid}`;
-  try {
-    await navigator.clipboard.writeText(profileLink);
-    setSnackbar({ open: true, message: 'Profile link copied to clipboard!' });
-  } catch (error) {
-    console.error('Error copying link:', error);
-    setSnackbar({ open: true, message: 'Failed to copy link.' });
-  }
-};
+  const handleShare = async () => {
+    const shareData = {
+      title: `Check out ${userData.name}'s profile`,
+      message: `Here's a link to ${userData.name}'s profile on BunkMate.`,
+      url: `${window.location.origin}/profile/${userData.uid}`,
+    };
 
-// Handles closing the snackbar
-const handleSnackbarClose = () => {
-  setSnackbar({ ...snackbar, open: false });
-};
-
-const libraries = [
-  { name: "React.js / React Native", functionality: "Core Application UI & Framework", license: "MIT License" },
-  { name: "Firebase (Auth, Firestore, Messaging)", functionality: "Backend Services, Cloud Messaging, Data Storage", license: "Apache License 2.0" },
-  { name: "Material UI (v5)", functionality: "UI Components & Design System", license: "MIT License" },
-  { name: "OpenWeatherMap API", functionality: "Real-Time Weather Data", license: "CC BY-SA 4.0" },
-  { name: "Google Fonts", functionality: "Typography Fonts", license: "SIL Open Font License 1.1" },
-  { name: "Material Icons", functionality: "UI Icons / Visual Assets", license: "Apache License 2.0" },
-  { name: "framer-motion", functionality: "Advanced UI Animations", license: "MIT License" },
-  { name: "@fullcalendar/react, daygrid, etc.", functionality: "Calendar & Scheduling", license: "MIT / Commercial Dual License" },
-  { name: "dayjs / date-fns", functionality: "Date & Time Handling", license: "MIT License" },
-  { name: "react-easy-crop", functionality: "Client-Side Image Cropping", license: "MIT License" },
-  { name: "react-webcam", functionality: "Camera Access & Streaming", license: "MIT License" },
-  { name: "jsqr", functionality: "QR Code Scanning", license: "MIT License" },
-  { name: "uuid", functionality: "Unique Identifier Generation", license: "MIT License" },
-  { name: "lucide-react / qrcode.react", functionality: "UI Icons & QR Generation", license: "ISC License" },
-];
-
-const licenseSections = [
-  {
-    title: "1. The MIT License",
-    description:
-      "Covers React.js, Material UI, and other core frontend dependencies. The MIT License is permissive, allowing reuse, modification, and redistribution of code provided the original copyright notice is retained.",
-    details: [
-      "Permission is granted free of charge to use, modify, publish, and distribute the software.",
-      "The software is provided 'as is' without warranty of any kind.",
-      "Includes copyrights from Facebook, Inc., Material-UI Team, and various contributors.",
-    ],
-  },
-  {
-    title: "2. Apache License 2.0",
-    description:
-      "Applies to Firebase SDKs and Material Icons. This license includes explicit patent grants and requires retaining copyright notices.",
-    details: [
-      "Grants perpetual, royalty-free copyright and patent licenses.",
-      "Allows modification and distribution in source or object form.",
-      "Applies to Firebase Auth, Firestore, Messaging, and Material Icons.",
-    ],
-  },
-  {
-    title: "3. Creative Commons Attribution-ShareAlike 4.0 (CC BY-SA 4.0)",
-    description:
-      "Used for OpenWeatherMap API data. Allows adaptation and commercial use provided attribution and same-license sharing.",
-    details: [
-      "Attribution required — include credit and link to license.",
-      'Required credit: “Weather Data provided by OpenWeatherMap, licensed under CC BY-SA 4.0.”',
-    ],
-  },
-  {
-    title: "4. SIL Open Font License 1.1",
-    description:
-      "Covers Google Fonts used in the app’s typography. Allows free use, modification, and bundling of font software.",
-    details: [
-      "Fonts cannot be sold standalone.",
-      "Modified font names must differ from reserved names.",
-      "Full OFL text is included in font metadata.",
-    ],
-  },
-  {
-    title: "5. FullCalendar Dual License",
-    description:
-      "FullCalendar components operate under MIT or a Commercial License. Commercial use of advanced features may require a paid license.",
-    details: [
-      "BunkMates complies with either MIT or commercial terms as required.",
-      "Copyright © 2025 Adam Shaw.",
-    ],
-  },
-];
-
-const handleBuildTap = () => {
-  // Increment tap count
-  setTapCount((prev) => {
-    const newCount = prev + 1;
-
-    // Reset if paused for too long
-    if (tapTimer.current) clearTimeout(tapTimer.current);
-    tapTimer.current = setTimeout(() => setTapCount(0), 1500);
-
-    // When tapped 7 times
-    if (newCount >= 7) {
-      setTapCount(0);
-      setShowDevDialog(true);
+    try {
+      if (window.nativeBridge && typeof window.nativeBridge.share === 'function') {
+        window.nativeBridge.share({
+          title: shareData.title,
+          message: shareData.message,
+          url: shareData.url,
+        });
+      } else if (navigator.share) {
+        await navigator.share({
+          title: shareData.title,
+          text: shareData.message,
+          url: shareData.url,
+        });
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+        setSnackbar({ open: true, message: 'Share not supported, link copied instead!' });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      setSnackbar({ open: true, message: 'Could not complete the action.' });
     }
+  };
 
-    return newCount;
-  });
-};
+  const handleCopyLink = async () => {
+    const profileLink = `${window.location.origin}/profile/${auth.currentUser.uid}`;
+    try {
+      await navigator.clipboard.writeText(profileLink);
+      setSnackbar({ open: true, message: 'Profile link copied to clipboard!' });
+    } catch (error) {
+      console.error('Error copying link:', error);
+      setSnackbar({ open: true, message: 'Failed to copy link.' });
+    }
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+  const libraries = [
+    { name: "React.js / React Native", functionality: "Core Application UI & Framework", license: "MIT License" },
+    { name: "Firebase (Auth, Firestore, Messaging)", functionality: "Backend Services, Cloud Messaging, Data Storage", license: "Apache License 2.0" },
+    { name: "Material UI (v5)", functionality: "UI Components & Design System", license: "MIT License" },
+    { name: "OpenWeatherMap API", functionality: "Real-Time Weather Data", license: "CC BY-SA 4.0" },
+    { name: "Google Fonts", functionality: "Typography Fonts", license: "SIL Open Font License 1.1" },
+    { name: "Material Icons", functionality: "UI Icons / Visual Assets", license: "Apache License 2.0" },
+    { name: "framer-motion", functionality: "Advanced UI Animations", license: "MIT License" },
+    { name: "@fullcalendar/react, daygrid, etc.", functionality: "Calendar & Scheduling", license: "MIT / Commercial Dual License" },
+    { name: "dayjs / date-fns", functionality: "Date & Time Handling", license: "MIT License" },
+    { name: "react-easy-crop", functionality: "Client-Side Image Cropping", license: "MIT License" },
+    { name: "react-webcam", functionality: "Camera Access & Streaming", license: "MIT License" },
+    { name: "jsqr", functionality: "QR Code Scanning", license: "MIT License" },
+    { name: "uuid", functionality: "Unique Identifier Generation", license: "MIT License" },
+    { name: "lucide-react / qrcode.react", functionality: "UI Icons & QR Generation", license: "ISC License" },
+  ];
+
+  const licenseSections = [
+    {
+      title: "1. The MIT License",
+      description:
+        "Covers React.js, Material UI, and other core frontend dependencies. The MIT License is permissive, allowing reuse, modification, and redistribution of code provided the original copyright notice is retained.",
+      details: [
+        "Permission is granted free of charge to use, modify, publish, and distribute the software.",
+        "The software is provided 'as is' without warranty of any kind.",
+        "Includes copyrights from Facebook, Inc., Material-UI Team, and various contributors.",
+      ],
+    },
+    {
+      title: "2. Apache License 2.0",
+      description:
+        "Applies to Firebase SDKs and Material Icons. This license includes explicit patent grants and requires retaining copyright notices.",
+      details: [
+        "Grants perpetual, royalty-free copyright and patent licenses.",
+        "Allows modification and distribution in source or object form.",
+        "Applies to Firebase Auth, Firestore, Messaging, and Material Icons.",
+      ],
+    },
+    {
+      title: "3. Creative Commons Attribution-ShareAlike 4.0 (CC BY-SA 4.0)",
+      description:
+        "Used for OpenWeatherMap API data. Allows adaptation and commercial use provided attribution and same-license sharing.",
+      details: [
+        "Attribution required — include credit and link to license.",
+        'Required credit: “Weather Data provided by OpenWeatherMap, licensed under CC BY-SA 4.0.”',
+      ],
+    },
+    {
+      title: "4. SIL Open Font License 1.1",
+      description:
+        "Covers Google Fonts used in the app’s typography. Allows free use, modification, and bundling of font software.",
+      details: [
+        "Fonts cannot be sold standalone.",
+        "Modified font names must differ from reserved names.",
+        "Full OFL text is included in font metadata.",
+      ],
+    },
+    {
+      title: "5. FullCalendar Dual License",
+      description:
+        "FullCalendar components operate under MIT or a Commercial License. Commercial use of advanced features may require a paid license.",
+      details: [
+        "BunkMates complies with either MIT or commercial terms as required.",
+        "Copyright © 2025 Adam Shaw.",
+      ],
+    },
+  ];
+
+  const handleBuildTap = () => {
+    setTapCount((prev) => {
+      const newCount = prev + 1;
+
+      if (tapTimer.current) clearTimeout(tapTimer.current);
+      tapTimer.current = setTimeout(() => setTapCount(0), 1500);
+
+      if (newCount >= 7) {
+        setTapCount(0);
+        setShowDevDialog(true);
+      }
+
+      return newCount;
+    });
+  };
 
   const handleVerifyDevKey = async () => {
     try {
@@ -696,6 +679,7 @@ const handleBuildTap = () => {
         setIsDeveloper(true);
         localStorage.setItem("isDeveloper", "true");
         setShowDevDialog(false);
+        setEnteredKey("");
         alert("✅ Developer Mode Unlocked!");
       } else {
         alert("❌ Invalid Developer Key.");
@@ -706,20 +690,6 @@ const handleBuildTap = () => {
     }
   };
 
-  // const handleLanguageChange = (langCode) => {
-  //   setLanguage(langCode);
-  //   setLanguageDrawerOpen(false);
-  // };
-
-  // // Filters languages based on the user's search term
-  // const filteredLanguages = availableLanguages.filter((lang) =>
-  //   lang.name.toLowerCase().includes(searchTerm.toLowerCase())
-  // );
-
-
-
-  // Real-time listener for user Firestore document
-  
   useEffect(() => {
     if (!auth.currentUser) return setLoading(false);
 
@@ -753,13 +723,11 @@ const handleBuildTap = () => {
     };
   }, []);
 
-  // Real-time listeners for feedback, issues, reports
   useEffect(() => {
     if (!auth.currentUser) return;
 
     const userId = auth.currentUser.uid;
 
-    // Feedback
     const feedbackQuery = query(collection(firestore, "feedback"), where("uid", "==", userId));
     const unsubscribeFeedback = onSnapshot(feedbackQuery, (querySnapshot) => {
       const feedbackList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -767,7 +735,6 @@ const handleBuildTap = () => {
       setFeedbackCount(querySnapshot.size);
     });
 
-    // Issues
     const issuesQuery = query(collection(firestore, "issues"), where("userId", "==", userId));
     const unsubscribeIssues = onSnapshot(issuesQuery, (querySnapshot) => {
       const issuesList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -775,7 +742,6 @@ const handleBuildTap = () => {
       setIssuesCount(querySnapshot.size);
     });
 
-    // Reports
     const reportsQuery = query(collection(firestore, "reports"), where("userId", "==", userId));
     const unsubscribeReports = onSnapshot(reportsQuery, (querySnapshot) => {
       const reportsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -790,7 +756,6 @@ const handleBuildTap = () => {
     };
   }, []);
 
-  // Save profile changes
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -816,76 +781,64 @@ const handleBuildTap = () => {
   };
 
   useEffect(() => {
-  // Function to fetch settings from Firestore
-  const fetchPrivacySettings = async () => {
-    if (auth.currentUser) {
-      try {
-        const userDocRef = doc(db, "users", auth.currentUser.uid);
-        const docSnap = await getDoc(userDocRef);
+    const fetchPrivacySettings = async () => {
+      if (auth.currentUser) {
+        try {
+          const userDocRef = doc(db, "users", auth.currentUser.uid);
+          const docSnap = await getDoc(userDocRef);
 
-        if (docSnap.exists()) {
-          const userData = docSnap.data();
-          const userPrivacy = userData.privacy || {}; // Get privacy object, or empty if it doesn't exist
+          if (docSnap.exists()) {
+            const userData = docSnap.data();
+            const userPrivacy = userData.privacy || {};
 
-          // Set state with fetched data, providing defaults for any missing fields
-          setPrivacySettings({
-            profileVisibility: userPrivacy.profileVisibility || 'public',
-            canBeAddedToGroups: userPrivacy.canBeAddedToGroups || 'everyone',
-            canBeAddedToTrips: userPrivacy.canBeAddedToTrips || 'everyone',
-          });
+            setPrivacySettings({
+              profileVisibility: userPrivacy.profileVisibility || 'public',
+              canBeAddedToGroups: userPrivacy.canBeAddedToGroups || 'everyone',
+              canBeAddedToTrips: userPrivacy.canBeAddedToTrips || 'everyone',
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching privacy settings:", error);
         }
-      } catch (error) {
-        console.error("Error fetching privacy settings:", error);
       }
+    };
+
+    fetchPrivacySettings();
+  }, []);
+
+  const handlePrivacyChange = async (setting, newValue) => {
+    if (!auth.currentUser || !setting) {
+      setPrivacyMenuAnchor(null);
+      return;
+    }
+
+    const userDocRef = doc(db, "users", auth.currentUser.uid);
+    const settingKey = `privacy.${setting}`;
+
+    try {
+      await updateDoc(userDocRef, { [settingKey]: newValue });
+      setPrivacySettings(prevSettings => ({ ...prevSettings, [setting]: newValue }));
+    } catch (error) {
+      console.error("Error updating privacy setting:", error);
+    } finally {
+      setPrivacyMenuAnchor(null);
     }
   };
 
-  fetchPrivacySettings();
-}, []); // This effect runs when the currentUser is identified
+  const handleVisibilityChange = async (event) => {
+    if (!auth.currentUser) return;
 
-const handlePrivacyChange = async (setting, newValue) => {
-  // Check for the setting name passed directly as an argument
-  if (!auth.currentUser || !setting) {
-    setPrivacyMenuAnchor(null); // Still close the menu
-    return;
-  }
+    const isPrivate = event.target.checked;
+    const newVisibility = isPrivate ? 'private' : 'public';
+    const userDocRef = doc(db, "users", auth.currentUser.uid);
 
-  const userDocRef = doc(db, "users", auth.currentUser.uid);
-  const settingKey = `privacy.${setting}`; // Creates the path e.g., "privacy.canBeAddedToGroups"
-
-  try {
-    // Update Firestore
-    await updateDoc(userDocRef, { [settingKey]: newValue });
-
-    // Update local state
-    setPrivacySettings(prevSettings => ({ ...prevSettings, [setting]: newValue }));
-    
-  } catch (error) {
-    console.error("Error updating privacy setting:", error);
-  } finally {
-    setPrivacyMenuAnchor(null); // Close the menu
-  }
-};
-
-// New handler function for the switch
-const handleVisibilityChange = async (event) => {
-  if (!auth.currentUser) return;
-
-  const isPrivate = event.target.checked;
-  const newVisibility = isPrivate ? 'private' : 'public';
-  const userDocRef = doc(db, "users", auth.currentUser.uid);
-
-  try {
-    // 1. Update Firestore
-    await updateDoc(userDocRef, { "privacy.profileVisibility": newVisibility });
-    
-    // 2. Update local state
-    setPrivacySettings(s => ({ ...s, profileVisibility: newVisibility }));
-
-  } catch (error) {
-    console.error("Error updating profile visibility:", error);
-  }
-};
+    try {
+      await updateDoc(userDocRef, { "privacy.profileVisibility": newVisibility });
+      setPrivacySettings(s => ({ ...s, profileVisibility: newVisibility }));
+    } catch (error) {
+      console.error("Error updating profile visibility:", error);
+    }
+  };
 
   const handleDeleteAccount = async () => {
     const auth = getAuth();
@@ -898,14 +851,12 @@ const handleVisibilityChange = async (event) => {
     }
 
     try {
-      // Delete Firestore user document
       const userDocRef = doc(db, "users", user.uid);
       await deleteDoc(userDocRef);
       console.log("User document successfully deleted from Firestore.");
 
       alert("Your account data has been successfully deleted from Firestore.");
 
-      // Close the confirmation dialog and navigate away
       setDeleteConfirmOpen(false);
       navigate("/login");
 
@@ -916,73 +867,64 @@ const handleVisibilityChange = async (event) => {
     }
   };
 
-const handlePrivacyMenuOpen = (event, setting) => {
-  setActivePrivacySetting(setting);
-  setPrivacyMenuAnchor(event.currentTarget);
-};
+  const handlePrivacyMenuOpen = (event, setting) => {
+    setActivePrivacySetting(setting);
+    setPrivacyMenuAnchor(event.currentTarget);
+  };
 
-useEffect(() => {
-  const fetchBlockedUsers = async () => {
-    // Check if the correct page is open and the user is logged in
-    if (drawerPage === "blockedContacts" && auth.currentUser) {
-      setIsLoadingBlocked(true);
-      try {
-        const userDocRef = doc(db, "users", auth.currentUser.uid);
-        const docSnap = await getDoc(userDocRef);
+  useEffect(() => {
+    const fetchBlockedUsers = async () => {
+      if (drawerPage === "blockedContacts" && auth.currentUser) {
+        setIsLoadingBlocked(true);
+        try {
+          const userDocRef = doc(db, "users", auth.currentUser.uid);
+          const docSnap = await getDoc(userDocRef);
 
-        // 1. FIXED: Use 'blockedUids' to match your Firestore field name
-        const blockedUids = docSnap.data()?.blockedUids || [];
+          const blockedUids = docSnap.data()?.blockedUids || [];
 
-        if (blockedUids.length === 0) {
-          setBlockedUsers([]); // No one is blocked
+          if (blockedUids.length === 0) {
+            setBlockedUsers([]);
+            setIsLoadingBlocked(false);
+            return;
+          }
+
+          const usersQuery = query(
+            collection(db, "users"),
+            where('__name__', 'in', blockedUids)
+          );
+          const querySnapshot = await getDocs(usersQuery);
+          const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          
+          setBlockedUsers(usersData);
+
+        } catch (error) {
+          console.error("Error fetching blocked users:", error);
+        } finally {
           setIsLoadingBlocked(false);
-          return;
         }
-
-        // Fetch user profiles for all blocked UIDs
-        const usersQuery = query(
-          collection(db, "users"),
-          where('__name__', 'in', blockedUids)
-        );
-        const querySnapshot = await getDocs(usersQuery);
-        const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        setBlockedUsers(usersData);
-
-      } catch (error) {
-        console.error("Error fetching blocked users:", error);
-      } finally {
-        setIsLoadingBlocked(false);
       }
+    };
+
+    fetchBlockedUsers();
+  }, [drawerPage, auth.currentUser]);
+
+  const handleUnblockUser = async (userIdToUnblock) => {
+    if (!auth.currentUser) return;
+    try {
+      const userDocRef = doc(db, "users", auth.currentUser.uid);
+      
+      await updateDoc(userDocRef, {
+        blockedUids: arrayRemove(userIdToUnblock)
+      });
+
+      setBlockedUsers(prevUsers => prevUsers.filter(user => user.id !== userIdToUnblock));
+
+    } catch (error) {
+      console.error("Error unblocking user:", error);
+      alert("Failed to unblock user. Please try again.");
     }
   };
 
-  // 2. FIXED: Call the function inside the effect
-  fetchBlockedUsers();
-
-// 3. FIXED: Add dependencies to re-run when the page opens
-}, [drawerPage, auth.currentUser]);
-
-const handleUnblockUser = async (userIdToUnblock) => {
-  if (!auth.currentUser) return;
-  try {
-    const userDocRef = doc(db, "users", auth.currentUser.uid);
-    
-    // FIXED: Use 'blockedUids' to match your Firestore field name
-    await updateDoc(userDocRef, {
-      blockedUids: arrayRemove(userIdToUnblock)
-    });
-
-    // Update the local state to remove the user from the list instantly
-    setBlockedUsers(prevUsers => prevUsers.filter(user => user.id !== userIdToUnblock));
-
-  } catch (error) {
-    console.error("Error unblocking user:", error);
-    alert("Failed to unblock user. Please try again.");
-  }
-};
-
-  // Handle file change for cropping
   const onFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -991,12 +933,11 @@ const handleUnblockUser = async (userIdToUnblock) => {
     }
   };
 
-  // Cropper complete handler helper
   const saveCroppedImage = async () => {
     try {
       const croppedImage = await getCroppedImg(selectedImage, croppedAreaPixels);
       setCroppedImageDataUri(croppedImage);
-      setUserData(prev => ({ ...prev, photoURL: croppedImage })); // Update preview
+      setUserData(prev => ({ ...prev, photoURL: croppedImage }));
       setCropDrawerOpen(false);
       URL.revokeObjectURL(selectedImage);
       setSelectedImage(null);
@@ -1006,7 +947,6 @@ const handleUnblockUser = async (userIdToUnblock) => {
     }
   };
 
-  // Handle feedback form submission with notification save
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
     setFeedbackLoading(true);
@@ -1047,13 +987,11 @@ const handleUnblockUser = async (userIdToUnblock) => {
     setFeedbackLoading(false);
   };
 
-  // Drawer open/close handlers
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const settingsPage = params.get("settings");
 
     if (settingsPage) {
-      // A list of valid pages to prevent opening the drawer for arbitrary URL params
       const validPages = [
         "main", "profile", "accounts", "chats", "generalSettings", 
         "support", "feedback", "inviteFriend", "about", "featuresChangelog", "adduser", "blockedContacts", "appInfo", "developers", "aiFeatures"
@@ -1063,13 +1001,11 @@ const handleUnblockUser = async (userIdToUnblock) => {
         setDrawerOpen(true);
         setDrawerPage(settingsPage);
       } else {
-        // If the URL param is not a valid page, close the drawer by clearing the URL
         navigate(location.pathname, { replace: true });
       }
     } else {
       setDrawerOpen(false);
     }
-    // The dependency array ensures this effect runs whenever the URL's search string changes.
   }, [location.search, location.pathname, navigate]);
 
   const handleDrawerOpen = () => {
@@ -1080,15 +1016,13 @@ const handleUnblockUser = async (userIdToUnblock) => {
     setIsEditing(false);
   };
 
-    const handleSetDrawerPage = (page) => {
+  const handleSetDrawerPage = (page) => {
     navigate(`?settings=${page}`);
   };
 
-  // Logout confirmation and handler
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // Clear local session etc if needed
       navigate("/login");
     } catch (error) {
       console.error("Error logging out:", error);
@@ -1146,7 +1080,6 @@ sx={{
   </Box>
 </Box>
 
-  {/* Bottom Drawer */}
 <Drawer
   anchor="right"
   open={drawerOpen}
@@ -1170,7 +1103,6 @@ PaperProps={{
 
 
 <Box sx={{ pt: 0 }}>
-  {/* Progressive Blur Overlay */}
 <Box
   sx={{
     position: "sticky",
@@ -1182,11 +1114,9 @@ PaperProps={{
     mx: -2,
     pointerEvents: "none",
 
-    /* Glass blur */
     backdropFilter: "blur(40px)",
     WebkitBackdropFilter: "blur(40px)",
 
-    /* Premium gradient fade */
     maskImage: `
       linear-gradient(
         to bottom,
@@ -1231,7 +1161,6 @@ PaperProps={{
 
   {drawerPage === "main" && (
     <>
-      {/* User info */}
       <Box sx={{ display: "flex", position: "sticky", top: 120, left: 0, right: 0, alignItems: "center", my: 0, mx: 2, zIndex: 999 }}>
         <IconButton edge="start" color="inherit" onClick={() => navigate(-1)} 
           sx={{
@@ -1251,7 +1180,6 @@ PaperProps={{
         >
           <ArrowBack />
         </IconButton>
-         {/* <Typography sx={{ fontSize: '1.5rem' }}><h2>Settings</h2></Typography>  */}
       </Box>
 
 <Box
@@ -1270,7 +1198,6 @@ PaperProps={{
     height: "100%",
   }}
 >
-  {/* Background Dark Overlay */}
   <Box
     sx={{
       position: "absolute",
@@ -1282,9 +1209,6 @@ PaperProps={{
       zIndex: 1,
     }}
   />
-
-  {/* Progressive Premium Blur */}
-
 
   <Box
     component="img"
@@ -1304,8 +1228,6 @@ PaperProps={{
     }}
   />
 
-
-  {/* Content */}
 <Box
   sx={{
     position: "relative",
@@ -1319,14 +1241,12 @@ PaperProps={{
     mt: 36,
   }}
 >
-  {/* User Info Card */}
   <Box
     sx={{
       background:"transparent",
       border:"none",
     }}
   >
-    {/* Name */}
     <Typography
       variant="h6"
       sx={{
@@ -1338,7 +1258,6 @@ PaperProps={{
       {userData.name || "Username"}
     </Typography>
 
-    {/* Username */}
     <Typography
       variant="body2"
       sx={{
@@ -1350,7 +1269,6 @@ PaperProps={{
       @{userData.username || "username"}
     </Typography>
 
-    {/* Buttons Row */}
 <Box
   sx={{
     display: "flex",
@@ -1361,7 +1279,6 @@ PaperProps={{
     width: "100%",
   }}
 >
-  {/* Total Trips */}
   <Button
     variant="contained"
     onClick={(e) => {
@@ -1425,7 +1342,6 @@ PaperProps={{
     </Typography>
   </Button>
 
-  {/* Edit Profile */}
   <Button
     variant="contained"
     onClick={(e) => {
@@ -1480,7 +1396,6 @@ PaperProps={{
     </Typography>
   </Button>
 
-  {/* QR Code */}
   <Button
     variant="contained"
     onClick={(e) => {
@@ -1539,11 +1454,8 @@ PaperProps={{
 </Box>
 </Box>
 
-
-      {/* Menu List */}
       <List sx={{ my: 0, mb: 10, mt: -5, gap: 0, display: "flex", flexDirection: "column" }}>
 
-        {/* Accounts */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("accounts")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><AccountCircleOutlined sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
@@ -1551,7 +1463,6 @@ PaperProps={{
           </ListItemButton>
         </ListItem>
 
-        {/* Chats */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("chats")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><ChatBubbleOutline sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
@@ -1559,7 +1470,6 @@ PaperProps={{
           </ListItemButton>
         </ListItem>
 
-        {/* General Settings */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("generalSettings")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><Settings sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
@@ -1567,7 +1477,6 @@ PaperProps={{
           </ListItemButton>
         </ListItem>
 
-        {/* AI Features */}
 {userData?.type === "Dev Beta" && (
   <ListItem sx={{ pb: 0 }}>
     <ListItemButton onClick={() => handleSetDrawerPage("aiFeatures")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
@@ -1578,7 +1487,6 @@ PaperProps={{
   </ListItem>
 )}
 
-        {/* Help */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("support")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><HelpOutlineIcon sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
@@ -1586,7 +1494,6 @@ PaperProps={{
           </ListItemButton>
         </ListItem>
 
-        {/* Send Feedback */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("feedback")} sx={{ borderRadius: 3, py: 1, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><FeedbackOutlined sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
@@ -1594,7 +1501,6 @@ PaperProps={{
           </ListItemButton>
         </ListItem>
 
-        {/* Invite a Friend */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("inviteFriend")} sx={{ borderRadius: 3, py: 1.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><PersonAddOutlined sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
@@ -1602,7 +1508,6 @@ PaperProps={{
           </ListItemButton>
         </ListItem>
 
-        {/* About */}
         <ListItem sx={{ pb: 0 }}>
           <ListItemButton onClick={() => handleSetDrawerPage("about")} sx={{ borderRadius: 3, py: 1.5, px: 1, '&:hover': { bgcolor: mode === "dark" ? '#f1f1f121' : '#e7e7e788' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}><InfoOutlined sx={{ color: theme.palette.text.secondary }} /></ListItemIcon>
@@ -1645,14 +1550,12 @@ PaperProps={{
   </ListItem>
 )}
 
-
       </List>
     </>
   )}
 
 {drawerPage === "accounts" && (
   <Container sx={{ mt: -6, mb: 2 }}>
-    {/* Header */}
     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
         <IconButton
             onClick={() => navigate(-1)}
@@ -1669,7 +1572,6 @@ PaperProps={{
         </Typography>
     </Box>
 
-    {/* --- Privacy Section --- */}
     <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mt: 3, pl: 2 }}>Privacy</Typography>
     <List>
       <ListItem sx={{ pb: 0 }}>
@@ -1690,7 +1592,7 @@ PaperProps={{
         transform: "translateX(22px)",
         color: "#fff",
         "& .MuiSwitch-thumb": {
-          backgroundColor: theme.palette.mode === "dark" ? "#121212" : "#fff", // Thumb ON color
+          backgroundColor: theme.palette.mode === "dark" ? "#121212" : "#fff",
         },
         "& + .MuiSwitch-track": {
           backgroundColor: theme.palette.primary.main,
@@ -1702,7 +1604,7 @@ PaperProps={{
     "&:not(.Mui-checked)": {
         "& .MuiSwitch-thumb": {
           backgroundColor:
-            theme.palette.mode === "dark" ? "#757575" : "#8d8d8dff", // Thumb OFF color
+            theme.palette.mode === "dark" ? "#757575" : "#8d8d8dff",
         },
       },
 
@@ -1739,7 +1641,6 @@ PaperProps={{
   </ListItem>
     </List>
 
-    {/* --- Security Section --- */}
     <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mt: 3, pl: 2 }}>Security</Typography>
     <List>
       <ListItemButton onClick={() => handleSetDrawerPage("blockedContacts")}>
@@ -1748,7 +1649,6 @@ PaperProps={{
       </ListItemButton>
     </List>
 
-    {/* --- Account Actions Section --- */}
     <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mt: 3, pl: 2 }}>Account Actions</Typography>
     <List>
       <ListItemButton onClick={() => setDeleteConfirmOpen(true)} sx={{ color: 'error.main' }}>
@@ -1757,7 +1657,6 @@ PaperProps={{
       </ListItemButton>
     </List>
 
-    {/* --- Privacy Options Menu --- */}
     <Menu
       anchorEl={privacyMenuAnchor}
       open={Boolean(privacyMenuAnchor)}
@@ -1821,90 +1720,105 @@ PaperProps={{
       </MenuItem>
     </Menu>
 
-    {/* --- Delete Account Confirmation Dialog --- */}
-    <Dialog
+    {/* Delete Account Glassmorphic Swipeable Bottom Drawer */}
+    <SwipeableDrawer
+      anchor="bottom"
       open={deleteConfirmOpen}
       onClose={() => setDeleteConfirmOpen(false)}
+      onOpen={() => {}}
+      disableSwipeToOpen
+      sx={{ zIndex: 1500 }}
       PaperProps={{
         sx: {
-          borderRadius: 3,
-          p: 2,
-          minWidth: 320,
-          backgroundColor: mode === "dark" ? "#00000000" : "#ffffff00",
-          backgroundImage: "none",
-          boxShadow: "none",
-        },
+          borderRadius: 8,
+          p: 3,
+          background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255, 255, 255, 0.39)",
+          backdropFilter: "blur(20px)",
+          boxShadow: theme.palette.mode === "dark" 
+            ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
+            : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`,
+          maxWidth: 540,
+          mx: "auto",
+          m: 3
+        }
       }}
-      BackdropProps={{
-        sx: {
-          backdropFilter: "blur(8px)",
-          backgroundColor: mode === "dark" ? "rgba(43, 43, 43, 0.5)" : "rgba(199, 199, 199, 0.2)",
-        },
+      ModalProps={{
+        BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } }
       }}
-      transitionDuration={300}
     >
-      <Box sx={{ textAlign: 'center', mb: 2, opacity: 0.7 }}>
-        <Avatar sx={{ bgcolor: "#ff000044", mx: 'auto', width: 66, height: 66, p: 2 }}>
-          <ChatIcon fontSize="large" sx={{ color: theme.palette.text.primary }} />
-        </Avatar>
+      <Typography variant="h6" fontWeight="700" sx={{ textTransform: "none", textAlign: "center", mb: 2, color: mode === "dark" ? "#fff" : "#000" }}>
+        Delete User Account
+      </Typography>
+      <Box display="flex" flexDirection="column" alignItems="center" gap={2} sx={{ mb: 3 }}>
+        <Box 
+          sx={{ 
+            width: 56, 
+            height: 56, 
+            borderRadius: "50%", 
+            backgroundColor: mode === "dark" ? "rgba(229, 57, 53, 0.15)" : "#ffebee", 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "center" 
+          }}
+        >
+          <Typography sx={{ fontSize: 26 }}>🗑️</Typography>
+        </Box>
+        <Typography variant="body1" textAlign="center" sx={{ fontWeight: 500, px: 2 }}>
+          Are you sure you want to permanently delete your <strong>BunkMates account</strong>?
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic", textAlign: "center", px: 2 }}>
+          This will delete all of your profile data, trips, chats, and budgets. This change cannot be undone.
+        </Typography>
       </Box>
-
-      <DialogTitle sx={{ textAlign: "center", fontWeight: "bold", pb: 1 }}>
-        Are you absolutely sure?
-      </DialogTitle>
-
-      <DialogContent sx={{ textAlign: "center", px: 4, py: 2 }}>
-        <DialogContentText sx={{ fontSize: "1rem", lineHeight: 1.6, color: "text.secondary" }}>
-          This will permanently delete your account and all of your data, including trips, chats, and budgets.{" "}
-          <strong style={{ color: "#c03f3fff" }}>This action cannot be undone.</strong>
-        </DialogContentText>
-      </DialogContent>
-
-      <DialogActions sx={{ justifyContent: 'center', gap: 2, pb: 2 }}>
-        <Button
-          variant="outlined"
-          onClick={() => setDeleteConfirmOpen(false)}
-          sx={{
-            px: 3,
-            textTransform: "none",
-            borderColor: mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
-            color: theme.palette.text.primary,
-            backdropFilter: "blur(4px)",
-            borderRadius: 8,
-            '&:hover': {
-              backgroundColor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
-            },
+      <Stack direction="row" spacing={2} justifyContent="center" sx={{ pb: 1 }}>
+        <Button 
+          variant="outlined" 
+          fullWidth 
+          onClick={() => setDeleteConfirmOpen(false)} 
+          sx={{ 
+            textTransform: "none", 
+            background: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.42)", 
+            backdropFilter: "blur(10px)", 
+            boxShadow: theme.palette.mode === "dark" 
+              ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
+              : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, 
+            borderRadius: 8, 
+            py: 1.2, 
+            fontWeight: 600, 
+            border: "none", 
+            color: mode === "dark" ? "#fff" : "#000", 
+            "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "#f5f5f5" } 
           }}
         >
           Cancel
         </Button>
-        <Button
-          variant="contained"
-          onClick={handleDeleteAccount}
-          sx={{
-            px: 3,
-            textTransform: "none",
-            backdropFilter: "blur(4px)",
-            borderRadius: 8,
-            backgroundColor: "#ff000044",
-            boxShadow: "none",
-            color: theme.palette.text.primary,
-            '&:hover': {
-              backgroundColor: "#ff000064",
-            },
+        <Button 
+          variant="contained" 
+          fullWidth 
+          onClick={handleDeleteAccount} 
+          sx={{ 
+            textTransform: "none", 
+            background: mode === "dark" ? "rgba(229, 57, 53, 0.18)" : "rgba(255, 102, 102, 0.69)", 
+            backdropFilter: "blur(10px)", 
+            boxShadow: theme.palette.mode === "dark" 
+              ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
+              : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, 
+            borderRadius: 8, 
+            py: 1.2, 
+            fontWeight: 600, 
+            color: mode === "dark" ? "#fff" : "#000", 
+            "&:hover": { backgroundColor: "#c62828" } 
           }}
-          autoFocus
         >
-          Delete My Account
+          Delete Account
         </Button>
-      </DialogActions>
-    </Dialog>
+      </Stack>
+    </SwipeableDrawer>
   </Container>
 )}
 
 {drawerPage === "aiFeatures" && (
   <Container sx={{ mt: -6, mb: 4 }}>
-    {/* Header */}
     <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
       <IconButton
         onClick={() => navigate(-1)}
@@ -1926,7 +1840,6 @@ PaperProps={{
       </Box>
     </Box>
 
-    {/* Groq Key Input Card */}
     <Card
       sx={{
         p: 3,
@@ -1999,7 +1912,6 @@ PaperProps={{
       </Stack>
     </Card>
 
-    {/* Usage & Status Card */}
     <Card
       sx={{
         p: 3,
@@ -2050,7 +1962,6 @@ PaperProps={{
 
 {drawerPage === "blockedContacts" && (
   <Container sx={{ mt: -6, mb: 2 }}>
-    {/* Header */}
     <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
       <IconButton
         onClick={() => navigate(-1)}
@@ -2069,7 +1980,6 @@ PaperProps={{
       </Typography>
     </Box>
 
-    {/* Content */}
     {isLoadingBlocked ? (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
         <CircularProgress />
@@ -2193,10 +2103,7 @@ PaperProps={{
   </Typography>
 </Box>
 
-
 <List>
-  
-  {/* --- Appearance Section --- */}
   <Typography variant="overline" color="text.secondary" sx={{ pl: 2, mb: 1 }}>
     Appearance
   </Typography>
@@ -2320,7 +2227,6 @@ PaperProps={{
 
   <Divider sx={{ my: 2 }} />
 
-  {/* --- Chat History Section --- */}
   <Typography variant="overline" color="text.secondary" sx={{ pl: 2, mb: 1 }}>
     Chat History
   </Typography>
@@ -2340,7 +2246,6 @@ PaperProps={{
   </ListItem>
 
 </List>
-
 
 <SwipeableDrawer
   anchor="bottom"
@@ -2389,7 +2294,6 @@ PaperProps={{
       </Typography>
     </ListItem>
 
-        {/* Sample text preview */}
     <Box sx={{ my: 4, p: 3, borderRadius: 3, textAlign: 'center', backgroundColor: theme.palette.secondary.main }}>
       <Typography variant="h6" sx={{ mb: 1 }}>
         Preview
@@ -2464,7 +2368,6 @@ PaperProps={{
   </Box>
 </SwipeableDrawer>
 
-
 <SwipeableDrawer
     anchor="bottom"
     open={wallpaperDrawerOpen}
@@ -2486,9 +2389,7 @@ PaperProps={{
             Chat Wallpaper
         </Typography>
 
-        {/* --- DYNAMIC WALLPAPER GRID --- */}
         <Grid container spacing={1}>
-            {/* Map over the new, pre-filtered list */}
             {themeWallpapers.map(wallpaper => (
                 <Grid item xs={4} sm={3} md={2} key={wallpaper.id}>
                     <Box
@@ -2523,177 +2424,41 @@ PaperProps={{
     </Box>
 </SwipeableDrawer>
 
-        {/* --- Dialogs (No changes here) --- */}
-<Dialog
-  open={clearDialogOpen}
-  onClose={() => setClearDialogOpen(false)}
-  PaperProps={{
-    sx: {
-      borderRadius: 3,
-      p: 2,
-      minWidth: 320,
-      backgroundColor: mode === "dark" ? "#00000000" : "rgba(255, 255, 255, 0.8)",
-      backgroundImage: "none",
-      boxShadow: "none",
-    },
-  }}
-  BackdropProps={{
-    sx: {
-      backdropFilter: "blur(8px)",
-      backgroundColor: mode === "dark" ? "rgba(43, 43, 43, 0.5)" : "rgba(0, 0, 0, 0.2)",
-    },
-  }}
-  transitionDuration={300} // smooth fade
+{/* Clear All Chats Glassmorphic Swipeable Bottom Drawer */}
+<SwipeableDrawer
+  anchor="bottom" open={clearDialogOpen} onClose={() => setClearDialogOpen(false)} onOpen={() => {}} disableSwipeToOpen sx={{ zIndex: 1500 }}
+  PaperProps={{ sx: { borderRadius: 8, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(20px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, maxWidth: 540, mx: "auto", m: 3 } }}
+  ModalProps={{ BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } } }}
 >
-  <Box sx={{ textAlign: 'center', mb: 2, opacity: 0.7 }}>
-    <Avatar sx={{ bgcolor: "#ff000044", mx: 'auto', width: 66, height: 66, p: 2 }}>
-      <ChatIcon fontSize="large" sx={{ color: theme.palette.text.primary }} />
-    </Avatar>
+  <Typography variant="h6" fontWeight="700" sx={{ textTransform: "none", textAlign: "center", mb: 2, color: mode === "dark" ? "#fff" : "#000" }}>Clear All Chat Threads</Typography>
+  <Box display="flex" flexDirection="column" alignItems="center" gap={2} sx={{ mb: 3 }}>
+    <Box sx={{ width: 56, height: 56, borderRadius: "50%", backgroundColor: mode === "dark" ? "rgba(229, 57, 53, 0.15)" : "#ffebee", display: "flex", alignItems: "center", justifyContent: "center" }}><Typography sx={{ fontSize: 26 }}>💬</Typography></Box>
+    <Typography variant="body1" textAlign="center" sx={{ fontWeight: 500, px: 2 }}>Are you sure you want to clear message histories across <strong>all active chats</strong>?</Typography>
+    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic", textAlign: "center", px: 2 }}>Your thread connections remain intact, but message payloads will be cleared permanently.</Typography>
   </Box>
+  <Stack direction="row" spacing={2} justifyContent="center" sx={{ pb: 1 }}>
+    <Button variant="outlined" fullWidth onClick={() => setClearDialogOpen(false)} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(255,255,255,0.42)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, border: "none", color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "#f5f5f5" } }}>Cancel</Button>
+    <Button variant="contained" fullWidth onClick={() => { console.log("Clearing all chats..."); setClearDialogOpen(false); }} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(229, 57, 53, 0.18)" : "rgba(255, 102, 102, 0.69)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: "#c62828" } }}>Clear Messages</Button>
+  </Stack>
+</SwipeableDrawer>
 
-  <DialogTitle sx={{ fontWeight: 'bold', textAlign: 'center', color: theme.palette.text.primary }}>
-    Clear All Chats?
-  </DialogTitle>
-
-  <DialogContent>
-    <DialogContentText sx={{ color: theme.palette.text.secondary, textAlign: 'center', mb: 2 }}>
-      Are you sure you want to clear all messages? This action cannot be undone.
-    </DialogContentText>
-    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: 'center' }}>
-      Your chat list will remain, but all message history will be deleted. Please confirm before proceeding.
-    </Typography>
-  </DialogContent>
-
-  <DialogActions sx={{ justifyContent: 'center', gap: 2, pb: 2 }}>
-    <Button
-      variant="outlined"
-      onClick={() => setClearDialogOpen(false)}
-      sx={{
-        px: 3,
-        textTransform: "none",
-        borderColor: mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
-        color: theme.palette.text.primary,
-        backdropFilter: "blur(4px)",
-        borderRadius: 8,
-        '&:hover': {
-          backgroundColor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
-        },
-      }}
-    >
-      Cancel
-    </Button>
-    <Button
-      variant="contained"
-      onClick={() => {
-        console.log("Clearing all chats...");
-        setClearDialogOpen(false);
-      }}
-      sx={{
-        px: 3,
-        textTransform: "none",
-        backdropFilter: "blur(4px)",
-        borderRadius: 8,
-        backgroundColor: "#ff000044",
-        boxShadow: "none",
-        color: theme.palette.text.primary,
-        '&:hover': {
-          backgroundColor: "#ff000064",
-        },
-      }}
-      autoFocus
-    >
-      Clear Chats
-    </Button>
-  </DialogActions>
-</Dialog>
-
-
-{/* Delete Chats Dialog */}
-<Dialog
-  open={deleteDialogOpen}
-  onClose={() => setDeleteDialogOpen(false)}
-  PaperProps={{
-    sx: {
-      borderRadius: 3,
-      p: 2,
-      minWidth: 320,
-      backgroundColor: mode === "dark" ? "#00000000" : "rgba(255, 255, 255, 0.8)",
-      backgroundImage: "none",
-      boxShadow: "none",
-    },
-  }}
-  BackdropProps={{
-    sx: {
-      backdropFilter: "blur(8px)",
-      backgroundColor: mode === "dark" ? "rgba(43, 43, 43, 0.5)" : "rgba(0, 0, 0, 0.2)",
-    },
-  }}
-  transitionDuration={300} // smooth fade
+{/* Delete All Chats Glassmorphic Swipeable Bottom Drawer */}
+<SwipeableDrawer
+  anchor="bottom" open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} onOpen={() => {}} disableSwipeToOpen sx={{ zIndex: 1500 }}
+  PaperProps={{ sx: { borderRadius: 8, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(20px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, maxWidth: 540, mx: "auto", m: 3 } }}
+  ModalProps={{ BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } } }}
 >
-  <Box sx={{ textAlign: 'center', mb: 2 }}>
-    <Avatar sx={{ bgcolor: theme.palette.error.main, mx: 'auto', opacity: 0.7, width: 66, height: 66, p: 0.5, boxShadow: "none" }}>
-      <DeleteForeverIcon fontSize="large" />
-    </Avatar>
+  <Typography variant="h6" fontWeight="700" sx={{ textTransform: "none", textAlign: "center", mb: 2, color: mode === "dark" ? "#fff" : "#000" }}>Delete All Chat Matrix Instance</Typography>
+  <Box display="flex" flexDirection="column" alignItems="center" gap={2} sx={{ mb: 3 }}>
+    <Box sx={{ width: 56, height: 56, borderRadius: "50%", backgroundColor: mode === "dark" ? "rgba(229, 57, 53, 0.15)" : "#ffebee", display: "flex", alignItems: "center", justifyContent: "center" }}><Typography sx={{ fontSize: 26 }}>🗑️</Typography></Box>
+    <Typography variant="body1" textAlign="center" sx={{ fontWeight: 500, px: 2 }}>Are you sure you want to completely purge <strong>all chats and messages</strong>?</Typography>
+    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic", textAlign: "center", px: 2 }}>Warning: This step removes all message logs and chat threads permanently.</Typography>
   </Box>
-
-  <DialogTitle sx={{ fontWeight: 'bold', textAlign: 'center', color: theme.palette.text.primary }}>
-    Delete All Chats Permanently?
-  </DialogTitle>
-
-  <DialogContent>
-    <DialogContentText sx={{ color: theme.palette.text.secondary, textAlign: 'center', mb: 2 }}>
-      This will permanently delete all of your chats and messages. It cannot be undone.
-    </DialogContentText>
-    <Typography variant="body2" sx={{ color: theme.palette.error.main, textAlign: 'center', mb: 1 }}>
-      Warning: This action is irreversible.
-    </Typography>
-    <Typography variant="caption" sx={{ color: theme.palette.text.secondary, textAlign: 'center' }}>
-      Please ensure you have backed up any important information before proceeding. Once deleted, you will not be able to recover the data.
-    </Typography>
-  </DialogContent>
-
-  <DialogActions sx={{ justifyContent: 'center', gap: 2, pb: 2 }}>
-    <Button
-      variant="outlined"
-      onClick={() => setDeleteDialogOpen(false)}
-      sx={{
-        px: 3,
-        borderRadius: 8,
-        textTransform: "none",
-        borderColor: mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
-        color: theme.palette.text.primary,
-        backdropFilter: "blur(4px)",
-        '&:hover': {
-          borderColor: theme.palette.primary.main,
-          backgroundColor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
-        },
-      }}
-    >
-      Cancel
-    </Button>
-    <Button
-      variant="contained"
-      onClick={() => {
-        console.log("Deleting all chats...");
-        setDeleteDialogOpen(false);
-      }}
-      color="error"
-      sx={{
-        px: 3,
-        textTransform: "none",
-        backdropFilter: "blur(4px)",
-        borderRadius: 8,
-        '&:hover': {
-          backgroundColor: theme.palette.error.dark,
-        },
-      }}
-      autoFocus
-    >
-      Delete Permanently
-    </Button>
-  </DialogActions>
-</Dialog>
-
+  <Stack direction="row" spacing={2} justifyContent="center" sx={{ pb: 1 }}>
+    <Button variant="outlined" fullWidth onClick={() => setDeleteDialogOpen(false)} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(255,255,255,0.42)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, border: "none", color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "#f5f5f5" } }}>Cancel</Button>
+    <Button variant="contained" fullWidth onClick={() => { console.log("Deleting all chats..."); setDeleteDialogOpen(false); }} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(229, 57, 53, 0.18)" : "rgba(255, 102, 102, 0.69)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: "#c62828" } }}>Delete All Chats</Button>
+  </Stack>
+</SwipeableDrawer>
 
     </Container>
 )}
@@ -2708,7 +2473,6 @@ PaperProps={{
       px: { xs: 2, sm: 3 },
     }}
   >
-    {/* Header */}
     <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
       <IconButton
         onClick={() => navigate(-1)}
@@ -2733,7 +2497,6 @@ PaperProps={{
       </Typography>
     </Box>
 
-    {/* --- App Download QR Code Section --- */}
     <Typography
       variant="subtitle1"
       fontWeight="700"
@@ -2813,59 +2576,6 @@ PaperProps={{
 
     <Divider sx={{ my: 4 }} />
 
-    {/* --- Personal Invite Link Section --- */}
-    {/* <Typography
-      variant="subtitle1"
-      fontWeight="700"
-      sx={{ mb: 1.5, color: theme.palette.text.primary }}
-    >
-      Personal Invite Link
-    </Typography>
-    <Typography
-      variant="body2"
-      sx={{ mb: 2, color: theme.palette.text.secondary }}
-    >
-      Share your <b>personal invite link</b> so friends can instantly connect
-      with you after downloading the app.
-    </Typography>
-
-    <TextField
-      label="Your Profile Link"
-      defaultValue={inviteLink}
-      fullWidth
-      InputProps={{ readOnly: true }}
-      sx={{
-        mb: 2,
-        "& .MuiInputBase-root": {
-          bgcolor:
-            mode === "dark"
-              ? "rgba(255,255,255,0.05)"
-              : "rgba(0,0,0,0.04)",
-          borderRadius: 2,
-        },
-      }}
-    />
-
-    <Button
-      variant="contained"
-      onClick={() => navigator.clipboard.writeText(inviteLink)}
-      sx={{
-        mb: 3,
-        width: "100%",
-        borderRadius: 2,
-        py: 1.2,
-        fontWeight: 600,
-        textTransform: "none",
-        bgcolor: theme.palette.primary.main,
-        "&:hover": {
-          bgcolor: theme.palette.primary.dark,
-          transform: "translateY(-2px)",
-        },
-      }}
-    >
-      Copy Profile Link
-    </Button> */}
-
     <Typography
       variant="subtitle1"
       sx={{ mb: 2, color: theme.palette.text.secondary }}
@@ -2873,7 +2583,6 @@ PaperProps={{
       Share Invite Link via
     </Typography>
 
-    {/* Share Buttons */}
     <Stack
       direction="row"
       spacing={2}
@@ -2952,7 +2661,6 @@ PaperProps={{
 
 {drawerPage === "generalSettings" && (
   <Container sx={{ mt: -6, mb: 2 }}>
-    {/* Header */}
     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
       <IconButton
         onClick={() => navigate(-1)}
@@ -2971,7 +2679,6 @@ PaperProps={{
       </Typography>
     </Box>
 
-    {/* Settings List */}
     <List sx={{ mt: 2 }}>
 
   <ListItem sx={{ pb: 0 }}>
@@ -2979,13 +2686,10 @@ PaperProps={{
       <ListItemText primary="Theme" primaryTypographyProps={{ fontWeight: 'medium' }} />
       <FormControl size="small" sx={{ minWidth: 120 }}>
 <Select
-  value={mode} // Assumes 'mode' is your state variable ('light', 'dark', or 'system')
+  value={mode}
   onChange={(e) => {
     const newTheme = e.target.value;
-    setMode(newTheme); // Your state setter
-    // This part is crucial: if the user selects "system", you might need another effect
-    // elsewhere to apply the correct theme based on their OS preference.
-    // For now, we'll just set the mode to the selected value.
+    setMode(newTheme);
   }}
   sx={{
     bgcolor: mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
@@ -3001,7 +2705,7 @@ PaperProps={{
       p: 1.5,
       display: 'flex',
       alignItems: 'center',
-      gap: 1, // Adds space between icon and text
+      gap: 1,
     },
     '& .MuiSvgIcon-root': {
       color: theme.palette.text.secondary,
@@ -3100,7 +2804,7 @@ PaperProps={{
       p: 1.5,
       display: 'flex',
       alignItems: 'center',
-      gap: 1, // Adds space between icon and text
+      gap: 1,
     },
     '& .MuiSvgIcon-root': {
       color: theme.palette.text.secondary,
@@ -3151,7 +2855,6 @@ PaperProps={{
     </FormControl>
   </ListItem>
 
-
 <ListItem sx={{ pb: 0 }}>
   <ListItemButton
     sx={{
@@ -3167,14 +2870,10 @@ PaperProps={{
   </ListItemButton>
 </ListItem>
 
-
-
-
     </List>
 
-    {/* Manual Location Input Field (shown only if manual mode is active) */}
     {settings.locationMode === "manual" && (
-      <Box sx={{ px: 2, mt: 3 }}> {/* Added some top margin for spacing */}
+      <Box sx={{ px: 2, mt: 3 }}>
         <TextField
           label="Set Location Manually"
           value={settings.manualLocation}
@@ -3190,8 +2889,6 @@ PaperProps={{
       </Box>
     )}
 
-
-    {/* Accent Color Selection Drawer */}
     <SwipeableDrawer
       anchor="bottom"
       open={accentDrawerOpen}
@@ -3205,7 +2902,6 @@ PaperProps={{
           Accent Color
         </Typography>
 
-        {/* Accent Preview Button */}
         <Button
             variant={"contained"}
             fullWidth
@@ -3219,7 +2915,6 @@ PaperProps={{
             This is the Accent Preview
         </Button>
         
-        {/* Color Palette */}
         <Box sx={{ display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap", width: 340, mx: "auto" }}>
             {[
                 { opt: "blue", bg: "#bbdefb" }, { opt: "green", bg: "#c8e6c9" },
@@ -3256,7 +2951,6 @@ PaperProps={{
       borderRadius: 6,
     }}
   >
-    {/* Back Button */}
     <Button
       startIcon={<ArrowBack />}
       onClick={() => navigate(-1)}
@@ -3289,7 +2983,6 @@ PaperProps={{
       }}
     />
 
-    {/* Header */}
     <Typography
       variant="h4"
       fontWeight="700"
@@ -3310,7 +3003,6 @@ PaperProps={{
       Version info, policies, and how to reach us 🌍
     </Typography>
 
-    {/* Version Card */}
 <Button
   onClick={() => handleSetDrawerPage("appInfo")}
   fullWidth
@@ -3369,7 +3061,6 @@ PaperProps={{
   </Box>
 </Button>
 
-    {/* About Text */}
     <Typography
       variant="body1"
       sx={{
@@ -3387,7 +3078,6 @@ PaperProps={{
       Built with ❤️ in India.
     </Typography>
 
-    {/* Legal Links */}
     <Box sx={{ mb: 4 }}>
       <Typography
         variant="h6"
@@ -3432,7 +3122,6 @@ PaperProps={{
       ))}
     </Box>
 
-    {/* Connect Section */}
     <Box sx={{ mb: 4 }}>
       <Typography
         variant="h6"
@@ -3483,7 +3172,6 @@ PaperProps={{
       </Stack>
     </Box>
 
-    {/* Open Source Section */}
     <Box
       sx={{
         mt: 5,
@@ -3537,7 +3225,6 @@ PaperProps={{
     }}
   >
         <>
-          {/* Header */}
           <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
             <IconButton
               onClick={() => navigate(-1)}
@@ -3564,7 +3251,6 @@ PaperProps={{
             </Typography>
           </Box>
 
-          {/* App Logo and Info */}
           <Box sx={{ textAlign: "center", mb: 5 }}>
             <Avatar
               alt="BunkMates Logo"
@@ -3623,7 +3309,6 @@ PaperProps={{
         )}
           </Box>
 
-          {/* Version Details */}
           <Box
             sx={{
               borderRadius: 4,
@@ -3652,7 +3337,6 @@ PaperProps={{
                 />
               </ListItem>
 
-              {/* Build ID with tap handler */}
 <ListItem
   disableGutters
   sx={{
@@ -3660,7 +3344,7 @@ PaperProps={{
     transition: "all 0.2s ease",
     "&:active": { transform: "scale(0.98)" },
   }}
-  onClick={handleBuildTap} // ✅ Correct syntax
+  onClick={handleBuildTap}
 >
   <ListItemText
     primary="Build ID"
@@ -3675,7 +3359,6 @@ PaperProps={{
     }}
   />
 </ListItem>
-
 
               <ListItem disableGutters sx={{ py: 0.5 }}>
                 <ListItemText
@@ -3694,7 +3377,6 @@ PaperProps={{
             </List>
           </Box>
 
-          {/* Developer Features Option */}
           {isDeveloper && (
             <ListItem
               disablePadding
@@ -3734,7 +3416,6 @@ PaperProps={{
             </ListItem>
           )}
 
-          {/* Third-Party Licenses Link */}
           <ListItem
             disablePadding
             sx={{
@@ -3768,7 +3449,6 @@ PaperProps={{
             </ListItemButton>
           </ListItem>
 
-          {/* Footer */}
           <Typography
             variant="caption"
             align="center"
@@ -3780,40 +3460,12 @@ PaperProps={{
           >
             © {new Date().getFullYear()} BunkMates. All rights reserved.
           </Typography>
-
-          {/* Developer Passkey Dialog */}
-          <Dialog
-            open={showDevDialog}
-            onClose={() => setShowDevDialog(false)}
-            PaperProps={{ sx: { borderRadius: 3, p: 1.5 } }}
-          >
-            <DialogTitle>Enter Developer Passkey</DialogTitle>
-            <DialogContent>
-              <TextField
-                autoFocus
-                margin="dense"
-                label="Developer Key"
-                type="text"
-                fullWidth
-                variant="outlined"
-                value={enteredKey}
-                onChange={(e) => setEnteredKey(e.target.value)}
-              />
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setShowDevDialog(false)}>Cancel</Button>
-              <Button variant="contained" onClick={handleVerifyDevKey}>
-                Verify
-              </Button>
-            </DialogActions>
-          </Dialog>
         </>
   </Container>
 )}
 
 {drawerPage === "featuresChangelog" && (
   <Container sx={{ mt: -6, mb: 2 }}>
-    {/* Back Button */}
     <Button
       startIcon={<ArrowBack />}
       onClick={() => navigate(-1)}
@@ -3828,12 +3480,10 @@ PaperProps={{
       Back
     </Button>
 
-    {/* Title */}
     <Typography variant="h5" gutterBottom>
       <h2>Third-Party Licenses & Attributions</h2>
     </Typography>
 
-    {/* Overview Intro */}
     <Typography
       variant="body1"
       sx={{
@@ -3848,7 +3498,6 @@ PaperProps={{
       text, copyright notices, and usage terms for every component.
     </Typography>
 
-    {/* Library Overview */}
     <Box sx={{ mb: 4 }}>
       <Typography
         variant="h6"
@@ -3878,7 +3527,6 @@ PaperProps={{
 
     <Divider sx={{ my: 3, borderColor: "rgba(255,255,255,0.1)" }} />
 
-    {/* License Sections */}
     <Box>
       {licenseSections.map((sec, idx) => (
         <Box key={idx} sx={{ mb: 4 }}>
@@ -3924,7 +3572,6 @@ PaperProps={{
       ))}
     </Box>
 
-    {/* Footer Note */}
     <Typography
       variant="body2"
       sx={{
@@ -3962,12 +3609,6 @@ PaperProps={{
     </Typography>
 
     <Stack spacing={2} sx={{ mb: 4 }}>
-    {/* <Card sx={{ px: 2, py: 1, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  boxShadow: "none" }}>
-      <ListItemText
-        primary="Support & Help"
-        secondary="Support for any issues or questions"
-      />
-    </Card> */}
     <Card
       onClick={() => window.open("/terms-and-conditions", "_blank")}
       sx={{ px: 2, py: 1, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  boxShadow: "none", borderRadius: 5 }}
@@ -3977,15 +3618,6 @@ PaperProps={{
         secondary="Terms of service and usage policies"
       />
     </Card>
-    {/* <Card
-      onClick={() => window.open("/faq", "_blank")}
-      sx={{ px: 2, py: 1, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  boxShadow: "none" }}
-    >
-      <ListItemText
-        primary="Frequently Asked Questions"
-        secondary="Find answers to common questions"
-      />
-    </Card> */}
     <Card
       onClick={() => window.open("mailto:jayendrachoudhary.am@gmail.com")} 
       sx={{ px: 2, py: 1, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  boxShadow: "none", borderRadius: 5  }}
@@ -4002,7 +3634,6 @@ PaperProps={{
       color="success"
       fullWidth
       onClick={() => {
-        // Navigate to community page (adjust if using react-router or other navigation)
         window.open("/community", "_blank");
       }}
       sx={{ fontWeight: "bold", textTransform: "none", mb: 3, borderRadius: 3, backgroundColor: mode === "dark" ? '#f1f1f131' : "#0c0c0c10", color: theme.palette.text.primary, border: 'transparent', boxShadow: 'none' }}
@@ -4014,7 +3645,6 @@ PaperProps={{
 
 {drawerPage === "profile" && (
   <Container sx={{ mt: -6, mb: 3 }}>
-    {/* Title */}
 <Box
   sx={{
     position: "sticky",
@@ -4031,10 +3661,8 @@ PaperProps={{
     px: 0,
     mx: -1.5,
 
-    /* Required for sticky inside Drawer */
     background: "transparent",
 
-    /* prevents sticky clipping */
     isolation: "isolate",
   }}
 >
@@ -4136,16 +3764,13 @@ PaperProps={{
       </Box>
     ) : isEditing ? (
 <>
-  {/* Avatar and Upload Section */}
 <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column", mb: 5 }}>
-  {/* --- AVATAR & UPLOAD BUTTON --- */}
   <Box
     sx={{
       position: "relative",
       mb: 2,
     }}
   >
-    {/* Avatar now opens the full-screen dialog on click */}
     <Avatar
       src={userData.photoURL || ""}
       alt={userData.name}
@@ -4155,7 +3780,7 @@ PaperProps={{
         mb: 2, 
         borderRadius: 12, 
         boxShadow: 3,
-        cursor: 'pointer', // Add cursor to indicate it's clickable
+        cursor: 'pointer',
         transition: 'transform 0.2s ease-in-out',
         '&:hover': {
           transform: 'scale(1.05)',
@@ -4164,7 +3789,6 @@ PaperProps={{
       onClick={() => setProfilePicOpen(true)}
     />
     
-    {/* Upload button remains the same */}
     <Button
       component="label"
       sx={{
@@ -4194,7 +3818,6 @@ PaperProps={{
 
 </Box>
 
-  {/* Editable Form Fields */}
   <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
     <TextField
       label="Full Name"
@@ -4295,7 +3918,6 @@ PaperProps={{
     />
   </Box>
 
-  {/* Action Buttons */}
   <Box sx={{ mt: 5, display: "flex", justifyContent: "space-between" }}>
     <Button
       variant="outlined"
@@ -4356,7 +3978,6 @@ PaperProps={{
     ) : (
       <>
 
-  {/* --- Your Existing Avatar Code (with onClick added) --- */}
   <Box sx={{ display: "flex", opacity: profilePicOpen ? 0 : 1, flexDirection: "column", alignItems: "center", mb: 3, position: "relative" }}>
 <Box
   sx={{
@@ -4377,9 +3998,6 @@ PaperProps={{
   }}
 >
 
-  {/* Progressive Premium Blur */}
-
-
   <Box
     component="img"
     src={userData.photoURL || ""}
@@ -4399,8 +4017,6 @@ PaperProps={{
     }}
   />
 
-
-  {/* Content */}
 <Box
   sx={{
     position: "relative",
@@ -4410,14 +4026,12 @@ PaperProps={{
     mt: 36,
   }}
 >
-  {/* User Info Card */}
   <Box
     sx={{
       background:"transparent",
       border:"none",
     }}
   >
-    {/* Name */}
     <Typography
       variant="h6"
       sx={{
@@ -4429,7 +4043,6 @@ PaperProps={{
       {userData.name || "Username"}
     </Typography>
 
-    {/* Username */}
     <Typography
       variant="body2"
       sx={{
@@ -4441,7 +4054,6 @@ PaperProps={{
       @{userData.username || "username"}
     </Typography>
 
-            {/* Beta Stats */}
 {(userData.type === "Beta" || userData.type === "Dev Beta") && (
   <Box
     sx={{
@@ -4464,24 +4076,6 @@ PaperProps={{
       py: 0,
     }}
   >
-    {/* Glow Accent 
-    <Box
-      sx={{
-        position: "absolute",
-        top: -40,
-        right: -40,
-        width: 120,
-        height: 120,
-        borderRadius: "50%",
-        background:
-          mode === "dark"
-            ? "rgba(255,255,255,0.08)"
-            : "rgba(255,255,255,0.45)",
-        filter: "blur(50px)",
-      }}
-    />*/}
-
-    {/* Header */}
     <Box
       sx={{
         display: "flex",
@@ -4548,7 +4142,6 @@ PaperProps={{
       </Box>
     </Box>
 
-    {/* Stats Grid */}
     <Box
       sx={{
         display: "grid",
@@ -4637,9 +4230,6 @@ PaperProps={{
 
   </Box>
 
-
-
-        {/* Profile Details */}
         <List sx={{ borderRadius: 3 }}>
           <ListItem>
             <ListItemText primary="User Type" secondary={userData.type || "N/A"} />
@@ -4655,7 +4245,6 @@ PaperProps={{
           </ListItem>
         </List>
 
-    {/* Logout */}
     <Box>
       <ListItemButton
         onClick={() => setConfirmLogout(true)}
@@ -4676,7 +4265,6 @@ PaperProps={{
       </>
     )}
 
-    {/* Crop Drawer */}
     <Drawer
       anchor="bottom"
       open={cropDrawerOpen}
@@ -4703,7 +4291,6 @@ PaperProps={{
           },
         }}
     >
-      {/* Crop Area */}
       <Box
         sx={{
           position: 'relative',
@@ -4733,7 +4320,6 @@ PaperProps={{
         )}
       </Box>
 
-      {/* Zoom Slider */}
       <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
         <Typography variant="caption" sx={{ minWidth: 44, mr: 2, color: mode === 'dark' ? '#ddd' : '#222' }}>
           Zoom
@@ -4780,7 +4366,6 @@ PaperProps={{
         />
       </Box>
 
-      {/* Action Buttons */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
         <Button
           variant="outlined"
@@ -4827,7 +4412,6 @@ PaperProps={{
       </Box>
     </Drawer>
 
-      {/* --- Full-Screen Profile Picture Dialog --- */}
 <Dialog
   fullScreen
   open={profilePicOpen}
@@ -4855,7 +4439,6 @@ PaperProps={{
     }}
     onClick={() => setProfilePicOpen(false)}
   >
-    {/* Avatar / QR Container */}
     <Box
       sx={{
         flexGrow: 1,
@@ -4868,7 +4451,6 @@ PaperProps={{
       {viewMode === "avatar" && (
         <Zoom in={profilePicOpen} style={{ transitionDelay: "100ms" }}>
           <Box sx={{ position: "relative", display: "inline-flex" }}>
-            {/* Avatar + Edit Button */}
             <Avatar
               src={userData.photoURL || ""}
               alt={userData.name}
@@ -4956,7 +4538,6 @@ PaperProps={{
       )}
     </Box>
 
-    {/* Bottom Action Buttons */}
     <Box
       sx={{
         display: "flex",
@@ -5003,7 +4584,6 @@ PaperProps={{
 
       {viewMode === "qr" && (
         <>
-          {/* Back Button */}
           <IconButton
             onClick={() => setViewMode("avatar")}
             sx={{
@@ -5018,7 +4598,6 @@ PaperProps={{
             <ArrowBack />
           </IconButton>
 
-          {/* Download Button */}
           <IconButton
             onClick={async () => {
   const node = document.getElementById("profile-card");
@@ -5028,18 +4607,13 @@ PaperProps={{
   }
 
   try {
-    // Generate the image as a data URL
     const dataUrl = await toPng(node);
     const filename = `${userData.username}-profile.png`;
 
-    // Check if the app is running in the native WebView and has our new function
     if (window.nativeBridge && typeof window.nativeBridge.downloadBase64 === 'function') {
-      // Extract the base64 part of the data URL
       const base64Data = dataUrl.split(',')[1];
-      // Call the native function to handle the download
       window.nativeBridge.downloadBase64(base64Data, filename);
     } else {
-      // Fallback for regular web browsers
       const link = document.createElement("a");
       link.download = filename;
       link.href = dataUrl;
@@ -5047,7 +4621,6 @@ PaperProps={{
     }
   } catch (error) {
     console.error('Error generating or downloading image:', error);
-    // Optionally, show a snackbar or alert for the error
   }
 }}
             sx={{
@@ -5065,7 +4638,6 @@ PaperProps={{
       )}
     </Box>
 
-    {/* Snackbar */}
     <Snackbar
       open={snackbar.open}
       autoHideDuration={3000}
@@ -5081,7 +4653,6 @@ PaperProps={{
 
 {drawerPage === "feedback" && (
   <Container sx={{ mt: -6, mb: 4 }}>
-    {/* Back Button */}
     <Button
       startIcon={<ArrowBack />}
       onClick={() => navigate(-1)}
@@ -5096,7 +4667,6 @@ PaperProps={{
       Back
     </Button>
 
-    {/* Header */}
     <Typography variant="h5" fontWeight="bold" sx={{ mb: 2 }}>
       Report & Feedback
     </Typography>
@@ -5105,7 +4675,6 @@ PaperProps={{
       We value your feedback! Please let us know if you have any suggestions, feature requests, or want to report a bug.
     </Typography>
 
-    {/* Feedback Form */}
     <Box
       component="form"
       onSubmit={handleFeedbackSubmit}
@@ -5173,7 +4742,6 @@ PaperProps={{
 {drawerPage === "adduser" && (
   <>
     <Box sx={{ p: 2, mt: -6 }}>
-      {/* --- Header --- */}
       <Box sx={{ display: "flex", alignItems: "center", flexDirection: "row", mb: 2 }}>
         <IconButton
           onClick={() => navigate(-1)}
@@ -5188,7 +4756,6 @@ PaperProps={{
         <Typography variant="h5" fontWeight="bold">QR Code</Typography>
       </Box>
 
-      {/* --- Tab Selector --- */}
       <Tabs
         value={activeTab}
         onChange={(e, newValue) => setActiveTab(newValue)}
@@ -5227,10 +4794,7 @@ PaperProps={{
       </Tabs>
     </Box>
 
-    {/* --- Swipeable Content Area --- */}
     <Box {...swipeHandlers} sx={{ position: 'relative', overflow: 'hidden', minHeight: '80vh' }}>
-      
-      {/* --- My Code View (with Slide animation) --- */}
       <Slide direction="right" in={activeTab === 'myCode'} sx={{ mx: "auto" }} mountOnEnter unmountOnExit>
         <Box sx={{ position: 'absolute', width: 280, px: 1, mt: 4, mx: "auto" }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -5251,7 +4815,6 @@ PaperProps={{
         </Box>
       </Slide>
 
-      {/* --- Scan Code View (with Slide animation) --- */}
       <Slide direction="left" in={activeTab === 'scanCode'} sx={{ mx: "auto" }} mountOnEnter unmountOnExit>
         <Box sx={{ position: 'absolute', width: 280, px: 2, mt: 4 }}>
           <Box sx={{ position: 'relative', height: '60vh', width: '100%', overflow: 'hidden', borderRadius: 4, bgcolor: 'black' }}>
@@ -5267,7 +4830,6 @@ PaperProps={{
       </Slide>
     </Box>
 
-    {/* --- Scanned User Profile Dialog --- */}
 <Dialog
   open={showScannedUserDrawer}
   onClose={() => setShowScannedUserDrawer(false)}
@@ -5299,7 +4861,6 @@ PaperProps={{
         position: "relative",
       }}
     >
-      {/* Avatar with floating effect */}
       <Avatar
         src={scannedUserData.photoURL}
         alt={scannedUserData.name}
@@ -5313,7 +4874,6 @@ PaperProps={{
         }}
       />
 
-      {/* Card */}
       <Card
         sx={{
           width: "100%",
@@ -5321,13 +4881,12 @@ PaperProps={{
           bgcolor: mode === "dark" ? "#1F1F1Fbb" : "#ffffffbb",
           borderRadius: 6,
           p: 3,
-          pt: 7, // push content for avatar overlap
+          pt: 7,
           textAlign: "center",
           boxShadow: "none",
           backdropFilter: "blur(14px)",
         }}
       >
-        {/* Name + username */}
         <Typography
           variant="h6"
           fontWeight="bold"
@@ -5342,7 +4901,6 @@ PaperProps={{
           @{scannedUserData.username}
         </Typography>
 
-        {/* Bio */}
         <Typography
           variant="body2"
           sx={{ color: "text.secondary", my: 2 }}
@@ -5350,7 +4908,6 @@ PaperProps={{
           {scannedUserData.bio || "This user hasn’t added a bio yet."}
         </Typography>
 
-        {/* Action */}
         {userData?.friends?.includes(scannedUserData.id) ? (
           <Chip
             label="Already Friends"
@@ -5403,7 +4960,6 @@ PaperProps={{
       "@keyframes fadeIn": { from: { opacity: 0 }, to: { opacity: 1 } },
     }}
   >
-    {/* Header */}
     <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
       <IconButton
         onClick={() => navigate(-1)}
@@ -5430,7 +4986,6 @@ PaperProps={{
       </Typography>
     </Box>
 
-    {/* Developer Section Info */}
     <Typography
       variant="body2"
       sx={{
@@ -5443,7 +4998,6 @@ PaperProps={{
       for testing, debugging, and feature previews.
     </Typography>
 
-    {/* Feature List */}
     <Box
       sx={{
         borderRadius: 4,
@@ -5543,86 +5097,6 @@ PaperProps={{
       </List>
     </Box>
 
-    {/* Other Routes */}
-    {/* <Box
-      sx={{
-        borderRadius: 4,
-        backgroundColor:
-          mode === "dark"
-            ? "#ffffff08"
-            : alpha(theme.palette.primary.main, 0.02),
-        p: 2,
-        boxShadow: theme.shadows[1],
-      }}
-    >
-      <Typography
-        variant="subtitle1"
-        sx={{
-          mb: 2,
-          fontWeight: 700,
-          color: theme.palette.primary.main,
-        }}
-      >
-        Other Developer Routes
-      </Typography>
-
-      <List disablePadding>
-        {[
-          {
-            label: "Firestore Playground",
-            description: "Temporary Firestore data editor & viewer.",
-            action: () => navigate("/developer/firestore-playground"),
-          },
-          {
-            label: "Notifications Preview",
-            description: "Preview app notification styles and types.",
-            action: () => navigate("/developer/notifications"),
-          },
-          {
-            label: "UI Components Showcase",
-            description: "Showcase of custom Material UI component variants.",
-            action: () => navigate("/developer/ui-demo"),
-          },
-          {
-            label: "Error Boundary Test",
-            description: "Trigger runtime errors to test recovery screens.",
-            action: () => navigate("/developer/error-test"),
-          },
-        ].map((route, idx) => (
-          <ListItem
-            key={idx}
-            sx={{
-              mb: 1.2,
-              borderRadius: 3,
-              transition: "all 0.2s ease",
-              "&:hover": {
-                bgcolor: alpha(theme.palette.primary.main, 0.06),
-                transform: "scale(1.01)",
-              },
-            }}
-            onClick={route.action}
-          >
-            <ListItemText
-              primary={route.label}
-              secondary={route.description}
-              primaryTypographyProps={{
-                fontWeight: 600,
-                color: theme.palette.text.primary,
-              }}
-              secondaryTypographyProps={{
-                color: theme.palette.text.secondary,
-                fontSize: "0.85rem",
-              }}
-            />
-            <ArrowForwardIos
-              sx={{ color: theme.palette.text.secondary }}
-            />
-          </ListItem>
-        ))}
-      </List>
-    </Box> */}
-
-    {/* Footer */}
     <Typography
       variant="caption"
       align="center"
@@ -5640,189 +5114,78 @@ PaperProps={{
 </Box>
 </Drawer>
 
-{/* Logout Confirm Dialog */}
-<Dialog
-  open={confirmLogout}
-  onClose={() => setConfirmLogout(false)}
-  PaperProps={{
-    sx: {
-      backgroundColor: mode === "dark" ? "#00000000" : "#ffffff91",
-      backdropFilter: 'blur(10px)',
-      boxShadow: 'none',
-      borderRadius: 6,
-    }
-  }}
+{/* Logout Glassmorphic Swipeable Bottom Drawer */}
+<SwipeableDrawer
+  anchor="bottom" open={confirmLogout} onClose={() => setConfirmLogout(false)} onOpen={() => {}} disableSwipeToOpen sx={{ zIndex: 1500 }}
+  PaperProps={{ sx: { borderRadius: 8, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(20px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, maxWidth: 540, mx: "auto", m: 3 } }}
+  ModalProps={{ BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } } }}
 >
-  <DialogTitle sx={{ px: 3, py: 3, color: mode === "dark" ? "#fff" : "#000" }}>
-    Are you sure you want to logout?
-  </DialogTitle>
-  
-  <DialogActions sx={{ px: 3, py: 3 }}>
-    <Button
-      variant="outlined"
-      sx={{
-        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
-        color: mode === "dark" ? "#fff" : "#000",
-        p: 1.5,
-        borderColor: '#ffffff33',
-        borderRadius: 5,
-      }}
-      onClick={() => setConfirmLogout(false)}
-    >
-      Cancel
-    </Button>
-    
-    <Button
-      variant="contained"
-      sx={{
-        backgroundColor:  mode === "dark" ? "#700000ff" : "#ffd4d4",
-        color:  mode === "dark" ? "#ffd4d4" : "#ff0000ff",
-        p: 1.5,
-        borderRadius: 5,
-        boxShadow: 'none',
-        '&:hover': {
-          backgroundColor: '#ff000088',
-        }
-      }}
-      onClick={() => {
-        handleLogout();
-        setConfirmLogout(false);
-      }}
-    >
-      Logout
-    </Button>
-  </DialogActions>
-</Dialog>
+  <Typography variant="h6" fontWeight="700" sx={{ textTransform: "none", textAlign: "center", mb: 2, color: mode === "dark" ? "#fff" : "#000" }}>Account Session Logout</Typography>
+  <Box display="flex" flexDirection="column" alignItems="center" gap={2} sx={{ mb: 3 }}>
+    <Box sx={{ width: 56, height: 56, borderRadius: "50%", backgroundColor: mode === "dark" ? "rgba(229, 57, 53, 0.15)" : "#ffebee", display: "flex", alignItems: "center", justifyContent: "center" }}><Typography sx={{ fontSize: 26 }}>🚪</Typography></Box>
+    <Typography variant="body1" textAlign="center" sx={{ fontWeight: 500, px: 2 }}>Are you sure you want to end your active session and <strong>logout</strong>?</Typography>
+    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic", textAlign: "center", px: 2 }}>You can re-authenticate anytime with your existing account credentials.</Typography>
+  </Box>
+  <Stack direction="row" spacing={2} justifyContent="center" sx={{ pb: 1 }}>
+    <Button variant="outlined" fullWidth onClick={() => setConfirmLogout(false)} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(255,255,255,0.42)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, border: "none", color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "#f5f5f5" } }}>Cancel</Button>
+    <Button variant="contained" fullWidth onClick={() => { handleLogout(); setConfirmLogout(false); }} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(229, 57, 53, 0.18)" : "rgba(255, 102, 102, 0.69)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: "#c62828" } }}>Logout</Button>
+  </Stack>
+</SwipeableDrawer>
 
-<Dialog
-  open={showDevDialog}
-  onClose={() => setShowDevDialog(false)}
-  PaperProps={{
-    sx: {
-      borderRadius: 4,
-      p: 2,
-      background: mode === "dark"
-        ? "linear-gradient(180deg, #0a0a0a55 0%, #1212124b 100%)"
-        : "linear-gradient(180deg, #fafafa96 0%, #f0f0f09d 100%)",
-      boxShadow: "none",
-      backdropFilter: "blur(20px)",
-      width: "100%",
-      maxWidth: 400,
-    },
-  }}
-  TransitionProps={{
-    timeout: 400,
-  }}
+{/* Developer Passkey Glassmorphic Swipeable Bottom Drawer */}
+<SwipeableDrawer
+  anchor="bottom" open={showDevDialog} onClose={() => setShowDevDialog(false)} onOpen={() => {}} disableSwipeToOpen sx={{ zIndex: 1500 }}
+  PaperProps={{ sx: { borderRadius: 8, p: 3, background: mode === "dark" ? "rgba(20, 20, 20, 0.08)" : "rgba(255,255,255,0.39)", backdropFilter: "blur(20px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, maxWidth: 540, mx: "auto", m: 3 } }}
+  ModalProps={{ BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0)" } } }}
 >
-  {/* Header */}
-  <DialogTitle
-    sx={{
-      textAlign: "center",
-      fontWeight: 700,
-      letterSpacing: 0.4,
-      fontSize: "1.25rem",
-      color: theme.palette.primary.main,
-      mb: 1,
-    }}
-  >
-    Enter Developer Passkey
-  </DialogTitle>
-
-  {/* Subtitle */}
-  <Typography
-    variant="body2"
-    sx={{
-      textAlign: "center",
-      color: theme.palette.text.secondary,
-      mb: 2,
-      mx: 2,
-    }}
-  >
-    This access is restricted to authorized developers only.
-  </Typography>
-
-  {/* Input Field */}
-  <DialogContent>
+  <Typography variant="h6" fontWeight="700" sx={{ textTransform: "none", textAlign: "center", mb: 2, color: mode === "dark" ? "#fff" : "#000" }}>Enter Developer Passkey</Typography>
+  <Box display="flex" flexDirection="column" alignItems="center" gap={2} sx={{ mb: 3 }}>
+    <Typography variant="body2" textAlign="center" sx={{ color: "text.secondary", px: 2 }}>This access horizon is restricted to verified software developers.</Typography>
     <TextField
       autoFocus
       margin="dense"
       label="Developer Key"
-      type="text"
-      variant="outlined"
+      type={showDevKey ? "text" : "password"}
+      placeholder="Enter developer passkey..."
       fullWidth
+      variant="outlined"
       value={enteredKey}
       onChange={(e) => setEnteredKey(e.target.value)}
+      onKeyDown={(e) => e.key === "Enter" && handleVerifyDevKey()}
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">
+            <VpnKey sx={{ fontSize: 20, color: mode === "dark" ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)" }} />
+          </InputAdornment>
+        ),
+        endAdornment: (
+          <InputAdornment position="end">
+            <IconButton onClick={() => setShowDevKey(!showDevKey)} edge="end" sx={{ color: mode === "dark" ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.7)" }}>
+              {showDevKey ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+            </IconButton>
+          </InputAdornment>
+        )
+      }}
       sx={{
+        width: "100%",
         "& .MuiOutlinedInput-root": {
-          borderRadius: 3,
-          "&:hover fieldset": {
-            borderColor: theme.palette.primary.main,
-          },
-          "&.Mui-focused fieldset": {
-            borderColor: theme.palette.primary.main,
-            boxShadow: "none",
-          },
-        },
-        input: {
-          color: theme.palette.text.primary,
-          letterSpacing: 0.5,
-        },
+          color: mode === "dark" ? "#fff" : "#111",
+          borderRadius: 4,
+          backgroundColor: mode === "dark" ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.2)",
+          boxShadow: mode === "dark" 
+            ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` 
+            : `inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, 
+          border: "0px solid", 
+          "& fieldset": { border: "none" }
+        }
       }}
     />
-  </DialogContent>
-
-  {/* Action Buttons */}
-  <DialogActions
-    sx={{
-      display: "flex",
-      justifyContent: "space-between",
-      px: 3,
-      pb: 2,
-    }}
-  >
-    <Button
-      onClick={() => setShowDevDialog(false)}
-      sx={{
-        borderRadius: 3,
-        textTransform: "none",
-        fontWeight: 500,
-        color: theme.palette.text.secondary,
-        "&:hover": {
-          color: theme.palette.primary.main,
-          backgroundColor:
-            mode === "dark"
-              ? "rgba(255,255,255,0.05)"
-              : "rgba(0,0,0,0.04)",
-        },
-      }}
-    >
-      Cancel
-    </Button>
-    <Button
-      variant="contained"
-      onClick={handleVerifyDevKey}
-      sx={{
-        borderRadius: 3,
-        textTransform: "none",
-        fontWeight: 600,
-        px: 3,
-        py: 0.8,
-        background: theme.palette.primary.main,
-        boxShadow: mode === "dark"
-          ? "0 0 15px rgba(0,255,200,0.4)"
-          : "0 0 15px rgba(25,118,210,0.4)",
-        "&:hover": {
-          background: theme.palette.primary.dark,
-          transform: "scale(1.03)",
-          transition: "0.25s ease",
-        },
-      }}
-    >
-      Verify
-    </Button>
-  </DialogActions>
-</Dialog>
-
+  </Box>
+  <Stack direction="row" spacing={2} justifyContent="center" sx={{ pb: 1 }}>
+    <Button variant="outlined" fullWidth onClick={() => setShowDevDialog(false)} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(255,255,255,0.42)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, border: "none", color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "#f5f5f5" } }}>Cancel</Button>
+    <Button variant="contained" fullWidth onClick={handleVerifyDevKey} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(255, 255, 255, 0.85)" : "rgba(0, 0, 0, 0.85)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)`, borderRadius: 8, py: 1.2, fontWeight: 600, color: mode === "dark" ? "#000" : "#fff", "&:hover": { backgroundColor: mode === "dark" ? "#fff" : "#222" } }}>Verify Passkey</Button>
+  </Stack>
+</SwipeableDrawer>
 
 </>
 </ThemeProvider>

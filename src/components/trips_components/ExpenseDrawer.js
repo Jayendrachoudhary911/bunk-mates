@@ -3,6 +3,13 @@ import {
   Box, Typography, Button, TextField, SwipeableDrawer, Checkbox, Collapse, Avatar,
 } from "@mui/material";
 import { motion } from "framer-motion";
+import {
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+  glassInputSx,
+  ctaButtonSx,
+} from "../../theme/designSystem";
 
 const ExpenseDrawer = ({
   expenseDrawerOpen,
@@ -30,42 +37,19 @@ const ExpenseDrawer = ({
       disableBackdropTransition={false}
       ModalProps={{
         BackdropProps: {
-          sx: {
-            backgroundColor: "rgba(0,0,0,0.2)",
-            backdropFilter: "blur(4px)",
-          },
+          sx: drawerBackdropSx,
         },
       }}
       PaperProps={{
         sx: {
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          background: mode === "dark"
-            ? "rgba(20,20,20,0.9)"
-            : "rgba(255,255,255,0.9)",
-          backdropFilter: "blur(16px)",
-          boxShadow: mode === "dark"
-            ? "0px -6px 20px rgba(0,0,0,0.5)"
-            : "0px -6px 20px rgba(0,0,0,0.1)",
-          p: 3,
+          ...drawerPaperSx(mode),
           maxHeight: "85vh",
           overflowY: "auto",
-          transition: "all 0.3s ease-in-out",
         },
       }}
     >
       {/* Drag Handle */}
-      <Box
-        sx={{
-          width: 40,
-          height: 5,
-          bgcolor: "grey.500",
-          opacity: 0.5,
-          borderRadius: 2.5,
-          mx: "auto",
-          mb: 2,
-        }}
-      />
+      <DrawerHandle mode={mode} />
 
       {/* Header */}
       <Typography

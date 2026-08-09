@@ -40,21 +40,19 @@ import {
   Paper
 } from '@mui/material';
 import { format, isToday, isYesterday } from 'date-fns';
-
-// Lucide React Icons
 import { 
-  ArrowLeft as ArrowBackIcon, 
-  UserPlus as GroupAddIcon, 
-  UserPlus as PersonAddIcon, 
-  Plus as AddIcon, 
-  X as CloseRoundedIcon, 
+  ArrowBack as ArrowBackIcon, 
+  PersonAdd as GroupAddIcon, 
+  PersonAdd as PersonAddIcon, 
+  Add as AddIcon, 
+  CloseRounded as CloseRoundedIcon, 
   Search as SearchIcon, 
-  CheckCircle2 as CheckCircleIcon, 
-  MessageSquare as MessageOutlinedIcon, 
-  MessageSquare as ChatBubbleOutlineIcon, 
-  Info as InfoOutlinedIcon, 
-  ExternalLink as OpenInNewIcon
-} from 'lucide-react';
+  CheckCircle as CheckCircleIcon, 
+  Message as MessageOutlinedIcon, 
+  ChatBubbleOutline as ChatBubbleOutlineIcon, 
+  InfoOutlined as InfoOutlinedIcon, 
+  OpenInNew as OpenInNewIcon
+} from '../icons';
 
 import Notifications from "../elements/Notifications";
 
@@ -66,6 +64,18 @@ import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+import {
+  designTokens,
+  glass,
+  cardHover,
+  drawerPaperSx,
+  drawerBackdropSx,
+  drawerHandleSx,
+  searchFieldSx,
+  ctaButtonSx,
+  filterChipSx,
+  DrawerHandle,
+} from "../theme/designSystem";
 
 const USER_STORAGE_KEY = "bunkmateuser";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";

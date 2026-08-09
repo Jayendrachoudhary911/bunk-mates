@@ -18,11 +18,22 @@ import {
   Card,
   CardContent,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import MyLocationIcon from "@mui/icons-material/MyLocation";
+import {
+  ArrowBack as ArrowBackIcon,
+  LocationOn as MyLocationIcon,
+} from "../icons";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { useNavigate } from "react-router-dom";
+import {
+  designTokens,
+  glass,
+  cardHover,
+  ctaButtonSx,
+  glassIconBtnSx,
+  flexRowSx,
+  flexBetweenSx,
+} from "../theme/designSystem";
 
 const ORS_API_KEY = "5b3ce3597851110001cf62484a264622a33048f694b7220a215994ec";
 
@@ -333,10 +344,10 @@ useEffect(() => {
     left: 0,
     width: "100%",
     height: 120,
-    pointerEvents: "none", // allows map interaction
+    pointerEvents: "none",
     zIndex: 900,
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
+    backdropFilter: designTokens.blurs.glass,
+    WebkitBackdropFilter: designTokens.blurs.glass,
     maskImage:
       "linear-gradient(to bottom, black 40%, rgba(0,0,0,0.6) 70%, transparent 100%)",
     WebkitMaskImage:
@@ -357,19 +368,13 @@ useEffect(() => {
           pl: 1,
           pr: 2,
           py: 1,
-          borderRadius: 8,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          background:
-            mode === "dark"
-              ? "rgba(0, 0, 0, 0.22)"
-              : "rgba(255,255,255,0.7)",
-          backdropFilter: "blur(10px)",
+          borderRadius: designTokens.radii.card,
+          ...flexBetweenSx,
+          ...glass(mode),
         }}
       >
         <Stack direction="row" spacing={2} alignItems="center">
-          <IconButton onClick={() => navigate(-1)} sx={{ color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)" }}>
+          <IconButton onClick={() => navigate(-1)} sx={glassIconBtnSx(mode)}>
             <ArrowBackIcon />
           </IconButton>
           <Typography fontWeight="bold" color={theme.palette.text.primary}>Live Users Map</Typography>
@@ -384,15 +389,9 @@ useEffect(() => {
           zIndex: 1000,
           m: 2,
           p: 2,
-          borderRadius: 8,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          background:
-            mode === "dark"
-              ? "rgba(0, 0, 0, 0.22)"
-              : "rgba(255,255,255,0.7)",
-          backdropFilter: "blur(10px)",
+          borderRadius: designTokens.radii.card,
+          ...glass(mode),
+          ...flexRowSx,
         }}
       >
         <Stack direction="row" alignItems="center">
@@ -428,19 +427,15 @@ useEffect(() => {
         key={user.id}
         onClick={() => setSelectedUser(user)}
         sx={{
+          ...glass(mode),
+          ...cardHover,
           minWidth: 320,
-          borderRadius: 6,
+          borderRadius: designTokens.radii.card,
           cursor: "pointer",
-          transition: "all .2s ease",
-          backdropFilter: "blur(10px)",
           border:
             selectedUser?.id === user.id
               ? `2px solid ${theme.palette.primary.main}`
-              : "1px solid rgba(255,255,255,0.1)",
-          background:
-            mode === "dark"
-              ? "rgba(20, 20, 20, 0.37)"
-              : "rgba(255,255,255,0.95)",
+              : `1px solid ${mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)"}`,
           transform:
             selectedUser?.id === user.id
               ? "translateY(-4px)"
@@ -644,12 +639,8 @@ useEffect(() => {
             zIndex: 1100,
             px: 3,
             py: 1.5,
-            borderRadius: 4,
-            backdropFilter: "blur(10px)",
-            background:
-              mode === "dark"
-                ? "rgba(0,0,0,0.6)"
-                : "rgba(255,255,255,0.9)",
+            borderRadius: designTokens.radii.cardSm,
+            ...glass(mode),
           }}
         >
           <Typography fontWeight="bold">

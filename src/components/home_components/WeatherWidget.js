@@ -9,6 +9,15 @@ import {
   useTheme,
 } from "@mui/material";
 import { weatherIcons } from "../../elements/weatherTheme";
+import {
+  designTokens,
+  glass,
+  cardHover,
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+  flexRowSx,
+} from "../../theme/designSystem";
 
 const weatherBackgrounds = {
   Clear: {
@@ -158,13 +167,15 @@ function WeatherDetailsDrawer({ weather, open, onClose }) {
       open={open}
       onClose={onClose}
       onOpen={() => {}}
+      ModalProps={{
+        BackdropProps: { sx: drawerBackdropSx },
+      }}
       PaperProps={{
         sx: {
-          borderRadius: 6,
+          ...drawerPaperSx(isDark ? "dark" : "light"),
           m: 1,
           height: "75vh",
           background: bgGradient,
-          backdropFilter: "blur(22px) saturate(1.4)",
           transition: "background 800ms ease",
         },
       }}
@@ -179,19 +190,7 @@ function WeatherDetailsDrawer({ weather, open, onClose }) {
           maxWidth: 720,
         }}
       >
-        {/* Drag Handle */}
-        <Box
-          sx={{
-            width: 44,
-            height: 4,
-            borderRadius: 999,
-            backgroundColor: isDark
-              ? "rgba(255,255,255,0.3)"
-              : "rgba(0,0,0,0.3)",
-            mx: "auto",
-            mb: 3,
-          }}
-        />
+        <DrawerHandle mode={isDark ? "dark" : "light"} />
 
         {/* Header */}
         <Stack
@@ -311,24 +310,16 @@ export default function WeatherWidget({
       <Box
         onClick={() => setWeatherOpen(true)}
         sx={{
-          display: "flex",
-          alignItems: "center",
+          ...flexRowSx,
           gap: 1.6,
           px: 0,
           py: 1.3,
-          borderRadius: 6,
+          borderRadius: designTokens.radii.card,
           minHeight: 58,
           maxWidth: 200,
           width: { xs: "100%", sm: "auto" },
-          border: "none",
-          boxShadow: "none",
           cursor: "pointer",
-          animation: "fadeIn 0.6s ease both",
-          transition: "all 260ms cubic-bezier(0.4,0,0.2,1)",
-          "&:hover": {
-            transform: "translateY(-2px)",
-            boxShadow: "none",
-          },
+          ...cardHover,
         }}
       >
         {weatherLoading ? (

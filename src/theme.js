@@ -1,14 +1,126 @@
 // theme.js
 import { createTheme } from "@mui/material/styles";
-import { themeColors } from "./elements/themeColors";
-import {
-  keyframes,
-} from "@mui/material"; 
+import { keyframes } from "@mui/material";
 
-export function getTheme(mode = "dark", accent = "default") {
-  let base = { ...themeColors[mode] };
+/**
+ * 🎨 Common Theme Colors for BunkMate
+ * Matches the signature color palette and glass design language of Notes & Trips.
+ */
+export const themeColors = {
+  dark: {
+    palette: {
+      mode: "dark",
+      background: {
+        default: "#060606",
+        paper: "#0c0c0c",
+        main: "rgba(0, 0, 0, 0.65)",
+        card: "rgba(30, 30, 30, 0.22)",
+        surface: "rgba(20, 20, 20, 0.75)",
+      },
+      primary: {
+        main: "#ffffff",
+        contrastText: "#000000",
+        bg: "rgba(255, 255, 255, 0.08)",
+        mainbg: "rgba(255, 255, 255, 0.12)",
+        maintxt: "#ffffff",
+        bgr: "rgba(255, 255, 255, 0.05)",
+        card: "rgba(30, 30, 30, 0.22)",
+      },
+      secondary: {
+        main: "#444444ea",
+        contrastText: "#ffffff",
+      },
+      success: {
+        main: "#4ADE80",
+        contrastText: "#000000",
+      },
+      info: {
+        main: "#38BDF8",
+        contrastText: "#000000",
+      },
+      warning: {
+        main: "#F59E0B",
+        contrastText: "#000000",
+      },
+      error: {
+        main: "#FF5252",
+        contrastText: "#ffffff",
+      },
+      text: {
+        primary: "#FFFFFF",
+        secondary: "rgba(255, 255, 255, 0.7)",
+        disabled: "rgba(255, 255, 255, 0.4)",
+        muted: "rgba(255, 255, 255, 0.4)",
+      },
+      action: {
+        hover: "rgba(255, 255, 255, 0.08)",
+        selected: "#131313",
+        disabledBackground: "rgba(255, 255, 255, 0.04)",
+        disabled: "rgba(255, 255, 255, 0.3)",
+      },
+      divider: "rgba(255, 255, 255, 0.08)",
+    },
+  },
+  light: {
+    palette: {
+      mode: "light",
+      background: {
+        default: "#F0F2F5",
+        paper: "#ffffff",
+        main: "rgba(255, 255, 255, 0.8)",
+        card: "rgba(255, 255, 255, 0.4)",
+        surface: "rgba(255, 255, 255, 0.55)",
+      },
+      primary: {
+        main: "#000000",
+        contrastText: "#ffffff",
+        bg: "rgba(0, 0, 0, 0.04)",
+        mainbg: "rgba(0, 0, 0, 0.08)",
+        maintxt: "#000000",
+        bgr: "rgba(0, 0, 0, 0.03)",
+        card: "rgba(255, 255, 255, 0.4)",
+      },
+      secondary: {
+        main: "#e0e0e0",
+        contrastText: "#000000",
+      },
+      success: {
+        main: "#22c55e",
+        contrastText: "#ffffff",
+      },
+      info: {
+        main: "#0284c7",
+        contrastText: "#ffffff",
+      },
+      warning: {
+        main: "#d97706",
+        contrastText: "#ffffff",
+      },
+      error: {
+        main: "#dc2626",
+        contrastText: "#ffffff",
+      },
+      text: {
+        primary: "#111111",
+        secondary: "rgba(0, 0, 0, 0.7)",
+        disabled: "rgba(0, 0, 0, 0.4)",
+        muted: "rgba(0, 0, 0, 0.4)",
+      },
+      action: {
+        hover: "rgba(0, 0, 0, 0.05)",
+        selected: "rgba(0, 0, 0, 0.08)",
+        disabledBackground: "rgba(0, 0, 0, 0.04)",
+        disabled: "rgba(0, 0, 0, 0.26)",
+      },
+      divider: "rgba(0, 0, 0, 0.06)",
+    },
+  },
+};
 
-const accents = {
+/**
+ * 🌟 Accent color palettes
+ */
+export const accents = {
   blue: {
     main: "#9fcfff",
     maintxt: "#1976d2",
@@ -69,8 +181,6 @@ const accents = {
     card: "#E8F5E9",
     shades: ["#e2ffe4ff", "#A5D6A7", "#66BB6A", "#4CAF50", "#2E7D32"],
   },
-
-  // 🌟 New funky, jolly, bright themes 🌟
   yellow: {
     main: "#ffe501ff",
     maintxt: "#fbc02d",
@@ -123,89 +233,79 @@ const accents = {
   },
 };
 
-  const fadeIn = keyframes`
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  `;
+export const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
 
-  const theme = createTheme({
-    palette: {
-      mode: "dark",
-      background: {
-        default: "#02020200", // almost transparent black for main background
-        paper: "#0c0c0c", // deep black for dialogs/paper
-        card: "#0c0c0c",
-      },
-      primary: {
-        main: "#ffffffff", // bright green solid for buttons and accents
-        contrastText: "#000000", // black text on bright green buttons
-      },
-      secondary: {
-        main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
-      },
-      text: {
-        primary: "#FFFFFF", // pure white for main text
-        secondary: "#BDBDBD", // light grey for secondary text
-        disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
-      },
-      action: {
-        hover: "#b6b6b6ff", // bright green hover for interactive elements
-        selected: "#131313", // dark black for selected states
-        disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
-        disabled: "#BDBDBD",
-      },
-      divider: "rgb(24, 24, 24)", // very dark grey for borders
-    },
+/**
+ * 🚀 Build unified Material-UI Theme
+ */
+export function getTheme(mode = "dark", accent = "default") {
+  const isDark = mode === "dark";
+  const basePalette = JSON.parse(JSON.stringify(themeColors[mode]?.palette || themeColors.dark.palette));
+
+  if (accent !== "default" && accents[accent]) {
+    const accentColors = accents[accent];
+    basePalette.primary = {
+      ...basePalette.primary,
+      ...accentColors,
+    };
+  }
+
+  return createTheme({
+    palette: basePalette,
     typography: {
-      fontFamily: "Roboto, Arial, sans-serif",
+      fontFamily: '"Outfit", "Roboto", "Arial", sans-serif',
       h6: {
         fontWeight: "bold",
-        color: "#FFFFFF",
+        color: basePalette.text.primary,
       },
       body1: {
         fontSize: "1rem",
-        lineHeight: "1.5",
-        color: "#FFFFFF",
+        lineHeight: 1.5,
+        color: basePalette.text.primary,
       },
       body2: {
         fontSize: "0.875rem",
-        color: "#BDBDBD",
+        color: basePalette.text.secondary,
       },
     },
     shape: {
-      borderRadius: 12,
+      borderRadius: 4,
     },
     components: {
       MuiAppBar: {
         styleOverrides: {
           root: {
-            backgroundColor: "#0c0c0c40",
-            backdropFilter: "blur(40px)", // dark grey/black for app bar background
-            boxShadow: "none",
-            borderBottom: "1px solid rgb(24, 24, 24, 0.5)",
+            backgroundColor: isDark ? "rgba(12, 12, 12, 0)" : "rgba(255, 255, 255, 0)",
           },
         },
       },
       MuiCard: {
         styleOverrides: {
           root: {
-            backgroundColor: "#2c2c2c00",
-            color: "#FFFFFF",
-            boxShadow: "none",
+            backgroundColor: isDark ? "rgba(30, 30, 30, 0.22)" : "rgba(255, 255, 255, 0.4)",
+            backdropFilter: "blur(22px)",
+            WebkitBackdropFilter: "blur(22px)",
+            color: basePalette.text.primary,
+            boxShadow: isDark
+              ? "inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)"
+              : "inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)",
             backgroundImage: "none",
-            borderRadius: 16,
-            transition: "box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+            borderRadius: 6,
+            border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.03)"}`,
+            transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
             willChange: "transform, box-shadow",
-            cursor: "pointer",
             "&:hover": {
-              transform: "translateY(-4px)",
-              backgroundColor: "#131313",
+              transform: "translateY(-2px)",
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
             },
           },
         },
@@ -215,13 +315,13 @@ const accents = {
           root: {
             textTransform: "none",
             fontWeight: 600,
-            borderRadius: "12px",
-            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-            color: "#000",
-            backgroundColor: "#fff",
+            borderRadius: 24,
+            transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+            color: isDark ? "#000000" : "#ffffff",
+            backgroundColor: isDark ? "#ffffff" : "#000000",
             "&:hover": {
-              backgroundColor: "#000",
-              color: "#fff",
+              backgroundColor: isDark ? "#f0f0f0" : "#1a1a1a",
+              transform: "translateY(-1px)",
             },
           },
         },
@@ -229,48 +329,84 @@ const accents = {
       MuiAvatar: {
         styleOverrides: {
           root: {
-            backgroundColor: "#f0f0f0", // off-white avatar background
-            color: "#000",
+            backgroundColor: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.06)",
+            color: basePalette.text.primary,
           },
         },
       },
       MuiMenu: {
         styleOverrides: {
           paper: {
-            backgroundColor: "#0c0c0c40", // deep black menu background
-            color: "#FFFFFF",
-            backdropFilter: "blur(40px)",
-            borderRadius: 10,
-            border: "1px solid rgb(24, 24, 24)",
+            backgroundColor: isDark ? "rgba(22, 22, 22, 0.85)" : "rgba(255, 255, 255, 0.9)",
+            color: basePalette.text.primary,
+            backdropFilter: "blur(30px) saturate(160%)",
+            WebkitBackdropFilter: "blur(30px) saturate(160%)",
+            borderRadius: 16,
+            border: `1px solid ${basePalette.divider}`,
+            boxShadow: isDark ? "0 12px 32px rgba(0, 0, 0, 0.7)" : "0 12px 32px rgba(0, 0, 0, 0.12)",
           },
         },
       },
       MuiMenuItem: {
         styleOverrides: {
           root: {
+            borderRadius: 8,
+            margin: "2px 6px",
             "&:hover": {
-              backgroundColor: "#2c2c2c", // translucent dark green hover
+              backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
             },
           },
         },
       },
-      MuiBox: {
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            backgroundColor: isDark ? "rgba(20, 20, 20, 0.75)" : "rgba(255, 255, 255, 0.55)",
+            backdropFilter: "blur(30px) saturate(160%)",
+            WebkitBackdropFilter: "blur(30px) saturate(160%)",
+            borderRadius: 24,
+            border: `1px solid ${basePalette.divider}`,
+            backgroundImage: "none",
+          },
+        },
+      },
+      MuiDrawer: {
+        styleOverrides: {
+          paper: {
+            backgroundColor: isDark ? "rgba(20, 20, 20, 0.75)" : "rgba(255, 255, 255, 0.55)",
+            backdropFilter: "blur(30px) saturate(160%)",
+            WebkitBackdropFilter: "blur(30px) saturate(160%)",
+            backgroundImage: "none",
+            color: basePalette.text.primary,
+          },
+        },
+      },
+      MuiChip: {
         styleOverrides: {
           root: {
-            // General box overrides if needed
+            borderRadius: 16,
+            fontWeight: 500,
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+          },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: 14,
+            transition: "all 0.2s ease-in-out",
+            "& fieldset": {
+              borderColor: basePalette.divider,
+            },
+            "&:hover fieldset": {
+              borderColor: isDark ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.2)",
+            },
           },
         },
       },
     },
   });
-
-  if (accent !== "default" && base.palette && accents[accent]) {
-    const accentColors = accents[accent];
-    base.palette.primary = {
-      ...base.palette.primary,
-      ...accentColors,
-    };
-  }
-
-  return createTheme(base);
 }
+
+export default getTheme;

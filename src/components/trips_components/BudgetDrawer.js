@@ -2,6 +2,13 @@ import React from "react";
 import {
   Box, Typography, Button, TextField, SwipeableDrawer,
 } from "@mui/material";
+import {
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+  glassInputSx,
+  ctaButtonSx,
+} from "../../theme/designSystem";
 
 const BudgetDrawer = ({
   budgetDrawerOpen,
@@ -16,38 +23,17 @@ const BudgetDrawer = ({
       anchor="bottom"
       open={budgetDrawerOpen}
       onClose={() => setBudgetDrawerOpen(false)}
+      onOpen={() => {}}
       ModalProps={{
         BackdropProps: {
-          sx: {
-            p: 3,
-            backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-            backdropFilter: "blur(2px)",
-          },
+          sx: drawerBackdropSx,
         },
       }}
       PaperProps={{
-        sx: {
-          p: 3,
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
-          boxShadow: "none"
-        },
+        sx: drawerPaperSx(mode),
       }}
     >
-
-    <Box
-      sx={{
-        width: 40,
-        height: 5,
-        bgcolor: "grey.500",
-        opacity: 0.5,
-        borderRadius: 2.5,
-        mx: "auto",
-        mb: 2,
-        cursor: "grab",
-      }}
-    />
+      <DrawerHandle mode={mode} />
 
       <Typography variant="h6" mb={2}>
         Edit Trip Budget

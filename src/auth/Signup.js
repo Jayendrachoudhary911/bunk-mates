@@ -31,6 +31,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
+import { authInputSx, authCTASx } from "../theme/designSystem";
 
 const transition = (props) => <Slide direction="up" {...props} />;
 
@@ -96,56 +97,6 @@ const GRADIENT_VARIANTS = [
   `,
 ];
 
-const inputStyles = {
-    /* --- FIELD BASE --- */
-    borderRadius: 4,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    backdropFilter: "blur(8px)",
-
-    /* --- INPUT TEXT --- */
-    "& .MuiInputBase-input": {
-      color: "#ffffff",
-      padding: "14px 16px",
-      fontSize: "0.95rem",
-      letterSpacing: "0.02em",
-    },
-
-    /* --- LABEL --- */
-    "& .MuiInputLabel-root": {
-      color: "rgba(255,255,255,0.65)",
-      fontWeight: 500,
-    },
-    "& .MuiInputLabel-root.Mui-focused": {
-      color: "#ffffff",
-    },
-
-    /* --- OUTLINE --- */
-    "& .MuiOutlinedInput-root": {
-      borderRadius: 4,
-
-      "& fieldset": {
-        borderColor: "rgba(255,255,255,0.15)",
-        transition: "border-color 0.3s ease, box-shadow 0.3s ease",
-      },
-
-      "&:hover fieldset": {
-        borderColor: "rgba(255, 255, 255, 0.6)",
-      },
-
-      "&.Mui-focused fieldset": {
-        borderColor: "#ffffff",
-        boxShadow: "0 0 0 2px rgba(255,140,26,0.25)",
-      },
-    },
-
-    /* --- AUTOFILL FIX (Chrome) --- */
-    "& input:-webkit-autofill": {
-      WebkitBoxShadow: "0 0 0 100px #0c0c0c inset",
-      WebkitTextFillColor: "#ffffff",
-      caretColor: "#ffffff",
-      borderRadius: 4,
-    },
-};
 
 
 // ---- PASSWORD RULE CHECK ----
@@ -395,7 +346,7 @@ const handleChange = async (e) => {
         required
         onChange={handleChange}
         variant="outlined"
-        sx={inputStyles}
+        sx={authInputSx()}
       />
     ))}
 
@@ -415,7 +366,7 @@ const handleChange = async (e) => {
       ? "Username available"
       : ""
   }
-  sx={inputStyles}
+  sx={authInputSx()}
 />
 
 
@@ -438,7 +389,7 @@ const handleChange = async (e) => {
           </InputAdornment>
         ),
       }}
-      sx={inputStyles}
+      sx={authInputSx()}
     />
 
     {/* ---------- PASSWORD STRENGTH ---------- */}
@@ -519,7 +470,7 @@ const handleChange = async (e) => {
           </InputAdornment>
         ),
       }}
-      sx={inputStyles}
+      sx={authInputSx()}
     />
 
     {/* ---------- SUBMIT ---------- */}
@@ -532,19 +483,7 @@ const handleChange = async (e) => {
     password !== confirmPassword ||
     usernameAvailable !== true
   }
-  sx={{
-    backgroundColor: "#ffffffba",
-    color: "#000",
-    borderRadius: 14,
-    py: 1.5,
-    opacity:
-      passwordStrength?.label !== "Strong" ||
-      password !== confirmPassword ||
-      usernameAvailable !== true
-        ? 0.7
-        : 1,
-    transition: "all 0.2s ease",
-  }}
+  sx={authCTASx("primary", { py: 1.5 })}
 >
   Sign Up
 </Button>

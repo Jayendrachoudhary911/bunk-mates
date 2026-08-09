@@ -4,7 +4,8 @@ import {
   DialogActions,
 } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
-import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import { WarningAmberRounded as WarningAmberRoundedIcon } from "../../icons";
+import { designTokens, glass, ctaButtonSx } from "../../theme/designSystem";
 
 const ConfirmDeleteDialog = ({
   confirmDeleteOpen,
@@ -20,14 +21,9 @@ const ConfirmDeleteDialog = ({
           onClose={() => setConfirmDeleteOpen(false)}
           PaperProps={{
             sx: {
-              background:
-                mode === "dark"
-                  ? "linear-gradient(145deg, rgba(20,20,20,0.9), rgba(40,40,40,0.85))"
-                  : "linear-gradient(145deg, rgba(255,255,255,0.95), rgba(240,240,240,0.9))",
-              p: 2.5,
-              borderRadius: 4,
-              backdropFilter: "blur(25px)",
-              boxShadow: "none",
+              ...glass(mode),
+              p: 3,
+              borderRadius: designTokens.radii.card,
               width: "100%",
               maxWidth: 420,
               overflow: "hidden",

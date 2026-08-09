@@ -8,7 +8,15 @@ import {
   Typography,
 } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
-import { AccessTime } from "../../icons/LucideIcons";
+import { AccessTime } from "../../icons";
+import {
+  designTokens,
+  glass,
+  cardHover,
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+} from "../../theme/designSystem";
 
 const PRIORITY_COLORS = {
   high: {
@@ -342,27 +350,6 @@ export default function UpcomingTripsAlerts({
           </SwipeableDrawer>
         )}
       </AnimatePresence>
-
-      <style>
-        {`
-          @keyframes softPulse {
-            0% { transform: scale(1); opacity: 0.25; }
-            60% { transform: scale(1.6); opacity: 0; }
-            100% { transform: scale(1); opacity: 0.25; }
-          }
-
-          @keyframes iconFloatIn {
-            from {
-              opacity: 0;
-              transform: translateY(6px) scale(0.85);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0) scale(1);
-            }
-          }
-        `}
-      </style>
     </>
   );
 }

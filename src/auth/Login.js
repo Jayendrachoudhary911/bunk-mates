@@ -23,6 +23,7 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import Link from "@mui/material/Link";
 
 import { motion, AnimatePresence } from "framer-motion";
+import { authInputSx, authCardSx, authCTASx } from "../theme/designSystem";
 
 import { auth } from "../firebase";
 import {
@@ -337,14 +338,8 @@ useEffect(() => {
             duration: 18,
             ease: "linear",
           }}
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              bgGradient,
-            backgroundSize: "140% 140%",
-            animation: "darkRadialGlow 24s ease-in-out infinite",
-          }}
+          className="auth-bg-layer"
+          style={{ background: bgGradient }}
         />
 
         <Box
@@ -402,17 +397,7 @@ useEffect(() => {
 
 
 <Box
-  sx={{
-    width: "100%",
-    maxWidth: 420,   // Controls desktop width
-    margin: "0 auto",
-    pb: 4,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    borderRadius: 8,
-    boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-    backdropFilter: "blur(12px)",
-    padding: 4,
-  }}
+  sx={authCardSx()}
 >
 
             {/* ---------------- SUCCESS PAGE ---------------- */}
@@ -493,25 +478,7 @@ useEffect(() => {
         fullWidth
         size="large"
         onClick={() => navigate("/")}
-        sx={{
-          mt: 1,
-          py: 1.6,
-          borderRadius: "14px",
-          fontWeight: 700,
-          letterSpacing: "0.03em",
-          background:
-            "linear-gradient(135deg,#ffffff,#eaeaea)",
-          color: "#000",
-          transition: "all 0.25s ease",
-
-          "&:hover": {
-            transform: "translateY(-1px)",
-          },
-
-          "&:active": {
-            transform: "scale(0.97)",
-          },
-        }}
+        sx={authCTASx("primary", { mt: 1 })}
       >
         {ctaText}
       </Button>
@@ -607,28 +574,7 @@ useEffect(() => {
       haptic(10);
       setPage("email");
     }}
-    sx={{
-      py: 1.6,
-      borderRadius: "14px",
-      background: "linear-gradient(135deg,#ffffff,#eaeaea)",
-      color: "#000",
-      fontWeight: 700,
-      letterSpacing: "0.03em",
-
-      boxShadow: "none",
-
-      transition: "all 0.25s ease",
-
-      "&:hover": {
-        transform: "translateY(-1px)",
-        boxShadow: "0 14px 40px rgba(0,0,0,0.35)",
-        background: "linear-gradient(135deg,#ffffff,#f1f1f1)",
-      },
-
-      "&:active": {
-        transform: "scale(0.97)",
-      },
-    }}
+    sx={authCTASx("primary")}
     fullWidth
   >
     Continue with Email
@@ -651,31 +597,9 @@ useEffect(() => {
     startIcon={<MailOutlineIcon />}
     onClick={() => {
       haptic(10);
-      navigate("/signup"); // or navigate("/signup")
+      navigate("/signup");
     }}
-    sx={{
-      py: 1.5,
-      borderRadius: "14px",
-
-      background: "rgba(255, 255, 255, 0.01)",
-
-      border: "1.5px solid rgba(255,255,255,0.35)",
-
-      color: "#ffffff",
-      fontWeight: 600,
-
-      transition: "all 0.25s ease",
-
-      "&:hover": {
-        background: "rgba(255,255,255,0.1)",
-        borderColor: "#ff8a00",
-        color: "#ff8a00",
-      },
-
-      "&:active": {
-        transform: "scale(0.97)",
-      },
-    }}
+    sx={authCTASx("secondary")}
     fullWidth
   >
     Create New Account
@@ -718,33 +642,7 @@ useEffect(() => {
       email: e.target.value,
     }))
   }
-  sx={{
-    "& .MuiOutlinedInput-root": {
-      borderRadius: "14px",
-      background: "rgba(255,255,255,0)",
-      color: "#fff",
-
-      "& fieldset": {
-        borderColor: "rgba(255,255,255,0.15)",
-      },
-
-      "&:hover fieldset": {
-        borderColor: "rgba(255,255,255,0.35)",
-      },
-
-      "&.Mui-focused fieldset": {
-        borderColor: "#ffffff",
-      },
-    },
-
-    "& .MuiInputLabel-root": {
-      color: "rgba(255,255,255,0.6)",
-    },
-
-    "& .MuiInputLabel-root.Mui-focused": {
-      color: "#ffffff",
-    },
-  }}
+  sx={authInputSx()}
 />
 
 {/* PASSWORD FIELD */}
@@ -779,33 +677,7 @@ useEffect(() => {
       </InputAdornment>
     ),
   }}
-  sx={{
-    "& .MuiOutlinedInput-root": {
-      borderRadius: "14px",
-      background: "rgba(0, 0, 0, 0)",
-      color: "#fff",
-
-      "& fieldset": {
-        borderColor: "rgba(255,255,255,0.15)",
-      },
-
-      "&:hover fieldset": {
-        borderColor: "rgba(255,255,255,0.35)",
-      },
-
-      "&.Mui-focused fieldset": {
-        borderColor: "#ffffff",
-      },
-    },
-
-    "& .MuiInputLabel-root": {
-      color: "rgba(255,255,255,0.6)",
-    },
-
-    "& .MuiInputLabel-root.Mui-focused": {
-      color: "#ffffff",
-    },
-  }}
+  sx={authInputSx()}
 />
 
 
@@ -833,15 +705,7 @@ useEffect(() => {
   <Button
     type="submit"
     disabled={loading}
-    sx={{
-      py: 1.5,
-      borderRadius: 3,
-      fontWeight: 700,
-      background:
-        "linear-gradient(135deg,#ffffff,#e5e5e5)",
-      color: "#000",
-      mt: 1,
-    }}
+    sx={authCTASx("primary", { mt: 1, py: 1.5 })}
     fullWidth
   >
     {loading ? (

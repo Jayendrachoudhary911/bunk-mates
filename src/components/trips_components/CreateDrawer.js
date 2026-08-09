@@ -38,9 +38,21 @@ import {
   Delete,
   Add,
   Notes,
-} from "@mui/icons-material";
+} from "../../icons";
 import { doc, getDoc, collection, addDoc } from "firebase/firestore";
 import { auth, db, firestore } from "../../firebase";
+import {
+  designTokens,
+  glass,
+  cardHover,
+  drawerPaperSx,
+  drawerBackdropSx,
+  drawerHandleSx,
+  searchFieldSx,
+  glassInputSx,
+  ctaButtonSx,
+  DrawerHandle,
+} from "../../theme/designSystem";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -228,6 +240,7 @@ const CreateTripDrawer = ({
   handleNext,
   handleBack,
   handleCreateTrip,
+  isFetchingLocation,
   createdTripDetails,
   setCreatedTripDetails,
 }) => {
@@ -334,6 +347,41 @@ const CreateTripDrawer = ({
     setOriginCoords(prevDestCoords);
     setDestCoords(prevOriginCoords);
   };
+
+  // Auto-sync search queries & geocode origin/destination coords when drawer opens or newTrip changes
+  useEffect(() => {
+    if (!createDialogOpen) return;
+
+    if (newTrip?.from) {
+      setFromSearchQuery(newTrip.from);
+      if (newTrip.currentLatLon) {
+        setOriginCoords(newTrip.currentLatLon);
+      } else if (!originCoords) {
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(newTrip.from)}&limit=1`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data[0]) {
+              setOriginCoords([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
+            }
+          })
+          .catch((err) => console.warn("Origin auto-geocode error:", err));
+      }
+    }
+
+    if (newTrip?.to) {
+      setToSearchQuery(newTrip.to);
+      if (!destCoords) {
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(newTrip.to)}&limit=1`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data[0]) {
+              setDestCoords([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
+            }
+          })
+          .catch((err) => console.warn("Destination auto-geocode error:", err));
+      }
+    }
+  }, [createDialogOpen, newTrip?.from, newTrip?.to]);
 
   useEffect(() => {
     if (!fromSearchQuery.trim() || fromSearchQuery.length < 3) {
@@ -848,6 +896,7 @@ Do not output markdown.`;
                 <Autocomplete
                   freeSolo
                   options={fromResults}
+                  inputValue={fromSearchQuery || newTrip.from || ""}
                   getOptionLabel={(option) => (typeof option === "string" ? option : option.display_name)}
                   onInputChange={(e, val) => {
                     setFromSearchQuery(val);
@@ -858,29 +907,46 @@ Do not output markdown.`;
                       const coords = [parseFloat(val.lat), parseFloat(val.lon)];
                       setOriginCoords(coords);
                       setNewTrip((prev) => ({ ...prev, from: val.display_name }));
+                      setFromSearchQuery(val.display_name);
                     }
                   }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="From (Origin)"
-                      onFocus={() => setActiveMapField("from")}
-                      sx={formFieldSx}
-                      InputProps={{
-                        ...params.InputProps,
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <LocationOn sx={{ color: "#00E676" }} />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  )}
+                  renderInput={(params) => {
+                    const isFetchingLoc = (newTrip?.from && newTrip.from.includes("Fetching")) || isFetchingLocation;
+                    return (
+                      <TextField
+                        {...params}
+                        label="From (Origin)"
+                        placeholder={isFetchingLoc ? "📍 Fetching your current location..." : "Search starting location"}
+                        onFocus={() => setActiveMapField("from")}
+                        helperText={
+                          isFetchingLoc ? (
+                            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.8, color: "#00E676", fontWeight: 600, mt: 0.5 }}>
+                              <CircularProgress size={12} sx={{ color: "#00E676" }} /> Fetching your precise current location...
+                            </Box>
+                          ) : null
+                        }
+                        sx={formFieldSx}
+                        InputProps={{
+                          ...params.InputProps,
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              {isFetchingLoc ? (
+                                <CircularProgress size={20} sx={{ color: "#00E676" }} />
+                              ) : (
+                                <LocationOn sx={{ color: "#00E676" }} />
+                              )}
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    );
+                  }}
                 />
 
                 <Autocomplete
                   freeSolo
                   options={toResults}
+                  inputValue={toSearchQuery || newTrip.to || ""}
                   getOptionLabel={(option) => (typeof option === "string" ? option : option.display_name)}
                   onInputChange={(e, val) => {
                     setToSearchQuery(val);
@@ -891,6 +957,7 @@ Do not output markdown.`;
                       const coords = [parseFloat(val.lat), parseFloat(val.lon)];
                       setDestCoords(coords);
                       setNewTrip((prev) => ({ ...prev, to: val.display_name }));
+                      setToSearchQuery(val.display_name);
                     }
                   }}
                   renderInput={(params) => (

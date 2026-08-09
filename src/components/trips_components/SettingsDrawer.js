@@ -14,26 +14,26 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
-
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-
-/* ---------------- Utils ---------------- */
+import {
+  CloseOutlined as CloseOutlinedIcon,
+  DeleteOutline as DeleteOutlineIcon,
+  ShieldOutlined as ShieldOutlinedIcon,
+  InfoOutlined as InfoOutlinedIcon,
+} from "../../icons";
+import {
+  designTokens,
+  glass,
+  cardHover,
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+  ctaButtonSx,
+} from "../../theme/designSystem";
 
 const glassCard = (mode) => ({
+  ...glass(mode),
   borderRadius: 4,
   p: 2.5,
-  background:
-    mode === "dark"
-      ? "linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))"
-      : "linear-gradient(145deg, #ffffff, #f5f5f5)",
-  backdropFilter: "blur(18px)",
-  border:
-    mode === "dark"
-      ? "1px solid rgba(255,255,255,0.08)"
-      : "1px solid rgba(0,0,0,0.06)",
 });
 
 /* ---------------- Component ---------------- */
@@ -65,40 +65,21 @@ const SettingsDrawer = ({
     <SwipeableDrawer
       anchor="bottom"
       open={settingsDrawerOpen}
-      onClose={() => setSettingsDrawerOpen(false)}
+      onOpen={() => {}}
       PaperProps={{
         sx: {
-          borderTopLeftRadius: 28,
-          borderTopRightRadius: 28,
-          background:
-            mode === "dark"
-              ? "linear-gradient(180deg, #0f0f0f, #000)"
-              : "linear-gradient(180deg, #fff, #f7f7f7)",
-          boxShadow: "none",
+          ...drawerPaperSx(mode),
           maxHeight: "85vh",
+          overflowY: "auto",
         },
       }}
       ModalProps={{
         BackdropProps: {
-          sx: {
-            backdropFilter: "blur(10px)",
-            backgroundColor: "rgba(0,0,0,0.15)",
-          },
+          sx: drawerBackdropSx,
         },
       }}
     >
-      {/* Drag Handle */}
-      <Box
-        sx={{
-          width: 42,
-          height: 5,
-          borderRadius: 3,
-          bgcolor: "text.disabled",
-          mx: "auto",
-          mt: 1.5,
-          mb: 2,
-        }}
-      />
+      <DrawerHandle mode={mode} />
 
       {/* Header */}
       <Box

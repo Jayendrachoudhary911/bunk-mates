@@ -8,15 +8,15 @@ import {
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import {
-  TrendingUpIcon,
-  SearchIcon,
-  HistoryIcon,
-  GpsFixedIcon,
-  CloudIcon,
-  NewspaperIcon,
-  ArrowBackIcon,
-  MedicalInformationIcon,
-} from '../../icons/LucideIcons';
+  TrendingUp as TrendingUpIcon,
+  Search as SearchIcon,
+  History as HistoryIcon,
+  GpsFixed as GpsFixedIcon,
+  Cloud as CloudIcon,
+  Newspaper as NewspaperIcon,
+  ArrowBack as ArrowBackIcon,
+  MedicalInformation as MedicalInformationIcon,
+} from '../../icons';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 

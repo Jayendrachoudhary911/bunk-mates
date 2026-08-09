@@ -9,9 +9,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { MapContainer, TileLayer, Polyline, Marker } from "react-leaflet";
 import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import Confetti from "react-confetti";
-import { CheckCircleOutline } from "../../icons/LucideIcons";
+import { CheckCircleOutline } from "../../icons";
+import { designTokens, glass, ctaButtonSx, flexCenterSx } from "../../theme/designSystem";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -162,30 +162,25 @@ export default function OngoingTripsAlerts({
                 sx={{
                   width: 340,
                   p: 1.6,
-                  borderRadius: 8,
+                  borderRadius: designTokens.radii.card,
                   display: "flex",
                   flexDirection: "column",
                   gap: 1.2,
-                  backdropFilter: "blur(10px)",
-                  boxShadow:
-                    mode === "dark"
-                      ? "inset 0 2px 6px rgba(255, 255, 255, 0.2), inset 0 -4px 10px rgba(255, 255, 255, 0.2)"
-                      : "inset 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 -4px 10px rgba(0, 0, 0, 0.2)",
-                  background: completed
-                    ? "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(16,185,129,0.08))"
-                    : mode === "dark"
-                    ? tripGroupsMap[t.id]?.iconURL
-                      ? `linear-gradient(rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0))`
-                      : "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.04))"
-                    : "linear-gradient(135deg, rgba(0,0,0,0.05), rgba(0,0,0,0.02))",
+                  ...glass(mode, {
+                    background: completed
+                      ? "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(16,185,129,0.08))"
+                      : mode === "dark"
+                      ? tripGroupsMap[t.id]?.iconURL
+                        ? `linear-gradient(rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0))`
+                        : "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.04))"
+                      : "linear-gradient(135deg, rgba(0,0,0,0.05), rgba(0,0,0,0.02))",
+                    border: completed
+                      ? "1px solid rgba(16,185,129,0.4)"
+                      : undefined,
+                  }),
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                   backgroundRepeat: "no-repeat",
-                  border: completed
-                    ? "1px solid rgba(16,185,129,0.4)"
-                    : mode === "dark"
-                    ? "1px solid rgba(255,255,255,0.1)"
-                    : "1px solid rgba(0,0,0,0.06)",
                 }}
               >
                 {/* ─── HEADER ─── */}
@@ -308,35 +303,19 @@ export default function OngoingTripsAlerts({
                             variant="outlined"
                             size="small"
                             onClick={() => navigate(`/trips/${t.id}?tab=details`)}
-                            sx={{
-                              textTransform: "none",
-                              fontWeight: 700,
-                              borderRadius: 6,
-                              py: 0.9,
-                              color: mode === "dark" ? "#e5e7eb" : "#111",
-                              border:
-                                mode === "dark"
-                                  ? "1px solid rgba(255,255,255,0.25)"
-                                  : "1px solid rgba(0,0,0,0.18)",
-                              background:
-                                mode === "dark"
-                                  ? "rgba(255,255,255,0.06)"
-                                  : "rgba(0,0,0,0.04)",
-                              backdropFilter: "blur(10px)",
-                              transition: "all 200ms cubic-bezier(0.4,0,0.2,1)",
-                              "&:hover": {
-                                background:
-                                  mode === "dark"
-                                    ? "rgba(255,255,255,0.12)"
-                                    : "rgba(0,0,0,0.08)",
-                                transform: "translateY(-1px)",
-                              },
-                              "&:active": {
-                                transform: "scale(0.97)",
-                              },
-                            }}
+                            sx={ctaButtonSx(mode, "secondary", { py: 0.9, borderRadius: 6 })}
                           >
-                            Go to Trip
+                            Trip Details
+                          </Button>
+
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            size="small"
+                            onClick={() => navigate(`/trips/${t.id}?tab=timeline`)}
+                            sx={ctaButtonSx(mode, "primary", { py: 0.9, borderRadius: 6 })}
+                          >
+                            Timeline
                           </Button>
                         </Box>
                       </Box>

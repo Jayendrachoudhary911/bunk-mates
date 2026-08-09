@@ -13,7 +13,7 @@ import {
   IconButton,
   Stack,
 } from "@mui/material";
-import { Close as CloseIcon, Straighten as TuneIcon } from "../icons/LucideIcons";
+import { Close as CloseIcon, Tune as TuneIcon } from "../icons";
 import {
   useBackground,
   BACKGROUND_TYPES,
@@ -26,6 +26,14 @@ import {
   gradientPresets,
   meshGradients,
 } from "../theme/backgroundPresets";
+import {
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+  toggleGroupSx,
+  ctaButtonSx,
+  flexBetweenSx,
+} from "../theme/designSystem";
 
 export default function BackgroundToggle() {
   const [open, setOpen] = useState(false);
@@ -114,18 +122,11 @@ export default function BackgroundToggle() {
         open={open}
         onClose={() => setOpen(false)}
         onOpen={() => setOpen(true)}
-        PaperProps={{
-          sx: {
-            borderTopLeftRadius: 28,
-            borderTopRightRadius: 28,
-            maxHeight: "85vh",
-            background:
-              "linear-gradient(180deg, rgba(18, 18, 18, 0.09), rgba(10, 10, 10, 0.07))",
-            backdropFilter: "blur(34px)",
-          },
-        }}
+        PaperProps={{ sx: drawerPaperSx("dark", { maxHeight: "85vh", p: 0, m: 0, borderRadius: "22px 22px 0 0" }) }}
+        sx={{ "& .MuiBackdrop-root": drawerBackdropSx }}
       >
         <Box sx={{ p: 3, pb: 6 }}>
+          <DrawerHandle mode="dark" />
           {/* Header */}
           <Stack direction="row" alignItems="center" mb={3}>
             <Typography variant="h6" fontWeight={800}>
@@ -161,10 +162,7 @@ export default function BackgroundToggle() {
                 value={backgroundType}
                 onChange={(_, v) => v && setBackgroundType(v)}
                 fullWidth
-                sx={{
-                  bgcolor: "rgba(255,255,255,0.05)",
-                  borderRadius: 3,
-                }}
+                sx={toggleGroupSx("dark")}
               >
                 {BACKGROUND_TYPES.map((t) => (
                   <ToggleButton
@@ -192,10 +190,7 @@ export default function BackgroundToggle() {
                   exclusive
                   value={gradientType}
                   onChange={(_, v) => v && setGradientType(v)}
-                  sx={{
-                    bgcolor: "rgba(255,255,255,0.05)",
-                    borderRadius: 3,
-                  }}
+                  sx={toggleGroupSx("dark")}
                 >
                   {GRADIENT_TYPES.map((g) => (
                     <ToggleButton

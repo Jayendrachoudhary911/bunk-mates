@@ -18,15 +18,27 @@ import {
   Stack
 } from "@mui/material";
 import { QRCodeSVG } from "qrcode.react";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import ShareIcon from "@mui/icons-material/Share";
-import ContentCopy from "@mui/icons-material/ContentCopy";
-import WhatsAppIcon from "@mui/icons-material/WhatsApp";
-import TelegramIcon from "@mui/icons-material/Telegram";
-import TwitterIcon from "@mui/icons-material/Twitter";
-import InstagramIcon from "@mui/icons-material/Instagram";
-import SearchIcon from "@mui/icons-material/Search";
-import AddIcon from "@mui/icons-material/Add";
+import {
+  CloseOutlined as CloseOutlinedIcon,
+  Share as ShareIcon,
+  ContentCopy,
+  WhatsApp as WhatsAppIcon,
+  Telegram as TelegramIcon,
+  Twitter as TwitterIcon,
+  Instagram as InstagramIcon,
+  Search as SearchIcon,
+  Add as AddIcon,
+} from "../../icons";
+import {
+  designTokens,
+  glass,
+  cardHover,
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+  glassInputSx,
+  ctaButtonSx,
+} from "../../theme/designSystem";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 const ShareDrawer = ({
@@ -120,35 +132,16 @@ const ShareDrawer = ({
       sx={{ zIndex: 1500 }}
       PaperProps={{
         sx: {
-          borderRadius: 8,
-          p: 3.5,
+          ...drawerPaperSx(mode),
           maxHeight: "85vh",
-          background: isDarkMode ? "rgba(20, 20, 20, 0.88)" : "rgba(255, 255, 255, 0.92)",
-          backdropFilter: "blur(25px)",
-          boxShadow: isDarkMode
-            ? "inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)"
-            : "inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1)",
-          maxWidth: 540,
-          mx: "auto",
-          m: 2,
+          overflowY: "auto",
         },
       }}
       ModalProps={{
-        BackdropProps: { sx: { backdropFilter: "blur(10px)", backgroundColor: "rgba(0,0,0,0.4)" } },
+        BackdropProps: { sx: drawerBackdropSx },
       }}
     >
-      {/* Drawer Handle */}
-      <Box
-        sx={{
-          width: 40,
-          height: 5,
-          bgcolor: "grey.500",
-          opacity: 0.5,
-          borderRadius: 2.5,
-          mx: "auto",
-          mb: 2,
-        }}
-      />
+      <DrawerHandle mode={mode} />
 
       {/* Header */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>

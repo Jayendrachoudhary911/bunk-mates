@@ -23,26 +23,27 @@ import {
   LinearProgress,
   InputAdornment,
   Badge,
-  SwipeableDrawer,
-  Zoom,
-  List,
   ListItem,
   ListItemAvatar,
   ListItemText,
-  CircularProgress
+  CircularProgress,
+  Zoom,
+  List,
+  SwipeableDrawer,
 } from "@mui/material";
 import {
   LocationOn,
   ArrowForward,
   Search,
   FilterList,
-  PushPin as PushPinIcon
-} from "@mui/icons-material";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import ShareIcon from "@mui/icons-material/Share";
-import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import AddIcon from '@mui/icons-material/Add';
+  PushPin as PushPinIcon,
+  MoreVert as MoreVertIcon,
+  Share as ShareIcon,
+  CalendarToday as CalendarTodayIcon,
+  DeleteOutline as DeleteOutlineIcon,
+  Add as AddIcon,
+  CloseOutlined as CloseOutlinedIcon,
+} from "../icons";
 import { db, auth } from "../firebase";
 import {
   collection,
@@ -58,7 +59,6 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import Cropper from "react-easy-crop";
@@ -67,39 +67,20 @@ import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { useBackButtonClose } from "../hooks/useBackButtonClose";
 import { SquarePen } from "lucide-react"; 
 import CreateTripDrawer from "../components/trips_components/CreateDrawer";
-
-const tokens = {
-  dark: {
-    bg: "#060606",
-    surface: "rgba(14, 14, 14, 0.45)",
-    cardBg: "rgba(20, 20, 20, 0.4)",
-    border: "rgba(255, 255, 255, 0.06)",
-    innerGlow: "rgba(255, 255, 255, 0.03)",
-    glassSpecular: "linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.01) 100%)",
-    glassMelt: "linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.6) 100%)",
-    scrim: "linear-gradient(to bottom, rgba(6, 6, 6, 0.9) 0%, rgba(6, 6, 6, 0.4) 70%, transparent 100%)",
-    shadow: "0 30px 70px rgba(0, 0, 0, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.08)"
-  },
-  light: {
-    bg: "#F0F2F5",
-    surface: "rgba(255, 255, 255, 0.55)",
-    cardBg: "rgba(255, 255, 255, 0.45)",
-    border: "rgba(0, 0, 0, 0.05)",
-    innerGlow: "rgba(255, 255, 255, 0.6)",
-    glassSpecular: "linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(0, 0, 0, 0.02) 100%)",
-    glassMelt: "linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(0, 0, 0, 0.05) 100%)",
-    scrim: "linear-gradient(to bottom, rgba(240, 242, 245, 0.9) 0%, rgba(240, 242, 245, 0.4) 70%, transparent 100%)",
-    shadow: "0 30px 70px rgba(0, 0, 0, 0.03), inset 0 1px 2px rgba(255, 255, 255, 0.7)"
-  },
-  accent: {
-    green: "#4ADE80",
-    blue: "#38BDF8",
-    amber: "#F59E0B"
-  }
-};
+import {
+  designTokens as tokens,
+  glass,
+  cardHover,
+  drawerPaperSx,
+  drawerBackdropSx,
+  drawerHandleSx,
+  searchFieldSx,
+  floatingButtonSx,
+  DrawerHandle,
+} from "../theme/designSystem";
 
 const getTripColor = (id) => {
-  const colors = [tokens.accent.blue, tokens.accent.green, tokens.accent.amber];
+  const colors = [tokens.accents.blue, tokens.accents.green, tokens.accents.amber];
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];

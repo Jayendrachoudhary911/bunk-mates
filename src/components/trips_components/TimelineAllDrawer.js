@@ -3,6 +3,15 @@ import {
   Box, Typography, SwipeableDrawer, List, ListItem, ListItemIcon, ListItemText, Checkbox, Button,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import {
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+  glassItemSx,
+  ctaButtonSx,
+  flexBetweenSx,
+  designTokens,
+} from "../../theme/designSystem";
 
 const TimelineAllDrawer = ({
   timelineAllDrawerOpen,
@@ -10,10 +19,9 @@ const TimelineAllDrawer = ({
   timeline,
   toggleEventCompleted,
   mode,
-  userData, // Passed down user document object from Firestore
+  userData,
   onGenerateAiSummary,
 }) => {
-  // Check if user has "Dev Beta" access based on Firestore schema
   const isDevBeta = userData?.type === "Dev Beta";
 
   return (
@@ -21,32 +29,14 @@ const TimelineAllDrawer = ({
       anchor="bottom"
       open={timelineAllDrawerOpen}
       onClose={() => setTimelineAllDrawerOpen(false)}
-      ModalProps={{
-        BackdropProps: {
-          sx: {
-            p: 3,
-            backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
-            backdropFilter: "blur(2px)",
-          },
-        },
-      }}
-      PaperProps={{
-        sx: {
-          p: 3,
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
-          boxShadow: "none",
-        },
-      }}
+      PaperProps={{ sx: drawerPaperSx(mode, { maxHeight: "90vh", p: 0, m: 0, borderRadius: "22px 22px 0 0" }) }}
+      sx={{ "& .MuiBackdrop-root": drawerBackdropSx }}
     >
-      {/* Drag indicator */}
-      <Box sx={{ width: 40, height: 5, bgcolor: "grey.500", opacity: 0.5, borderRadius: 2.5, mx: "auto", mb: 2, cursor: "grab" }} />
+      <DrawerHandle mode={mode} />
 
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-        <Typography variant="h6">Full Trip Timeline</Typography>
-        
-        {/* Render AI Feature only for Dev Beta users */}
+      <Box sx={{ px: 3, pb: 2, ...flexBetweenSx }}>
+        <Typography variant="h6" fontWeight={700}>Full Trip Timeline</Typography>
+
         {isDevBeta && (
           <Button
             size="small"
@@ -54,7 +44,7 @@ const TimelineAllDrawer = ({
             startIcon={<AutoAwesomeIcon sx={{ color: "#00E676" }} />}
             onClick={onGenerateAiSummary}
             sx={{
-              borderRadius: 8,
+              borderRadius: designTokens.radii.chip,
               textTransform: "none",
               borderColor: "#00E676",
               color: mode === "dark" ? "#00E676" : "#00A855",
@@ -66,11 +56,11 @@ const TimelineAllDrawer = ({
       </Box>
 
       {timeline.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", px: 3, pb: 3 }}>
           No events added yet.
         </Typography>
       ) : (
-        <List sx={{ maxHeight: "80vh", overflowY: "auto" }}>
+        <List sx={{ maxHeight: "80vh", overflowY: "auto", px: 2, pb: 3, "&::-webkit-scrollbar": { display: "none" } }}>
           {timeline.map((item) => {
             const itemTime = new Date(item.time);
             const isCompleted = item.completed;
@@ -78,13 +68,9 @@ const TimelineAllDrawer = ({
               <ListItem
                 key={item.id}
                 sx={{
-                  backgroundColor: isCompleted
-                    ? mode === "dark" ? "#00000011" : "transparent"
-                    : mode === "dark" ? "#1c1c1c" : "#f0f0f0ff",
-                  borderRadius: 2,
+                  ...glassItemSx(mode),
                   mb: 1,
-                  px: 2,
-                  py: 0.5,
+                  opacity: isCompleted ? 0.6 : 1,
                 }}
               >
                 <ListItemIcon>

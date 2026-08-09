@@ -9,7 +9,8 @@ import {
   useTheme,
 } from "@mui/material";
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "framer-motion";
-import { InfoOutlined, WbSunnyOutlined } from "../../icons/LucideIcons";
+import { InfoOutlined, WbSunnyOutlined } from "../../icons";
+import { designTokens, glass, cardHover } from "../../theme/designSystem";
 
 // Color-blind safe AQI palette (Okabe–Ito inspired)
 export const AQI_SCALE = [
@@ -367,20 +368,7 @@ export default function AQIWidget({ aqiData, mode }) {
             px: 1,
             py: 0.5,
             borderRadius: "20px",
-            backdropFilter: "blur(12px)",
-            background: "rgba(0,0,0,0)",
-            boxShadow:
-              mode === "dark"
-              ? `
-                inset 0 1px 2px rgba(255, 255, 255, 0.11),
-                inset 0 -1px 1px rgba(0, 0, 0, 0.07),
-                0 0px 0px rgba(0,0,0,0.1)
-              `
-              : `
-                inset 0 1px 1px rgba(255,255,255,0.8),
-                inset 0 -1px 1px rgba(0,0,0,0.1),
-                0 1px 0px rgba(0,0,0,0.1)
-              `,
+            ...glass(mode, { background: "rgba(0,0,0,0)" }),
             position: "relative",
           }}
         >

@@ -18,11 +18,12 @@ import {
   FavoriteBorder,
   Bookmark,
   BookmarkBorder,
-} from "../../icons/LucideIcons";
+} from "../../icons";
 import PlaceDetailsDialog from "../../elements/PlaceDetailsDialog";
 import { usePlaceLikesCount } from "../../hooks/usePlaceLikesCount";
 import AnimatedLikeCount from "../../elements/AnimatedLikeCount";
 import { toggleLikePlace, toggleSavePlace } from "../../utils/placeActions";
+import { designTokens, glass, cardHover } from "../../theme/designSystem";
 
 const CARD_WIDTH = 365 + 16;
 const PARTICLES = 8;
@@ -265,7 +266,9 @@ const PlaceCard = ({ place, userData, onPlanTrip, relatedPlaces = [] }) => {
               display: "flex",
               flexDirection: "column",
               gap: 0.6,
-              backgroundColor: isDark ? "#131313" : "#ffffff",
+              ...glass(isDark ? "dark" : "light", {
+                backgroundColor: isDark ? "rgba(20, 20, 20, 0.9)" : "rgba(255, 255, 255, 0.9)",
+              }),
             }}
           >
             <Typography fontWeight={900} fontSize={16}>

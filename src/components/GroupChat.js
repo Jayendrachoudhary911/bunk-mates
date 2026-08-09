@@ -49,33 +49,23 @@ import EmojiPicker from 'emoji-picker-react';
 import Popover from '@mui/material/Popover';
 import { fontSize, fontStyle, styled } from '@mui/system';
 import BetaAccessGuard from "../components/BetaAccessGuard";
-import { SendHorizontal as SendIcon } from 'lucide-react';
 import {
+  Send as SendIcon,
   Close as CloseIcon,
-  // Missing ArrowBack: using ChevronLeft
-  ChevronLeft as ArrowBackIcon,
-  // Missing AccountCircle: using InfoOutlined or Broadcast icon
-  InfoOutlined as AccountCircleIcon,
-  // Missing Edit: using StickyNote2Outlined
-  StickyNote2Outlined as EditIcon,
+  Close as RemoveIcon,
+  ArrowBack as ArrowBackIcon,
+  AccountCircle as AccountCircleIcon,
+  Edit as EditIcon,
+  DeleteOutline as DeleteOutlineIcon,
+  ContentCopy as ContentCopyIcon,
+  PhotoCamera as CameraAltOutlinedIcon,
   Add as AddIcon,
-  Search as SearchIcon,
   Check as CheckIcon,
-  // Missing Remove: using CloseOutlined
-  CloseOutlined as RemoveIcon,
-  // Missing ContentCopy: using BookmarkBorder
-  BookmarkBorder as ContentCopyIcon,
-  // Missing Reply: using ChevronRight (flipped logic) or Circle
+  Search as SearchIcon,
   ChevronRight as ReplyIcon,
-  // Missing DeleteOutline: using CloseOutlined
-  CloseOutlined as DeleteOutlineIcon,
-  // Missing ArrowDownward: using ExpandMore
   ExpandMore as ArrowDownwardIcon,
-  // Missing DoneAll: using CheckCircle
-  CheckCircle as DoneAllIcon,
-  // Missing CameraAltOutlined: using MovieOutlined
-  MovieOutlined as CameraAltOutlinedIcon,
-} from "../icons/LucideIcons";
+  DoneAll as DoneAllIcon,
+} from "../icons";
 
 import GroupInfoDrawer from "./GroupChat/GroupInfoDrawer";
 

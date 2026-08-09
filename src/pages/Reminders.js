@@ -25,14 +25,16 @@ import {
   Divider
 } from "@mui/material";
 import { ThemeProvider, useTheme } from "@mui/material/styles";
-import AddIcon from "@mui/icons-material/Add";
-import SearchIcon from "@mui/icons-material/Search";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import CloseIcon from "@mui/icons-material/Close";
-import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import {
+  Add as AddIcon,
+  Search as SearchIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Close as CloseIcon,
+  ArrowBackRounded as ArrowBackRoundedIcon,
+} from "../icons";
 import {
   collection,
   query,
@@ -49,6 +51,20 @@ import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { motion } from "framer-motion";
 import Notifications from "../elements/Notifications";
+import {
+  designTokens,
+  glass,
+  cardHover,
+  drawerPaperSx,
+  drawerBackdropSx,
+  drawerHandleSx,
+  searchFieldSx,
+  ctaButtonSx,
+  filterChipSx,
+  glassInputSx,
+  glassIconBtnSx,
+  DrawerHandle,
+} from "../theme/designSystem";
 
 // Helper to format date for input type="date" (YYYY-MM-DD)
 const formatDateForInput = (date) => {
@@ -278,32 +294,29 @@ export default function Reminders() {
     return (
       <ListItem
         sx={{
+          ...glass(theme.palette.mode),
+          ...cardHover,
           borderRadius: 3,
           mb: 1.5,
-          bgcolor: isPast ? (theme.palette.mode === "dark" ? "rgba(255,100,100,0.1)" : "rgba(255,100,100,0.05)") : 
-                 (theme.palette.mode === "dark" ? "rgba(255,255,255,0.05)" : "background.paper"),
-          boxShadow: "none",
+          ...(isPast && {
+            background: theme.palette.mode === "dark" ? "rgba(255,100,100,0.1)" : "rgba(255,100,100,0.05)",
+            border: "1px solid rgba(255,100,100,0.15)",
+          }),
           opacity: reminder.completed ? 0.7 : 1,
-          border: "1px solid transparent",
-          transition: "all 0.25s ease-in-out",
-          "&:hover": {
-            transform: "translateY(-2px)",
-            boxShadow: "none",
-          },
         }}
         secondaryAction={
           <Box>
             <IconButton
               onClick={() => handleOpenDialog(reminder)}
               size="small"
-              sx={{ color: "text.secondary", "&:hover": { color: "primary.main" } }}
+              sx={glassIconBtnSx(theme.palette.mode, { p: 1 })}
             >
               <EditIcon fontSize="small" />
             </IconButton>
             <IconButton
               onClick={() => handleDeleteReminder(reminder.id)}
               size="small"
-              sx={{ ml: 0.5, color: "text.secondary", "&:hover": { color: "error.main" } }}
+              sx={{ ml: 0.5, ...glassIconBtnSx(theme.palette.mode, { p: 1, "&:hover": { color: "error.light" } }) }}
             >
               <DeleteIcon fontSize="small" />
             </IconButton>
@@ -352,8 +365,8 @@ export default function Reminders() {
       elevation={0}
       sx={{
         top: 0,
-        backdropFilter: "blur(18px) saturate(180%)",
-        WebkitBackdropFilter: "blur(18px) saturate(180%)",
+        backdropFilter: designTokens.blurs.deep,
+        WebkitBackdropFilter: designTokens.blurs.deep,
         backgroundColor: "transparent",
         color: theme.palette.text.primary,
         px: 0.5,
@@ -374,22 +387,7 @@ export default function Reminders() {
         <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
           <IconButton
             onClick={onBack}
-            sx={{
-              background:
-                theme.palette.mode === "dark"
-                  ? "rgba(255, 255, 255, 0.04)"
-                  : "rgba(0,0,0,0.05)",
-              color: theme.palette.text.primary,
-              backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
-              "&:hover": {
-                background:
-                  theme.palette.mode === "dark"
-                    ? "rgba(255,255,255,0.2)"
-                    : "rgba(0,0,0,0.1)",
-              },
-              transition: "0.3s ease",
-            }}
+            sx={glassIconBtnSx(theme.palette.mode)}
           >
             <ArrowBackRoundedIcon />
           </IconButton>
@@ -478,27 +476,7 @@ export default function Reminders() {
                 </InputAdornment>
               ),
             }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "16px",
-                px: 1.5,
-                py: 0.25,
-                backgroundColor: "transparent",
-                boxShadow: "none",
-                transition: "all 0.3s ease",
-                border: mode === "dark" ? "1.3px solid #797979ff" : "1.3px solid #c8c8c8ff",
-                "&:hover": { boxShadow: "none" },
-                "&.Mui-focused": {
-                  boxShadow: "none",
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "primary.main",
-                    borderWidth: 1.5,
-                  },
-                },
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-              },
-              "& input": { py: 1.5, color: "text.primary", fontWeight: 500 },
-            }}
+            sx={searchFieldSx(mode)}
           />
         </Box>
 
@@ -552,21 +530,14 @@ export default function Reminders() {
                 <Button
                   fullWidth
                   onClick={() => setShowPast(!showPast)}
-                  sx={{
+                  sx={ctaButtonSx(mode, "danger", {
                     justifyContent: "space-between",
-                    fontWeight: 700,
                     color: "error.main",
                     mb: 1,
-                    textTransform: "none",
-                    borderRadius: 2,
-                    px: 2,
                     py: 1.2,
-                    background: theme.palette.mode === "dark" ? "rgba(255,0,0,0.1)" : "rgba(255,0,0,0.05)",
-                    border: `1px solid #ff110024`,
-                    boxShadow: "none",
-                    transition: "all 0.3s ease",
-                    "&:hover": { boxShadow: "none", transform: "scale(1.01)", background: theme.palette.mode === "dark" ? "rgba(255,0,0,0.2)" : "rgba(255,0,0,0.1)" },
-                  }}
+                    borderRadius: 2,
+                    width: "100%",
+                  })}
                   endIcon={showPast ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                 >
                   🔴 Past Reminders ({filteredAndSortedReminders.past.length})
@@ -594,12 +565,14 @@ export default function Reminders() {
             <Button
               fullWidth
               onClick={() => setShowCompleted(!showCompleted)}
-              sx={{
-                justifyContent: "space-between", fontWeight: 700, color: "text.primary", mb: 1, mt: 1, textTransform: "none", borderRadius: 2, px: 2, py: 1.2,
-                background: theme.palette.mode === "dark" ? "linear-gradient(90deg, rgba(60,60,60,0.6), rgba(80,80,80,0.2))" : "linear-gradient(90deg, rgba(245,245,245,0.9), rgba(255,255,255,0.6))",
-                boxShadow: "none", transition: "all 0.3s ease",
-                "&:hover": { boxShadow: "none", transform: "scale(1.01)", background: theme.palette.mode === "dark" ? "linear-gradient(90deg, rgba(70,70,70,0.9), rgba(100,100,100,0.3))" : "linear-gradient(90deg, rgba(255,255,255,1), rgba(245,245,245,0.7))", },
-              }}
+              sx={ctaButtonSx(mode, "secondary", {
+                justifyContent: "space-between",
+                mb: 1,
+                mt: 1,
+                py: 1.2,
+                borderRadius: 2,
+                width: "100%",
+              })}
               endIcon={showCompleted ? <ExpandLessIcon sx={{ transition: "0.3s" }} /> : <ExpandMoreIcon sx={{ transition: "0.3s" }} />}
             >
               Completed ({filteredAndSortedReminders.completed.length})
@@ -637,26 +610,11 @@ export default function Reminders() {
         onOpen={() => setDrawerOpen(true)}
         disableSwipeToOpen={false}
         swipeAreaWidth={40}
-        PaperProps={{
-          sx: {
-            borderTopLeftRadius: 22, borderTopRightRadius: 22, maxHeight: "90vh", p: 0, overflow: "hidden",
-            backdropFilter: "blur(22px) saturate(180%)", WebkitBackdropFilter: "blur(22px) saturate(180%)",
-            background: theme.palette.mode === "dark" ? "rgba(25, 25, 25, 0.45)" : "rgba(255, 255, 255, 0.55)",
-            border: "none",
-            boxShadow: theme.palette.mode === "dark" ? "0px -6px 40px rgba(0,0,0,0.5)" : "0px -6px 30px rgba(0,0,0,0.15)",
-            transition: "all 0.3s ease-in-out", color: "text.primary",
-          },
-        }}
-        sx={{
-          "& .MuiBackdrop-root": {
-            backdropFilter: "blur(10px) saturate(160%) brightness(0.9)", WebkitBackdropFilter: "blur(10px) saturate(160%) brightness(0.9)",
-            backgroundColor: theme.palette.mode === "dark" ? "rgba(0, 0, 0, 0.5)" : "rgba(255, 255, 255, 0.3)",
-            transition: "backdrop-filter 0.3s ease",
-          },
-        }}
+        PaperProps={{ sx: drawerPaperSx(mode, { maxHeight: "90vh", p: 0, m: 0, borderRadius: "22px 22px 0 0" }) }}
+        sx={{ "& .MuiBackdrop-root": drawerBackdropSx }}
       >
         <Box sx={{ p: 2.5, pb: 4, display: "flex", flexDirection: "column", height: "100%" }}>
-          <Box sx={{ width: 40, height: 5, borderRadius: 4, backgroundColor: "grey.400", mx: "auto", mb: 2 }} />
+          <DrawerHandle mode={mode} />
 
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, color: "text.primary" }}>
@@ -667,16 +625,16 @@ export default function Reminders() {
           <Divider sx={{ mb: 2 }} />
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            <TextField fullWidth label="Reminder Text" variant="outlined" value={reminderText} onChange={(e) => setReminderText(e.target.value)} sx={{ mb: 2, "& .MuiOutlinedInput-root": { borderRadius: 4, backgroundColor: "background.paper" } }} />
-            <TextField fullWidth label="Date" type="date" value={reminderDate} onChange={(e) => setReminderDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ mb: 2, "& .MuiOutlinedInput-root": { borderRadius: 4, backgroundColor: "background.paper" } }} />
-            <TextField fullWidth label="Time" type="time" value={reminderTime} onChange={(e) => setReminderTime(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ mb: 3, "& .MuiOutlinedInput-root": { borderRadius: 4, backgroundColor: "background.paper" } }} />
+            <TextField fullWidth label="Reminder Text" variant="outlined" value={reminderText} onChange={(e) => setReminderText(e.target.value)} sx={{ mb: 2, ...glassInputSx(mode) }} />
+            <TextField fullWidth label="Date" type="date" value={reminderDate} onChange={(e) => setReminderDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ mb: 2, ...glassInputSx(mode) }} />
+            <TextField fullWidth label="Time" type="time" value={reminderTime} onChange={(e) => setReminderTime(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ mb: 3, ...glassInputSx(mode) }} />
           </motion.div>
 
           <Box sx={{ mt: "auto", display: "flex", justifyContent: "space-between", gap: 2 }}>
-            <Button fullWidth variant="outlined" color="inherit" onClick={handleCloseDialog} sx={{ borderRadius: 8, py: 1, fontWeight: 600, textTransform: "none" }}>
+            <Button fullWidth onClick={handleCloseDialog} sx={ctaButtonSx(mode, "secondary", { py: 1 })}>
               Cancel
             </Button>
-            <Button fullWidth variant="contained" onClick={handleSaveReminder} sx={{ borderRadius: 8, py: 1, fontWeight: 600, textTransform: "none", background: theme.palette.mode === "dark" ? "linear-gradient(90deg, #1e88e5, #42a5f5)" : "linear-gradient(90deg, #1976d2, #64b5f6)", boxShadow: theme.shadows[3] }}>
+            <Button fullWidth onClick={handleSaveReminder} sx={ctaButtonSx(mode, "primary", { py: 1 })}>
               {currentReminder ? "Save Changes" : "Add Reminder"}
             </Button>
           </Box>
