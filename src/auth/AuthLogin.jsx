@@ -15,27 +15,27 @@ import {
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { GoogleColoredIcon } from "./AuthWelcome";
 
+const smoothEase = [0.16, 1, 0.3, 1];
+
 const containerVariants = {
-  hidden: { opacity: 0, y: 16, filter: "blur(4px)" },
+  hidden: { opacity: 0, y: 14 },
   visible: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
     transition: {
-      duration: 0.4,
-      ease: [0.25, 0.1, 0.25, 1],
-      staggerChildren: 0.07,
-      delayChildren: 0.04,
+      duration: 0.38,
+      ease: smoothEase,
+      staggerChildren: 0.06,
+      delayChildren: 0.03,
     },
   },
   exit: {
     opacity: 0,
-    y: -14,
-    filter: "blur(4px)",
-    transition: { duration: 0.25, ease: "easeIn" },
+    y: -12,
+    transition: { duration: 0.22, ease: "easeIn" },
   },
 };
 
@@ -44,7 +44,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] },
+    transition: { duration: 0.32, ease: smoothEase },
   },
 };
 
@@ -113,6 +113,7 @@ export default function AuthLogin({
         flexDirection: "column",
         height: "100%",
         justifyContent: "space-between",
+        willChange: "transform, opacity",
       }}
     >
       <Box sx={{ width: "100%" }}>
@@ -149,155 +150,177 @@ export default function AuthLogin({
         <form onSubmit={handleSubmit} id="login-form" style={{ width: "100%" }}>
           <Stack spacing={1.6}>
             {/* Email Field */}
-{/* Email Field */}
-<motion.div variants={itemVariants}>
-  <Box sx={{ mb: 2, mt: 2 }}>
-    <Typography
-      component="label"
-      sx={{
-        display: "block",
-        fontSize: "0.80rem",
-        fontWeight: 600,
-        letterSpacing: "0.02em",
-        color: "rgba(255, 255, 255, 0.75)",
-        mb: 0.8,
-        ml:0.6,
-      }}
-    >
-      Email Address <span style={{ color: accentColor, fontWeight: 700 }}>*</span>
-    </Typography>
-    <TextField
-      placeholder="user@bunkmates.com"
-      type="email"
-      size="small"
-      required
-      fullWidth
-      value={email}
-      onChange={(e) => setEmail(e.target.value)}
-      autoComplete="email"
-      sx={{
-        ...inputStyle,
-        "& .MuiOutlinedInput-root": {
-          borderRadius: "14px",
-          backgroundColor: "rgba(255, 255, 255, 0.03)",
-          backdropFilter: "blur(8px)",
-          height: 45,
-          transition: "all 0.25s ease-in-out",
-          "& fieldset": {
-            borderColor: "rgba(255, 255, 255, 0.12)",
-            borderWidth: "1px",
-          },
-          "&:hover fieldset": {
-            borderColor: "rgba(255, 255, 255, 0.25)",
-          },
-          "&.Mui-focused fieldset": {
-            borderColor: accentColor,
-            borderWidth: "2px",
-            boxShadow: `0 0 12px ${accentColor}25`,
-          },
-        },
-        "& .MuiOutlinedInput-input": {
-          color: "#ffffff",
-          fontSize: "0.9rem",
-          padding: "10px 14px",
-          "&::placeholder": {
-            color: "rgba(255, 255, 255, 0.3)",
-            opacity: 1,
-          },
-        },
-      }}
-    />
-  </Box>
-</motion.div>
+            <motion.div variants={itemVariants}>
+              <Box sx={{ mb: 2, mt: 2 }}>
+                <Typography
+                  component="label"
+                  sx={{
+                    display: "block",
+                    fontSize: "0.80rem",
+                    fontWeight: 600,
+                    letterSpacing: "0.02em",
+                    color: "rgba(255, 255, 255, 0.75)",
+                    mb: 0.8,
+                    ml: 0.6,
+                  }}
+                >
+                  Email Address <span style={{ color: accentColor, fontWeight: 700 }}>*</span>
+                </Typography>
+                <TextField
+                  placeholder="user@bunkmates.com"
+                  type="email"
+                  size="small"
+                  required
+                  fullWidth
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  sx={{
+                    ...inputStyle,
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: "14px",
+                      backgroundColor: "rgba(255, 255, 255, 0.03)",
+                      backdropFilter: "blur(8px)",
+                      height: 45,
+                      transition: "all 0.25s ease-in-out",
+                      "& fieldset": {
+                        borderColor: "rgba(255, 255, 255, 0.12)",
+                        borderWidth: "1px",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(255, 255, 255, 0.25)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: accentColor,
+                        borderWidth: "2px",
+                        boxShadow: `0 0 12px ${accentColor}25`,
+                      },
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      color: "#ffffff",
+                      fontSize: "0.9rem",
+                      padding: "10px 14px",
+                      "&::placeholder": {
+                        color: "rgba(255, 255, 255, 0.3)",
+                        opacity: 1,
+                      },
+                    },
+                  }}
+                />
+              </Box>
+            </motion.div>
 
-{/* Password Field */}
-<motion.div variants={itemVariants}>
-  <Box sx={{ mb: 2 }}>
-    <Typography
-      component="label"
-      sx={{
-        display: "block",
-        fontSize: "0.80rem",
-        fontWeight: 600,
-        letterSpacing: "0.02em",
-        color: "rgba(255, 255, 255, 0.75)",
-        mb: 0.8,
-        ml: 0.6
-      }}
-    >
-      Password <span style={{ color: accentColor, fontWeight: 700 }}>*</span>
-    </Typography>
-    <TextField
-      placeholder="••••••••"
-      size="small"
-      type={showPassword ? "text" : "password"}
-      required
-      fullWidth
-      value={password}
-      onChange={(e) => setPassword(e.target.value)}
-      autoComplete="current-password"
-      InputProps={{
-        endAdornment: (
-          <InputAdornment position="end">
-            <IconButton
-              size="small"
-              onClick={() => setShowPassword(!showPassword)}
-              edge="end"
-              sx={{
-                color: "rgba(255, 255, 255, 0.4)",
-                p: 0.6,
-                borderRadius: "8px",
-                transition: "all 0.2s ease",
-                "&:hover": { 
-                  color: "#ffffff", 
-                  backgroundColor: "rgba(255, 255, 255, 0.08)",
-                  transform: "scale(1.05)" 
-                },
-              }}
-            >
-              {showPassword ? (
-                <VisibilityOffIcon sx={{ fontSize: 18 }} />
-              ) : (
-                <VisibilityIcon sx={{ fontSize: 18 }} />
-              )}
-            </IconButton>
-          </InputAdornment>
-        ),
-      }}
-      sx={{
-        ...inputStyle,
-        "& .MuiOutlinedInput-root": {
-          borderRadius: "14px",
-          backgroundColor: "rgba(255, 255, 255, 0.03)",
-          backdropFilter: "blur(8px)",
-          height: 45,
-          transition: "all 0.25s ease-in-out",
-          "& fieldset": {
-            borderColor: "rgba(255, 255, 255, 0.12)",
-            borderWidth: "1px",
-          },
-          "&:hover fieldset": {
-            borderColor: "rgba(255, 255, 255, 0.25)",
-          },
-          "&.Mui-focused fieldset": {
-            borderColor: accentColor,
-            borderWidth: "2px",
-            boxShadow: `0 0 12px ${accentColor}25`,
-          },
-        },
-        "& .MuiOutlinedInput-input": {
-          color: "#ffffff",
-          fontSize: "0.9rem",
-          padding: "10px 14px",
-          "&::placeholder": {
-            color: "rgba(255, 255, 255, 0.3)",
-            opacity: 1,
-          },
-        },
-      }}
-    />
-  </Box>
-</motion.div>
+            {/* Password Field */}
+            <motion.div variants={itemVariants}>
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  component="label"
+                  sx={{
+                    display: "block",
+                    fontSize: "0.80rem",
+                    fontWeight: 600,
+                    letterSpacing: "0.02em",
+                    color: "rgba(255, 255, 255, 0.75)",
+                    mb: 0.8,
+                    ml: 0.6
+                  }}
+                >
+                  Password <span style={{ color: accentColor, fontWeight: 700 }}>*</span>
+                </Typography>
+                <TextField
+                  placeholder="••••••••"
+                  size="small"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  fullWidth
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            if (haptic) haptic(10);
+                            setShowPassword(!showPassword);
+                          }}
+                          edge="end"
+                          sx={{
+                            color: "rgba(255, 255, 255, 0.4)",
+                            p: 0.6,
+                            borderRadius: "8px",
+                            transition: "all 0.2s ease",
+                            "&:hover": {
+                              color: "#ffffff",
+                              backgroundColor: "rgba(255, 255, 255, 0.08)",
+                              transform: "scale(1.05)",
+                            },
+                          }}
+                        >
+                          <AnimatePresence mode="wait" initial={false}>
+                            {showPassword ? (
+                              <motion.div
+                                key="hide"
+                                initial={{ opacity: 0, scale: 0.75, rotate: -15 }}
+                                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                exit={{ opacity: 0, scale: 0.75, rotate: 15 }}
+                                transition={{ duration: 0.15 }}
+                                style={{ display: "flex", alignItems: "center" }}
+                              >
+                                <VisibilityOffIcon sx={{ fontSize: 18 }} />
+                              </motion.div>
+                            ) : (
+                              <motion.div
+                                key="show"
+                                initial={{ opacity: 0, scale: 0.75, rotate: 15 }}
+                                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                exit={{ opacity: 0, scale: 0.75, rotate: -15 }}
+                                transition={{ duration: 0.15 }}
+                                style={{ display: "flex", alignItems: "center" }}
+                              >
+                                <VisibilityIcon sx={{ fontSize: 18 }} />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    ...inputStyle,
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: "14px",
+                      backgroundColor: "rgba(255, 255, 255, 0.03)",
+                      backdropFilter: "blur(8px)",
+                      height: 45,
+                      transition: "all 0.25s ease-in-out",
+                      "& fieldset": {
+                        borderColor: "rgba(255, 255, 255, 0.12)",
+                        borderWidth: "1px",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(255, 255, 255, 0.25)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: accentColor,
+                        borderWidth: "2px",
+                        boxShadow: `0 0 12px ${accentColor}25`,
+                      },
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      color: "#ffffff",
+                      fontSize: "0.9rem",
+                      padding: "10px 14px",
+                      "&::placeholder": {
+                        color: "rgba(255, 255, 255, 0.3)",
+                        opacity: 1,
+                      },
+                    },
+                  }}
+                />
+              </Box>
+            </motion.div>
 
             {/* Forgot password */}
             <motion.div variants={itemVariants}>
@@ -323,29 +346,33 @@ export default function AuthLogin({
               </Box>
             </motion.div>
 
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.25 }}
-              >
-                <Typography
-                  sx={{
-                    color: "#f87171",
-                    fontSize: "0.8rem",
-                    fontWeight: 600,
-                    textAlign: "center",
-                    backgroundColor: "rgba(239, 68, 68, 0.1)",
-                    border: "1px solid rgba(239, 68, 68, 0.25)",
-                    borderRadius: "10px",
-                    py: 0.75,
-                    px: 1.5,
-                  }}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, y: -6 }}
+                  animate={{ opacity: 1, height: "auto", y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: -6 }}
+                  transition={{ duration: 0.25, ease: smoothEase }}
+                  style={{ overflow: "hidden" }}
                 >
-                  {error}
-                </Typography>
-              </motion.div>
-            )}
+                  <Typography
+                    sx={{
+                      color: "#f87171",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      textAlign: "center",
+                      backgroundColor: "rgba(239, 68, 68, 0.1)",
+                      border: "1px solid rgba(239, 68, 68, 0.25)",
+                      borderRadius: "10px",
+                      py: 0.75,
+                      px: 1.5,
+                    }}
+                  >
+                    {error}
+                  </Typography>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Stack>
         </form>
       </Box>
@@ -358,6 +385,7 @@ export default function AuthLogin({
             variants={itemVariants}
             whileHover={{ scale: 1.015 }}
             whileTap={{ scale: 0.985 }}
+            style={{ willChange: "transform" }}
           >
             <Button
               type="submit"
@@ -373,7 +401,7 @@ export default function AuthLogin({
                 fontSize: "0.85rem",
                 letterSpacing: "0.05em",
                 boxShadow: `0 4px 18px ${primaryBg}35`,
-                transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+                transition: "background-color 0.25s ease, box-shadow 0.25s ease",
                 "&:hover": {
                   backgroundColor: accentColor,
                   boxShadow: `0 6px 24px ${accentColor}55`,
@@ -411,6 +439,7 @@ export default function AuthLogin({
             variants={itemVariants}
             whileHover={{ scale: 1.015 }}
             whileTap={{ scale: 0.985 }}
+            style={{ willChange: "transform" }}
           >
             <Button
               fullWidth
@@ -445,6 +474,7 @@ export default function AuthLogin({
             variants={itemVariants}
             whileHover={{ scale: 1.015 }}
             whileTap={{ scale: 0.985 }}
+            style={{ willChange: "transform" }}
           >
             <Button
               fullWidth
@@ -463,7 +493,7 @@ export default function AuthLogin({
                 textTransform: "uppercase",
                 letterSpacing: "0.04em",
                 boxShadow: `0 4px 18px ${primaryBg}35`,
-                transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+                transition: "background-color 0.25s ease, box-shadow 0.25s ease",
                 "&:hover": {
                   backgroundColor: accentColor,
                   boxShadow: `0 6px 24px ${accentColor}55`,

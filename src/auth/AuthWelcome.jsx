@@ -30,33 +30,33 @@ export const GoogleColoredIcon = () => (
   </svg>
 );
 
+const smoothEase = [0.16, 1, 0.3, 1];
+
 const containerVariants = {
-  hidden: { opacity: 0, y: 16, filter: "blur(4px)" },
+  hidden: { opacity: 0, y: 14 },
   visible: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
     transition: {
-      duration: 0.4,
-      ease: [0.25, 0.1, 0.25, 1],
-      staggerChildren: 0.08,
-      delayChildren: 0.05,
+      duration: 0.38,
+      ease: smoothEase,
+      staggerChildren: 0.06,
+      delayChildren: 0.02,
     },
   },
   exit: {
     opacity: 0,
-    y: -14,
-    filter: "blur(4px)",
-    transition: { duration: 0.25, ease: "easeIn" },
+    y: -12,
+    transition: { duration: 0.22, ease: "easeIn" },
   },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 12 },
+  hidden: { opacity: 0, y: 10 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] },
+    transition: { duration: 0.32, ease: smoothEase },
   },
 };
 
@@ -78,7 +78,7 @@ export default function AuthWelcome({
       initial="hidden"
       animate="visible"
       exit="exit"
-      style={{ width: "100%" }}
+      style={{ width: "100%", willChange: "transform, opacity" }}
     >
       <Stack spacing={2.2}>
         {/* Header Titles */}
@@ -115,6 +115,7 @@ export default function AuthWelcome({
           variants={itemVariants}
           whileHover={{ scale: 1.015 }}
           whileTap={{ scale: 0.985 }}
+          style={{ willChange: "transform" }}
         >
           <Button
             fullWidth
@@ -133,7 +134,7 @@ export default function AuthWelcome({
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               boxShadow: `0 4px 18px ${primaryBg}35`,
-              transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+              transition: "background-color 0.25s ease, box-shadow 0.25s ease",
               "&:hover": {
                 backgroundColor: accentColor,
                 boxShadow: `0 6px 24px ${accentColor}55`,
@@ -149,6 +150,7 @@ export default function AuthWelcome({
           variants={itemVariants}
           whileHover={{ scale: 1.015 }}
           whileTap={{ scale: 0.985 }}
+          style={{ willChange: "transform" }}
         >
           <Button
             fullWidth
@@ -199,6 +201,7 @@ export default function AuthWelcome({
           variants={itemVariants}
           whileHover={{ scale: 1.015 }}
           whileTap={{ scale: 0.985 }}
+          style={{ willChange: "transform" }}
         >
           <Button
             fullWidth
@@ -217,7 +220,7 @@ export default function AuthWelcome({
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               boxShadow: `0 4px 18px ${primaryBg}35`,
-              transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+              transition: "background-color 0.25s ease, box-shadow 0.25s ease",
               "&:hover": {
                 backgroundColor: accentColor,
                 boxShadow: `0 6px 24px ${accentColor}55`,
@@ -232,3 +235,4 @@ export default function AuthWelcome({
     </motion.div>
   );
 }
+

@@ -542,21 +542,21 @@ export default function AuthPage() {
               flex: isWelcome
                 ? 1.15
                 : isContinue
-                ? 0.7
-                : isSignup
-                ? 0.18
-                : isForgotPassword
-                ? 0.22
-                : 0.38,
+                  ? 0.7
+                  : isSignup
+                    ? 0.18
+                    : isForgotPassword
+                      ? 0.22
+                      : 0.38,
               minHeight: isWelcome
                 ? 340
                 : isContinue
-                ? 350
-                : isSignup
-                ? 95
-                : isForgotPassword
-                ? 110
-                : 170,
+                  ? 350
+                  : isSignup
+                    ? 95
+                    : isForgotPassword
+                      ? 110
+                      : 170,
               borderBottomLeftRadius: isFormPage ? 0 : 36,
               borderBottomRightRadius: isFormPage ? 0 : 36,
               paddingTop: isSignup || isForgotPassword ? 24 : isWelcome ? 52 : 36,
@@ -660,8 +660,8 @@ export default function AuthPage() {
                       fontSize: isWelcome
                         ? "2.35rem"
                         : isContinue
-                        ? "2rem"
-                        : "2.35rem",
+                          ? "2rem"
+                          : "2.35rem",
                       fontWeight: 900,
                       lineHeight: 1.06,
                       letterSpacing: "-0.035em",

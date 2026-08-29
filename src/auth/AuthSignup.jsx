@@ -16,29 +16,29 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import RadioButtonUncheckedRoundedIcon from "@mui/icons-material/RadioButtonUncheckedRounded";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { GoogleColoredIcon } from "./AuthWelcome";
 import { db } from "../firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 
+const smoothEase = [0.16, 1, 0.3, 1];
+
 const containerVariants = {
-  hidden: { opacity: 0, y: 16, filter: "blur(4px)" },
+  hidden: { opacity: 0, y: 14 },
   visible: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
     transition: {
-      duration: 0.4,
-      ease: [0.25, 0.1, 0.25, 1],
+      duration: 0.38,
+      ease: smoothEase,
       staggerChildren: 0.05,
-      delayChildren: 0.03,
+      delayChildren: 0.02,
     },
   },
   exit: {
     opacity: 0,
-    y: -14,
-    filter: "blur(4px)",
-    transition: { duration: 0.25, ease: "easeIn" },
+    y: -12,
+    transition: { duration: 0.22, ease: "easeIn" },
   },
 };
 
@@ -47,7 +47,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] },
+    transition: { duration: 0.3, ease: smoothEase },
   },
 };
 
@@ -183,6 +183,7 @@ export default function AuthSignup({
         flexDirection: "column",
         height: "100%",
         justifyContent: "space-between",
+        willChange: "transform, opacity",
       }}
     >
       <Box sx={{ width: "100%", overflowY: "auto", maxHeight: "58vh", pr: 0.5 }}>
@@ -352,19 +353,45 @@ export default function AuthSignup({
                   >
                     Username <span style={{ color: accentColor, fontWeight: 700 }}>*</span>
                   </Typography>
-                  {checkingUsername ? (
-                    <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.72rem" }}>
-                      Checking availability...
-                    </Typography>
-                  ) : usernameAvailable === false ? (
-                    <Typography sx={{ color: "#f87171", fontSize: "0.72rem", fontWeight: 700 }}>
-                      Username taken
-                    </Typography>
-                  ) : usernameAvailable === true ? (
-                    <Typography sx={{ color: "#4ade80", fontSize: "0.72rem", fontWeight: 700 }}>
-                      Username available
-                    </Typography>
-                  ) : null}
+                  <AnimatePresence mode="wait">
+                    {checkingUsername ? (
+                      <motion.div
+                        key="checking"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.72rem" }}>
+                          Checking availability...
+                        </Typography>
+                      </motion.div>
+                    ) : usernameAvailable === false ? (
+                      <motion.div
+                        key="taken"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <Typography sx={{ color: "#f87171", fontSize: "0.72rem", fontWeight: 700 }}>
+                          Username taken
+                        </Typography>
+                      </motion.div>
+                    ) : usernameAvailable === true ? (
+                      <motion.div
+                        key="available"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <Typography sx={{ color: "#4ade80", fontSize: "0.72rem", fontWeight: 700 }}>
+                          Username available
+                        </Typography>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
                 </Box>
                 <TextField
                   name="username"
@@ -430,7 +457,10 @@ export default function AuthSignup({
                       <InputAdornment position="end">
                         <IconButton
                           size="small"
-                          onClick={() => setShowPassword(!showPassword)}
+                          onClick={() => {
+                            if (haptic) haptic(10);
+                            setShowPassword(!showPassword);
+                          }}
                           edge="end"
                           sx={{
                             color: "rgba(255, 255, 255, 0.4)",
@@ -444,11 +474,31 @@ export default function AuthSignup({
                             },
                           }}
                         >
-                          {showPassword ? (
-                            <VisibilityOffIcon sx={{ fontSize: 18 }} />
-                          ) : (
-                            <VisibilityIcon sx={{ fontSize: 18 }} />
-                          )}
+                          <AnimatePresence mode="wait" initial={false}>
+                            {showPassword ? (
+                              <motion.div
+                                key="hide-pwd"
+                                initial={{ opacity: 0, scale: 0.75, rotate: -15 }}
+                                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                exit={{ opacity: 0, scale: 0.75, rotate: 15 }}
+                                transition={{ duration: 0.15 }}
+                                style={{ display: "flex", alignItems: "center" }}
+                              >
+                                <VisibilityOffIcon sx={{ fontSize: 18 }} />
+                              </motion.div>
+                            ) : (
+                              <motion.div
+                                key="show-pwd"
+                                initial={{ opacity: 0, scale: 0.75, rotate: 15 }}
+                                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                exit={{ opacity: 0, scale: 0.75, rotate: -15 }}
+                                transition={{ duration: 0.15 }}
+                                style={{ display: "flex", alignItems: "center" }}
+                              >
+                                <VisibilityIcon sx={{ fontSize: 18 }} />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </IconButton>
                       </InputAdornment>
                     ),
@@ -474,36 +524,53 @@ export default function AuthSignup({
                   }}
                 />
 
-                {/* Password Validator Checklist */}
-                {formData.password && (
-                  <Box sx={{ mt: 1, px: 0.6, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 8px" }}>
-                    {[
-                      { label: "8+ characters", met: passwordRules.length },
-                      { label: "1 uppercase letter", met: passwordRules.uppercase },
-                      { label: "1 number", met: passwordRules.number },
-                      { label: "1 symbol", met: passwordRules.symbol },
-                    ].map((rule, idx) => (
-                      <Typography
-                        key={idx}
-                        sx={{
-                          fontSize: "0.7rem",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 0.5,
-                          color: rule.met ? "#4ade80" : "rgba(255, 255, 255, 0.4)",
-                          transition: "color 0.2s ease",
-                        }}
-                      >
-                        {rule.met ? (
-                          <CheckCircleRoundedIcon sx={{ fontSize: "12px" }} />
-                        ) : (
-                          <RadioButtonUncheckedRoundedIcon sx={{ fontSize: "12px" }} />
-                        )}
-                        {rule.label}
-                      </Typography>
-                    ))}
-                  </Box>
-                )}
+                {/* Password Validator Checklist with Smooth Pop Physics */}
+                <AnimatePresence>
+                  {formData.password && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0, y: -4 }}
+                      animate={{ opacity: 1, height: "auto", y: 0 }}
+                      exit={{ opacity: 0, height: 0, y: -4 }}
+                      transition={{ duration: 0.25, ease: smoothEase }}
+                    >
+                      <Box sx={{ mt: 1, px: 0.6, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 8px" }}>
+                        {[
+                          { label: "8+ characters", met: passwordRules.length },
+                          { label: "1 uppercase letter", met: passwordRules.uppercase },
+                          { label: "1 number", met: passwordRules.number },
+                          { label: "1 symbol", met: passwordRules.symbol },
+                        ].map((rule, idx) => (
+                          <Typography
+                            key={idx}
+                            sx={{
+                              fontSize: "0.7rem",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                              color: rule.met ? "#4ade80" : "rgba(255, 255, 255, 0.4)",
+                              transition: "color 0.2s ease",
+                            }}
+                          >
+                            {rule.met ? (
+                              <motion.span
+                                key="checked-badge"
+                                initial={{ scale: 0.6 }}
+                                animate={{ scale: [0.6, 1.25, 1] }}
+                                transition={{ duration: 0.22, ease: "easeOut" }}
+                                style={{ display: "inline-flex" }}
+                              >
+                                <CheckCircleRoundedIcon sx={{ fontSize: "12px", color: "#4ade80" }} />
+                              </motion.span>
+                            ) : (
+                              <RadioButtonUncheckedRoundedIcon sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.35)" }} />
+                            )}
+                            {rule.label}
+                          </Typography>
+                        ))}
+                      </Box>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </Box>
             </motion.div>
 
@@ -539,7 +606,10 @@ export default function AuthSignup({
                       <InputAdornment position="end">
                         <IconButton
                           size="small"
-                          onClick={() => setShowConfirm(!showConfirm)}
+                          onClick={() => {
+                            if (haptic) haptic(10);
+                            setShowConfirm(!showConfirm);
+                          }}
                           edge="end"
                           sx={{
                             color: "rgba(255, 255, 255, 0.4)",
@@ -553,11 +623,31 @@ export default function AuthSignup({
                             },
                           }}
                         >
-                          {showConfirm ? (
-                            <VisibilityOffIcon sx={{ fontSize: 18 }} />
-                          ) : (
-                            <VisibilityIcon sx={{ fontSize: 18 }} />
-                          )}
+                          <AnimatePresence mode="wait" initial={false}>
+                            {showConfirm ? (
+                              <motion.div
+                                key="hide-confirm"
+                                initial={{ opacity: 0, scale: 0.75, rotate: -15 }}
+                                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                exit={{ opacity: 0, scale: 0.75, rotate: 15 }}
+                                transition={{ duration: 0.15 }}
+                                style={{ display: "flex", alignItems: "center" }}
+                              >
+                                <VisibilityOffIcon sx={{ fontSize: 18 }} />
+                              </motion.div>
+                            ) : (
+                              <motion.div
+                                key="show-confirm"
+                                initial={{ opacity: 0, scale: 0.75, rotate: 15 }}
+                                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                exit={{ opacity: 0, scale: 0.75, rotate: -15 }}
+                                transition={{ duration: 0.15 }}
+                                style={{ display: "flex", alignItems: "center" }}
+                              >
+                                <VisibilityIcon sx={{ fontSize: 18 }} />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </IconButton>
                       </InputAdornment>
                     ),
@@ -583,49 +673,62 @@ export default function AuthSignup({
                   }}
                 />
 
-                {/* Password Matcher Indicator */}
-                {formData.confirmPassword && (
-                  <Typography
-                    sx={{
-                      fontSize: "0.72rem",
-                      fontWeight: 600,
-                      mt: 0.6,
-                      ml: 0.6,
-                      color: doPasswordsMatch ? "#4ade80" : "#f87171",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.5,
-                    }}
-                  >
-                    {doPasswordsMatch ? "✓ Passwords match" : "✕ Passwords do not match"}
-                  </Typography>
-                )}
+                {/* Password Matcher Indicator with AnimatePresence */}
+                <AnimatePresence>
+                  {formData.confirmPassword && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0, y: -4 }}
+                      animate={{ opacity: 1, height: "auto", y: 0 }}
+                      exit={{ opacity: 0, height: 0, y: -4 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: "0.72rem",
+                          fontWeight: 600,
+                          mt: 0.6,
+                          ml: 0.6,
+                          color: doPasswordsMatch ? "#4ade80" : "#f87171",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 0.5,
+                        }}
+                      >
+                        {doPasswordsMatch ? "✓ Passwords match" : "✕ Passwords do not match"}
+                      </Typography>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </Box>
             </motion.div>
 
-            {displayError && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.25 }}
-              >
-                <Typography
-                  sx={{
-                    color: "#f87171",
-                    fontSize: "0.8rem",
-                    fontWeight: 600,
-                    textAlign: "center",
-                    backgroundColor: "rgba(239, 68, 68, 0.1)",
-                    border: "1px solid rgba(239, 68, 68, 0.25)",
-                    borderRadius: "10px",
-                    py: 0.75,
-                    px: 1.5,
-                  }}
+            <AnimatePresence>
+              {displayError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, y: -6 }}
+                  animate={{ opacity: 1, height: "auto", y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: -6 }}
+                  transition={{ duration: 0.25, ease: smoothEase }}
+                  style={{ overflow: "hidden" }}
                 >
-                  {displayError}
-                </Typography>
-              </motion.div>
-            )}
+                  <Typography
+                    sx={{
+                      color: "#f87171",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      textAlign: "center",
+                      backgroundColor: "rgba(239, 68, 68, 0.1)",
+                      border: "1px solid rgba(239, 68, 68, 0.25)",
+                      borderRadius: "10px",
+                      py: 0.75,
+                      px: 1.5,
+                    }}
+                  >
+                    {displayError}
+                  </Typography>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Stack>
         </form>
       </Box>
@@ -638,6 +741,7 @@ export default function AuthSignup({
             variants={itemVariants}
             whileHover={{ scale: 1.015 }}
             whileTap={{ scale: 0.985 }}
+            style={{ willChange: "transform" }}
           >
             <Button
               type="submit"
@@ -653,7 +757,7 @@ export default function AuthSignup({
                 fontSize: "0.85rem",
                 letterSpacing: "0.05em",
                 boxShadow: `0 4px 18px ${primaryBg}35`,
-                transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+                transition: "background-color 0.25s ease, box-shadow 0.25s ease",
                 "&:hover": {
                   backgroundColor: accentColor,
                   boxShadow: `0 6px 24px ${accentColor}55`,
@@ -691,6 +795,7 @@ export default function AuthSignup({
             variants={itemVariants}
             whileHover={{ scale: 1.015 }}
             whileTap={{ scale: 0.985 }}
+            style={{ willChange: "transform" }}
           >
             <Button
               fullWidth
@@ -725,6 +830,7 @@ export default function AuthSignup({
             variants={itemVariants}
             whileHover={{ scale: 1.015 }}
             whileTap={{ scale: 0.985 }}
+            style={{ willChange: "transform" }}
           >
             <Button
               fullWidth
@@ -743,7 +849,7 @@ export default function AuthSignup({
                 textTransform: "uppercase",
                 letterSpacing: "0.04em",
                 boxShadow: `0 4px 18px ${primaryBg}35`,
-                transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+                transition: "background-color 0.25s ease, box-shadow 0.25s ease",
                 "&:hover": {
                   backgroundColor: accentColor,
                   boxShadow: `0 6px 24px ${accentColor}55`,
