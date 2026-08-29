@@ -217,12 +217,20 @@ const BottomNavBar = () => {
 
   const isChatActive = location.pathname.startsWith("/chats");
 
-const handleTogglePin = (e) => {
-  e.stopPropagation(); // Prevent trigger conflicts
-  const newPinnedState = !isPinned;
-  setIsPinned(newPinnedState);
-  setIsExpanded(newPinnedState); // If pinning, stay expanded; if unpinning, stay collapsed until hover
-};
+  const handleTogglePin = (e) => {
+    e.stopPropagation(); // Prevent trigger conflicts
+    const newPinnedState = !isPinned;
+    setIsPinned(newPinnedState);
+    setIsExpanded(newPinnedState); // If pinning, stay expanded; if unpinning, stay collapsed until hover
+  };
+
+  const handleMouseEnter = () => {
+    if (!isPinned) setIsExpanded(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (!isPinned) setIsExpanded(false);
+  };
 
   const isAuthRoute =
     location.pathname.startsWith("/auth") ||
@@ -256,7 +264,7 @@ return (
       borderRight: `1px solid ${
         mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"
       }`,
-                boxShadow:
+            boxShadow:
             mode === "dark"
               ? `
                 inset 0 2px 6px rgba(255, 255, 255, 0.11),
