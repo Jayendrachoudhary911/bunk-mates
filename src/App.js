@@ -1,20 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { messaging } from './firebase';
 import { getToken, onMessage } from 'firebase/messaging';
-import { Box, useMediaQuery, Typography } from "@mui/material";
+import { Box, useMediaQuery } from "@mui/material";
 import "./App.css";
 import 'leaflet/dist/leaflet.css';
 
 // Contexts & Hooks
-import { UserProvider } from './contexts/UserContext';
+import { UserProvider, useUser } from './contexts/UserContext';
 import { WeatherProvider } from "./contexts/WeatherContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { ThemeToggleProvider, useThemeToggle } from './contexts/ThemeToggleContext';
 import { BackgroundProvider } from "./contexts/BackgroundContext";
 // Pages
-import Signup from "./auth/Signup";
-import Login from "./auth/Login";
+import AuthPage from "./auth/AuthPage";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import Chats from "./pages/Chats";
@@ -84,6 +83,33 @@ function BodyBackgroundSetter() {
   return null;
 }
 
+const RequireAuth = ({ children }) => {
+  const { user, loading } = useUser();
+  const location = useLocation();
+
+  if (loading) {
+    return null; // Or return a sleek loading spinner/skeleton here
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+  return children;
+};
+
+const RestrictAuthForLoggedIn = ({ children }) => {
+  const { user, loading } = useUser();
+
+  if (loading) {
+    return null;
+  }
+
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
+
 // --- Guard ---
 const DeveloperRoute = ({ children }) => {
   const navigate = useNavigate();
@@ -131,6 +157,7 @@ function AppContent() {
 
   // Routes where BottomNav should NEVER appear
   const HIDE_BOTTOM_NAV_PREFIXES = [
+    "/auth",
     "/login",
     "/signup",
     "/forgot-password",
@@ -155,6 +182,13 @@ function AppContent() {
       location.pathname.startsWith(path)
     );
 
+  const isAuthRoute =
+    location.pathname.startsWith("/auth") ||
+    location.pathname.startsWith("/login") ||
+    location.pathname.startsWith("/signup") ||
+    location.pathname.startsWith("/forgot-password") ||
+    location.pathname.startsWith("/reset-password");
+
   // Final decision
   const showBottomNav =
     !isDesktop && isAllowedMobileRoute && !isExplicitlyHiddenRoute || isQuizMobileRoute;
@@ -169,7 +203,7 @@ function AppContent() {
     <Box sx={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       
       {/* MOBILE BOTTOM NAV ONLY */}
-      {showBottomNav && (
+      {showBottomNav && !isAuthRoute && (
         <BottomNavBar
           isExpanded={isExpanded}
           setIsExpanded={setIsExpanded}
@@ -182,10 +216,10 @@ function AppContent() {
         sx={{
           display: "flex",
           flexGrow: 1,
-          pl: isDesktop ? (isExpanded ? "72px" : "88px") : 0,
+          pl: isDesktop && !isAuthRoute ? (isExpanded ? "72px" : "88px") : 0,
           width: "100%",
           height: "100%",
-          transition: "margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: "padding-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
         {/* MAIN COLUMN */}
@@ -196,68 +230,48 @@ function AppContent() {
             height: "100%",
             overflowY: "auto",
             position: "relative",
-            pb: showBottomNav ? "96px" : "40px",
+            pb: isAuthRoute ? 0 : (showBottomNav ? "96px" : "40px"),
             scrollbarWidth: "none",
             "&::-webkit-scrollbar": { display: "none" },
           }}
         >
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/notes" element={<Notes />} />
-            <Route path="/notes/:id" element={<NoteDetail />} />
-            <Route path="/notes/:id/workspace" element={<NoteWorkspace />} />
-            <Route path="/notes/new/workspace" element={<NoteWorkspace />} />
-            <Route path="/trips" element={<Trips />} />
-            <Route path="/chats" element={<Chats />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/travel-ai" element={<TravelAI />} />
+<Routes>
+            {/* Protected Routes (Requires Active Session) */}
+            <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
+            <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
+            <Route path="/notes" element={<RequireAuth><Notes /></RequireAuth>} />
+            <Route path="/notes/:id" element={<RequireAuth><NoteDetail /></RequireAuth>} />
+            <Route path="/notes/:id/workspace" element={<RequireAuth><NoteWorkspace /></RequireAuth>} />
+            <Route path="/notes/new/workspace" element={<RequireAuth><NoteWorkspace /></RequireAuth>} />
+            <Route path="/trips" element={<RequireAuth><Trips /></RequireAuth>} />
+            <Route path="/chats" element={<RequireAuth><Chats /></RequireAuth>} />
+            <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
+            <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+            <Route path="/travel-ai" element={<RequireAuth><TravelAI /></RequireAuth>} />
+            <Route path="/home-dummy" element={<RequireAuth><Homepage /></RequireAuth>} />
+            <Route path="/budget-mngr" element={<RequireAuth><Budgetmngr /></RequireAuth>} />
+            <Route path="/reminders" element={<RequireAuth><Reminders /></RequireAuth>} />
 
-            <Route path="/home-dummy" element={<Homepage/>}/>
+            {/* Auth Routes (Restricted when Session is Active) */}
+            <Route path="/auth/*" element={<RestrictAuthForLoggedIn><AuthPage /></RestrictAuthForLoggedIn>} />
+            <Route path="/signup" element={<Navigate to="/auth/signup" replace />} />
+            <Route path="/login" element={<Navigate to="/auth/login" replace />} />
 
-            <Route path="/budget-mngr" element={<Budgetmngr />} />
-            <Route path="/reminders" element={<Reminders />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/grouplists" element={<GroupList />} />
-
-            <Route path="/chat/:friendId" element={<Chatroom />} />
-            <Route path="/group/:groupName" element={<GroupChat />} />
-            <Route path="/developer/group/:groupName" element={<GroupDevChats />} />
-            <Route path="/trips/:id" element={<TripDetails />} />
-
+            {/* Other routes remain accessible or protected as needed */}
+            <Route path="/grouplists" element={<RequireAuth><GroupList /></RequireAuth>} />
+            <Route path="/chat/:friendId" element={<RequireAuth><Chatroom /></RequireAuth>} />
+            <Route path="/group/:groupName" element={<RequireAuth><GroupChat /></RequireAuth>} />
+            <Route path="/trips/:id" element={<RequireAuth><TripDetails /></RequireAuth>} />
             <Route path="/join" element={<JoinTrip />} />
             <Route path="/group-invite/:inviteToken" element={<GroupInvitePage />} />
             <Route path="/waitlist" element={<Waitlist />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/community" element={<CommunityPage />} />
-            <Route path="/notifications" element={<Notifications />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
+            <Route path="/forgot-password" element={<RestrictAuthForLoggedIn><ForgotPassword /></RestrictAuthForLoggedIn>} />
+            <Route path="/reset-password" element={<RestrictAuthForLoggedIn><ResetPassword /></RestrictAuthForLoggedIn>} />
             <Route path="/account-deletion-policy" element={<AccountDeletionPolicy />} />
-            <Route path="/developer/bunkmates/social" element={<BunkMatesSocialFeed />} />
-            <Route path="/developer/OtpLogin" element={<OtpLogin />} />
-            <Route path="/developer/maps" element={<UsersMap />} />     
-            <Route path="/developer/BudgetMngr" element={<Budgetmngr />} />   
-            <Route path="/developer/notes" element={<NewNotes />} />  
-
-            <Route
-              path="/developer/waether-forecast"
-              element={
-                <DeveloperRoute>
-                  <HourlyForecast />
-                </DeveloperRoute>
-              }
-            />
-            <Route
-              path="/developer/weather"
-              element={
-                <DeveloperRoute>
-                  <WeatherDebugPage />
-                </DeveloperRoute>
-              }
-            />
           </Routes>
         </Box>
 

@@ -224,13 +224,14 @@ const handleTogglePin = (e) => {
   setIsExpanded(newPinnedState); // If pinning, stay expanded; if unpinning, stay collapsed until hover
 };
 
-const handleMouseEnter = () => {
-  if (!isPinned) setIsExpanded(true);
-};
+  const isAuthRoute =
+    location.pathname.startsWith("/auth") ||
+    location.pathname.startsWith("/login") ||
+    location.pathname.startsWith("/signup") ||
+    location.pathname.startsWith("/forgot-password") ||
+    location.pathname.startsWith("/reset-password");
 
-const handleMouseLeave = () => {
-  if (!isPinned) setIsExpanded(false);
-};
+  if (isAuthRoute) return null;
 
   if (isDesktop) {
 return (

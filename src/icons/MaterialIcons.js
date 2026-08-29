@@ -131,6 +131,7 @@ const map = {
   CalendarTodayOutlined: pick(['CalendarTodayOutlined', 'CalendarToday']),
   CalendarMonth: pick(['CalendarMonth', 'CalendarMonthOutlined', 'CalendarToday']),
   HourglassBottom: pick(['HourglassBottom', 'HourglassEmpty']),
+  EventNote: pick(['EventNote', 'EventNoteOutlined', 'CalendarToday']),
 
   // Maps & Location
   Map: pick(['Map', 'MapOutlined']),
@@ -145,6 +146,7 @@ const map = {
   FlightTakeoff: pick(['FlightTakeoff', 'FlightTakeoffOutlined', 'Flight']),
   Luggage: pick(['Luggage', 'LuggageOutlined', 'WorkOutline']),
   Backpack: pick(['Backpack', 'BackpackOutlined', 'Luggage']),
+  GpsFixed: pick(['GpsFixed', 'GpsFixedOutlined', 'MyLocation']),
 
   // Media, Photos & Code
   PhotoCamera: pick(['PhotoCamera', 'PhotoCameraOutlined', 'CameraAltOutlined']),
@@ -195,7 +197,13 @@ const map = {
   ElectricBolt: pick(['ElectricBolt', 'Bolt', 'FlashOn']),
   FlashOffRounded: pick(['FlashOffRounded', 'FlashOff']),
 
-  // Misc & Utils
+  // Links, Documents & Utils
+  Link: pick(['Link', 'LinkOutlined', 'AttachFile']),
+  LinkIcon: pick(['Link', 'LinkOutlined']),
+  LinkOutlined: pick(['LinkOutlined', 'Link']),
+  AddLink: pick(['AddLink', 'AddLinkOutlined', 'Link']),
+  AddLinkIcon: pick(['AddLink', 'AddLinkOutlined', 'Link']),
+  AddLinkOutlined: pick(['AddLinkOutlined', 'AddLink']),
   ContentCopy: pick(['ContentCopy', 'ContentCopyOutlined']),
   ContentCopyOutlined: pick(['ContentCopyOutlined', 'ContentCopy']),
   OpenInNew: pick(['OpenInNew', 'OpenInNewOutlined', 'Launch']),
@@ -245,6 +253,7 @@ const map = {
   Timeline: pick(['Timeline', 'TimelineOutlined']),
   TimelineIcon: pick(['Timeline', 'TimelineOutlined']),
   ListAlt: pick(['ListAlt', 'ListAltOutlined']),
+  PlaylistAddCheck: pick(['PlaylistAddCheck', 'PlaylistAddCheckOutlined', 'ListAlt']),
   Public: pick(['Public', 'PublicOutlined']),
   PeopleOutline: pick(['PeopleOutline', 'People', 'GroupOutlined']),
   PersonOffOutlined: pick(['PersonOffOutlined', 'PersonOff', 'Block']),
@@ -252,6 +261,10 @@ const map = {
   Circle: pick(['Circle', 'CircleOutlined']),
   WifiTethering: pick(['WifiTethering', 'WifiTetheringOutlined']),
   BroadcastOnPersonal: pick(['BroadcastOnPersonal', 'BroadcastOnPersonalOutlined']),
+  TrendingUp: pick(['TrendingUp', 'TrendingUpOutlined']),
+  History: pick(['History', 'HistoryOutlined']),
+  MedicalInformation: pick(['MedicalInformation', 'MedicalInformationOutlined', 'LocalHospital']),
+  Newspaper: pick(['Newspaper', 'NewspaperOutlined', 'Article']),
 };
 
 const exportsObj = new Proxy(
@@ -366,6 +379,7 @@ export const {
   CalendarTodayOutlined,
   CalendarMonth,
   HourglassBottom,
+  EventNote,
   Map,
   MapOutlined,
   LocationOn,
@@ -378,6 +392,7 @@ export const {
   FlightTakeoff,
   Luggage,
   Backpack,
+  GpsFixed,
   PhotoCamera,
   PhotoLibrary,
   PhotoLibraryOutlined,
@@ -419,6 +434,12 @@ export const {
   FlashlightOnOutlined,
   ElectricBolt,
   FlashOffRounded,
+  Link,
+  LinkIcon,
+  LinkOutlined,
+  AddLink,
+  AddLinkIcon,
+  AddLinkOutlined,
   ContentCopy,
   ContentCopyOutlined,
   OpenInNew,
@@ -471,10 +492,15 @@ export const {
   Timeline,
   TimelineIcon,
   ListAlt,
+  PlaylistAddCheck,
   Public,
   PeopleOutline,
   PersonOffOutlined,
   PersonOff,
   Brightness4,
   Brightness4Icon,
+  TrendingUp,
+  History,
+  MedicalInformation,
+  Newspaper,
 } = exportsObj;

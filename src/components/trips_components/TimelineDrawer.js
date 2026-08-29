@@ -8,8 +8,6 @@ import {
   drawerPaperSx,
   drawerBackdropSx,
   DrawerHandle,
-  glassInputSx,
-  ctaButtonSx,
 } from "../../theme/designSystem";
 
 const TimelineDrawer = ({
@@ -117,62 +115,75 @@ const TimelineDrawer = ({
       </Box>
 
       {/* Drafted timeline preview */}
-      {timelineDrafts.length > 0 && (
-        <>
-          <Typography variant="subtitle1" gutterBottom>
-            Preview & Edit Timeline Events
-          </Typography>
-          {timelineDrafts.map((item, index) => (
-            <Box key={index} display="flex" alignItems="center" mb={1} gap={1}>
-              <TextField
-                fullWidth
-                value={item.title}
-                onChange={(e) =>
-                  updateTimelineDraft(index, { ...item, title: e.target.value })
-                }
-                placeholder={`Event ${index + 1} title`}
-                variant="outlined"
-                size="small"
-                sx={{
-                  borderRadius: 8,
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 8,
-                  },
-                }}
-              />
-              <TextField
-                type="datetime-local"
-                value={item.time}
-                onChange={(e) =>
-                  updateTimelineDraft(index, { ...item, time: e.target.value })
-                }
-                size="small"
-                sx={{ width: 200, borderRadius: 8 }}
-              />
-              <IconButton
-                color="error"
-                onClick={() => removeTimelineDraft(index)}
-                size="small"
-              >
-                <DeleteOutlineIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          ))}
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={addAllTimelineEvents}
-            sx={{
-              mt: 2,
-              borderRadius: 8,
-              backgroundColor: mode === "dark" ? "#fff" : "#000",
-              color: mode === "dark" ? "#000" : "#fff",
-            }}
-          >
-            Add {timelineDrafts.length} Event(s)
-          </Button>
-        </>
-      )}
+{/* Single input mode */}
+{timelineDrafts.length === 0 && (
+  <>
+    <FormControlLabel
+      control={
+        <Checkbox
+          checked={newEvent.surprise || false}
+          onChange={(e) =>
+            setNewEvent({ ...newEvent, surprise: e.target.checked })
+          }
+        />
+      }
+      label="Mark as Surprise Timeline (hidden from others)"
+      sx={{ mb: 2 }}
+    />
+
+    {newEvent.surprise && (
+      <TextField
+        fullWidth
+        type="datetime-local"
+        label="Auto Reveal Time (optional)"
+        value={newEvent.revealAt || ""}
+        onChange={(e) =>
+          setNewEvent({ ...newEvent, revealAt: e.target.value })
+        }
+        helperText="Leave blank to reveal manually later"
+        sx={{ mb: 2 }}
+      />
+    )}
+
+    <TextField
+      fullWidth
+      label="Event Title"
+      value={newEvent.title}
+      onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+      sx={{ mb: 2 }}
+    />
+    <TextField
+      fullWidth
+      type="datetime-local"
+      label="Event Time"
+      value={newEvent.time}
+      onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
+      sx={{ mb: 2 }}
+    />
+    <TextField
+      fullWidth
+      multiline
+      rows={2}
+      label="Notes"
+      value={newEvent.note}
+      onChange={(e) => setNewEvent({ ...newEvent, note: e.target.value })}
+      sx={{ mb: 3 }}
+    />
+    <Button
+      fullWidth
+      variant="contained"
+      onClick={addTimelineEvent}
+      disabled={!newEvent.title || !newEvent.time}
+      sx={{
+        borderRadius: 8,
+        backgroundColor: mode === "dark" ? "#fff" : "#000",
+        color: mode === "dark" ? "#000" : "#fff",
+      }}
+    >
+      Add Timeline Event
+    </Button>
+  </>
+)}
 
       <FormControlLabel
         control={

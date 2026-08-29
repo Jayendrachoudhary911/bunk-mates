@@ -57,6 +57,9 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "re
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
+// Fallback nature image definition to fix 'randomNatureImage is not defined'
+const randomNatureImage = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80";
+
 // Leaflet default marker icons fix
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -235,7 +238,6 @@ const CreateTripDrawer = ({
   setNewTrip,
   selectedMembers,
   setSelectedMembers,
-  randomNatureImage,
   closeDrawer,
   handleNext,
   handleBack,
@@ -280,7 +282,7 @@ const CreateTripDrawer = ({
   const [isSavingSubcollections, setIsSavingSubcollections] = useState(false);
   const [localCreatedTripId, setLocalCreatedTripId] = useState(null);
 
-  // Step 5 Interactive Preview States (with Timeline Notes/Descriptions)
+  // Step 5 Interactive Preview States
   const [previewTimeline, setPreviewTimeline] = useState([]);
   const [previewChecklist, setPreviewChecklist] = useState([]);
   const [newChecklistText, setNewChecklistText] = useState("");
@@ -348,7 +350,6 @@ const CreateTripDrawer = ({
     setDestCoords(prevOriginCoords);
   };
 
-  // Auto-sync search queries & geocode origin/destination coords when drawer opens or newTrip changes
   useEffect(() => {
     if (!createDialogOpen) return;
 
@@ -481,6 +482,7 @@ Do not output markdown.`;
           description: parsed.description || `${fromLoc} → ${toLoc} trip.`,
           location: `${fromLoc} → ${toLoc}`,
           budget: parsed.recommendedBudget ? parsed.recommendedBudget.toString() : prev.budget,
+          iconDataUri: prev.iconDataUri || randomNatureImage,
         }));
 
         if (parsed.recommendedBudget) {
@@ -501,7 +503,6 @@ Do not output markdown.`;
     }
   }, [activeStep, newTrip.from, newTrip.to, newTrip.description, generateAiTripDetails]);
 
-  // Helper to generate date-accurate default timeline events with clear descriptions
   const buildDefaultTimeline = useCallback(() => {
     let start = new Date(newTrip.startDate || new Date());
     let end = new Date(newTrip.endDate || new Date());
@@ -526,7 +527,6 @@ Do not output markdown.`;
     return events;
   }, [newTrip.from, newTrip.to, newTrip.startDate, newTrip.endDate]);
 
-  // Step 5: Auto-populate preview timeline with notes & relevant checklist using Groq AI
   const fetchAndSetStep5Previews = useCallback(async () => {
     setIsAiGeneratingStep5(true);
     const defaultTimeline = buildDefaultTimeline();
@@ -598,7 +598,6 @@ Do not output markdown.`;
     }
   }, [activeStep, fetchAndSetStep5Previews]);
 
-  // Handle Step 4 -> 5 Transition
   const onCreateTripAndProceedToStep5 = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setIsCreatingTrip(true);
@@ -614,6 +613,7 @@ Do not output markdown.`;
       } else {
         const docRef = await addDoc(collection(effectiveDb, "trips"), {
           ...newTrip,
+          iconDataUri: newTrip.iconDataUri || randomNatureImage,
           budget: totalBudget,
           members: activeMembers,
           createdBy: activeUser?.uid || "",
@@ -643,7 +643,6 @@ Do not output markdown.`;
     }
   };
 
-  // Final Action: Save enriched Timeline (with notes) & Checklist directly into Firestore Subcollections and close drawer
   const handleFinishAndSaveSubcollections = async () => {
     const tripId = createdTripDetails?.id || localCreatedTripId;
     const activeUser = user || auth.currentUser;
@@ -657,7 +656,6 @@ Do not output markdown.`;
     setIsSavingSubcollections(true);
 
     try {
-      // Save Checklist items into subcollection `trips/{tripId}/checklist`
       const checklistRef = collection(effectiveDb, "trips", tripId, "checklist");
       for (const textItem of previewChecklist) {
         if (textItem && textItem.trim()) {
@@ -665,7 +663,6 @@ Do not output markdown.`;
         }
       }
 
-      // Save Timeline events into subcollection `trips/{tripId}/timeline`
       const timelineRef = collection(effectiveDb, "trips", tripId, "timeline");
       for (const item of previewTimeline) {
         await addDoc(timelineRef, {
@@ -1134,18 +1131,18 @@ Do not output markdown.`;
               </Button>
             </Box>
 
-<TextField
-  label={isDevBeta ? "Trip Name (Auto-Suggested by AI)" : "Trip Name"}
-  fullWidth
-  value={newTrip.name || ""}
-  onChange={(e) => setNewTrip({ ...newTrip, name: e.target.value })}
-  sx={formFieldSx}
-  InputProps={{
-    endAdornment: isDevBeta && (
-      isGeneratingItinerary ? <CircularProgress size={18} /> : <AutoAwesome sx={{ color: "#00E676" }} />
-    ),
-  }}
-/>
+            <TextField
+              label={isDevBeta ? "Trip Name (Auto-Suggested by AI)" : "Trip Name"}
+              fullWidth
+              value={newTrip.name || ""}
+              onChange={(e) => setNewTrip({ ...newTrip, name: e.target.value })}
+              sx={formFieldSx}
+              InputProps={{
+                endAdornment: isDevBeta && (
+                  isGeneratingItinerary ? <CircularProgress size={18} /> : <AutoAwesome sx={{ color: "#00E676" }} />
+                ),
+              }}
+            />
 
             <TextField
               label="Trip Description (Auto-Generated & Editable)"

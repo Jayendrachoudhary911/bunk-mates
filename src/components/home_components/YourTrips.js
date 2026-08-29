@@ -130,15 +130,15 @@ export default function YourTrips({
                         ...cardHover,
 
                         // Transparent image layer
-                        "&::after": tripGroupsMap[tripInfo.id]?.iconURL
+                        "&::after": (tripGroupsMap[tripInfo.id]?.iconURL || tripInfo.iconURL || tripInfo.coverImage)
                           ? {
                               content: '""',
                               position: "absolute",
                               inset: 0,
-                              backgroundImage: `url(${tripGroupsMap[tripInfo.id].iconURL})`,
+                              backgroundImage: `url(${tripGroupsMap[tripInfo.id]?.iconURL || tripInfo.iconURL || tripInfo.coverImage})`,
                               backgroundSize: "cover",
                               backgroundPosition: "center",
-                              opacity: 0.15, // <-- image transparency
+                              opacity: 0.18, // <-- image transparency
                               zIndex: 0,
                             }
                           : {},

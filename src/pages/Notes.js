@@ -418,7 +418,6 @@ const Notes = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchDisplayValue, setSearchDisplayValue] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [user, setUser] = useState(null);
   const [sharedUsersInfo, setSharedUsersInfo] = useState({});
   const noteContentRef = useRef(null);

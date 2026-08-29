@@ -96,6 +96,7 @@ useEffect(() => {
 
   const watchId = navigator.geolocation.watchPosition(
     async (position) => {
+      setLocationError(false);
       const now = Date.now();
       // Only update every 15 seconds to save quota and reduce triggers
       if (now - lastUpdate < 15000) return;
@@ -127,7 +128,10 @@ useEffect(() => {
         }
       }
     },
-    (err) => console.error("Geolocation Error:", err),
+    (err) => {
+      console.error("Geolocation Error:", err);
+      setLocationError(true);
+    },
     { enableHighAccuracy: true }
   );
 

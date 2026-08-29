@@ -1,227 +1,108 @@
-import React, { useState, useEffect } from "react";
+// src/pages/Signup.js
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   TextField,
   Button,
   Typography,
-  Container,
   Stack,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Link,
-  Slide,
   IconButton,
   InputAdornment,
+  Divider,
   Snackbar,
+  CircularProgress,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import { motion } from "framer-motion";
+
 import { auth, googleProvider, db } from "../firebase";
 import {
   createUserWithEmailAndPassword,
   updateProfile,
   signInWithPopup,
 } from "firebase/auth";
-import {
-  doc,
-  setDoc,
-  getDocs,
-  collection,
-  query,
-  where,
-} from "firebase/firestore";
-import { authInputSx, authCTASx } from "../theme/designSystem";
+import { doc, setDoc, getDocs, collection, query, where } from "firebase/firestore";
+import { M3_EXPRESSIVE_PALETTE } from "../theme/palette";
 
-const transition = (props) => <Slide direction="up" {...props} />;
+const GoogleColoredIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 48 48">
+    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.55 10.78l7.98-6.19z"/>
+    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+  </svg>
+);
 
-/**
- * 🎨 Generate an abstract gradient avatar via DiceBear
- * Using the `gradient` style with a random or UID-based seed
- */
-const getGradientAvatar = (seed) => {
-  const s = seed || Math.random().toString(36).substring(2, 10);
-  return `https://api.dicebear.com/9.x/glass/svg?seed=${encodeURIComponent(
-    s
-  )}&backgroundType=gradientLinear&radius=50&size=150`;
-};
+const paletteKeys = ["blue", "purple", "emerald", "amber", "orange"];
 
-const GRADIENT_VARIANTS = [
-  // 🔥 Red / Orange dominant
-  `
-    radial-gradient(
-        circle at 70% 10%,
-        #ff8d1a 0%,
-        #ff0000 12%,
-        #000000 38%,
-        #000000 62%,
-        #000000 100%
-      )
-  `,
-
-  // 💜 Purple / Pink
-  `
-    radial-gradient(
-        circle at 70% 10%,
-        #a848ec 0%,
-        #8402ff 12%,
-        #000000 38%,
-        #000000 62%,
-        #000000 100%
-      )
-  `,
-
-  // 🔵 Blue / Cyan
-  `
-    radial-gradient(
-        circle at 70% 10%,
-        #22d3ee 0%,
-        #3b83f6 12%,
-        #000000 38%,
-        #000000 62%,
-        #000000 100%
-      )
-  `,
-
-  // 🌅 Warm sunset (gold / orange)
-  `
-    radial-gradient(circle at 50% 10%,
-      rgba(251,191,36,0.20) 0%,
-      rgba(251,191,36,0.12) 22%,
-      rgba(0,0,0,0) 42%),
-    radial-gradient(circle at 20% 30%,
-      rgba(249,115,22,0.18) 0%,
-      rgba(249,115,22,0.10) 20%,
-      rgba(0,0,0,0) 40%),
-    linear-gradient(180deg,#000000,#000000)
-  `,
-];
-
-
-
-// ---- PASSWORD RULE CHECK ----
-const checkPasswordRules = (password) => ({
-  length: password.length >= 8,
-  uppercase: /[A-Z]/.test(password),
-  number: /[0-9]/.test(password),
-  symbol: /[^A-Za-z0-9]/.test(password),
-});
-
-// ---- PASSWORD STRENGTH ----
-const getPasswordStrength = (password) => {
-  const rules = checkPasswordRules(password);
-  const passed = Object.values(rules).filter(Boolean).length;
-
-  if (passed <= 1)
-    return { label: "Weak", color: "#ef4444", value: 25 };
-  if (passed === 2 || passed === 3)
-    return { label: "Moderate", color: "#f59e0b", value: 60 };
-  return { label: "Strong", color: "#22c55e", value: 100 };
-};
-
-
-const Signup = () => {
+export default function Signup() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
-    username: "",
     mobile: "",
     email: "",
-    type: "Regular",
+    username: "",
     password: "",
     confirmPassword: "",
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-const [password, setPassword] = useState("");
-const [confirmPassword, setConfirmPassword] = useState("");
-const [passwordStrength, setPasswordStrength] = useState(null);
-const [passwordRules, setPasswordRules] = useState({});
-const [checkingUsername, setCheckingUsername] = useState(false);
-const [usernameAvailable, setUsernameAvailable] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [colorIndex, setColorIndex] = useState(0);
 
+  const [usernameAvailable, setUsernameAvailable] = useState(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
 
-  const [bgGradient, setBgGradient] = useState("");
-  
+  const [snackbar, setSnackbar] = useState({ open: false, message: "" });
+
+  const activeTheme = useMemo(() => {
+    const key = paletteKeys[colorIndex % paletteKeys.length];
+    return M3_EXPRESSIVE_PALETTE[key];
+  }, [colorIndex]);
+
   useEffect(() => {
-    const random =
-      GRADIENT_VARIANTS[
-        Math.floor(Math.random() * GRADIENT_VARIANTS.length)
-      ];
-    setBgGradient(random);
+    const interval = setInterval(() => {
+      setColorIndex((prev) => (prev + 1) % paletteKeys.length);
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
-  
-const handleChange = async (e) => {
-  const { name, value } = e.target;
 
-  setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleChange = async (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
 
-  if (name === "password") {
-    setPassword(value);
-    setPasswordRules(checkPasswordRules(value));
-    setPasswordStrength(getPasswordStrength(value));
-  }
-
-  if (name === "confirmPassword") {
-    setConfirmPassword(value);
-  }
-
-  // ---- ASYNC USERNAME CHECK ----
-  if (name === "username" && value.length >= 3) {
-    setCheckingUsername(true);
-    setUsernameAvailable(null);
-
-    const q = query(
-      collection(db, "users"),
-      where("username", "==", value)
-    );
-
-    const snap = await getDocs(q);
-    setUsernameAvailable(snap.empty);
-    setCheckingUsername(false);
-  }
-};
-
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
-
-  const checkUsernameExists = async (username) => {
-    const q = query(collection(db, "users"), where("username", "==", username));
-    const snapshot = await getDocs(q);
-    return !snapshot.empty;
+    if (name === "username" && value.length >= 3) {
+      setCheckingUsername(true);
+      const q = query(collection(db, "users"), where("username", "==", value));
+      const snap = await getDocs(q);
+      setUsernameAvailable(snap.empty);
+      setCheckingUsername(false);
+    }
   };
 
   const handleSignup = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      setSnackbar({
-        open: true,
-        message: "Passwords do not match",
-        severity: "error",
-      });
+      setSnackbar({ open: true, message: "Passwords do not match!" });
       return;
     }
-
-    const usernameExists = await checkUsernameExists(formData.username);
-    if (usernameExists) {
-      setErrorMessage("Username already taken. Try another.");
-      setOpenDialog(true);
+    if (usernameAvailable === false) {
+      setSnackbar({ open: true, message: "Username already taken!" });
       return;
     }
 
     try {
+      setLoading(true);
       const userCred = await createUserWithEmailAndPassword(
         auth,
         formData.email,
         formData.password
       );
 
-      // 🎨 Generate gradient avatar based on UID (unique & consistent)
-      const avatarUrl = getGradientAvatar(userCred.user.uid);
+      const avatarUrl = `https://api.dicebear.com/9.x/glass/svg?seed=${userCred.user.uid}&radius=50`;
 
       await updateProfile(userCred.user, {
         displayName: formData.name,
@@ -237,294 +118,300 @@ const handleChange = async (e) => {
         photoURL: avatarUrl,
       });
 
-      setSnackbar({
-        open: true,
-        message: "Signup successful!",
-        severity: "success",
-      });
-      setTimeout(() => (window.location.href = "/"), 1200);
+      setSnackbar({ open: true, message: "Welcome to the Clan!" });
+      setTimeout(() => navigate("/"), 1200);
     } catch (err) {
-      setSnackbar({ open: true, message: err.message, severity: "error" });
+      setSnackbar({ open: true, message: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleSignup = async () => {
     try {
+      setLoading(true);
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
+      const avatarUrl =
+        user.photoURL ||
+        `https://api.dicebear.com/9.x/glass/svg?seed=${user.uid}&radius=50`;
 
-      // Use Google photoURL or generate gradient avatar
-      const avatarUrl = user.photoURL || getGradientAvatar(user.uid);
-      const usernameExists = await checkUsernameExists(user.displayName);
+      await setDoc(doc(db, "users", user.uid), {
+        name: user.displayName,
+        username: user.displayName?.toLowerCase().replace(/\s+/g, "_") || "user",
+        mobile: "",
+        email: user.email,
+        type: "Regular",
+        photoURL: avatarUrl,
+      });
 
-      if (!usernameExists) {
-        if (!user.photoURL)
-          await updateProfile(user, { photoURL: avatarUrl });
-
-        await setDoc(doc(db, "users", user.uid), {
-          name: user.displayName,
-          username: user.displayName,
-          mobile: "",
-          email: user.email,
-          type: "Regular",
-          photoURL: avatarUrl,
-        });
-        setSnackbar({
-          open: true,
-          message: "Signed up with Google!",
-          severity: "success",
-        });
-        setTimeout(() => (window.location.href = "/"), 1200);
-      } else {
-        setErrorMessage("Username already taken. Try another.");
-        setOpenDialog(true);
-      }
+      setSnackbar({ open: true, message: "Signed up with Google!" });
+      setTimeout(() => navigate("/"), 1200);
     } catch (err) {
-      setSnackbar({ open: true, message: err.message, severity: "error" });
+      setSnackbar({ open: true, message: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCreateUsername = async (newUsername) => {
-    const user = auth.currentUser;
-    if (!user) return;
-    const avatarUrl = user.photoURL || getGradientAvatar(user.uid);
-
-    await setDoc(doc(db, "users", user.uid), {
-      name: user.displayName,
-      username: newUsername,
-      mobile: "",
-      email: user.email,
-      type: "Regular",
-      photoURL: avatarUrl,
-    });
-    if (!user.photoURL) await updateProfile(user, { photoURL: avatarUrl });
-    setOpenDialog(false);
-    window.location.href = "/";
+  const inputStyle = {
+    "& .MuiOutlinedInput-root": {
+      borderRadius: "14px",
+      backgroundColor: "#0d0d11",
+      color: "#fff",
+      "& fieldset": { borderColor: "rgba(255, 255, 255, 0.15)" },
+      "&:hover fieldset": { borderColor: "rgba(255, 255, 255, 0.3)" },
+      "&.Mui-focused fieldset": { borderColor: activeTheme.accent },
+    },
+    "& .MuiInputLabel-root": {
+      color: "rgba(255, 255, 255, 0.5)",
+      "&.Mui-focused": { color: activeTheme.accent },
+    },
   };
 
   return (
     <Box
       sx={{
-    minHeight: "95vh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 2,
-
-    background: bgGradient,
-
-    backgroundSize: "140% 140%",
-    animation: "darkRadialGlow 24s ease-in-out infinite",
-      }}
-    >
-      
-                <Container maxWidth="xs">
-                  <Stack spacing={4} sx={{ mt: "25vh" }}>
-
-<Box component="form" onSubmit={handleSignup}>
-  <Stack spacing={2.5}>
-    {/* ---------- TITLE ---------- */}
-    <Box>
-      <Typography variant="h5" fontWeight={600} color="#fff">
-        Create your account
-      </Typography>
-      <Typography
-        variant="body2"
-        sx={{ color: "rgba(255,255,255,0.65)", mt: 0.5 }}
-      >
-        Join BunkMate and start planning smarter trips
-      </Typography>
-    </Box>
-
-    {/* ---------- BASIC FIELDS ---------- */}
-    {["name", "mobile", "email"].map((field) => (
-      <TextField
-        key={field}
-        name={field}
-        label={field.charAt(0).toUpperCase() + field.slice(1)}
-        fullWidth
-        required
-        onChange={handleChange}
-        variant="outlined"
-        sx={authInputSx()}
-      />
-    ))}
-
-    <TextField
-  name="username"
-  label="Username"
-  fullWidth
-  required
-  onChange={handleChange}
-  error={usernameAvailable === false}
-  helperText={
-    checkingUsername
-      ? "Checking availability..."
-      : usernameAvailable === false
-      ? "Username already taken"
-      : usernameAvailable === true
-      ? "Username available"
-      : ""
-  }
-  sx={authInputSx()}
-/>
-
-
-    {/* ---------- PASSWORD ---------- */}
-    <TextField
-      name="password"
-      label="Password"
-      type={showPassword ? "text" : "password"}
-      required
-      onChange={handleChange}
-      InputProps={{
-        endAdornment: (
-          <InputAdornment position="end">
-            <IconButton
-              onClick={() => setShowPassword((p) => !p)}
-              edge="end"
-            >
-              {showPassword ? <VisibilityOff /> : <Visibility />}
-            </IconButton>
-          </InputAdornment>
-        ),
-      }}
-      sx={authInputSx()}
-    />
-
-    {/* ---------- PASSWORD STRENGTH ---------- */}
-{password && (
-  <Stack spacing={0.5} sx={{ mt: 1 }}>
-    {[
-      { label: "At least 8 characters", ok: passwordRules.length },
-      { label: "One uppercase letter", ok: passwordRules.uppercase },
-      { label: "One number", ok: passwordRules.number },
-      { label: "One symbol", ok: passwordRules.symbol },
-    ].map((rule) => (
-      <Typography
-        key={rule.label}
-        variant="caption"
-        sx={{
-          color: rule.ok ? "#22c55e" : "rgba(255,255,255,0.5)",
-          display: "flex",
-          alignItems: "center",
-          gap: 0.5,
-        }}
-      >
-        {rule.ok ? "✔" : "○"} {rule.label}
-      </Typography>
-    ))}
-  </Stack>
-)}
-{password && passwordStrength && (
-  <Box sx={{ mt: 1 }}>
-    <Box
-      sx={{
-        height: 6,
-        borderRadius: 10,
-        backgroundColor: "rgba(255,255,255,0.15)",
-        overflow: "hidden",
+        minHeight: "100vh",
+        backgroundColor: "#09090b",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        p: { xs: 0, sm: 2 },
       }}
     >
       <Box
         sx={{
-          height: "100%",
-          width: `${passwordStrength.value}%`,
-          backgroundColor: passwordStrength.color,
-          transition: "width 0.3s ease",
+          width: "100%",
+          maxWidth: 440,
+          minHeight: { xs: "100vh", sm: "92vh" },
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: "#000000",
+          borderRadius: { xs: 0, sm: "36px" },
+          overflow: "hidden",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
         }}
-      />
-    </Box>
-    <Typography
-      variant="caption"
-      sx={{ color: passwordStrength.color, mt: 0.5 }}
-    >
-      Password strength: {passwordStrength.label}
-    </Typography>
-  </Box>
-)}
-
-
-    {/* ---------- CONFIRM PASSWORD ---------- */}
-    <TextField
-      name="confirmPassword"
-      label="Confirm Password"
-      type={showConfirm ? "text" : "password"}
-      required
-      onChange={handleChange}
-      error={confirmPassword && password !== confirmPassword}
-      helperText={
-        confirmPassword && password !== confirmPassword
-          ? "Passwords do not match"
-          : ""
-      }
-      InputProps={{
-        endAdornment: (
-          <InputAdornment position="end">
-            <IconButton
-              onClick={() => setShowConfirm((p) => !p)}
-              edge="end"
-            >
-              {showConfirm ? <VisibilityOff /> : <Visibility />}
-            </IconButton>
-          </InputAdornment>
-        ),
-      }}
-      sx={authInputSx()}
-    />
-
-    {/* ---------- SUBMIT ---------- */}
-<Button
-  type="submit"
-  variant="contained"
-  fullWidth
-  disabled={
-    passwordStrength?.label !== "Strong" ||
-    password !== confirmPassword ||
-    usernameAvailable !== true
-  }
-  sx={authCTASx("primary", { py: 1.5 })}
->
-  Sign Up
-</Button>
-
-
-    {/* ---------- FOOTER ---------- */}
-    <Typography variant="body2" align="center" sx={{ color: "#fff" }}>
-      Already have an account?{" "}
-      <Link href="/login" underline="hover" color="#00BFA6">
-        Login
-      </Link>
-    </Typography>
-  </Stack>
-</Box>
-
-
-      <Dialog
-        open={openDialog}
-        onClose={() => setOpenDialog(false)}
-        TransitionComponent={transition}
       >
-        <DialogTitle>{errorMessage}</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Enter New Username"
-            fullWidth
-            onChange={(e) =>
-              setFormData({ ...formData, username: e.target.value })
-            }
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button
-            onClick={() => handleCreateUsername(formData.username)}
-            color="primary"
+        {/* ================= TOP HERO SECTION ================= */}
+        <motion.div
+          animate={{ backgroundColor: activeTheme.light.bg }}
+          transition={{ duration: 0.8, ease: "easeInOut" }}
+          style={{
+            padding: "40px 32px 30px",
+            borderBottomLeftRadius: "36px",
+            borderBottomRightRadius: "36px",
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: 13,
+              fontWeight: 800,
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              color: activeTheme.light.text,
+              opacity: 0.8,
+            }}
           >
-            Create
-          </Button>
-        </DialogActions>
-      </Dialog>
+            JOIN TO
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: 34,
+              fontWeight: 900,
+              letterSpacing: "-0.02em",
+              color: activeTheme.light.text,
+            }}
+          >
+            BunkMates
+          </Typography>
+        </motion.div>
+
+        {/* ================= FORM BODY ================= */}
+        <Box
+          component="form"
+          onSubmit={handleSignup}
+          sx={{
+            flex: 1,
+            p: { xs: 3, sm: 3.5 },
+            backgroundColor: "#000000",
+            overflowY: "auto",
+          }}
+        >
+          <Stack spacing={1.8}>
+            <TextField
+              name="name"
+              label="Name *"
+              placeholder="Original Bunker"
+              size="small"
+              required
+              fullWidth
+              onChange={handleChange}
+              sx={inputStyle}
+            />
+
+            <TextField
+              name="mobile"
+              label="Mobile *"
+              placeholder="+91 9876543210"
+              size="small"
+              required
+              fullWidth
+              onChange={handleChange}
+              sx={inputStyle}
+            />
+
+            <TextField
+              name="email"
+              label="Email *"
+              placeholder="user@bunkmates.com"
+              type="email"
+              size="small"
+              required
+              fullWidth
+              onChange={handleChange}
+              sx={inputStyle}
+            />
+
+            <TextField
+              name="username"
+              label="Username *"
+              placeholder="@user_bunker"
+              size="small"
+              required
+              fullWidth
+              onChange={handleChange}
+              helperText={
+                checkingUsername
+                  ? "Checking..."
+                  : usernameAvailable === false
+                  ? "Username taken"
+                  : ""
+              }
+              sx={inputStyle}
+            />
+
+            <TextField
+              name="password"
+              label="Password *"
+              size="small"
+              type={showPassword ? "text" : "password"}
+              required
+              fullWidth
+              onChange={handleChange}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setShowPassword(!showPassword)}
+                      sx={{ color: "rgba(255,255,255,0.5)" }}
+                    >
+                      {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={inputStyle}
+            />
+
+            <TextField
+              name="confirmPassword"
+              label="Confirm Password *"
+              size="small"
+              type={showConfirm ? "text" : "password"}
+              required
+              fullWidth
+              onChange={handleChange}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setShowConfirm(!showConfirm)}
+                      sx={{ color: "rgba(255,255,255,0.5)" }}
+                    >
+                      {showConfirm ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={inputStyle}
+            />
+
+            {/* JOIN BUTTON */}
+            <Button
+              type="submit"
+              disabled={loading}
+              fullWidth
+              sx={{
+                mt: 1,
+                backgroundColor: activeTheme.light.bg,
+                color: activeTheme.light.text,
+                borderRadius: "28px",
+                py: 1.4,
+                fontWeight: 800,
+                fontSize: 14,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                "&:hover": { backgroundColor: activeTheme.accent },
+              }}
+            >
+              {loading ? <CircularProgress size={22} color="inherit" /> : "JOIN CLAN"}
+            </Button>
+
+            <Divider
+              sx={{
+                my: 0.5,
+                color: "rgba(255,255,255,0.3)",
+                fontSize: 10,
+                "&::before, &::after": { borderColor: "rgba(255, 255, 255, 0.12)" },
+              }}
+            >
+              OR
+            </Divider>
+
+            {/* LOGIN REDIRECT */}
+            <Button
+              fullWidth
+              startIcon={<MailOutlineIcon />}
+              onClick={() => navigate("/login")}
+              sx={{
+                backgroundColor: "transparent",
+                color: "#ffffff",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: "28px",
+                py: 1.2,
+                fontWeight: 700,
+                fontSize: 13,
+                textTransform: "uppercase",
+                "&:hover": { borderColor: "#ffffff" },
+              }}
+            >
+              Login with Email
+            </Button>
+
+            {/* GOOGLE SIGNUP */}
+            <Button
+              fullWidth
+              startIcon={<GoogleColoredIcon />}
+              onClick={handleGoogleSignup}
+              sx={{
+                backgroundColor: activeTheme.light.bg,
+                color: activeTheme.light.text,
+                borderRadius: "28px",
+                py: 1.2,
+                fontWeight: 700,
+                fontSize: 13,
+                textTransform: "uppercase",
+                "&:hover": { backgroundColor: activeTheme.accent },
+              }}
+            >
+              Continue with Google
+            </Button>
+          </Stack>
+        </Box>
+      </Box>
 
       <Snackbar
         open={snackbar.open}
@@ -533,11 +420,6 @@ const handleChange = async (e) => {
         message={snackbar.message}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       />
-
-      </Stack>
-      </Container>
     </Box>
   );
-};
-
-export default Signup;
+}

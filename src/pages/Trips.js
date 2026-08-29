@@ -208,7 +208,6 @@ export default function Trips() {
   const isDarkMode = mode === 'dark';
   const navigate = useNavigate();
   const user = auth.currentUser;
-  const [randomNatureImage, setRandomNatureImage] = useState("");
 
   const [expanded, setExpanded] = useState(true);
   const [scrolled, setScrolled] = useState(false);
@@ -264,41 +263,82 @@ export default function Trips() {
   }, []);
 
   useEffect(() => {
-    if (createDialogOpen && !newTrip.iconDataUri) {
-      fetch(`https://api.unsplash.com/photos/random?query=travel,nature,minimal&orientation=landscape&client_id=${UNSPLASH_ACCESS_KEY}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data?.urls?.regular) setRandomNatureImage(data.urls.regular);
-        })
-        .catch(() => setRandomNatureImage(""));
-    }
-  }, [createDialogOpen, newTrip.iconDataUri]);
-
-  useEffect(() => {
     if (!user) return;
     const q = query(collection(db, "trips"), where("members", "array-contains", user.uid));
     const unsubscribe = onSnapshot(q, async snapshot => {
       const allTrips = await Promise.all(
         snapshot.docs.map(async docSnap => {
           const trip = { id: docSnap.id, ...docSnap.data() };
-          const userBudgetRef = doc(db, "budgets", user.uid);
-          const budgetSnap = await getDoc(userBudgetRef);
-          if (budgetSnap.exists()) {
-            const budgetDoc = budgetSnap.data();
-            const matchingItem = Array.isArray(budgetDoc.items) ? budgetDoc.items.find(item => item.tripId === trip.id) : null;
-            if (matchingItem) {
-              const used = Array.isArray(matchingItem.expenses) ? matchingItem.expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) : 0;
-              trip.budget = { ...matchingItem, used };
-            } else { trip.budget = null; }
-          } else { trip.budget = null; }
           
-          const memberSnapshots = await Promise.all(trip.members.map(uid => getDoc(doc(db, "users", uid))));
+          // Match trip-level budget first, then user-level budget
+          let tripBudget = null;
+          try {
+            const tripBudgetRef = doc(db, "budgets", trip.id);
+            const tripBudgetSnap = await getDoc(tripBudgetRef);
+            if (tripBudgetSnap.exists()) {
+              const bData = tripBudgetSnap.data();
+              const expenses = Array.isArray(bData.expenses) ? bData.expenses : [];
+              const used = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+              const totalAmount = parseFloat(bData.total) || parseFloat(trip.budget) || 0;
+              tripBudget = {
+                amount: totalAmount,
+                total: totalAmount,
+                used,
+                expenses,
+                contributors: bData.contributors || [],
+              };
+            } else {
+              const userBudgetRef = doc(db, "budgets", user.uid);
+              const budgetSnap = await getDoc(userBudgetRef);
+              if (budgetSnap.exists()) {
+                const budgetDoc = budgetSnap.data();
+                const matchingItem = Array.isArray(budgetDoc.items)
+                  ? budgetDoc.items.find((item) => item.tripId === trip.id)
+                  : null;
+                if (matchingItem) {
+                  const expenses = Array.isArray(matchingItem.expenses) ? matchingItem.expenses : [];
+                  const used = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+                  const totalAmount = parseFloat(matchingItem.amount) || parseFloat(matchingItem.total) || parseFloat(trip.budget) || 0;
+                  tripBudget = { ...matchingItem, amount: totalAmount, total: totalAmount, used, expenses };
+                }
+              }
+            }
+          } catch (e) {
+            console.warn("Budget fetch fallback:", e);
+          }
+          if (!tripBudget && trip.budget) {
+            const numBudget = parseFloat(trip.budget) || 0;
+            tripBudget = { amount: numBudget, total: numBudget, used: 0, expenses: [] };
+          }
+          trip.budget = tripBudget;
+
+          // Fetch member profiles
+          const memberSnapshots = await Promise.all((trip.members || []).map(uid => getDoc(doc(db, "users", uid))));
           trip.memberProfiles = memberSnapshots.filter(s => s.exists()).map(s => {
             const data = s.data();
             return { uid: s.id, photoURL: data.photoURL || "", name: data.name || "", username: data.username || "" };
           });
-          const groupChatSnap = await getDoc(doc(db, "groupChats", trip.id));
-          trip.iconURL = groupChatSnap.exists() ? groupChatSnap.data().iconURL || null : null;
+
+          // Match groupChats doc by ID or tripId query
+          let matchedIconURL = null;
+          try {
+            const groupChatSnap = await getDoc(doc(db, "groupChats", trip.id));
+            if (groupChatSnap.exists()) {
+              const gData = groupChatSnap.data();
+              matchedIconURL = gData.iconURL || gData.photoURL || gData.icon || null;
+            }
+            if (!matchedIconURL) {
+              const gq = query(collection(db, "groupChats"), where("tripId", "==", trip.id));
+              const gqSnap = await getDocs(gq);
+              if (!gqSnap.empty) {
+                const gData = gqSnap.docs[0].data();
+                matchedIconURL = gData.iconURL || gData.photoURL || gData.icon || null;
+              }
+            }
+          } catch (e) {
+            console.warn("Group chat icon fetch fallback:", e);
+          }
+          trip.iconURL = matchedIconURL || trip.iconURL || trip.coverImage || null;
 
           const timelineSnap = await getDocs(collection(db, "trips", trip.id, "timeline"));
           const timelineEvents = timelineSnap.docs.map(d => d.data());
@@ -359,7 +399,7 @@ export default function Trips() {
   // Updated handleCreateTrip to return trip details and keep drawer open if requested
   const handleCreateTrip = async (options = {}) => {
     const { name, from, to, location, startDate, endDate, iconDataUri, description } = newTrip;
-    const iconURL = iconDataUri || randomNatureImage;
+    const iconURL = iconDataUri || "";
     const members = selectedMembers.map(m => m.uid);
     const contributors = selectedMembers.map(m => ({ uid: m.uid, name: m.name || m.username, amount: parseInt(m.contribution || 0) }));
     const total = contributors.reduce((sum, c) => sum + c.amount, 0);
@@ -705,14 +745,49 @@ export default function Trips() {
               </Box>
 
               {trip.budget && (
-                <Box mt={2}>
-                  <Typography variant="caption" sx={{ color: "#ccc" }}>Budget Used:</Typography>
-                  <Typography variant="body2" fontWeight="medium">₹{trip.budget.used || 0} / ₹{trip.budget.amount || 0}</Typography>
+                <Box
+                  mt={1.5}
+                  p={1.2}
+                  sx={{
+                    borderRadius: 3,
+                    background: mode === "dark" ? "rgba(0, 0, 0, 0.3)" : "rgba(255, 255, 255, 0.4)",
+                    border: `1px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.05)"}`,
+                    backdropFilter: "blur(8px)",
+                  }}
+                >
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: mode === "dark" ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)" }}>
+                      💰 Budget & Expenses
+                    </Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 800, color: (trip.budget.used || 0) > (trip.budget.total || trip.budget.amount || 0) ? "error.main" : "text.secondary" }}>
+                      ₹{trip.budget.used || 0} / ₹{trip.budget.total || trip.budget.amount || 0}
+                    </Typography>
+                  </Box>
                   <LinearProgress
                     variant="determinate"
-                    value={trip.budget.amount ? (trip.budget.used / trip.budget.amount) * 100 : 0}
-                    sx={{ mt: 0.5, borderRadius: 20, height: 7, bgcolor: mode === "dark" ? "#ffffff36" : "#00000018", "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff", borderRadius: 20 } }}
+                    value={Math.min(100, (trip.budget.total || trip.budget.amount) ? ((trip.budget.used || 0) / (trip.budget.total || trip.budget.amount)) * 100 : 0)}
+                    sx={{
+                      borderRadius: 10,
+                      height: 6,
+                      bgcolor: mode === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
+                      "& .MuiLinearProgress-bar": {
+                        bgcolor: (trip.budget.used || 0) > (trip.budget.total || trip.budget.amount || 0)
+                          ? "error.main"
+                          : mode === "dark"
+                          ? "#ffffff"
+                          : "#111111",
+                        borderRadius: 10,
+                      },
+                    }}
                   />
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
+                    <Typography variant="caption" sx={{ fontSize: "0.68rem", opacity: 0.6 }}>
+                      {trip.budget.expenses?.length || 0} recorded expenses
+                    </Typography>
+                    <Typography variant="caption" sx={{ fontSize: "0.68rem", fontWeight: 700, color: mode === "dark" ? "#a7f3d0" : "#059669" }}>
+                      ₹{Math.max(0, (trip.budget.total || trip.budget.amount || 0) - (trip.budget.used || 0))} remaining
+                    </Typography>
+                  </Box>
                 </Box>
               )}
 
@@ -1787,7 +1862,6 @@ export default function Trips() {
           setNewTrip={setNewTrip}
           selectedMembers={selectedMembers}
           setSelectedMembers={setSelectedMembers}
-          randomNatureImage={randomNatureImage}
           handleNext={handleNext}
           handleBack={handleBack}
           handleCreateTrip={handleCreateTrip}

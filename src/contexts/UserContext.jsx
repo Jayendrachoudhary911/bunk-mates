@@ -1,6 +1,6 @@
 // src/contexts/UserContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from '../firebase'; // Assuming you are using Firebase Auth
+import { auth } from '../firebase';
 
 const UserContext = createContext();
 
@@ -14,18 +14,20 @@ export const useUser = () => {
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-      } else {
-        setUser(null);
-      }
+      setUser(firebaseUser);
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  return <UserContext.Provider value={{ user }}>{children}</UserContext.Provider>;
+  return (
+    <UserContext.Provider value={{ user, loading }}>
+      {children}
+    </UserContext.Provider>
+  );
 };

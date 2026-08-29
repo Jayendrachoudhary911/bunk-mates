@@ -441,7 +441,6 @@ export default function SearchPage() {
     setNewTrip,
     selectedMembers,
     setSelectedMembers,
-    randomNatureImage,
     openDrawerWithPrefill,
     closeDrawer: closeTripDrawer,
     handleNext,
@@ -2830,7 +2829,6 @@ export default function SearchPage() {
         setNewTrip={setNewTrip}
         selectedMembers={selectedMembers}
         setSelectedMembers={setSelectedMembers}
-        randomNatureImage={randomNatureImage}
         handleNext={handleNext}
         handleBack={handleBack}
         handleCreateTrip={handleCreateTrip}

@@ -61,6 +61,7 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import {
     getDoc,
+    getDocs,
     doc,
     updateDoc,
     collection,
@@ -68,6 +69,8 @@ import {
     onSnapshot,
     deleteDoc,
     setDoc,
+    query,
+    where,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db } from "../firebase";
@@ -112,7 +115,6 @@ export default function TripDetails() {
     const currentUseruid = currentUser ? currentUser.uid : null;
     const [groupChatIcon, setGroupChatIcon] = useState("");
     const [trip, setTrip] = useState(null);
-    const [coverImage, setCoverImage] = useState("");
     const [editMode, setEditMode] = useState(false);
     const [editTrip, setEditTrip] = useState({});
     const [checklist, setChecklist] = useState([]);
@@ -221,6 +223,35 @@ export default function TripDetails() {
     // Check if user is assigned "Dev Beta" type in Firestore
     const isDevBeta = userData?.type === "Dev Beta";
 
+    // Real-time listener for groupChats document matching trip ID to get hero image iconURL
+    useEffect(() => {
+        if (!id) return;
+
+        // Try direct document by ID first
+        const unsubGroup = onSnapshot(doc(db, "groupChats", id), async (snap) => {
+            if (snap.exists()) {
+                const data = snap.data();
+                const icon = data.iconURL || data.photoURL || data.icon || "";
+                if (icon) setGroupChatIcon(icon);
+            } else {
+                // Fallback: Query by tripId field
+                try {
+                    const q = query(collection(db, "groupChats"), where("tripId", "==", id));
+                    const qSnap = await getDocs(q);
+                    if (!qSnap.empty) {
+                        const data = qSnap.docs[0].data();
+                        const icon = data.iconURL || data.photoURL || data.icon || "";
+                        if (icon) setGroupChatIcon(icon);
+                    }
+                } catch (err) {
+                    console.warn("Failed querying groupChats for icon:", err);
+                }
+            }
+        });
+
+        return () => unsubGroup();
+    }, [id]);
+
     // Subscriptions & Initial Load
     useEffect(() => {
         if (!id) return;
@@ -240,9 +271,6 @@ export default function TripDetails() {
             }
             if (data.members?.length) loadMemberDetails(data.members);
             if (data.location) {
-                fetchCoverImage(data.name || data.location).then((url) => {
-                    if (url) setCoverImage(url);
-                }).catch(() => {});
                 getWeather(data.location).then(setWeather).catch(() => {});
             }
         });
@@ -828,24 +856,10 @@ Do not output markdown.`;
         }
     };
 
-    const fetchCoverImage = async (locationName) => {
-        const query = locationName ? `travel ${locationName}` : "travel";
-        try {
-            const response = await fetch(
-                `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&client_id=MGCA3bsEUNBsSG6XbcqnJXckFB4dDyN5ZPKVBrD0FeQ`
-            );
-            const data = await response.json();
-            return data?.urls?.regular || "";
-        } catch (error) {
-            console.error("Failed to fetch cover image:", error);
-            return "";
-        }
-    };
-
     const goBack = () => navigate(-1);
     const inviteLink = `${window.location.origin}/join?trip=${id}`;
     const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(trip?.from || "")}&destination=${encodeURIComponent(trip?.to || "")}`;
-    const displayIconURL = trip?.iconURL || groupChatIcon || coverImage || "";
+    const displayIconURL = groupChatIcon || trip?.iconURL || trip?.coverImage || "";
 
     return (
         <Box sx={{ color: mode === "dark" ? "#fff" : "#000", minHeight: "100vh" }}>
@@ -861,6 +875,7 @@ Do not output markdown.`;
               left: 16,
               backgroundColor: mode === "dark" ? "#00000047" : "#ffffff36",
               backdropFilter: "blur(180px)",
+              zIndex: 10,
             }}
           >
             Back
@@ -875,6 +890,7 @@ Do not output markdown.`;
               position: "absolute",
               top: 46,
               right: 16,
+              zIndex: 10,
             }}
           >
             <Button
@@ -920,31 +936,78 @@ Do not output markdown.`;
             </Button>
           </Box>
 
+          {/* Hero Banner Section */}
           <Box
             sx={{
-              backgroundImage: `url(${displayIconURL})`,
+              position: "relative",
+              backgroundImage: displayIconURL ? `url(${displayIconURL})` : "none",
               backgroundSize: "cover",
               backgroundPosition: "center",
-              backgroundColor: mode === "dark" ? "#1d1d1dff" : "#ffffff",
-              height: { xs: 470, sm: 320 },
+              backgroundColor: mode === "dark" ? "#1d1d1d" : "#f0f0f0",
+              height: { xs: 340, sm: 380 },
               boxShadow: "none",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              alignItems: "flex-end",
+              justifyContent: "flex-start",
+              p: { xs: 2, sm: 3 },
             }}
           >
+            {/* Weather widget positioned nicely inside the hero banner */}
+            {weather && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  background:
+                    mode === "dark"
+                      ? "rgba(20, 20, 20, 0.15)"
+                      : "rgba(255, 255, 255, 0.25)",
+                  borderRadius: 4,
+                  width: "auto",
+                  minWidth: 200,
+                  py: 1,
+                  px: 2,
+                  backdropFilter: "blur(12px)",
+                  boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)',
+                  zIndex: 2,
+                  mb: 2,
+                }}
+              >
+                <Box display="flex" alignItems="center" gap={1.2}>
+                  <Box sx={{ fontSize: 26, opacity: 0.9 }}>
+                    {weather.temp > 32 ? "🔥" : weather.temp < 10 ? "❄️" : weather.description?.includes("rain") ? "🌧️" : weather.description?.includes("cloud") ? "⛅" : "☀️"}
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight="700" sx={{ lineHeight: 1.1, color: mode === "dark" ? "#fff" : "#000" }}>
+                      {weather.temp ? `${Math.round(weather.temp)}°C` : "—"}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ textTransform: "capitalize" }}>
+                      {weather.description || "N/A"}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", ml: 2, fontWeight: 700 }}>
+                  in {trip?.location || "—"}
+                </Typography>
+              </Box>
+            )}
+
             {!displayIconURL && (
               <Box
                 sx={{
-                  width: 120,
-                  height: 120,
-                  borderRadius: 2,
-                  backgroundColor: mode === "dark" ? "#222" : "#f2f2f2",
+                  width: 100,
+                  height: 100,
+                  borderRadius: 3,
+                  backgroundColor: mode === "dark" ? "#222" : "#e0e0e0",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   color: mode === "dark" ? "#fff" : "#000",
-                  fontWeight: 600,
+                  fontWeight: 700,
+                  fontSize: 32,
+                  mb: 2,
                 }}
               >
                 {trip?.name ? trip.name.charAt(0).toUpperCase() : "T"}
@@ -952,84 +1015,55 @@ Do not output markdown.`;
             )}
           </Box>
 
-          <Container sx={{ py: 0, px: 0, position: "absolute", top: 250 }}>
-            {weather && (
-              <Box
-                m={1.5}
-                sx={{
-                  position: "relative",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 1,
-                  background:
-                    mode === "dark"
-                      ? "linear-gradient(145deg, rgba(39, 39, 39, 0.35), rgba(25, 25, 25, 0.5))"
-                      : "linear-gradient(145deg, rgba(255,255,255,0.58), rgba(245, 245, 245, 0.52))",
-                  borderRadius: 4,
-                  width: 240,
-                  py: 1.5,
-                  px: 2,
-                  border: "none",
-                  backdropFilter: "blur(20px)",
-                  boxShadow: "none",
-                }}
-              >
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                  <Box display="flex" alignItems="center" gap={1.2}>
-                    <Box sx={{ fontSize: 28, opacity: 0.8 }}>
-                      {weather.temp > 32 ? "🔥" : weather.temp < 10 ? "❄️" : weather.description?.includes("rain") ? "🌧️" : weather.description?.includes("cloud") ? "⛅" : "☀️"}
-                    </Box>
-                    <Box>
-                      <Typography variant="h6" fontWeight="600" sx={{ lineHeight: 1.1, color: mode === "dark" ? "#fff" : "#000" }}>
-                        {weather.temp ? `${Math.round(weather.temp)}°C` : "—"}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: "capitalize" }}>
-                        {weather.description || "N/A"}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase" }}>
-                    in {trip?.location || "—"}
-                  </Typography>
-                </Box>
+          {/* Main Content Section */}
+          <Container
+            maxWidth="lg"
+            sx={{
+              position: "relative",
+              zIndex: 3,
+              mt: -3,
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              bgcolor: mode === "dark" ? "#00000000" : "#f8f9fa0e",
+              backdropFilter: "blur(30px)",
+              pt: 3,
+              pb: 8,
+              boxShadow: mode === "dark" ? "0 -8px 30px rgba(0,0,0,0.5)" : "0 -8px 30px rgba(0,0,0,0.06)",
+            }}
+          >
+            {/* Title + Edit */}
+            <Box display="flex" flexDirection="column" gap={1} px={{ xs: 1, sm: 2 }} py={1}>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                {editMode ? (
+                  <TextField
+                    value={editTrip.name}
+                    onChange={(e) => setEditTrip({ ...editTrip, name: e.target.value })}
+                    fullWidth
+                    variant="standard"
+                    sx={{ mr: 2, fontSize: "2rem", fontWeight: "bold" }}
+                  />
+                ) : (
+                  <Typography variant="h3" fontWeight="bold">{trip?.name}</Typography>
+                )}
+                {trip?.createdBy === currentUseruid && canUserDo("canEdit") && (
+                  <IconButton onClick={() => setEditMode(!editMode)} size="small">
+                    <Edit fontSize="small" />
+                  </IconButton>
+                )}
               </Box>
-            )}
 
-            <Container sx={{ borderRadius: 5, backgroundColor: mode === "dark" ? "#00000000" : "#ffffff50", backdropFilter: "blur(80px)", py: 2, pb: 6 }}>
-              {/* Title + Edit */}
-              <Box display="flex" flexDirection="column" gap={1} px={3} py={2}>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                  {editMode ? (
-                    <TextField
-                      value={editTrip.name}
-                      onChange={(e) => setEditTrip({ ...editTrip, name: e.target.value })}
-                      fullWidth
-                      variant="standard"
-                      sx={{ mr: 2, fontSize: "2rem", fontWeight: "bold" }}
-                    />
-                  ) : (
-                    <Typography variant="h3" fontWeight="bold">{trip?.name}</Typography>
-                  )}
-                  {trip?.createdBy === currentUseruid && canUserDo("canEdit") && (
-                    <IconButton onClick={() => setEditMode(!editMode)} size="small">
-                      <Edit fontSize="small" />
-                    </IconButton>
-                  )}
-                </Box>
-
-                <Typography sx={{ mt: 1 }}>
-                  {editMode ? (
-                    <TextField
-                      value={editTrip.location}
-                      onChange={(e) => setEditTrip({ ...editTrip, location: e.target.value })}
-                      variant="standard"
-                    />
-                  ) : (
-                    <Typography variant="body2" color="text.secondary" sx={{ display: "flex" }}>
-                      <LocationOn sx={{ fontSize: 16, mr: 0.5, color: mode === "dark" ? "#fff" : "#333" }} /> {trip?.location}
-                    </Typography>
-                  )}
+              <Typography sx={{ mt: 1 }}>
+                {editMode ? (
+                  <TextField
+                    value={editTrip.location}
+                    onChange={(e) => setEditTrip({ ...editTrip, location: e.target.value })}
+                    variant="standard"
+                  />
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ display: "flex", alignItems: "center" }}>
+                    <LocationOn sx={{ fontSize: 18, mr: 0.5, color: mode === "dark" ? "#fff" : "#333" }} /> {trip?.location}
+                  </Typography>
+                )}
                 </Typography>
 
                 {trip?.description && (
@@ -1096,7 +1130,7 @@ Do not output markdown.`;
                 )}
               </Box>
 
-              <Container sx={{ mb: 4 }}>
+              <Box sx={{ mb: 4 }}>
                 {/* AI Famous Places Section */}
                 {isDevBeta && (
                   <Box sx={{ mt: 3, p: 2, borderRadius: 4, bgcolor: mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: "1px solid divider" }}>
@@ -1375,8 +1409,7 @@ Do not output markdown.`;
                     Invite Members
                   </Button>
                 </Box>
-              </Container>
-            </Container>
+              </Box>
           </Container>
 
           {/* Sub-components with userData passed down */}
@@ -1455,7 +1488,7 @@ Do not output markdown.`;
             userData={userData}
           />
 
-          <Snackbar open={!!snackbar.open} autoHideDuration={3000} message={snackbar.message} onClose={() => setSnackbar({ open: false, message: "" })} />
+          {/* <Snackbar open={!!snackbar.open} autoHideDuration={3000} message={snackbar.message} onClose={() => setSnackbar({ open: false, message: "" })} /> */}
         </Box>
     );
 }

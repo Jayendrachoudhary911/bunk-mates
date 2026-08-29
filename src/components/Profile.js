@@ -504,12 +504,6 @@ const ProfilePic = ({currentUser}) => {
       return () => unsubscribe();
   }, []);
 
-  const handleScanError = (errorMessage) => {
-    if (!errorMessage.includes("QR code parse error")) {
-        console.error("QR Scanner Error:", errorMessage);
-    }
-  };
-
   const handleAddFriend = async () => {
     if (!scannedUserData) return;
 
@@ -533,12 +527,6 @@ const ProfilePic = ({currentUser}) => {
     } catch (error) {
       console.error("Error adding friend:", error);
       alert("An error occurred while adding the friend.");
-    }
-  };
-
-  const handleError = (error) => {
-    if (!error.message.includes("NotFoundException")) {
-      console.error("QR Scanner Error:", error?.message);
     }
   };
 

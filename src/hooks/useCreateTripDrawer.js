@@ -48,7 +48,6 @@ export function useCreateTripDrawer() {
     iconDataUri: "",
   });
   const [selectedMembers, setSelectedMembers] = useState([]);
-  const [randomNatureImage, setRandomNatureImage] = useState("");
   const [latestTripId, setLatestTripId] = useState(null);
 
   // start location mode: "auto" uses geolocation, "manual" lets user type
@@ -58,22 +57,6 @@ export function useCreateTripDrawer() {
   const user = auth.currentUser;
   const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
-
-  // Optional Unsplash image (same as Trips)
-  useEffect(() => {
-    if (!createDialogOpen || newTrip.iconDataUri) return;
-    const UNSPLASHACCESSKEY = "MGCA3bsEUNBsSG6XbcqnJXckFB4dDyN5ZPKVBrD0FeQ";
-    fetch(
-      `https://api.unsplash.com/photos/random?query=nature&orientation=squarish&client_id=${UNSPLASHACCESSKEY}`
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.urls && data.urls.small) {
-          setRandomNatureImage(data.urls.small);
-        }
-      })
-      .catch(() => setRandomNatureImage(""));
-  }, [createDialogOpen, newTrip.iconDataUri]);
 
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
 
@@ -219,7 +202,7 @@ export function useCreateTripDrawer() {
       return;
     }
 
-    const iconURL = iconDataUri || randomNatureImage || "";
+    const iconURL = iconDataUri || "";
     const members = selectedMembers.map((m) => m.uid);
     const contributors = selectedMembers.map((m) => ({
       uid: m.uid,
@@ -434,7 +417,6 @@ Do not output markdown code blocks. Raw JSON only.`;
     setNewTrip,
     selectedMembers,
     setSelectedMembers,
-    randomNatureImage,
     startLocationMode,
     setStartLocationMode,
     resolvedStartLocation,

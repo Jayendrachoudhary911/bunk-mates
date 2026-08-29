@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, collection, query, where, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, collection, query, where, getDoc, getDocs, onSnapshot, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useWeather } from "../contexts/WeatherContext";
@@ -211,7 +211,6 @@ const Home = () => {
     setNewTrip,
     selectedMembers,
     setSelectedMembers,
-    randomNatureImage,
     openDrawerWithPrefill,
     closeDrawer,
     handleNext,
@@ -736,10 +735,25 @@ const Home = () => {
     const fetchGroupsForTrips = async () => {
       const groupMap = {};
       await Promise.all(
-        myTrips.map(async trip => {
-          const groupSnap = await getDoc(doc(db, "groupChats", trip.id));
-          if (groupSnap.exists()) {
-            groupMap[trip.id] = groupSnap.data();
+        myTrips.map(async (trip) => {
+          let gData = null;
+          try {
+            const groupSnap = await getDoc(doc(db, "groupChats", trip.id));
+            if (groupSnap.exists()) {
+              gData = groupSnap.data();
+            }
+            if (!gData?.iconURL) {
+              const gq = query(collection(db, "groupChats"), where("tripId", "==", trip.id));
+              const gqSnap = await getDocs(gq);
+              if (!gqSnap.empty) {
+                gData = gqSnap.docs[0].data();
+              }
+            }
+          } catch (e) {
+            console.warn("Home group fetch error:", e);
+          }
+          if (gData) {
+            groupMap[trip.id] = gData;
           }
         })
       );
@@ -1184,7 +1198,6 @@ const Home = () => {
           totalContribution={totalContribution}
           handleCreateTrip={handleCreateTrip}
           handleAddMember={handleAddMember}
-          randomNatureImage={randomNatureImage}
           friendCards={friendCards}
           mode={mode}
           theme={theme}
