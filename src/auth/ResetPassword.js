@@ -726,7 +726,7 @@ export default function ResetPassword({ haptic, activeTheme }) {
               fullWidth
               startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
               onClick={() => {
-                if (haptic) haptic(10);
+                if (haptic) haptic(10); 
                 navigate("/auth/login");
               }}
               sx={{
