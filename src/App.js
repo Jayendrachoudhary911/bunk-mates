@@ -39,8 +39,8 @@ import TermsAndConditions from "./components/TermsAndConditions";
 import CommunityPage from "./components/CommunityPage";
 import GroupInvitePage from "./components/GroupInvitePage";
 import Notifications from "./components/Notifications";
-import ForgotPassword from "./components/ForgotPassword";
-import ResetPassword from "./components/ResetPassword";
+import ForgotPassword from "./auth/ForgotPassword";
+import ResetPassword from "./auth/ResetPassword";
 import HourlyForecast from "./components/Weather/WeatherPage";
 import WeatherDebugPage from "./components/Weather/WeatherMap";
 import AccountDeletionPolicy from "./components/AccountDeletionPolicy";
@@ -256,6 +256,8 @@ function AppContent() {
             <Route path="/auth/*" element={<RestrictAuthForLoggedIn><AuthPage /></RestrictAuthForLoggedIn>} />
             <Route path="/signup" element={<Navigate to="/auth/signup" replace />} />
             <Route path="/login" element={<Navigate to="/auth/login" replace />} />
+            <Route path="/forgot-password" element={<RestrictAuthForLoggedIn><ForgotPassword /></RestrictAuthForLoggedIn>} />
+            <Route path="/reset-password" element={<RestrictAuthForLoggedIn><ResetPassword /></RestrictAuthForLoggedIn>} />
 
             {/* Other routes remain accessible or protected as needed */}
             <Route path="/grouplists" element={<RequireAuth><GroupList /></RequireAuth>} />
@@ -269,8 +271,6 @@ function AppContent() {
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/community" element={<CommunityPage />} />
             <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
-            <Route path="/forgot-password" element={<RestrictAuthForLoggedIn><ForgotPassword /></RestrictAuthForLoggedIn>} />
-            <Route path="/reset-password" element={<RestrictAuthForLoggedIn><ResetPassword /></RestrictAuthForLoggedIn>} />
             <Route path="/account-deletion-policy" element={<AccountDeletionPolicy />} />
           </Routes>
         </Box>

@@ -14,6 +14,7 @@ import AuthLogin from "./AuthLogin";
 import AuthSignup from "./AuthSignup";
 import AuthContinue from "./AuthContinue";
 import AuthForgotPassword from "./AuthForgotPassword";
+import ResetPassword from "./ResetPassword";
 
 import { auth, googleProvider, db } from "../firebase";
 import {
@@ -512,6 +513,8 @@ export default function AuthPage() {
                 />
                 <Route index element={<Navigate to="/auth/welcome" replace />} />
                 <Route path="*" element={<Navigate to="/auth/welcome" replace />} />
+                
+                <Route path="/reset-password" element={<ResetPassword haptic={haptic} activeTheme={activeTheme} />} />
               </Routes>
             </AnimatePresence>
           </motion.div>
@@ -770,6 +773,7 @@ export default function AuthPage() {
                 />
                 <Route index element={<Navigate to="/auth/welcome" replace />} />
                 <Route path="*" element={<Navigate to="/auth/welcome" replace />} />
+                <Route path=":userId/reset-password" element={<ResetPassword haptic={haptic} activeTheme={activeTheme} />} />
               </Routes>
             </AnimatePresence>
           </motion.div>
