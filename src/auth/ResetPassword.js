@@ -735,7 +735,7 @@ export default function ResetPassword({ haptic, activeTheme }) {
                 boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)",
                 textTransform: "none",
                 fontSize: "0.85rem",
-                fontWeight: 600,
+                fontWeight: 600,  
                 borderRadius: "28px",
                 py: 1.1,
                 transition: "color 0.25s ease, background-color 0.25s ease",
