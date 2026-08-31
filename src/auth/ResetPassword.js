@@ -722,7 +722,7 @@ export default function ResetPassword({ haptic, activeTheme }) {
             whileTap={{ scale: 0.985 }}
             style={{ willChange: "transform" }}
           >
-            <Button
+            <Button  
               fullWidth
               startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
               onClick={() => {
