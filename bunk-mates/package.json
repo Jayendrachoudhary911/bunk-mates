@@ -1,0 +1,27 @@
+{
+  "name": "bunk-mates",
+  "version": "1.0.0",
+  "description": "A collaborative platform for managing budgets, trips, notes, and reminders.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "dependencies": {
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-scripts": "4.0.3",
+    "react-router-dom": "^5.2.0",
+    "@mui/material": "^5.0.0",
+    "firebase": "^9.0.0",
+    "leaflet": "^1.7.1"
+  },
+  "devDependencies": {
+    "eslint": "^7.32.0",
+    "eslint-plugin-react": "^7.27.1"
+  },
+  "homepage": "http://localhost:3000",
+  "license": "MIT"
+}

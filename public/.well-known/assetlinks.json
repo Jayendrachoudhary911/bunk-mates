@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.bm.bunkmate",
+      "sha256_cert_fingerprints": [
+        "E9:A0:08:DE:03:6E:F1:67:13:52:7C:32:FF:3B:DE:10:5C:4E:86:4D:B2:B9:3C:60:59:24:17:B3:CD:BA:FF:22"
+      ]
+    }
+  }
+]
