@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import {
   AppBar,
   Toolbar,
@@ -26,9 +26,7 @@ import {
   InfoOutlined as InfoIcon,
   NavigateNext as NavigateNextIcon,
   Home as HomeIcon,
-  LockOutlined as LockIcon,
   Schedule as ScheduleIcon,
-  HelpOutline as HelpIcon,
 } from "@mui/icons-material";
 import { Link } from "react-router-dom";
 

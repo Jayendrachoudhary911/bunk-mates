@@ -5,6 +5,7 @@ import {
     Button,
     List,
     ListItem,
+    ListItemAvatar,
     ListItemText,
     Avatar,
     AvatarGroup,
@@ -22,7 +23,7 @@ import PeopleOutline from "@mui/icons-material/PeopleOutline";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CloseIcon from "@mui/icons-material/Close";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { drawerPaperSx, drawerBackdropSx, DrawerHandle } from "../../theme/designSystem";
+import { drawerPaperSx, drawerBackdropSx, DrawerHandle, glassIconBtnSx } from "../../theme/designSystem";
 
 export default function BudgetExpensesSection({
     numericBudget = 0,
@@ -33,6 +34,8 @@ export default function BudgetExpensesSection({
     setBudgetDrawerOpen,
     setExpenseDrawerOpen,
     mode,
+    currentUserId,
+    userData,
 }) {
     const [expensesDrawerOpen, setExpensesDrawerOpen] = useState(false);
 
@@ -43,6 +46,28 @@ export default function BudgetExpensesSection({
     const radius = 40;
     const circumference = Math.PI * radius;
     const strokeDashoffset = circumference - (spendingPercentage / 100) * circumference;
+
+    // Helper to get the correct display name based on current user ID looking up the nicknames map
+    const getDisplayName = (member) => {
+        if (userData?.nicknames && typeof userData.nicknames === "object") {
+            if (member?.id && userData.nicknames[member.id]) {
+                return userData.nicknames[member.id];
+            }
+        }
+        return member?.name || "Unnamed";
+    };
+
+    // Helper for category 3D symbol / emoji representation
+    const getCategoryAvatar = (category) => {
+        const cat = (category || "").toLowerCase();
+        if (cat.includes("food") || cat.includes("restaurant") || cat.includes("dining") || cat.includes("cafe")) return "🍔";
+        if (cat.includes("transport") || cat.includes("travel") || cat.includes("flight") || cat.includes("taxi") || cat.includes("cab")) return "🚗";
+        if (cat.includes("hotel") || cat.includes("stay") || cat.includes("accommodation")) return "🏨";
+        if (cat.includes("shop") || cat.includes("shopping") || cat.includes("store")) return "🛍️";
+        if (cat.includes("activity") || cat.includes("fun") || cat.includes("ticket") || cat.includes("tour")) return "🎢";
+        return "🏷️";
+    };
+
 
     return (
         <>
@@ -117,9 +142,9 @@ export default function BudgetExpensesSection({
                 <Box
                     sx={{
                         p: 2.5,
-                        borderRadius: 3.5,
-                        bgcolor: mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
-                        border: "1px solid divider",
+                        borderRadius: 6,
+                        bgcolor: mode === "dark" ? "rgba(255,255,255,0)" : "rgba(0,0,0,0)",
+                        border: "0px solid divider",
                         mb: 2,
                         display: "flex",
                         flexDirection: "column",
@@ -129,25 +154,29 @@ export default function BudgetExpensesSection({
                         overflow: "hidden",
                     }}
                 >
-                    {/* SVG Semi-Arc (Half Circle) Gauge */}
-                    <Box sx={{ position: "relative", width: 110, height: 60, mb: 1, display: "flex", justifyContent: "center" }}>
-                        <svg width="110" height="65" viewBox="0 0 100 55">
+                    <Box sx={{ position: "relative", width: 160, height: 110, mb: 1, display: "flex", justifyContent: "center" }}>
+                        <svg width="160" height="110" viewBox="0 0 100 55" style={{ overflow: "visible" }}>
                             <path
-                                d="M 10 50 A 40 40 0 0 1 90 50"
+                                d="M 0 70 A 40 40 0 0 1 100 70"
                                 fill="none"
                                 stroke={mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}
-                                strokeWidth="8"
+                                strokeWidth="18"
                                 strokeLinecap="round"
+                                strokeLinejoin="round"
                             />
                             <path
-                                d="M 10 50 A 40 40 0 0 1 90 50"
+                                d="M 0 70 A 40 40 0 0 1 100 70"
                                 fill="none"
-                                stroke={isOverBudget ? "#f44336" : "#00E676"}
-                                strokeWidth="8"
+                                stroke={isOverBudget ? "#f44336" : mode === "dark" ? "#ffffff" : "#0c0c0c"}
+                                strokeWidth="18"
                                 strokeDasharray={circumference}
                                 strokeDashoffset={strokeDashoffset}
                                 strokeLinecap="round"
-                                style={{ transition: "stroke-dashoffset 0.8s ease" }}
+                                strokeLinejoin="round"
+                                style={{ 
+                                    transition: "stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
+                                    filter: isOverBudget ? "drop-shadow(0px 2px 6px rgba(244,67,54,0.4))" : "drop-shadow(0px 2px 6px rgba(255, 255, 255, 0.3))"
+                                }}
                             />
                         </svg>
                         <Box sx={{ position: "absolute", bottom: 0, textAlign: "center" }}>
@@ -163,10 +192,10 @@ export default function BudgetExpensesSection({
                         sx={{
                             height: 20,
                             fontSize: "0.65rem",
-                            fontWeight: 700,
+                            fontWeight: 600,
                             mb: 2,
-                            bgcolor: isOverBudget ? "rgba(244, 67, 54, 0.15)" : "rgba(0, 230, 118, 0.15)",
-                            color: isOverBudget ? "#f44336" : "#00E676",
+                            bgcolor: isOverBudget ? "rgba(244, 67, 54, 0.15)" : mode === "dark" ? "rgba(255, 255, 255, 0.15)" : "rgba(12, 12, 12, 0.15)",
+                            color: isOverBudget ? "#f44336" : mode === "dark" ? "#ffffff" : "#0c0c0c",
                         }}
                     />
 
@@ -188,10 +217,9 @@ export default function BudgetExpensesSection({
                 <Accordion
                     elevation={0}
                     sx={{
-                        borderRadius: "12px !important",
+                        borderRadius: 6,
                         bgcolor: mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
-                        border: "1px solid",
-                        borderColor: "divider",
+                        border: "0px solid",
                         mb: 2,
                         overflow: "hidden",
                         "&:before": { display: "none" },
@@ -201,26 +229,77 @@ export default function BudgetExpensesSection({
                         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", mr: 1 }}>
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                                 <PeopleOutline sx={{ color: "text.secondary", fontSize: 20 }} />
-                                <Typography variant="subtitle2" fontWeight={800}>Member Contributions</Typography>
+                                <Typography variant="subtitle2" fontWeight={800}>Trip Contrii's</Typography>
                             </Box>
                             <AvatarGroup max={3} sx={{ "& .MuiAvatar-root": { width: 24, height: 24, fontSize: "0.7rem" } }}>
-                                {normalizedContributors.map((m) => (
-                                    <Avatar key={m.id} src={m.photoURL} alt={m.name}>{m.name?.charAt(0)}</Avatar>
-                                ))}
+                                {normalizedContributors.map((m) => {
+                                    const displayName = getDisplayName(m);
+                                    return (
+                                        <Avatar key={m.id} src={m.photoURL} alt={displayName}>
+                                            {displayName.charAt(0)}
+                                        </Avatar>
+                                    );
+                                })}
                             </AvatarGroup>
                         </Box>
                     </AccordionSummary>
                     <AccordionDetails sx={{ p: 2, pt: 0, borderTop: "1px solid divider" }}>
                         <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 1, mt: 1.5 }}>
-                            {normalizedContributors.map((member) => (
-                                <Box key={member.id} sx={{ p: 1, textAlign: "center", bgcolor: "background.paper", borderRadius: 2, border: "1px solid divider" }}>
-                                    <Avatar src={member.photoURL} sx={{ width: 32, height: 32, mx: "auto", mb: 0.5, fontSize: "0.75rem" }}>
-                                        {member.name?.charAt(0)}
-                                    </Avatar>
-                                    <Typography variant="caption" fontWeight={700} noWrap display="block">{member.name}</Typography>
-                                    <Typography variant="caption" color="text.secondary">{formatCurrency(member.amount)}</Typography>
-                                </Box>
-                            ))}
+                            {normalizedContributors.map((member) => {
+                                const displayName = getDisplayName(member);
+
+                                return (
+                                    <Box
+                                        key={member.id}
+                                        sx={{
+                                            p: 0,
+                                            textAlign: "center",
+                                            borderRadius: 3,
+                                            border: "0px solid",
+                                            bgcolor: 'transparent',
+                                            transition: "all 0.2s ease-in-out",
+                                            "&:hover": {
+                                                transform: "translateY(-1px)",
+                                            },
+                                        }}
+                                    >
+                                        <Avatar
+                                            src={member.photoURL}
+                                            sx={{
+                                                width: 62,
+                                                height: 62,
+                                                mx: "auto",
+                                                mb: 1,
+                                                fontSize: "0.9rem",
+                                                fontWeight: 700,
+                                                bgcolor: "primary.main",
+                                                color: "primary.contrastText",
+                                                border: "0px solid",
+                                            }}
+                                        >
+                                            {displayName.charAt(0)}
+                                        </Avatar>
+                                        <Typography
+                                            variant="body2"
+                                            fontWeight={700}
+                                            noWrap
+                                            display="block"
+                                            sx={{ mb: 0.2 }}
+                                        >
+                                            {displayName}
+                                        </Typography>
+                                        <Typography
+                                            variant="caption"
+                                            color="primary.main"
+                                            fontWeight={600}
+                                            display="block"
+                                            sx={{ opacity: 0.9 }}
+                                        >
+                                            {formatCurrency(member.amount || 0)}
+                                        </Typography>
+                                    </Box>
+                                );
+                            })}
                         </Box>
                     </AccordionDetails>
                 </Accordion>
@@ -234,64 +313,85 @@ export default function BudgetExpensesSection({
                         <Button
                             size="small"
                             onClick={() => setExpensesDrawerOpen(true)}
-                            sx={{ fontSize: "0.7rem", textTransform: "none", fontWeight: 700, minWidth: "auto", p: 0.5 }}
+                            sx={glassIconBtnSx(mode, { p: 1, pl: 2, pb: 0.6, display: 'flex' })}
                         >
                             View All ({rawExpenses.length}) <ChevronRightIcon fontSize="small" />
                         </Button>
                     )}
                 </Box>
-                <List dense sx={{ maxHeight: 150, overflowY: "auto", pr: 0.5 }}>
-                    {rawExpenses.length === 0 ? (
-                        <Typography variant="body2" color="text.secondary" sx={{ py: 1, textAlign: "center" }}>No expenses recorded yet.</Typography>
-                    ) : (
-                        rawExpenses.slice(-4).reverse().map((exp, idx) => (
-                            <ListItem key={idx} disableGutters sx={{ py: 0.5, borderBottom: "1px solid divider" }}>
-                                <ListItemText
-                                    primary={<Typography variant="body2" fontWeight="medium">{exp.name || "Expense"}</Typography>}
-                                    secondary={<Typography variant="caption" color="text.secondary">{exp.category || "General"} • {exp.date || ""}</Typography>}
-                                />
-                                <Typography variant="body2" fontWeight="bold">{formatCurrency(exp.amount)}</Typography>
-                            </ListItem>
-                        ))
-                    )}
-                </List>
+
+                <Box sx={{ overflow: "hidden" }}>
+                    <List dense sx={{ p: 0, m: 0 }}>
+                        {rawExpenses.length === 0 ? (
+                            <Typography variant="body2" color="text.secondary" sx={{ py: 1, textAlign: "center" }}>No expenses recorded yet.</Typography>
+                        ) : (
+                            rawExpenses
+                                .slice(-7)
+                                .reverse()
+                                .filter((_, idx) => {
+                                    const isMobile = window.innerWidth < 900;
+                                    return isMobile ? idx < 4 : true;
+                                })
+                                .map((exp, idx) => (
+                                    <ListItem key={idx} disableGutters sx={{ py: 0.5, borderBottom: "1px solid divider" }}>
+                                        <ListItemText
+                                            primary={<Typography variant="body2" fontWeight="medium">{exp.name || "Expense"}</Typography>}
+                                            secondary={<Typography variant="caption" color="text.secondary">{exp.category || "General"} • {exp.date || ""}</Typography>}
+                                        />
+                                        <Typography variant="body2" fontWeight="bold">{formatCurrency(exp.amount)}</Typography>
+                                    </ListItem>
+                                ))
+                        )}
+                    </List>
+                </Box>
             </Paper>
 
-            {/* ================= VIEW ALL EXPENSES DRAWER ================= */}
+            {/* ================= VIEW ALL EXPENSES DRAWER (NOTEBOOK PAPER STYLE) ================= */}
             <SwipeableDrawer
                 anchor="bottom"
                 open={expensesDrawerOpen}
                 onClose={() => setExpensesDrawerOpen(false)}
                 onOpen={() => {}}
                 PaperProps={{
-                    sx: drawerPaperSx(mode, { maxHeight: "85vh", borderRadius: "22px 22px 0 0" }),
+                        sx: {
+                          ...drawerPaperSx(mode, {
+                            maxHeight: "85vh"
+                          }),
+                          overflowY: "auto",
+                        },
                 }}
                 sx={{ "& .MuiBackdrop-root": drawerBackdropSx }}
             >
-                <DrawerHandle mode={mode} />
+                <Box sx={{ display: { xs: "block", md: "none" } }}>
+                    <DrawerHandle mode={mode} />
+                </Box>
 
-                <Box sx={{ px: 3, pb: 4, pt: 1, maxWidth: 600, mx: "auto", width: "100%", boxSizing: "border-box" }}>
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2.5}>
+                <Box sx={{ px: 2, pb: { xs: 2, md: 4 }, pt: 1, maxWidth: 600, mx: "auto", width: "100%", boxSizing: "border-box" }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} sx={{ borderBottom: "2px dashed", borderColor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)", pb: 1.5 }}>
                         <Box display="flex" alignItems="center" gap={1.5}>
-                            <Typography variant="h6" fontWeight={700}>
-                                All Trip Expenses
+                            <Typography variant="h6" fontWeight={800} sx={{ fontFamily: "monospace", letterSpacing: "-0.5px" }}>
+                                📓 All Trip Expenses
                             </Typography>
                             <Chip
                                 label={formatCurrency(totalSpent)}
                                 size="small"
-                                color="primary"
-                                sx={{ fontWeight: 700, height: 22 }}
+                                sx={{
+                                    fontWeight: 800,
+                                    height: 24,
+                                    bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+                                    color: mode === "dark" ? "#fff" : "#000",
+                                }}
                             />
                         </Box>
-                        <IconButton size="small" onClick={() => setExpensesDrawerOpen(false)}>
+                        <IconButton size="small" sx={glassIconBtnSx(mode, { p: 1, display: { xs: 'none', md: 'flex' } })} onClick={() => setExpensesDrawerOpen(false)}>
                             <CloseIcon />
                         </IconButton>
                     </Box>
 
-                    <List dense sx={{ maxHeight: "60vh", overflowY: "auto", pr: 0.5 }}>
+                    <List dense sx={{ maxHeight: "62vh", overflowY: "auto", pr: 0.5 }}>
                         {rawExpenses.length === 0 ? (
-                            <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
-                                No expenses recorded yet.
+                            <Typography variant="body2" color="text.secondary" sx={{ py: 6, textAlign: "center", fontStyle: "italic" }}>
+                                No expenses recorded in the notebook yet.
                             </Typography>
                         ) : (
                             [...rawExpenses].reverse().map((exp, idx) => (
@@ -299,30 +399,43 @@ export default function BudgetExpensesSection({
                                     key={idx}
                                     disableGutters
                                     sx={{
-                                        py: 1.2,
-                                        px: 2,
-                                        mb: 1,
-                                        borderRadius: 3,
-                                        bgcolor: mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
-                                        border: "1px solid divider",
+                                        py: 0.5,
+                                        px: 0,
+                                        mb: 1.5,
+                                        bgcolor: 'transparent',
+                                        borderBottom: "1.5px dashed",
+                                        borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.13)" : "rgba(0,0,0,0.06)",
                                         display: "flex",
                                         justifyContent: "space-between",
                                         alignItems: "center",
                                     }}
                                 >
+                                    <ListItemAvatar sx={{ minWidth: 48 }}>
+                                        <Avatar
+                                            sx={{
+                                                width: 40,
+                                                height: 40,
+                                                fontSize: "1.2rem",
+                                                bgcolor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
+                                                boxShadow: "inset 0 1px 2px rgba(255,255,255,0.2)",
+                                            }}
+                                        >
+                                            {getCategoryAvatar(exp.category)}
+                                        </Avatar>
+                                    </ListItemAvatar>
                                     <ListItemText
                                         primary={
-                                            <Typography variant="body2" fontWeight={700}>
+                                            <Typography variant="body2" fontWeight={800} sx={{ letterSpacing: "-0.2px" }}>
                                                 {exp.name || "Expense"}
                                             </Typography>
                                         }
                                         secondary={
-                                            <Typography variant="caption" color="text.secondary">
+                                            <Typography variant="caption" color="text.secondary" fontWeight={500}>
                                                 {exp.category || "General"} • {exp.date} {exp.time ? `at ${exp.time}` : ""}
                                             </Typography>
                                         }
                                     />
-                                    <Typography variant="body1" fontWeight={800} color="primary.main">
+                                    <Typography variant="body1" fontWeight={900} color="primary.main" sx={{ fontFamily: "monospace" }}>
                                         {formatCurrency(exp.amount)}
                                     </Typography>
                                 </ListItem>
@@ -339,12 +452,17 @@ export default function BudgetExpensesSection({
                         }}
                         sx={{
                             mt: 3,
-                            py: 1.3,
-                            borderRadius: 3,
+                            py: 1.4,
+                            borderRadius: 6,
                             textTransform: "none",
-                            fontWeight: 700,
+                            fontWeight: 800,
+                            letterSpacing: "0.2px",
                             bgcolor: mode === "dark" ? "#fff" : "#000",
                             color: mode === "dark" ? "#000" : "#fff",
+                            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+                            "&:hover": {
+                                bgcolor: mode === "dark" ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.85)",
+                            },
                         }}
                     >
                         + Add New Expense

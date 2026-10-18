@@ -10,7 +10,7 @@ import { Search } from "../icons";
 export const designTokens = {
   dark: {
     bg: "#060606",
-    surface: "rgba(20, 20, 20, 0.75)",
+    surface: "rgba(20, 20, 20, 0.65)",
     surfaceMuted: "rgba(25, 25, 25, 0.45)",
     cardBg: "rgba(30, 30, 30, 0.22)",
     cardHoverBg: "rgba(35, 35, 35, 0.35)",
@@ -55,7 +55,7 @@ export const designTokens = {
     drawer: 8, // 32px
     button: 8, // 32px pill
     buttonPill: "35px",
-    input: 8,
+    input: 5,
     chip: 4,
     dragHandle: 999,
   },

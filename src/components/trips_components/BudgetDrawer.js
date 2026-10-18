@@ -5,34 +5,28 @@ import {
   TextField,
   Button,
   IconButton,
-  Divider,
   Stack,
-  MenuItem,
+  Paper,
   InputAdornment,
   Alert,
   Avatar,
   Chip,
   LinearProgress,
   SwipeableDrawer,
-  alpha,
   Badge
 } from "@mui/material";
 
 import {
   Close,
-  AccountBalanceWalletOutlined,
-  PeopleOutline,
-  PercentOutlined,
-  EqualizerOutlined,
-  SaveOutlined,
 } from "@mui/icons-material";
 
 import {
   drawerPaperSx,
   drawerBackdropSx,
   DrawerHandle,
+  glassInputSx,
+  glassIconBtnSx,
 } from "../../theme/designSystem";
-
 
 const BudgetDrawer = ({
   budgetDrawerOpen,
@@ -43,12 +37,17 @@ const BudgetDrawer = ({
   mode,
   tripMembers = [],
 }) => {
+  const isDarkMode = mode === "dark";
+
   // Extract contributors mapping correctly from Firestore structure (items array or root level)
   const budgetDataDoc = editBudget || {};
   const budgetItems = Array.isArray(budgetDataDoc.items) ? budgetDataDoc.items : [];
   const activeBudgetItem = budgetItems[0] || budgetDataDoc;
   
-  const contributors = activeBudgetItem.contributors || budgetDataDoc.contributors || [];
+  const contributors = useMemo(
+    () => activeBudgetItem.contributors || budgetDataDoc.contributors || [],
+    [activeBudgetItem.contributors, budgetDataDoc.contributors]
+  );
 
   const [totalBudget, setTotalBudget] = useState(
     activeBudgetItem.total || budgetDataDoc.total || ""
@@ -59,13 +58,8 @@ const BudgetDrawer = ({
   );
 
   const [memberContributions, setMemberContributions] = useState({});
-
   const [error, setError] = useState("");
 
-  /*
-   * Initialize member contributions whenever
-   * the drawer opens or the budget changes.
-   */
   useEffect(() => {
     if (!budgetDrawerOpen) return;
 
@@ -92,12 +86,15 @@ const BudgetDrawer = ({
     });
 
     setMemberContributions(initialContributions);
-  }, [budgetDrawerOpen, editBudget, contributors]);
+  }, [
+    budgetDrawerOpen,
+    contributors,
+    activeBudgetItem.splitType,
+    activeBudgetItem.total,
+    budgetDataDoc.splitType,
+    budgetDataDoc.total,
+  ]);
 
-  /*
-   * Normalize contributors so the component can
-   * support different member object structures.
-   */
   const normalizedContributors = useMemo(() => {
     return tripMembers.map((item, index) => {
       const memberId =
@@ -107,7 +104,6 @@ const BudgetDrawer = ({
         item.email ||
         item.username;
 
-      // Find matching contributor data if available
       const contributor = contributors.find((c) => {
         const cId = c.id || c.uid || c.userId || c.email || c.username;
         return cId === memberId;
@@ -115,7 +111,6 @@ const BudgetDrawer = ({
 
       return {
         id: memberId,
-
         name:
           item.displayName ||
           item.name ||
@@ -125,12 +120,7 @@ const BudgetDrawer = ({
           contributor.username ||
           contributor.email ||
           `Member ${index + 1}`,
-
-        email:
-          item.email ||
-          contributor.email ||
-          "",
-
+        email: item.email || contributor.email || "",
         photoURL:
           item.photoURL ||
           item.profilePic ||
@@ -140,32 +130,23 @@ const BudgetDrawer = ({
           contributor.profilePic ||
           contributor.profilePhoto ||
           "",
-
-        contribution:
-          Number(
-            contributor.contribution ??
-            contributor.amount ??
-            contributor.budget ??
-            0
-          ),
+        contribution: Number(
+          contributor.contribution ??
+          contributor.amount ??
+          contributor.budget ??
+          0
+        ),
       };
     });
   }, [contributors, tripMembers]);
 
   const numericBudget = Number(totalBudget) || 0;
 
-  /*
-   * Equal split amount.
-   */
   const equalAmount = useMemo(() => {
     if (!numericBudget || !normalizedContributors.length) return 0;
-
     return numericBudget / normalizedContributors.length;
   }, [numericBudget, normalizedContributors.length]);
 
-  /*
-   * Total manually allocated.
-   */
   const allocatedAmount = useMemo(() => {
     return normalizedContributors.reduce((sum, member) => {
       return sum + (Number(memberContributions[member.id] ?? member.contribution) || 0);
@@ -173,42 +154,30 @@ const BudgetDrawer = ({
   }, [memberContributions, normalizedContributors]);
 
   const remainingAmount = numericBudget - allocatedAmount;
-
   const allocationPercentage =
     numericBudget > 0
       ? Math.min((allocatedAmount / numericBudget) * 100, 100)
       : 0;
 
-  /*
-   * Update a member contribution.
-   */
   const handleContributionChange = (memberId, value) => {
     setError("");
-
     setMemberContributions((prev) => ({
       ...prev,
       [memberId]: value,
     }));
   };
 
-  /*
-   * Apply equal split.
-   */
   const handleEqualSplit = () => {
     if (!numericBudget || !normalizedContributors.length) {
       setError("Enter the total budget first.");
       return;
     }
 
-    const amountPerPerson =
-      numericBudget / normalizedContributors.length;
-
+    const amountPerPerson = numericBudget / normalizedContributors.length;
     const equalContributions = {};
 
     normalizedContributors.forEach((member) => {
-      equalContributions[member.id] = Number(
-        amountPerPerson.toFixed(2)
-      );
+      equalContributions[member.id] = Number(amountPerPerson.toFixed(2));
     });
 
     setMemberContributions(equalContributions);
@@ -216,32 +185,6 @@ const BudgetDrawer = ({
     setError("");
   };
 
-  /*
-   * Apply percentage split.
-   */
-  const handlePercentageSplit = () => {
-    if (!numericBudget || !normalizedContributors.length) {
-      setError("Enter the total budget first.");
-      return;
-    }
-
-    const percentage = 100 / normalizedContributors.length;
-    const contributions = {};
-
-    normalizedContributors.forEach((member) => {
-      contributions[member.id] = Number(
-        ((numericBudget * percentage) / 100).toFixed(2)
-      );
-    });
-
-    setMemberContributions(contributions);
-    setSplitType("percentage");
-    setError("");
-  };
-
-  /*
-   * Save budget.
-   */
   const handleSave = () => {
     setError("");
 
@@ -255,18 +198,12 @@ const BudgetDrawer = ({
       return;
     }
 
-    let finalContributions = {
-      ...memberContributions,
-    };
+    let finalContributions = { ...memberContributions };
 
     if (splitType === "equal") {
-      const amountPerPerson =
-        numericBudget / normalizedContributors.length;
-
+      const amountPerPerson = numericBudget / normalizedContributors.length;
       normalizedContributors.forEach((member) => {
-        finalContributions[member.id] = Number(
-          amountPerPerson.toFixed(2)
-        );
+        finalContributions[member.id] = Number(amountPerPerson.toFixed(2));
       });
     }
 
@@ -281,12 +218,9 @@ const BudgetDrawer = ({
         `Contributions must equal the total budget. ₹${Math.abs(
           numericBudget - finalAllocated
         ).toFixed(2)} is ${
-          finalAllocated > numericBudget
-            ? "over-allocated"
-            : "still unallocated"
+          finalAllocated > numericBudget ? "over-allocated" : "still unallocated"
         }.`
       );
-
       return;
     }
 
@@ -298,18 +232,14 @@ const BudgetDrawer = ({
       contributors: normalizedContributors.map((member) => ({
         uid: member.id,
         name: member.name,
-        amount: Number(
-          (finalContributions[member.id] ?? member.contribution) || 0
-        ),
+        amount: Number((finalContributions[member.id] ?? member.contribution) || 0),
       })),
     };
 
     setEditBudget(updatedBudget);
-
     if (typeof saveBudget === "function") {
       saveBudget(updatedBudget);
     }
-
     setBudgetDrawerOpen(false);
   };
 
@@ -327,721 +257,348 @@ const BudgetDrawer = ({
       onOpen={() => setBudgetDrawerOpen(true)}
       PaperProps={{
         sx: {
-          m: 2,
-          maxWidth: 480,
-          height: "calc(100% - 88px)",
-          overflow: "hidden",
-          borderRadius: 8,
-          backgroundImage: "none",
-          backdropFilter: "blur(12px)",
-          webkitBackdropFilter: "blur(12px)",
-          backgroundColor: mode === "dark" ? "rgba(20, 20, 20, 0.75)" : "rgba(255, 255, 255, 0.55)",
-          boxShadow: mode === "dark" ? "inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07), 0 20px 50px rgba(0,0,0,0.5)" :"inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0,0,0,0.05)"
+          ...drawerPaperSx(mode, {
+            maxHeight: "85vh",
+          }),
+          overflowY: "auto",
         },
       }}
       ModalProps={{
-      BackdropProps: {
-        sx: {
-          backdropFilter: "blur(12px)",
-          backgroundColor: "rgba(0, 0, 0, 0.25)",
+        BackdropProps: {
+          sx: drawerBackdropSx,
         },
-      }
-    }}
+      }}
     >
+      {/* Mobile Drag Handle */}
+      <Box sx={{ display: { xs: "block", md: "none" } }}>
+        <DrawerHandle mode={mode} />
+      </Box>
+
+      {/* Header with Desktop Close Button */}
       <Box
         sx={{
-          height: "100%",
+          px: { xs: 1, md: 3.5 },
+          pt: { xs: 1, md: 3 },
+          pb: 2,
           display: "flex",
-          flexDirection: "column",
-          backgroundColor: "transparent",
+          alignItems: "center",
+          justifyContent: "space-between",
+          maxWidth: 600,
+          mx: "auto",
+          width: "100%",
+          boxSizing: "border-box",
         }}
       >
-        <Box
-          sx={{
-            display: {
-              xs: "flex",
-              sm: "none",
-            },
-            justifyContent: "center",
-            pt: 1,
-          }}
-        >
-          <DrawerHandle />
-        </Box>
-
-        <Box
-          sx={{
-            flex: 1,
-            overflowY: "auto",
-            px: {
-              xs: 2,
-              sm: 3,
-            },
-            py: 2.5,
-          }}
-        >
-              <Box
-                sx={{
-                  p: 2,
-                  mb: 2,
-                  mt: 0,
-                  borderRadius: 3,
-                  backgroundColor: "action.hover",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    mb: 1,
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 700,
-                    }}
-                  >
-                    Budget Allocation
-                  </Typography>
-
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    {Math.round(allocationPercentage)}%
-                  </Typography>
-                </Box>
-
-                <LinearProgress
-                  variant="determinate"
-                  value={allocationPercentage}
-                  sx={{
-                    height: 7,
-                    borderRadius: 10,
-                    mb: 1.5,
-                  }}
-                />
-
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 1,
-                  }}
-                >
-                  <Box>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                    >
-                      Allocated
-                    </Typography>
-
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 800,
-                      }}
-                    >
-                      {formatCurrency(allocatedAmount)}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ textAlign: "right" }}>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                    >
-                      Remaining
-                    </Typography>
-
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 800,
-                        color:
-                          remainingAmount < 0
-                            ? "error.main"
-                            : "text.primary",
-                      }}
-                    >
-                      {formatCurrency(
-                        Math.abs(remainingAmount)
-                      )}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-
-          <Stack spacing={2.5}>
-            <Box>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  fontWeight: 800,
-                  mb: 1,
-                }}
-              >
-                Total Trip Budget
-              </Typography>
-
-              <TextField
-                fullWidth
-                type="number"
-                value={totalBudget}
-                onChange={(e) => {
-                  setTotalBudget(e.target.value);
-                  setError("");
-                }}
-                placeholder="Enter total budget"
-                inputProps={{
-                  min: 0,
-                  step: 0.01,
-                }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      ₹
-                    </InputAdornment>
-                  ),
-                }}
-              />
-
-              {numericBudget > 0 && (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{
-                    display: "block",
-                    mt: 0.8,
-                  }}
-                >
-                  Total available budget:{" "}
-                  <strong>
-                    {formatCurrency(numericBudget)}
-                  </strong>
-                </Typography>
-              )}
-            </Box>
-
-<Box>
-  <Typography
-    variant="subtitle2"
-    sx={{
-      fontWeight: 800,
-      mb: 1,
-    }}
-  >
-    Split Budget
-  </Typography>
-
-<Box
-  sx={{
-    display: "flex",
-    flexDirection: "row",
-    gap: 1.25,
-  }}
->
-  <Button
-    fullWidth
-    variant="contained"
-    onClick={handleEqualSplit}
-    disableElevation
-    sx={{
-      position: "relative",
-      minHeight: 92,
-      px: 1.5,
-      py: 1.25,
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 0.35,
-      borderRadius: 4,
-      textTransform: "none",
-      backgroundColor:
-        splitType === "equal"
-          ? "primary.main"
-          : "transparent",
-      color:
-        splitType === "equal"
-          ? "#000000"
-          : "text.primary",
-      border: "1px solid",
-      borderColor:
-        splitType === "equal"
-          ? "primary.main"
-          : "divider",
-      boxShadow:
-        splitType === "equal"
-          ? mode === "dark"
-            ? "inset 0 1px 2px rgba(255,255,255,0.14), 0 10px 30px rgba(0,0,0,0.35)"
-            : "inset 0 1px 1px rgba(255,255,255,0.9), 0 10px 30px rgba(0,0,0,0.06)"
-          : "none",
-      transition:
-        "background-color 180ms ease, border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease",
-      "&:hover": {
-        backgroundColor:
-          splitType === "equal"
-            ? "primary.main"
-            : "action.hover",
-        borderColor:
-          splitType === "equal"
-            ? "primary.main"
-            : "text.primary",
-        transform: "translateY(-1px)",
-      },
-    }}
-  >
-    <Box
-      sx={{
-        width: 34,
-        height: 34,
-        borderRadius: "50%",
-        display: "grid",
-        placeItems: "center",
-        mb: 0.4,
-        backgroundColor:
-          splitType === "equal"
-            ? "rgba(0,0,0,0.08)"
-            : "action.hover",
-        color:
-          splitType === "equal"
-            ? "#000000"
-            : "text.primary",
-      }}
-    >
-      <EqualizerOutlined sx={{ fontSize: 19 }} />
-    </Box>
-
-    <Typography
-      variant="body2"
-      sx={{
-        fontWeight: 850,
-        lineHeight: 1.2,
-        color: splitType === "equal" ? "#000000" : "text.primary",
-      }}
-    >
-      Equal Split
-    </Typography>
-
-    <Typography
-      variant="caption"
-      sx={{
-        mt: 0.15,
-        lineHeight: 1.2,
-        fontSize: "0.68rem",
-        color: splitType === "equal" ? "rgba(0,0,0,0.65)" : "text.secondary",
-      }}
-    >
-      Everyone pays equally
-    </Typography>
-
-    {splitType === "equal" && (
-      <Box
-        sx={{
-          position: "absolute",
-          top: 8,
-          right: 8,
-          width: 7,
-          height: 7,
-          borderRadius: "50%",
-          backgroundColor: "#000000",
-        }}
-      />
-    )}
-  </Button>
-
-  <Button
-    fullWidth
-    variant="contained"
-    onClick={() => {
-      setSplitType("custom");
-      setError("");
-    }}
-    disableElevation
-    sx={{
-      position: "relative",
-      minHeight: 92,
-      px: 1.5,
-      py: 1.25,
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 0.35,
-      borderRadius: 4,
-      textTransform: "none",
-      backgroundColor:
-        splitType === "custom"
-          ? "primary.main"
-          : "transparent",
-      color:
-        splitType === "custom"
-          ? "#000000"
-          : "text.primary",
-      border: "1px solid",
-      borderColor:
-        splitType === "custom"
-          ? "primary.main"
-          : "divider",
-      boxShadow:
-        splitType === "custom"
-          ? mode === "dark"
-            ? "inset 0 1px 2px rgba(255,255,255,0.14), 0 10px 30px rgba(0,0,0,0.35)"
-            : "inset 0 1px 1px rgba(255,255,255,0.9), 0 10px 30px rgba(0,0,0,0.06)"
-          : "none",
-      transition:
-        "background-color 180ms ease, border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease",
-      "&:hover": {
-        backgroundColor:
-          splitType === "custom"
-            ? "primary.main"
-            : "action.hover",
-        borderColor:
-          splitType === "custom"
-            ? "primary.main"
-            : "text.primary",
-        transform: "translateY(-1px)",
-      },
-    }}
-  >
-    <Box
-      sx={{
-        width: 34,
-        height: 34,
-        borderRadius: "50%",
-        display: "grid",
-        placeItems: "center",
-        mb: 0.4,
-        backgroundColor:
-          splitType === "custom"
-            ? "rgba(0,0,0,0.08)"
-            : "action.hover",
-        color:
-          splitType === "custom"
-            ? "#000000"
-            : "text.primary",
-      }}
-    >
-      <PeopleOutline sx={{ fontSize: 19 }} />
-    </Box>
-
-    <Typography
-      variant="body2"
-      sx={{
-        fontWeight: 850,
-        lineHeight: 1.2,
-        color: splitType === "custom" ? "#000000" : "text.primary",
-      }}
-    >
-      Custom Split
-    </Typography>
-
-    <Typography
-      variant="caption"
-      sx={{
-        mt: 0.15,
-        lineHeight: 1.2,
-        fontSize: "0.68rem",
-        color: splitType === "custom" ? "rgba(0,0,0,0.65)" : "text.secondary",
-      }}
-    >
-      Set each person's amount
-    </Typography>
-
-    {splitType === "custom" && (
-      <Box
-        sx={{
-          position: "absolute",
-          top: 8,
-          right: 8,
-          width: 7,
-          height: 7,
-          borderRadius: "50%",
-          backgroundColor: "#000000",
-        }}
-      />
-    )}
-  </Button>
-</Box>
-</Box>
-
-<Box>
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      mb: 2,
-    }}
-  >
-    <Box>
-      <Typography
-        variant="subtitle1"
-        sx={{
-          fontWeight: 600,
-          lineHeight: 1.2,
-          color: "text.primary",
-        }}
-      >
-        Member Contributions
-      </Typography>
-
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{
-          display: "block",
-          mt: 0.5,
-        }}
-      >
-        Manage individual share breakdowns for this trip
-      </Typography>
-    </Box>
-
-    <Chip
-      size="small"
-      label={`${normalizedContributors.length} ${
-        normalizedContributors.length === 1 ? "member" : "members"
-      }`}
-      icon={<PeopleOutline sx={{ fontSize: "1rem !important" }} />}
-      sx={{
-        borderRadius: 2,
-        backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.1),
-        color: "primary.main",
-        border: "1px solid",
-        borderColor: (theme) => alpha(theme.palette.primary.main, 0.2),
-      }}
-    />
-  </Box>
-
-  {normalizedContributors.length > 0 ? (
-    <Box
-      sx={{
-        display: "grid",
-        gridTemplateColumns: {
-          xs: "repeat(3, minmax(0, 1fr))",
-          sm: "repeat(3, minmax(0, 1fr))",
-        },
-        gap: 1,
-      }}
-    >
-      {normalizedContributors.map((member) => {
-        const currentValue = memberContributions[member.id] ?? member.contribution ?? "";
-        const contribution = Number(currentValue) || 0;
-        const percentage =
-          numericBudget > 0 ? (contribution / numericBudget) * 100 : 0;
-        const displayedAmount =
-          splitType === "equal" ? equalAmount : contribution;
-
-        const hasCustomContribution = splitType === "custom" && contribution > 0;
-
-        return (
-          <Box
-            key={member.id}
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              textAlign: "center",
-              p: { xs: 1.25, sm: 1.75 },
-              borderRadius: 3,
-              backgroundColor: "transparent",
-              border: "0px solid",
-            }}
-          >
-            <Badge
-              badgeContent={numericBudget > 0 ? `${percentage.toFixed(0)}%` : null}
-              color="primary"
-              overlap="circular"
-              anchorOrigin={{
-                vertical: "top",
-                horizontal: "right",
-              }}
-              sx={{
-                mb: 1.25,
-                "& .MuiBadge-badge": {
-                  fontSize: "0.65rem",
-                  backgroundColor: "#f1f1f102",
-                  backdropFilter: "blur(26px)",
-                  color: "text.primary",
-                  height: 18,
-                  minWidth: 18,
-                  borderRadius: "9px",
-                  px: 0.5,
-                  boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 10px rgba(0,0,0,0.1)',
-                },
-              }}
-            >
-              <Avatar
-                src={member.photoURL}
-                alt={member.name}
-                sx={{
-                  width: { xs: 72, sm: 84 },
-                  height: { xs: 72, sm: 84 },
-                  borderRadius: "50%",
-                  backgroundColor: "action.selected",
-                  fontWeight: 700,
-                  color: "text.primary",
-                  border: "2px solid",
-                  borderColor: hasCustomContribution
-                    ? "primary.main"
-                    : "transparent",
-                }}
-              >
-                {member.name?.charAt(0)?.toUpperCase()}
-              </Avatar>
-            </Badge>
-
-            <Typography
-              variant="body2"
-              sx={{
-                fontWeight: 500,
-                color: "text.primary",
-                width: "100%",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                mb: 1,
-              }}
-            >
-              {member.name}
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <Box>
+            <Typography variant="h6" fontWeight={800} lineHeight={1.2}>
+              Trip Budget Manager
             </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Set your total budget and manage contributor allocations
+            </Typography>
+          </Box>
+        </Stack>
 
-            <Box sx={{ width: "100%", mt: "auto" }}>
-              {splitType === "custom" ? (
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="number"
-                  value={currentValue}
-                  onChange={(e) =>
-                    handleContributionChange(member.id, e.target.value)
-                  }
-                  disabled={splitType === "equal"}
-                  inputProps={{
-                    min: 0,
-                    step: 0.01,
-                  }}
-                  placeholder="0.00"
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      height: 34,
-                      borderRadius: 2,
-                      backgroundColor: (theme) =>
-                        mode === "dark"
-                          ? alpha(theme.palette.common.white, 0.04)
-                          : alpha(theme.palette.common.black, 0.02),
-                      "& fieldset": {
-                        borderColor: "divider",
-                      },
-                      "&:hover fieldset": {
-                        borderColor: "primary.main",
-                      },
-                      "&.Mui-focused fieldset": {
-                        borderColor: "primary.main",
-                        borderWidth: "1.5px",
-                      },
-                    },
-                    "& .MuiInputBase-input": {
-                      fontSize: "0.8rem",
-                      fontWeight: 500,
-                      textAlign: "center",
-                      color: "text.primary",
-                    },
-                    "& .MuiInputAdornment-root": {
-                      mr: -0.5,
-                    },
-                    "& .MuiInputAdornment-root p": {
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      color: "text.secondary",
-                    },
-                  }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">₹</InputAdornment>
-                    ),
-                  }}
-                />
-              ) : (
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontWeight: 700,
-                    color: "text.primary",
-                    fontSize: "0.9rem",
-                    py: 0.5,
-                  }}
-                >
-                  {formatCurrency(displayedAmount)}
-                </Typography>
-              )}
+        <IconButton
+          onClick={() => setBudgetDrawerOpen(false)}
+          size="small"
+          sx={glassIconBtnSx(mode, { p: 1, display: { xs: 'none', md: 'flex' } })}
+        >
+          <Close fontSize="small" />
+        </IconButton>
+      </Box>
+
+      <Box
+        sx={{
+          maxWidth: 600,
+          mx: "auto",
+          width: "100%",
+          boxSizing: "border-box",
+          px: {xs: 0, md: 3.5},
+          pb: {xs: 0, md: 0},
+        }}
+      >
+        {/* Allocation Summary Card */}
+        <Box
+          sx={{
+            p: 2.5,
+            mb: 3,
+            borderRadius: 6,
+            border: "0px solid",
+            bgcolor: isDarkMode ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
+          }}
+        >
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+            <Typography variant="body2" fontWeight={700}>
+              Budget Allocation Status
+            </Typography>
+            <Typography variant="caption" fontWeight={800} color="primary.main">
+              {Math.round(allocationPercentage)}% Allocated
+            </Typography>
+          </Box>
+
+          <LinearProgress
+            variant="determinate"
+            value={allocationPercentage}
+            sx={{
+              height: 8,
+              borderRadius: 4,
+              mb: 2,
+              bgcolor: isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+            }}
+          />
+
+          <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2}>
+            <Box>
+              <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
+                Allocated Amount
+              </Typography>
+              <Typography variant="body1" fontWeight={800}>
+                {formatCurrency(allocatedAmount)}
+              </Typography>
+            </Box>
+            <Box textAlign="right">
+              <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
+                Remaining
+              </Typography>
+              <Typography variant="body1" fontWeight={800} color={remainingAmount < 0 ? "error.main" : "text.primary"}>
+                {formatCurrency(Math.abs(remainingAmount))}
+              </Typography>
             </Box>
           </Box>
-        );
-      })}
-    </Box>
-  ) : (
-    <Box
-      sx={{
-        py: 5,
-        px: 3,
-        textAlign: "center",
-        borderRadius: 3,
-        backgroundColor: (theme) => alpha(theme.palette.action.hover, 0.5),
-        border: "1.5px dashed",
-        borderColor: "divider",
-      }}
-    >
-      <PeopleOutline
-        sx={{
-          fontSize: 40,
-          color: "text.secondary",
-          mb: 1.5,
-          opacity: 0.8,
-        }}
-      />
-
-      <Typography
-        variant="body2"
-        sx={{
-          fontWeight: 700,
-          mb: 0.5,
-        }}
-      >
-        No members found
-      </Typography>
-
-      <Typography variant="caption" color="text.secondary">
-        Add members to the trip before setting contributions.
-      </Typography>
-    </Box>
-  )}
-</Box>
-
-            {error && (
-              <Alert
-                severity="error"
-                sx={{
-                  borderRadius: 2.5,
-                }}
-              >
-                {error}
-              </Alert>
-            )}
-          </Stack>
         </Box>
 
+        <Stack spacing={2.5}>
+          {/* Total Trip Budget Field */}
+          <Box>
+            <Typography variant="subtitle2" fontWeight={700} mb={1}>
+              Total Trip Budget
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              type="number"
+              value={totalBudget}
+              onChange={(e) => {
+                setTotalBudget(e.target.value);
+                setError("");
+              }}
+              placeholder="Enter total budget amount"
+              inputProps={{ min: 0, step: 0.01 }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+              }}
+              sx={glassInputSx(mode)}
+            />
+          </Box>
+
+          {/* Split Type Selector */}
+          <Box
+            sx={{
+              border: "0px solid",
+              bgcolor: 'transparent',
+            }}
+          >
+            <Typography
+              variant="caption"
+              fontWeight={700}
+              color="text.secondary"
+              sx={{ display: "block", mb: 1.5, textTransform: "uppercase", letterSpacing: 0.5 }}
+            >
+              Split Strategy
+            </Typography>
+            <Stack direction="row" spacing={1.5}>
+              <Button
+                fullWidth
+                variant={splitType === "equal" ? "contained" : "outlined"}
+                onClick={handleEqualSplit}
+                sx={{
+                  borderRadius: 5,
+                  py: 1.5,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  fontSize: "0.85rem",
+                  boxShadow: "none",
+                  backgroundColor:
+                    splitType === "equal"
+                      ? isDarkMode
+                        ? "#fff"
+                        : "#000"
+                      : isDarkMode
+                      ? "rgba(255,255,255,0.03)"
+                      : "rgba(0,0,0,0.02)",
+                  color: splitType === "equal" ? (isDarkMode ? "#000" : "#fff") : "text.primary",
+                  border: 'none',
+                  "&:hover": {
+                    backgroundColor:
+                      splitType === "equal"
+                        ? isDarkMode
+                          ? "rgba(255,255,255,0.9)"
+                          : "rgba(0,0,0,0.85)"
+                        : isDarkMode
+                        ? "rgba(255,255,255,0.06)"
+                        : "rgba(0,0,0,0.04)",
+                    borderColor: isDarkMode ? "rgba(255,255,255,0.15)" : "divider",
+                    boxShadow: "none",
+                  },
+                }}
+              >
+                ⚡ Equal Split
+              </Button>
+              <Button
+                fullWidth
+                variant={splitType === "custom" ? "contained" : "outlined"}
+                onClick={() => {
+                  setSplitType("custom");
+                  setError("");
+                }}
+                sx={{
+                  borderRadius: 5,
+                  py: 1.5,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  fontSize: "0.85rem",
+                  boxShadow: "none",
+                  backgroundColor:
+                    splitType === "custom"
+                      ? isDarkMode
+                        ? "#fff"
+                        : "#000"
+                      : isDarkMode
+                      ? "rgba(255,255,255,0.03)"
+                      : "rgba(0,0,0,0.02)",
+                  color: splitType === "custom" ? (isDarkMode ? "#000" : "#fff") : "text.primary",
+                  border: 'none',
+                  "&:hover": {
+                    backgroundColor:
+                      splitType === "custom"
+                        ? isDarkMode
+                          ? "rgba(255,255,255,0.9)"
+                          : "rgba(0,0,0,0.85)"
+                        : isDarkMode
+                        ? "rgba(255,255,255,0.06)"
+                        : "rgba(0,0,0,0.04)",
+                    borderColor: isDarkMode ? "rgba(255,255,255,0.15)" : "divider",
+                    boxShadow: "none",
+                  },
+                }}
+              >
+                👥 Custom Split
+              </Button>
+            </Stack>
+          </Box>
+
+          {/* Member Contributions Grid */}
+          <Box>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
+              <Typography variant="subtitle2" fontWeight={700}>
+                Member Contributions
+              </Typography>
+              <Chip
+                size="small"
+                label={`${normalizedContributors.length} members`}
+                sx={{ fontWeight: 700, height: 22 }}
+              />
+            </Box>
+
+            {normalizedContributors.length > 0 ? (
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "repeat(3, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))" },
+                  gap: 1.5,
+                  maxHeight: 300,
+                  overflowY: "auto",
+                  pr: 0.5,
+                }}
+              >
+                {normalizedContributors.map((member) => {
+                  const currentValue = memberContributions[member.id] ?? member.contribution ?? "";
+                  const contribution = Number(currentValue) || 0;
+                  const percentage = numericBudget > 0 ? (contribution / numericBudget) * 100 : 0;
+                  const displayedAmount = splitType === "equal" ? equalAmount : contribution;
+
+                  return (
+                    <Paper
+                      key={member.id}
+                      elevation={0}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 3,
+                        border: 'none',
+                        bgcolor: 'transparent',
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        textAlign: "center",
+                      }}
+                    >
+                      <Badge
+                        badgeContent={numericBudget > 0 ? `${percentage.toFixed(0)}%` : null}
+                        color="primary"
+                        sx={{ mb: 1, "& .MuiBadge-badge": { fontSize: "0.6rem", height: 16, minWidth: 16 } }}
+                      >
+                        <Avatar
+                          src={member.photoURL}
+                          alt={member.name}
+                          sx={{
+                            width: 64,
+                            height: 64,
+                            fontWeight: 700,
+                            bgcolor: "primary.main",
+                            color: "primary.contrastText",
+                          }}
+                        >
+                          {member.name?.charAt(0)?.toUpperCase()}
+                        </Avatar>
+                      </Badge>
+
+                      <Typography variant="body2" fontWeight={700} noWrap sx={{ width: "100%", mb: 1, fontSize: "0.8rem" }}>
+                        {member.name}
+                      </Typography>
+
+                      <Box sx={{ width: "100%", mt: "auto" }}>
+                        {splitType === "custom" ? (
+                          <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            value={currentValue}
+                            onChange={(e) => handleContributionChange(member.id, e.target.value)}
+                            placeholder="0.00"
+                            InputProps={{
+                              startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                            }}
+                            sx={glassInputSx(mode)}
+                          />
+                        ) : (
+                          <Typography variant="body2" fontWeight={800} color="primary.main">
+                            {formatCurrency(displayedAmount)}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Paper>
+                  );
+                })}
+              </Box>
+            ) : (
+              <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center", display: "block", py: 2 }}>
+                No members found for this trip.
+              </Typography>
+            )}
+          </Box>
+
+          {error && (
+            <Alert severity="error" sx={{ borderRadius: 2.5 }}>
+              {error}
+            </Alert>
+          )}
+
+          {/* Action Buttons */}
         <Box
           sx={{
-            px: {
-              xs: 2,
-              sm: 3,
-            },
+            px: 0,
             py: 2,
             borderTop: "1px solid",
             borderColor: "divider",
@@ -1062,6 +619,7 @@ const BudgetDrawer = ({
                 borderRadius: 8,
                 textTransform: "none",
                 backgroundColor: "#f1f1f111",
+                boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)',
                 border: 0,
                 color: "text.primary",
               }}
@@ -1086,6 +644,7 @@ const BudgetDrawer = ({
             </Button>
           </Box>
         </Box>
+        </Stack>
       </Box>
     </SwipeableDrawer>
   );

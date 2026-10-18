@@ -2,20 +2,14 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   Box,
   Typography,
-  Chip,
   IconButton,
-  Button,
   CircularProgress,
   Stack,
   Tooltip,
   Paper,
-  alpha,
 } from "@mui/material";
 import {
   Directions as DirectionsIcon,
-  MyLocation as MyLocationIcon,
-  ZoomIn as ZoomInIcon,
-  ZoomOut as ZoomOutIcon,
   Fullscreen as FullscreenIcon,
   FullscreenExit as FullscreenExitIcon,
   Route as RouteIcon,

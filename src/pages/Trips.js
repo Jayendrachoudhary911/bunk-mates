@@ -38,7 +38,6 @@ import {
   Search,
   FilterList,
   PushPin as PushPinIcon,
-  MoreVert as MoreVertIcon,
   Share as ShareIcon,
   CalendarToday as CalendarTodayIcon,
   DeleteOutline as DeleteOutlineIcon,
@@ -50,7 +49,6 @@ import {
 import {
   CalendarMonth,
   ChatBubbleOutline,
-  BookmarkBorder,
   MoreHoriz,
   Add,
   OpenInNew,
@@ -85,7 +83,6 @@ import {
   designTokens as tokens,
 } from "../theme/designSystem";
 import { isValidImageUrl } from "../utils/uiHelpers";
-import { BoxHelper } from "three/src/Three.Core.js";
 
 const getTripColor = (id) => {
   const colors = [tokens.accents.blue, tokens.accents.green, tokens.accents.amber];
@@ -176,7 +173,6 @@ export default function Trips() {
 
   const [expanded, setExpanded] = useState(true);
   const [scrolled, setScrolled] = useState(false);
-  const [desktopCardsScrolled, setDesktopCardsScrolled] = useState(false);
 
   useBackButtonClose(createDialogOpen, () => handleCloseDrawer());
   useBackButtonClose(filterOpen, () => setFilterOpen(false));
@@ -2654,14 +2650,14 @@ export default function Trips() {
                   position: 'absolute',
                   inset: 0,
                   zIndex: -1,
-                  backdropFilter: 'blur(20px) saturate(210%)',
+                  backdropFilter: 'blur(20px) saturate(100%)',
                   WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.95) 60%, rgba(0,0,0,0) 100%)',
                   maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.95) 60%, rgba(0,0,0,0) 100%)',
                 }
               }}>
                 <Box sx={{ px: 3, mb: 2, display: "flex", gap: 1.5, alignItems: "center" }}>
                   <TextField
-                    placeholder="Search trips by name or destination..."
+                    placeholder="Search your trips..."
                     variant="outlined"
                     size="small"
                     fullWidth
@@ -2671,7 +2667,7 @@ export default function Trips() {
                     sx={{
                       width: "100%",
                       "& .MuiOutlinedInput-root": {
-                        color: mode === "dark" ? "#fff" : "#111", borderRadius: 8, height: 44, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.2)",
+                        color: mode === "dark" ? "#fff" : "#111", borderRadius: 8, height: 44, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.04)",
                         boxShadow: mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`,
                         border: "0px solid", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)", transition: "all 0.2s ease-in-out", "& fieldset": { border: "none" },
                         "&:hover": { backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)", borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)" },
@@ -2716,7 +2712,7 @@ export default function Trips() {
                 borderRadius: 6,
                 p: 0.8,
                 py: 0,
-                background: isDarkMode ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.75)",
+                background: isDarkMode ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.51)",
                 backdropFilter: "blur(20px) saturate(180%)",
                 WebkitBackdropFilter: "blur(20px) saturate(180%)",
                 border: `0px solid ${isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)"}`,

@@ -19,7 +19,6 @@ import {
   drawerPaperSx,
   drawerBackdropSx,
   DrawerHandle,
-  glass,
 } from "../../theme/designSystem";
 
 // Color-blind safe AQI palette (Okabe–Ito inspired)

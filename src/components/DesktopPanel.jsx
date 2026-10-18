@@ -40,12 +40,14 @@ const DesktopPanel = ({
           sx={{
             width: panelWidth,
             flexShrink: 0,
-            height: "100%",
             display: "flex",
+            m: 2,
+            mt: 3,
+            borderRadius: 6,
             flexDirection: "column",
             position: "relative",
             zIndex: 1100,
-            borderLeft: `1px solid ${
+            border: `1px solid ${
               isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"
             }`,
             backgroundColor: isDark
@@ -53,9 +55,7 @@ const DesktopPanel = ({
               : "rgba(250, 250, 250, 0.88)",
             backdropFilter: "blur(26px) saturate(1.3)",
             WebkitBackdropFilter: "blur(26px) saturate(1.3)",
-            boxShadow: isDark
-              ? "inset 1px 0 0 rgba(255,255,255,0.04), -12px 0 32px rgba(0,0,0,0.3)"
-              : "inset 1px 0 0 rgba(255,255,255,0.8), -8px 0 24px rgba(0,0,0,0.06)",
+            boxShadow: 'none',
             overflow: "hidden",
           }}
         >
@@ -77,7 +77,7 @@ const DesktopPanel = ({
               overflowY: "auto",
               overflowX: "hidden",
               position: "relative",
-              p: noPadding ? 0 : 2.5,
+              p: noPadding ? 0 : 0.5,
               scrollbarWidth: "thin",
               scrollbarColor: isDark
                 ? "rgba(255, 255, 255, 0.15) transparent"

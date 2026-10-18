@@ -3,13 +3,11 @@ import {
     Box,
     Typography,
     Container,
-    Avatar,
     Button,
     List,
     ListItem,
     ListItemIcon,
     ListItemText,
-    Divider,
     IconButton,
     TextField,
     Checkbox,
@@ -17,15 +15,6 @@ import {
     Paper,
     Chip,
     Stack,
-    LinearProgress,
-    alpha,
-    Badge,
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
-    AvatarGroup,
-    InputAdornment,
-    Slide,
     Fade,
     Modal,
     InputBase
@@ -46,11 +35,6 @@ import {
     EventNote as EventNoteIcon,
     PlaylistAddCheck as PlaylistAddCheckIcon,
     Delete as DeleteIcon,
-    AccountBalanceWallet as AccountBalanceWalletIcon,
-    ReceiptLong as ReceiptLongIcon,
-    PeopleOutline,
-    ExpandMore as ExpandMoreIcon,
-    Fullscreen as FullscreenIcon,
     Close as CloseIcon,
     Search as SearchIcon,
     Hotel as HotelIcon,
@@ -78,7 +62,7 @@ import { db } from "../firebase";
 import { useWeather } from "../contexts/WeatherContext";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
-import { isValidImageUrl } from "../utils/uiHelpers";
+import { glassInputSx } from "../theme/designSystem";
 
 // imported sub-components
 import ShareDrawer from "./trips_components/ShareDrawer";
@@ -92,8 +76,6 @@ import ConfirmDeleteDialog from "./trips_components/ConfirmDeleteDialog";
 import ChecklistViewAllDrawer from "./trips_components/ChecklistViewAllDrawer";
 import TimelineAllDrawer from "./trips_components/TimelineAllDrawer";
 import RouteMap from "./trips_components/RouteMap";
-import WeatherWidget from "./home_components/WeatherWidget";
-import AQIWidget from "./home_components/AQIWidget";
 import MembersSection from "./trips_components/MembersSection";
 import BudgetExpensesSection from "./trips_components/BudgetExpensesSection";
 
@@ -144,8 +126,8 @@ export default function TripDetails() {
     const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
     const { getWeather } = useWeather();
     const [weather, setWeather] = useState(null);
-    const [weatherLoading, setWeatherLoading] = useState(false);
-    const [aqiData, setAqiData] = useState(null);
+    const [, setWeatherLoading] = useState(false);
+    const [, setAqiData] = useState(null);
     const [checklistDrafts, setChecklistDrafts] = useState([]);
     const [uploadingBatch, setUploadingBatch] = useState(false);
     const [checklistViewAllOpen, setChecklistViewAllOpen] = useState(false);
@@ -204,9 +186,6 @@ export default function TripDetails() {
     });
     const [tripAdmins, setTripAdmins] = useState([]);
 
-    // Custom Contributions & Splits states for UI rendering
-    const [memberContributions, setMemberContributions] = useState({});
-    const splitType = "custom"; 
 
     // Extract schema mapping accurately from fetched budget structure
     const budgetDataDoc = budget || {};
@@ -216,12 +195,14 @@ export default function TripDetails() {
     const rawContributors = activeBudgetItem.contributors || budgetDataDoc.contributors || [];
     const rawExpenses = activeBudgetItem.expenses || budgetDataDoc.expenses || [];
 
-    const normalizedContributors = rawContributors.length > 0
+const normalizedContributors = rawContributors.length > 0
         ? rawContributors.map(c => {
             const memberObj = memberDetails.find(m => m.uid === (c.uid || c.id)) || {};
             return {
                 id: c.uid || c.id || Math.random().toString(),
                 name: c.name || memberObj.name || "Member",
+                nickname: memberObj.nickname || c.nickname, // <--- added direct nickname fallback
+                nicknames: memberObj.nicknames || c.nicknames || {}, // <--- crucial: pass nicknames map
                 photoURL: memberObj.photoURL || c.photoURL || "",
                 amount: Number(c.amount) || 0
             };
@@ -229,20 +210,14 @@ export default function TripDetails() {
         : memberDetails.map(m => ({
             id: m.uid,
             name: m.name || "Member",
+            nickname: m.nickname,
+            nicknames: m.nicknames || {}, // <--- crucial: pass nicknames map here too
             photoURL: m.photoURL || "",
             amount: 0
         }));
 
     const numericBudget = Number(activeBudgetItem.total || budgetDataDoc.total) || 0;
-    const equalAmount = normalizedContributors.length > 0 ? numericBudget / normalizedContributors.length : 0;
     const totalSpent = rawExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-
-    const handleContributionChange = (memberId, value) => {
-        setMemberContributions(prev => ({
-            ...prev,
-            [memberId]: value
-        }));
-    };
 
     const formatCurrency = (val) => {
         return `₹${Number(val || 0).toFixed(2)}`;
@@ -335,7 +310,6 @@ export default function TripDetails() {
         return () => unsub();
     }, [currentUseruid]);
 
-    const isDevBeta = userData?.type === "Dev Beta";
 
     // Real-time listener for groupChats document matching trip ID
     useEffect(() => {
@@ -1389,18 +1363,31 @@ Return strictly raw JSON format without markdown preamble:
                         </Box>
 
                         {/* Trip Details Card */}
-                        <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 2, md: 2.5 }, borderRadius: { xs: 3, sm: 4 }, minWidth: 0, bgcolor: "transparent", border: "none" }}>
-                            <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+{/* Trip Details Card */}
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                p: { xs: 1, sm: 1.5, md: 2 },
+                                pt: 2,
+                                borderRadius: { xs: 4, sm: 5 },
+                                minWidth: 0,
+                                bgcolor: 'transparent',
+                                border: "0px solid",
+                            }}
+                        >
+                            <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
                                 {editMode ? (
                                     <TextField
                                         value={editTrip.name || ""}
                                         onChange={(e) => setEditTrip({ ...editTrip, name: e.target.value })}
                                         fullWidth
-                                        variant="standard"
-                                        sx={{ mr: 1, input: { fontSize: "1.5rem", fontWeight: "bold" } }}
+                                        variant="outlined"
+                                        size="small"
+                                        placeholder="Trip Name"
+                                        sx={{ mr: 1.5, ...glassInputSx(mode), "& .MuiInputBase-input": { fontSize: "1.25rem", fontWeight: 800 } }}
                                     />
                                 ) : (
-                                    <Typography variant="h4" fontWeight="bold">
+                                    <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: "-0.5px" }}>
                                         {trip?.name}
                                     </Typography>
                                 )}
@@ -1412,6 +1399,14 @@ Return strictly raw JSON format without markdown preamble:
                                             setEditMode((current) => !current);
                                         }}
                                         size="small"
+                                        sx={{
+                                            bgcolor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                                            color: "text.secondary",
+                                            "&:hover": {
+                                                bgcolor: mode === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
+                                                color: "text.primary",
+                                            },
+                                        }}
                                     >
                                         <Edit fontSize="small" />
                                     </IconButton>
@@ -1422,24 +1417,26 @@ Return strictly raw JSON format without markdown preamble:
                                 <TextField
                                     value={editTrip.location || ""}
                                     onChange={(e) => setEditTrip({ ...editTrip, location: e.target.value })}
-                                    variant="standard"
+                                    variant="outlined"
+                                    size="small"
                                     fullWidth
-                                    sx={{ mb: 1 }}
+                                    placeholder="Location"
+                                    sx={{ mb: 2, ...glassInputSx(mode) }}
                                 />
                             ) : (
-                                <Typography variant="body2" color="text.secondary" sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-                                    <LocationOn sx={{ fontSize: 16, mr: 0.5 }} /> {trip?.location || "Location not set"}
+                                <Typography variant="body2" color="text.secondary" sx={{ display: "flex", alignItems: "center", mb: 1.5, fontWeight: 600 }}>
+                                    <LocationOn sx={{ fontSize: 16, mr: 0.5, color: "primary.main" }} /> {trip?.location || "Location not set"}
                                 </Typography>
                             )}
 
-                            {trip?.description && (
-                                <Typography variant="body2" sx={{ opacity: 0.85, mb: 1 }}>
+                            {trip?.description && !editMode && (
+                                <Typography variant="body2" sx={{ opacity: 0.85, mb: 2, lineHeight: 1.5 }}>
                                     {trip.description}
                                 </Typography>
                             )}
 
                             {editMode ? (
-                                <Box display="flex" gap={1} mt={1} mb={0}>
+                                <Box display="flex" gap={1.5} mt={2} mb={2.5}>
                                     <TextField
                                         type="date"
                                         label="Start Date"
@@ -1448,6 +1445,7 @@ Return strictly raw JSON format without markdown preamble:
                                         onChange={(e) => setEditTrip({ ...editTrip, startDate: e.target.value })}
                                         size="small"
                                         fullWidth
+                                        sx={glassInputSx(mode)}
                                     />
                                     <TextField
                                         type="date"
@@ -1457,17 +1455,36 @@ Return strictly raw JSON format without markdown preamble:
                                         onChange={(e) => setEditTrip({ ...editTrip, endDate: e.target.value })}
                                         size="small"
                                         fullWidth
+                                        sx={glassInputSx(mode)}
                                     />
                                 </Box>
                             ) : (
-                                <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", mb: 0 }}>
-                                    <AccessTime sx={{ fontSize: 14, mr: 0.5 }} />
+                                <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", mb: 0, fontWeight: 600 }}>
+                                    <AccessTime sx={{ fontSize: 14, mr: 0.5, color: "primary.main" }} />
                                     {formatTripDateRange(trip?.startDate, trip?.endDate)}
                                 </Typography>
                             )}
 
                             {editMode && (
-                                <Button variant="contained" onClick={handleSaveEdit} fullWidth sx={{ backgroundColor: mode === "dark" ? "#fff" : "#000", color: mode === "dark" ? "#000" : "#fff", borderRadius: 8 }}>
+                                <Button
+                                    variant="contained"
+                                    onClick={handleSaveEdit}
+                                    fullWidth
+                                    sx={{
+                                        mt: 1,
+                                        py: 1.2,
+                                        backgroundColor: mode === "dark" ? "#fff" : "#000",
+                                        color: mode === "dark" ? "#000" : "#fff",
+                                        borderRadius: 8,
+                                        fontWeight: 700,
+                                        boxShadow: "none",
+                                        "&:hover": {
+                                            boxShadow: "none",
+                                            backgroundColor: mode === "dark" ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.85)",
+                                        },
+                                        transition: "all 0.2s ease",
+                                    }}
+                                >
                                     Save Changes
                                 </Button>
                             )}
@@ -1746,15 +1763,17 @@ Return strictly raw JSON format without markdown preamble:
                         {/* Budget & Expenses Section mobile */}
                         <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 2, md: 2.5 }, display: { xs: "block", md: "none" }, borderRadius: { xs: 3, sm: 4 }, minWidth: 0, bgcolor: "transparent", border: "none" }}>
 <BudgetExpensesSection
-    numericBudget={numericBudget}
-    totalSpent={totalSpent}
-    normalizedContributors={normalizedContributors}
-    rawExpenses={rawExpenses}
-    formatCurrency={formatCurrency}
-    setBudgetDrawerOpen={setBudgetDrawerOpen}
-    setExpenseDrawerOpen={setExpenseDrawerOpen}
-    mode={mode}
-/>
+        numericBudget={numericBudget}
+        totalSpent={totalSpent}
+        normalizedContributors={normalizedContributors}
+        rawExpenses={rawExpenses}
+        formatCurrency={formatCurrency}
+        setBudgetDrawerOpen={setBudgetDrawerOpen}
+        setExpenseDrawerOpen={setExpenseDrawerOpen}
+        mode={mode}
+        currentUserId={currentUseruid}
+        userData={userData}
+    />
                         </Paper>
 
                         {/* Trip AI Recommendations in Vertical Scroll */}
@@ -1883,23 +1902,27 @@ Return strictly raw JSON format without markdown preamble:
                                     </Button>
                                 </Box>
                             </Box>
-                            <List sx={{ maxHeight: 220, overflowY: "auto" }}>
-                                {timeline.length === 0 ? (
-                                    <Typography variant="body2" color="text.secondary" sx={{ py: 1, textAlign: "center" }}>No timeline events added yet.</Typography>
-                                ) : (
-                                    timeline.map((item) => (
-                                        <ListItem key={item.id} sx={{ bgcolor: mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 6, mb: 1, py: 0.5, px: 1 }}>
-                                            <ListItemIcon sx={{ minWidth: 32 }}>
-                                                <Checkbox checked={item.completed} onChange={() => toggleEventCompleted(item)} size="small" />
-                                            </ListItemIcon>
-                                            <ListItemText
-                                                primary={<Typography variant="body2" fontWeight={600}>{typeof item.title === "object" ? JSON.stringify(item.title) : item.title}</Typography>}
-                                                secondary={<Typography variant="caption" color="text.secondary">{formatEventTime(item.time)} {item.note ? `— ${typeof item.note === "object" ? "" : item.note}` : ""}</Typography>}
-                                            />
-                                        </ListItem>
-                                    ))
-                                )}
-                            </List>
+<List sx={{ p: 0, m: 0, overflow: "hidden" }}>
+    {timeline.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ py: 1, textAlign: "center" }}>No timeline events added yet.</Typography>
+    ) : (
+        timeline
+            .slice(-7)
+            .reverse()
+            .filter((_, idx) => (window.innerWidth < 900 ? idx < 4 : true))
+            .map((item) => (
+                <ListItem key={item.id} sx={{ bgcolor: mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 6, mb: 1, py: 0.5, px: 1 }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                        <Checkbox checked={item.completed} onChange={() => toggleEventCompleted(item)} size="small" />
+                    </ListItemIcon>
+                    <ListItemText
+                        primary={<Typography variant="body2" fontWeight={600}>{typeof item.title === "object" ? JSON.stringify(item.title) : item.title}</Typography>}
+                        secondary={<Typography variant="caption" color="text.secondary">{formatEventTime(item.time)}</Typography>}
+                    />
+                </ListItem>
+            ))
+    )}
+</List>
                             {timeline.length > 0 && (
                                 <Button size="small" fullWidth onClick={() => setTimelineAllDrawerOpen(true)} 
                                 sx={{ mt: 1, py: 1, borderRadius: 8, textTransform: "none",
@@ -1940,20 +1963,24 @@ Return strictly raw JSON format without markdown preamble:
                                     </Button>
                                 </Box>
                             </Box>
-                            <List sx={{ maxHeight: 180, overflowY: "auto" }}>
-                                {checklist.length === 0 ? (
-                                    <Typography variant="body2" color="text.secondary" sx={{ py: 1, textAlign: "center" }}>No checklist items yet.</Typography>
-                                ) : (
-                                    checklist.map((task) => (
-                                        <ListItem key={task.id} onClick={() => toggleTask(task)} disableGutters sx={{ mb: 0.5, cursor: "pointer" }}>
-                                            <ListItemIcon sx={{ minWidth: 32 }}>
-                                                <Checkbox checked={task.completed} onChange={() => toggleTask(task)} color="success" size="small" />
-                                            </ListItemIcon>
-                                            <ListItemText primary={<Typography variant="body2" sx={{ textDecoration: task.completed ? "line-through" : "none", color: task.completed ? "text.secondary" : "inherit" }}>{task.text}</Typography>} />
-                                        </ListItem>
-                                    ))
-                                )}
-                            </List>
+<List sx={{ p: 0, m: 0, overflow: "hidden" }}>
+    {checklist.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ py: 1, textAlign: "center" }}>No checklist items yet.</Typography>
+    ) : (
+        checklist
+            .slice(-7)
+            .reverse()
+            .filter((_, idx) => (window.innerWidth < 900 ? idx < 4 : true))
+            .map((task) => (
+                <ListItem key={task.id} onClick={() => toggleTask(task)} disableGutters sx={{ mb: 0.5, cursor: "pointer" }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                        <Checkbox checked={task.completed} onChange={() => toggleTask(task)} color="success" size="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={<Typography variant="body2" sx={{ textDecoration: task.completed ? "line-through" : "none", color: task.completed ? "text.secondary" : "inherit" }}>{task.text}</Typography>} />
+                </ListItem>
+            ))
+    )}
+</List>
                             {checklist.length > 0 && (
                                 <Button size="small" fullWidth onClick={() => setChecklistViewAllOpen(true)} 
                                 sx={{ mt: 1, py: 1, borderRadius: 8, textTransform: "none",
@@ -1985,15 +2012,17 @@ Return strictly raw JSON format without markdown preamble:
                         {/* Budget & Expenses Section desktop */}
                         <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 2, md: 2.5 }, display: { xs: "none", md: "block" }, borderRadius: { xs: 3, sm: 4 }, minWidth: 0, bgcolor: "transparent", border: "none" }}>
 <BudgetExpensesSection
-    numericBudget={numericBudget}
-    totalSpent={totalSpent}
-    normalizedContributors={normalizedContributors}
-    rawExpenses={rawExpenses}
-    formatCurrency={formatCurrency}
-    setBudgetDrawerOpen={setBudgetDrawerOpen}
-    setExpenseDrawerOpen={setExpenseDrawerOpen}
-    mode={mode}
-/>
+        numericBudget={numericBudget}
+        totalSpent={totalSpent}
+        normalizedContributors={normalizedContributors}
+        rawExpenses={rawExpenses}
+        formatCurrency={formatCurrency}
+        setBudgetDrawerOpen={setBudgetDrawerOpen}
+        setExpenseDrawerOpen={setExpenseDrawerOpen}
+        mode={mode}
+        currentUserId={currentUseruid}
+        userData={userData}
+    />
                         </Paper>
 
                         {/* Members Section mobile */}

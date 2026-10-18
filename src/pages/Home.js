@@ -36,7 +36,7 @@ import WeatherWidget from "../components/home_components/WeatherWidget";
 import AQIWidget from "../components/home_components/AQIWidget";
 import OngoingTripsAlerts from "../components/home_components/OngoingTripsAlerts";
 import UpcomingTripsAlerts from "../components/home_components/UpcomingTripsAlerts";
-import YourTrips from "../components/home_components/YourTrips";
+// import YourTrips from "../components/home_components/YourTrips";
 import RemindersGlimpse from "../components/home_components/RemindersGlimpse";
 import FeaturedPlaces from "../components/home_components/FeaturedPlaces";
 import CreateTripDrawer from "../components/home_components/CreateTripDrawer";
@@ -136,10 +136,10 @@ const Home = () => {
   const [, setRemindersLoading] = useState(true);
 
   const [myTrips, setMyTrips] = useState([]);
-  const [tripMembersMap, setTripMembersMap] = useState({});
+  const [, setTripMembersMap] = useState({});
   const [, setTimelineStatsMap] = useState({});
   const [tripGroupsMap, setTripGroupsMap] = useState({});
-  const [sliderIndex, setSliderIndex] = useState(0);
+  const [, setSliderIndex] = useState(0);
   const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
   const { backgroundType, category, gradientType, presetIndex, animated } = useBackground();

@@ -3,8 +3,6 @@ import {
     Box,
     Typography,
     Button,
-    List,
-    ListItem,
     Avatar,
     AvatarGroup,
     Paper,

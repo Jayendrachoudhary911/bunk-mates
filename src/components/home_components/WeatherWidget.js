@@ -20,7 +20,6 @@ import {
   drawerBackdropSx,
   DrawerHandle,
   flexRowSx,
-  glass,
 } from "../../theme/designSystem";
 
 const weatherBackgrounds = {

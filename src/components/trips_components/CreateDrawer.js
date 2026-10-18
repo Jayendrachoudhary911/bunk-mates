@@ -33,10 +33,8 @@ import {
   CheckCircle,
   ListAlt,
   Timeline as TimelineIcon,
-  Calculate,
   Delete,
   Add,
-  Notes,
 } from "../../icons";
 import { doc, getDoc, collection, addDoc } from "firebase/firestore";
 import { auth, db, firestore } from "../../firebase";
@@ -44,8 +42,15 @@ import { auth, db, firestore } from "../../firebase";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import {
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+  glassInputSx,
+  glassIconBtnSx,
+} from "../../theme/designSystem";
 
-// Fallback nature image definition to fix 'randomNatureImage is not defined'
+// Fallback nature image definition
 const randomNatureImage = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80";
 
 // Leaflet default marker icons fix
@@ -152,11 +157,11 @@ const AirbnbStyleCalendar = ({ startDate, endDate, onChange, isDarkMode }) => {
             height: 38,
             p: 0,
             borderRadius: isStart ? "50% 0 0 50%" : isEnd ? "0 50% 50% 0" : inRange ? 0 : "50%",
-            bgcolor: isStart || isEnd ? "#00E676" : inRange ? "rgba(0, 230, 118, 0.2)" : "transparent",
-            color: isStart || isEnd ? "#000" : isDarkMode ? "#fff" : "#000",
+            bgcolor: isStart || isEnd ? (isDarkMode ? "#fff" : "#000") : inRange ? (isDarkMode ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)") : "transparent",
+            color: isStart || isEnd ? (isDarkMode ? "#000" : "#fff") : isDarkMode ? "#fff" : "#000",
             fontWeight: isStart || isEnd ? 800 : 500,
             "&:hover": {
-              bgcolor: isStart || isEnd ? "#00E676" : "rgba(0, 230, 118, 0.3)",
+              bgcolor: isStart || isEnd ? (isDarkMode ? "#eee" : "#222") : (isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.12)"),
             },
           }}
         >
@@ -191,7 +196,7 @@ const AirbnbStyleCalendar = ({ startDate, endDate, onChange, isDarkMode }) => {
         p: 2.5,
         borderRadius: 4,
         border: "1px solid",
-        borderColor: "divider",
+        borderColor: isDarkMode ? "rgba(255,255,255,0.08)" : "divider",
         bgcolor: isDarkMode ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
       }}
     >
@@ -370,8 +375,7 @@ const CreateTripDrawer = ({
           .catch((err) => console.warn("Destination auto-geocode error:", err));
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createDialogOpen, newTrip?.from, newTrip?.to]);
+  }, [createDialogOpen, newTrip?.from, newTrip?.to, newTrip?.currentLatLon, originCoords, destCoords]);
 
   useEffect(() => {
     if (!fromSearchQuery.trim() || fromSearchQuery.length < 3) {
@@ -767,10 +771,6 @@ Do not output markdown.`;
     changeStep((prev) => Math.max(prev - 1, 0));
   };
 
-  const formFieldSx = {
-    "& .MuiOutlinedInput-root": { borderRadius: 3 },
-  };
-
   useEffect(() => {
     const activeUser = user || auth.currentUser;
     if (!activeUser?.uid) {
@@ -847,8 +847,7 @@ Do not output markdown.`;
         prev.map((m) => ({ ...m, contribution: parseFloat(share) }))
       );
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [splitMode, totalBudget, activeMembers.length]);
+  }, [splitMode, totalBudget, activeMembers.length, updateSelectedMembers]);
 
   const stepsList = ["Route & Map", "Dates", "Identity & Weather", "Budget & Members", "Timeline & Checklist"];
   const mapApiKey = process.env.REACT_APP_MAP_API_KEY || "72a80d89-2fa4-422b-ad14-e0064315ff45";
@@ -868,33 +867,75 @@ Do not output markdown.`;
       onOpen={() => {}}
       PaperProps={{
         sx: {
-          height: "100vh",
-          maxHeight: "100vh",
-          overflow: "hidden",
-          backdropFilter: "blur(22px) saturate(1.6)",
-          background: isDarkMode
-            ? "linear-gradient(180deg, rgba(10,10,10,0.88), rgba(0,0,0,0.95))"
-            : "linear-gradient(180deg, rgba(255,255,255,0.88), rgba(245,247,250,0.96))",
-          color: isDarkMode ? "#fff" : "#111",
+          ...drawerPaperSx(mode, {
+            height: "85vh",
+          }),
+          overflowY: "auto",
         },
       }}
+      ModalProps={{
+        BackdropProps: { sx: drawerBackdropSx },
+      }}
     >
-      <Box sx={{ px: { xs: 2.5, sm: 4 }, pb: 4, pt: 3, height: "100%", overflowY: "auto" }}>
+      <Box sx={{ display: { xs: "block", md: "none" } }}>
+        <DrawerHandle mode={mode} />
+      </Box>
+
+      <Box
+        sx={{
+          px: { xs: 0.5, sm: 4, md: 6 },
+          pb: { xs: 0, md: 0 },
+          pt: { xs: 0, md: 0 },
+          maxWidth: 720,
+          mx: "auto",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
         {/* Header */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3, pb: 2, borderBottom: isDarkMode ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.06)" }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 2.5,
+            pb: 2,
+            borderBottom: "1px solid",
+            borderColor: isDarkMode ? "rgba(255,255,255,0.08)" : "divider",
+          }}
+        >
           <Box>
-            <Typography variant="h5" sx={{ fontWeight: 900 }}>Create a Trip</Typography>
-            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 500 }}>
+            <Typography variant="h5" sx={{ fontWeight: 900, letterSpacing: "-0.5px" }}>
+              Create a Trip
+            </Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
               Step {activeStep + 1} of 5 — {stepsList[activeStep]}
             </Typography>
           </Box>
-          <IconButton onClick={closeDrawer}>
+          <IconButton
+            onClick={closeDrawer}
+            size="small"
+            sx={glassIconBtnSx(mode, { p: 1, display: { xs: 'none', md: 'block' } })}
+          >
             <CloseOutlined fontSize="small" />
           </IconButton>
         </Box>
 
-        {/* Stepper Progress */}
-        <Stack direction="row" spacing={1} sx={{ mb: 4 }} alignItems="center">
+        {/* Scrollable & Responsive Stepper Progress Indicator */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1.25,
+            mb: 3.5,
+            overflowX: "auto",
+            py: 0.75,
+            px: 0.5,
+            scrollbarWidth: "none",
+            "&::-webkit-scrollbar": { display: "none" },
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
           {stepsList.map((label, idx) => (
             <React.Fragment key={idx}>
               <Chip
@@ -903,24 +944,42 @@ Do not output markdown.`;
                 onClick={() => changeStep(idx)}
                 sx={{
                   fontWeight: 700,
-                  bgcolor: activeStep === idx ? (isDarkMode ? "#fff" : "#000") : "transparent",
-                  color: activeStep === idx ? (isDarkMode ? "#000" : "#fff") : "inherit",
+                  fontSize: "0.75rem",
+                  height: 32,
+                  px: 1,
+                  borderRadius: 2.5,
+                  flexShrink: 0,
+                  bgcolor: activeStep === idx ? (isDarkMode ? "#fff" : "#000") : isDarkMode ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                  color: activeStep === idx ? (isDarkMode ? "#000" : "#fff") : "text.secondary",
                   border: "1px solid",
-                  borderColor: activeStep === idx ? "transparent" : "divider",
+                  borderColor: activeStep === idx ? "transparent" : isDarkMode ? "rgba(255,255,255,0.08)" : "divider",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  "&:hover": {
+                    bgcolor: activeStep === idx ? (isDarkMode ? "#eee" : "#222") : isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                  },
                 }}
               />
               {idx < stepsList.length - 1 && (
-                <Box sx={{ flex: 1, height: 2, bgcolor: activeStep > idx ? "primary.main" : "divider" }} />
+                <Box
+                  sx={{
+                    width: 16,
+                    height: 2,
+                    bgcolor: activeStep > idx ? "primary.main" : isDarkMode ? "rgba(255,255,255,0.1)" : "divider",
+                    borderRadius: 1,
+                    flexShrink: 0,
+                  }}
+                />
               )}
             </React.Fragment>
           ))}
-        </Stack>
+        </Box>
 
-        {/* STEP 1: Map + Search Inputs + Swap Button */}
+        {/* STEP 1: Route & Map */}
         {activeStep === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
                 <Autocomplete
                   freeSolo
                   options={fromResults}
@@ -948,20 +1007,20 @@ Do not output markdown.`;
                         onFocus={() => setActiveMapField("from")}
                         helperText={
                           isFetchingLoc ? (
-                            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.8, color: "#00E676", fontWeight: 600, mt: 0.5 }}>
-                              <CircularProgress size={12} sx={{ color: "#00E676" }} /> Fetching your precise current location...
+                            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.8, color: "#4ADE80", fontWeight: 600, mt: 0.5 }}>
+                              <CircularProgress size={12} sx={{ color: "#4ADE80" }} /> Fetching precise current location...
                             </Box>
                           ) : null
                         }
-                        sx={formFieldSx}
+                        sx={glassInputSx(mode)}
                         InputProps={{
                           ...params.InputProps,
                           startAdornment: (
                             <InputAdornment position="start">
                               {isFetchingLoc ? (
-                                <CircularProgress size={20} sx={{ color: "#00E676" }} />
+                                <CircularProgress size={20} sx={{ color: "#4ADE80" }} />
                               ) : (
-                                <LocationOn sx={{ color: "#00E676" }} />
+                                <LocationOn sx={{ color: "#4ADE80" }} />
                               )}
                             </InputAdornment>
                           ),
@@ -993,12 +1052,12 @@ Do not output markdown.`;
                       {...params}
                       label="To (Destination)"
                       onFocus={() => setActiveMapField("to")}
-                      sx={formFieldSx}
+                      sx={glassInputSx(mode)}
                       InputProps={{
                         ...params.InputProps,
                         startAdornment: (
                           <InputAdornment position="start">
-                            <MapIcon sx={{ color: "#FF1744" }} />
+                            <MapIcon sx={{ color: "#F87171" }} />
                           </InputAdornment>
                         ),
                       }}
@@ -1012,19 +1071,19 @@ Do not output markdown.`;
                 sx={{
                   bgcolor: isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
                   p: 1.5,
-                  borderRadius: 3,
-                  "&:hover": { bgcolor: "#00E676", color: "#000" },
+                  borderRadius: 3.5,
+                  "&:hover": { bgcolor: "primary.main", color: "primary.contrastText" },
                 }}
               >
                 <SwapVert />
               </IconButton>
             </Box>
 
-            <Typography variant="caption" color="text.secondary">
-              Currently clicking on map places: <b>{activeMapField.toUpperCase()}</b>
+            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+              Selected Map Target: <Box component="span" sx={{ color: "primary.main", fontWeight: 800 }}>{activeMapField.toUpperCase()}</Box>
             </Typography>
 
-            <Paper sx={{ height: 380, borderRadius: 3, overflow: "hidden", border: "1px solid divider" }}>
+            <Paper sx={{ height: { xs: 300, sm: 360 }, borderRadius: 4, overflow: "hidden", border: "1px solid", borderColor: isDarkMode ? "rgba(255,255,255,0.08)" : "divider" }}>
               <MapContainer
                 center={originCoords || destCoords || [20.5937, 78.9629]}
                 zoom={5}
@@ -1033,7 +1092,7 @@ Do not output markdown.`;
                 <MapBoundsController originCoords={originCoords} destCoords={destCoords} />
                 <TileLayer
                   url={mapTileUrl}
-                  attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
                 />
                 
                 {originCoords && (
@@ -1053,7 +1112,7 @@ Do not output markdown.`;
             </Paper>
 
             <DialogActions sx={{ mt: 2, px: 0, gap: 1.5 }}>
-              <Button fullWidth onClick={closeDrawer} variant="outlined">
+              <Button fullWidth onClick={closeDrawer} variant="outlined" sx={{ borderRadius: 3, py: 1.2, fontWeight: 700, textTransform: "none" }}>
                 Cancel
               </Button>
               <Button
@@ -1061,7 +1120,7 @@ Do not output markdown.`;
                 onClick={onNextStep}
                 variant="contained"
                 disabled={!newTrip.from || !newTrip.to}
-                sx={{ bgcolor: isDarkMode ? "#fff" : "#000", color: isDarkMode ? "#000" : "#fff" }}
+                sx={{ borderRadius: 3, py: 1.2, fontWeight: 700, textTransform: "none", bgcolor: isDarkMode ? "#fff" : "#000", color: isDarkMode ? "#000" : "#fff", boxShadow: "none" }}
               >
                 Next: Select Dates
               </Button>
@@ -1072,8 +1131,8 @@ Do not output markdown.`;
         {/* STEP 2: Dates Selection */}
         {activeStep === 1 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              Select Travel Schedule (Interactive Calendar)
+            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+              Select Travel Schedule
             </Typography>
 
             <AirbnbStyleCalendar
@@ -1090,7 +1149,7 @@ Do not output markdown.`;
             />
 
             <DialogActions sx={{ mt: 2, px: 0, gap: 1.5 }}>
-              <Button fullWidth onClick={onBackStep}>
+              <Button fullWidth onClick={onBackStep} sx={{ borderRadius: 3, py: 1.2, fontWeight: 700, textTransform: "none" }}>
                 Back
               </Button>
               <Button
@@ -1098,7 +1157,7 @@ Do not output markdown.`;
                 onClick={onNextStep}
                 variant="contained"
                 disabled={!newTrip.startDate || !newTrip.endDate}
-                sx={{ bgcolor: isDarkMode ? "#fff" : "#000", color: isDarkMode ? "#000" : "#fff" }}
+                sx={{ borderRadius: 3, py: 1.2, fontWeight: 700, textTransform: "none", bgcolor: isDarkMode ? "#fff" : "#000", color: isDarkMode ? "#000" : "#fff", boxShadow: "none" }}
               >
                 Next: Identity & Weather
               </Button>
@@ -1106,20 +1165,22 @@ Do not output markdown.`;
           </Box>
         )}
 
-        {/* STEP 3: Identity, Image, Weather Widget & Editable AI Description */}
+        {/* STEP 3: Identity & Weather */}
         {activeStep === 2 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             <Paper
+              elevation={0}
               sx={{
-                p: 2,
+                p: 2.5,
                 borderRadius: 4,
-                bgcolor: isDarkMode ? "rgba(0, 230, 118, 0.08)" : "rgba(0, 230, 118, 0.05)",
-                border: "1px solid rgba(0, 230, 118, 0.3)",
+                bgcolor: isDarkMode ? "rgba(74, 222, 128, 0.05)" : "rgba(74, 222, 128, 0.04)",
+                border: "1px solid",
+                borderColor: "rgba(74, 222, 128, 0.2)",
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
                 <Typography variant="subtitle2" fontWeight={800} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <WbSunny sx={{ color: "#FFD600" }} /> Live Destination Weather & Travel Indicator
+                  <WbSunny sx={{ color: "#FACC15" }} /> Live Destination Weather
                 </Typography>
                 {isWeatherLoading && <CircularProgress size={16} />}
               </Box>
@@ -1130,17 +1191,16 @@ Do not output markdown.`;
                     <Typography variant="h4" fontWeight={900}>
                       {weatherData.current_weather.temperature}°C
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
                       Current Temperature
                     </Typography>
                   </Box>
                   <Box>
                     <Chip
-                      icon={<CheckCircle sx={{ color: "#00E676 !important" }} />}
+                      icon={<CheckCircle sx={{ color: "#4ADE80 !important" }} />}
                       label="Ideal Time to Visit"
-                      color="success"
-                      variant="outlined"
-                      sx={{ fontWeight: 700 }}
+                      size="small"
+                      sx={{ fontWeight: 700, bgcolor: "rgba(74, 222, 128, 0.1)", color: "#4ADE80", border: "1px solid rgba(74, 222, 128, 0.3)" }}
                     />
                     <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
                       Weather conditions are favorable for outdoors.
@@ -1155,9 +1215,9 @@ Do not output markdown.`;
             </Paper>
 
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-              <Avatar src={newTrip.iconDataUri || randomNatureImage} sx={{ width: 120, height: 120, borderRadius: 4, boxShadow: 3 }} />
-              <Button variant="outlined" component="label" startIcon={<CloudUpload />} size="small" sx={{ borderRadius: 3 }}>
-                Upload Photo
+              <Avatar src={newTrip.iconDataUri || randomNatureImage} sx={{ width: 100, height: 100, borderRadius: 4, boxShadow: "0 4px 20px rgba(0,0,0,0.15)", border: "2px solid", borderColor: isDarkMode ? "rgba(255,255,255,0.15)" : "divider" }} />
+              <Button variant="outlined" component="label" startIcon={<CloudUpload />} size="small" sx={{ borderRadius: 3, textTransform: "none", fontWeight: 700 }}>
+                Upload Cover Photo
                 <input type="file" hidden accept="image/*" onChange={handleImageUpload} />
               </Button>
             </Box>
@@ -1167,26 +1227,26 @@ Do not output markdown.`;
               fullWidth
               value={newTrip.name || ""}
               onChange={(e) => setNewTrip({ ...newTrip, name: e.target.value })}
-              sx={formFieldSx}
+              sx={glassInputSx(mode)}
               InputProps={{
                 endAdornment: isDevBeta && (
-                  isGeneratingItinerary ? <CircularProgress size={18} /> : <AutoAwesome sx={{ color: "#00E676" }} />
+                  isGeneratingItinerary ? <CircularProgress size={18} /> : <AutoAwesome sx={{ color: "primary.main" }} />
                 ),
               }}
             />
 
             <TextField
-              label="Trip Description (Auto-Generated & Editable)"
+              label="Trip Description"
               fullWidth
               multiline
               rows={3}
               value={newTrip.description || ""}
               onChange={(e) => setNewTrip({ ...newTrip, description: e.target.value })}
-              sx={formFieldSx}
+              sx={glassInputSx(mode)}
             />
 
             <DialogActions sx={{ mt: 2, px: 0, gap: 1.5 }}>
-              <Button fullWidth onClick={onBackStep}>
+              <Button fullWidth onClick={onBackStep} sx={{ borderRadius: 3, py: 1.2, fontWeight: 700, textTransform: "none" }}>
                 Back
               </Button>
               <Button
@@ -1194,7 +1254,7 @@ Do not output markdown.`;
                 onClick={onNextStep}
                 variant="contained"
                 disabled={!newTrip.name}
-                sx={{ bgcolor: isDarkMode ? "#fff" : "#000", color: isDarkMode ? "#000" : "#fff" }}
+                sx={{ borderRadius: 3, py: 1.2, fontWeight: 700, textTransform: "none", bgcolor: isDarkMode ? "#fff" : "#000", color: isDarkMode ? "#000" : "#fff", boxShadow: "none" }}
               >
                 Next: Budget & Members
               </Button>
@@ -1202,20 +1262,22 @@ Do not output markdown.`;
           </Box>
         )}
 
-        {/* STEP 4: Budget, Friends & Multi-Mode Splitting */}
+        {/* STEP 4: Budget & Members */}
         {activeStep === 3 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-              Add Friends
+              Add Connections & Friends
             </Typography>
             <Stack direction="row" spacing={2} sx={{ overflowX: "auto", pb: 1 }}>
               {friendCards.map((friend) => (
-                <Card key={friend.uid} sx={{ minWidth: 120, p: 1.5, textAlign: "center", borderRadius: 3 }}>
-                  <Avatar src={friend.photoURL} sx={{ mx: "auto", mb: 1 }} />
-                  <Typography variant="caption" noWrap fontWeight={700} display="block">
+                <Card key={friend.uid} elevation={0} sx={{ minWidth: 120, p: 2, textAlign: "center", borderRadius: 3.5, border: "1px solid", borderColor: isDarkMode ? "rgba(255,255,255,0.08)" : "divider", bgcolor: isDarkMode ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)" }}>
+                  <Avatar src={friend.photoURL} sx={{ mx: "auto", mb: 1, width: 44, height: 44, fontWeight: 700 }}>
+                    {(friend.name || friend.username || "A").charAt(0)}
+                  </Avatar>
+                  <Typography variant="caption" noWrap fontWeight={700} display="block" sx={{ mb: 1 }}>
                     {friend.name || friend.username}
                   </Typography>
-                  <Button size="small" onClick={() => handleAddMember(friend)}>
+                  <Button size="small" variant="outlined" onClick={() => handleAddMember(friend)} sx={{ borderRadius: 2, textTransform: "none", fontSize: "0.7rem", fontWeight: 700 }}>
                     + Add
                   </Button>
                 </Card>
@@ -1230,6 +1292,7 @@ Do not output markdown.`;
                     avatar={<Avatar src={m.photoURL} />}
                     label={m.name || m.username}
                     onDelete={() => handleRemoveMember(m.uid)}
+                    sx={{ fontWeight: 700, borderRadius: 2.5 }}
                   />
                 ))}
               </Box>
@@ -1244,7 +1307,7 @@ Do not output markdown.`;
                 setTotalBudget(e.target.value);
                 setNewTrip({ ...newTrip, budget: e.target.value });
               }}
-              sx={formFieldSx}
+              sx={glassInputSx(mode)}
               InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
             />
 
@@ -1257,12 +1320,29 @@ Do not output markdown.`;
               onChange={(e, newMode) => newMode && setSplitMode(newMode)}
               fullWidth
               size="small"
+              sx={{
+                bgcolor: isDarkMode ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.04)",
+                borderRadius: 2.5,
+                p: 0.5,
+                "& .MuiToggleButton-root": {
+                  border: "none",
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  fontSize: "0.8rem",
+                  py: 0.8,
+                  color: "text.secondary",
+                  "&.Mui-selected": {
+                    bgcolor: isDarkMode ? "rgba(255,255,255,0.12)" : "background.paper",
+                    color: "text.primary",
+                    boxShadow: isDarkMode ? "0 2px 8px rgba(0,0,0,0.4)" : "0 2px 8px rgba(0,0,0,0.08)",
+                  },
+                },
+              }}
             >
-              <ToggleButton value="equal">Equal</ToggleButton>
+              <ToggleButton value="equal">Equal Split</ToggleButton>
               <ToggleButton value="manual">Manual</ToggleButton>
-              <ToggleButton value="auto">
-                <Calculate sx={{ mr: 0.5, fontSize: 16 }} /> Auto
-              </ToggleButton>
+              <ToggleButton value="auto">Auto</ToggleButton>
             </ToggleButtonGroup>
 
             {activeMembers.length > 0 && (
@@ -1275,12 +1355,16 @@ Do not output markdown.`;
                       alignItems: "center",
                       gap: 2,
                       p: 1.5,
-                      bgcolor: "action.hover",
+                      bgcolor: isDarkMode ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
+                      border: "1px solid",
+                      borderColor: isDarkMode ? "rgba(255,255,255,0.06)" : "divider",
                       borderRadius: 3,
                     }}
                   >
-                    <Avatar src={m.photoURL} />
-                    <Typography sx={{ flexGrow: 1 }} variant="body2" fontWeight={600}>
+                    <Avatar src={m.photoURL} sx={{ width: 36, height: 36, fontWeight: 700 }}>
+                      {(m.name || "M").charAt(0)}
+                    </Avatar>
+                    <Typography sx={{ flexGrow: 1 }} variant="body2" fontWeight={700}>
                       {m.name || m.username}
                     </Typography>
                     <TextField
@@ -1288,7 +1372,7 @@ Do not output markdown.`;
                       type="number"
                       size="small"
                       disabled={splitMode === "equal"}
-                      sx={{ width: 130 }}
+                      sx={{ width: 130, ...glassInputSx(mode) }}
                       value={m.contribution || ""}
                       onChange={(e) => handleContributionChange(idx, e.target.value)}
                       InputProps={{
@@ -1301,7 +1385,7 @@ Do not output markdown.`;
             )}
 
             <DialogActions sx={{ mt: 2, px: 0, gap: 1.5 }}>
-              <Button fullWidth onClick={onBackStep}>
+              <Button fullWidth onClick={onBackStep} sx={{ borderRadius: 3, py: 1.2, fontWeight: 700, textTransform: "none" }}>
                 Back
               </Button>
               <Button
@@ -1310,7 +1394,7 @@ Do not output markdown.`;
                 onClick={onCreateTripAndProceedToStep5}
                 disabled={isCreatingTrip}
                 startIcon={isCreatingTrip ? <CircularProgress size={18} color="inherit" /> : null}
-                sx={{ bgcolor: isDarkMode ? "#fff" : "#000", color: isDarkMode ? "#000" : "#fff" }}
+                sx={{ borderRadius: 3, py: 1.2, fontWeight: 700, textTransform: "none", bgcolor: isDarkMode ? "#fff" : "#000", color: isDarkMode ? "#000" : "#fff", boxShadow: "none" }}
               >
                 {isCreatingTrip ? "Creating Trip..." : "Create Trip"}
               </Button>
@@ -1318,41 +1402,41 @@ Do not output markdown.`;
           </Box>
         )}
 
-        {/* STEP 5: Clarified Timeline & Relevant Checklist Previews */}
+        {/* STEP 5: Timeline & Checklist Previews */}
         {activeStep === 4 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             <Box sx={{ textAlign: "center", mt: 1 }}>
-              <Avatar sx={{ bgcolor: "rgba(0, 230, 118, 0.15)", mx: "auto", width: 64, height: 64, mb: 1.5 }}>
-                <AutoAwesome sx={{ color: "#00E676", fontSize: 36 }} />
+              <Avatar sx={{ bgcolor: isDarkMode ? "rgba(74, 222, 128, 0.15)" : "rgba(74, 222, 128, 0.1)", mx: "auto", width: 64, height: 64, mb: 1.5 }}>
+                <AutoAwesome sx={{ color: "#4ADE80", fontSize: 32 }} />
               </Avatar>
-              <Typography variant="h6" fontWeight="bold">
-                🎉 Trip Created! Fine-tune Timeline & Checklist
+              <Typography variant="h6" fontWeight={800}>
+                🎉 Trip Created Successfully!
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Review, add notes, and edit activities for <b>{createdTripDetails?.name || newTrip.name}</b>.
+                Fine-tune itinerary timeline and packing checklist for <b>{createdTripDetails?.name || newTrip.name}</b>.
               </Typography>
             </Box>
 
             {isAiGeneratingStep5 ? (
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", py: 4, gap: 2 }}>
-                <CircularProgress size={24} sx={{ color: "#00E676" }} />
+                <CircularProgress size={24} sx={{ color: "#4ADE80" }} />
                 <Typography variant="body2" fontWeight={600}>
-                  Building clarified schedule and packing essentials...
+                  Building schedule and packing essentials...
                 </Typography>
               </Box>
             ) : (
               <Stack spacing={3}>
-                {/* 1. Day-by-Day Timeline Preview with Descriptions */}
-                <Paper sx={{ p: 2.5, borderRadius: 4, border: "1px solid divider", bgcolor: "action.hover" }}>
+                {/* Timeline Preview */}
+                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, border: "1px solid", borderColor: isDarkMode ? "rgba(255,255,255,0.08)" : "divider", bgcolor: isDarkMode ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)" }}>
                   <Typography variant="subtitle2" fontWeight={800} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                    <TimelineIcon sx={{ color: "#00E676" }} /> Itinerary Timeline ({previewTimeline.length} Days)
+                    <TimelineIcon sx={{ color: "#4ADE80" }} /> Itinerary Timeline ({previewTimeline.length} Days)
                   </Typography>
 
                   <Stack spacing={2}>
                     {previewTimeline.map((item, idx) => (
-                      <Paper key={idx} sx={{ p: 2, borderRadius: 3, display: "flex", flexDirection: "column", gap: 1.5, border: "1px solid divider" }}>
-                        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-                          <Chip label={`Day ${idx + 1}`} size="small" sx={{ fontWeight: 800, bgcolor: "#00E676", color: "#000" }} />
+                      <Paper key={idx} elevation={0} sx={{ p: 2, borderRadius: 3, display: "flex", flexDirection: "column", gap: 1.5, border: "1px solid", borderColor: isDarkMode ? "rgba(255,255,255,0.06)" : "divider", bgcolor: isDarkMode ? "rgba(255,255,255,0.01)" : "background.paper" }}>
+                        <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+                          <Chip label={`Day ${idx + 1}`} size="small" sx={{ fontWeight: 800, bgcolor: "#4ADE80", color: "#000" }} />
                           <TextField
                             size="small"
                             label="Event Title"
@@ -1363,7 +1447,7 @@ Do not output markdown.`;
                               updated[idx].title = e.target.value;
                               setPreviewTimeline(updated);
                             }}
-                            sx={formFieldSx}
+                            sx={glassInputSx(mode)}
                           />
                         </Box>
 
@@ -1379,40 +1463,32 @@ Do not output markdown.`;
                             updated[idx].time = e.target.value;
                             setPreviewTimeline(updated);
                           }}
-                          sx={formFieldSx}
+                          sx={glassInputSx(mode)}
                         />
 
                         <TextField
                           size="small"
-                          label="Activity Description / Note"
+                          label="Activity Description"
                           multiline
                           rows={2}
                           fullWidth
-                          placeholder="Add details (e.g. Visit spots, check-in details, transit modes)..."
                           value={item.note || ""}
                           onChange={(e) => {
                             const updated = [...previewTimeline];
                             updated[idx].note = e.target.value;
                             setPreviewTimeline(updated);
                           }}
-                          sx={formFieldSx}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <Notes size="small" />
-                              </InputAdornment>
-                            ),
-                          }}
+                          sx={glassInputSx(mode)}
                         />
                       </Paper>
                     ))}
                   </Stack>
                 </Paper>
 
-                {/* 2. Relevant Checklist Preview */}
-                <Paper sx={{ p: 2.5, borderRadius: 4, border: "1px solid divider", bgcolor: "action.hover" }}>
+                {/* Checklist Preview */}
+                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, border: "1px solid", borderColor: isDarkMode ? "rgba(255,255,255,0.08)" : "divider", bgcolor: isDarkMode ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)" }}>
                   <Typography variant="subtitle2" fontWeight={800} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                    <ListAlt sx={{ color: "#00B0FF" }} /> Relevant Packing Checklist
+                    <ListAlt sx={{ color: "#38BDF8" }} /> Relevant Packing Checklist
                   </Typography>
 
                   <Stack spacing={1.5} sx={{ mb: 2 }}>
@@ -1427,7 +1503,7 @@ Do not output markdown.`;
                             updated[idx] = e.target.value;
                             setPreviewChecklist(updated);
                           }}
-                          sx={formFieldSx}
+                          sx={glassInputSx(mode)}
                         />
                         <IconButton
                           color="error"
@@ -1441,15 +1517,14 @@ Do not output markdown.`;
                     ))}
                   </Stack>
 
-                  {/* Add Custom Item */}
                   <Box sx={{ display: "flex", gap: 1 }}>
                     <TextField
                       size="small"
                       fullWidth
-                      placeholder="Add custom item (e.g. Camera Chargers, Medicines)..."
+                      placeholder="Add custom item..."
                       value={newChecklistText}
                       onChange={(e) => setNewChecklistText(e.target.value)}
-                      sx={formFieldSx}
+                      sx={glassInputSx(mode)}
                     />
                     <Button
                       variant="outlined"
@@ -1460,7 +1535,7 @@ Do not output markdown.`;
                           setNewChecklistText("");
                         }
                       }}
-                      sx={{ borderRadius: 3, textTransform: "none", fontWeight: 700, px: 2 }}
+                      sx={{ borderRadius: 3, textTransform: "none", fontWeight: 700, px: 2.5 }}
                     >
                       Add
                     </Button>
@@ -1478,12 +1553,13 @@ Do not output markdown.`;
                 startIcon={isSavingSubcollections ? <CircularProgress size={18} color="inherit" /> : <CheckCircle />}
                 sx={{
                   py: 1.4,
-                  borderRadius: 3,
+                  borderRadius: 3.5,
                   fontWeight: 700,
-                  background: "linear-gradient(135deg, #00E676, #00B0FF)",
+                  background: "linear-gradient(135deg, #4ADE80, #38BDF8)",
                   color: "#000",
                   textTransform: "none",
-                  "&:hover": { opacity: 0.9 },
+                  boxShadow: "none",
+                  "&:hover": { opacity: 0.9, boxShadow: "none" },
                 }}
               >
                 {isSavingSubcollections ? "Saving Timeline & Checklist..." : "Finish & Save to Trip"}
@@ -1494,7 +1570,7 @@ Do not output markdown.`;
                 variant="outlined"
                 onClick={closeDrawer}
                 disabled={isSavingSubcollections}
-                sx={{ borderRadius: 3, textTransform: "none" }}
+                sx={{ borderRadius: 3.5, textTransform: "none", fontWeight: 700 }}
               >
                 Skip for Now
               </Button>

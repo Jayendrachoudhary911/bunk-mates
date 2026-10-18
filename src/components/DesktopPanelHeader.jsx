@@ -23,12 +23,13 @@ const DesktopPanelHeader = ({
         justifyContent: "space-between",
         height: 60,
         px: 2.5,
-        borderBottom: `1px solid ${
+        pt: 1,
+        borderBottom: `0px solid ${
           isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"
         }`,
         backgroundColor: isDark
-          ? "rgba(18, 18, 18, 0.65)"
-          : "rgba(255, 255, 255, 0.65)",
+          ? "rgba(18, 18, 18, 0)"
+          : "rgba(255, 255, 255, 0)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
         position: "sticky",
@@ -47,7 +48,7 @@ const DesktopPanelHeader = ({
               sx={{
                 width: 32,
                 height: 32,
-                borderRadius: "10px",
+                borderRadius: 8,
                 color: isDark ? "#fff" : "#111",
                 backgroundColor: isDark
                   ? "rgba(255, 255, 255, 0.06)"
@@ -70,9 +71,9 @@ const DesktopPanelHeader = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: 32,
-              height: 32,
-              borderRadius: "10px",
+              width: 38,
+              height: 38,
+              borderRadius: 8,
               backgroundColor: isDark
                 ? "rgba(255, 255, 255, 0.08)"
                 : "rgba(0, 0, 0, 0.05)",
@@ -127,7 +128,8 @@ const DesktopPanelHeader = ({
               sx={{
                 width: 32,
                 height: 32,
-                borderRadius: "10px",
+                boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)',
+                borderRadius: 8,
                 color: isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)",
                 backgroundColor: isDark
                   ? "rgba(255, 255, 255, 0.05)"
@@ -145,7 +147,7 @@ const DesktopPanelHeader = ({
                 },
               }}
             >
-              <CloseIcon sx={{ fontSize: 18 }} />
+              <CloseIcon sx={{ fontSize: 22 }} />
             </IconButton>
           </Tooltip>
         )}

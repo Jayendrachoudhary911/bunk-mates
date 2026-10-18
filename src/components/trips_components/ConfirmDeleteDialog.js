@@ -1,179 +1,230 @@
 import React from "react";
 import {
-  Box, Typography, Button, Dialog, DialogTitle, DialogContent,
-  DialogActions,
+  Box,
+  Typography,
+  Button,
+  SwipeableDrawer,
+  IconButton,
+  Stack,
 } from "@mui/material";
-import { AnimatePresence, motion } from "framer-motion";
-import { WarningAmberRounded as WarningAmberRoundedIcon } from "../../icons";
-import { designTokens, glass } from "../../theme/designSystem";
+import { motion } from "framer-motion";
+import {
+  CloseOutlined as CloseOutlinedIcon,
+  WarningAmberRounded as WarningAmberRoundedIcon,
+} from "../../icons";
+import {
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+  glassIconBtnSx,
+} from "../../theme/designSystem";
 
-const ConfirmDeleteDialog = ({
+const ConfirmDeleteDrawer = ({
   confirmDeleteOpen,
   setConfirmDeleteOpen,
   handleDeleteTrip,
   mode,
 }) => {
+  const isDarkMode = mode === "dark";
+
+  const handleClose = () => {
+    setConfirmDeleteOpen(false);
+  };
+
   return (
-    <AnimatePresence>
-      {confirmDeleteOpen && (
-        <Dialog
-          open={confirmDeleteOpen}
-          onClose={() => setConfirmDeleteOpen(false)}
-          PaperProps={{
-            sx: {
-              ...glass(mode),
-              p: 3,
-              borderRadius: designTokens.radii.card,
-              width: "100%",
-              maxWidth: 420,
-              overflow: "hidden",
-            },
+    <SwipeableDrawer
+      anchor="bottom"
+      open={confirmDeleteOpen}
+      onClose={handleClose}
+      onOpen={() => {}}
+      disableSwipeToOpen={false}
+      PaperProps={{
+        sx: {
+          ...drawerPaperSx(mode, {
+            maxHeight: "85vh",
+          }),
+          overflowY: "auto",
+        },
+      }}
+      ModalProps={{
+        BackdropProps: {
+          sx: drawerBackdropSx,
+        },
+      }}
+    >
+      {/* Mobile Drag Handle */}
+      <Box sx={{ display: { xs: "block", md: "none" } }}>
+        <DrawerHandle mode={mode} />
+      </Box>
+
+      {/* Header with Desktop Close Button */}
+      <Box
+        sx={{
+          px: { xs: 0, md: 3.5 },
+          pt: { xs: 1, md: 3 },
+          pb: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          maxWidth: 600,
+          mx: "auto",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        <Box sx={{ width: 40, display: { xs: 'none', md: 'block' } }} />
+        <Typography
+          variant="h6"
+          fontWeight={800}
+          textAlign="center"
+          sx={{
+            color: isDarkMode ? "#fff" : "#000",
+            letterSpacing: "-0.3px",
+            flexGrow: 1,
           }}
-          TransitionProps={{
-            timeout: 300,
+        >
+          Confirm Delete
+        </Typography>
+        <IconButton
+          onClick={handleClose}
+          size="small"
+          sx={glassIconBtnSx(mode, { p: 1, display: { xs: 'none', md: 'flex' } })}
+        >
+          <CloseOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Box>
+
+      {/* Content Section */}
+      <Box
+        component={motion.div}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        sx={{
+          maxWidth: 600,
+          mx: "auto",
+          width: "100%",
+          boxSizing: "border-box",
+          px: { xs: 0, md: 3.5 },
+          pb: { xs: 0, md: 4 },
+          textAlign: "center",
+        }}
+      >
+        {/* Warning Icon Box */}
+<Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            my: 3,
           }}
         >
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 10 }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
           >
-            {/* Warning Icon Section */}
             <Box
               sx={{
+                width: 76,
+                height: 76,
+                borderRadius: "50%",
                 display: "flex",
-                justifyContent: "center",
                 alignItems: "center",
-                mb: 2,
-              }}
-            >
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-              >
-                <Box
-                  sx={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background:
-                      mode === "dark"
-                        ? "rgba(255, 50, 50, 0.1)"
-                        : "rgba(255, 100, 100, 0.15)",
-                    boxShadow: "none",
-                  }}
-                >
-                  <WarningAmberRoundedIcon
-                    sx={{
-                      fontSize: 42,
-                      color: "#ff4444",
-                    }}
-                  />
-                </Box>
-              </motion.div>
-            </Box>
-
-            {/* Title */}
-            <DialogTitle
-              sx={{
-                textAlign: "center",
-                fontWeight: "700",
-                fontSize: "1.25rem",
-                color: mode === "dark" ? "#fff" : "#000",
-                pb: 0.5,
-              }}
-            >
-              Confirm Delete
-            </DialogTitle>
-
-            {/* Message */}
-            <DialogContent>
-              <Typography
-                color="text.secondary"
-                textAlign="center"
-                sx={{
-                  px: 2,
-                  fontSize: "0.95rem",
-                  lineHeight: 1.5,
-                }}
-              >
-                Are you sure you want to permanently delete this trip? <br />
-                <Typography
-                  component="span"
-                  sx={{
-                    color: "#e53935",
-                    fontWeight: "600",
-                  }}
-                >
-                  This action cannot be undone.
-                </Typography>
-              </Typography>
-            </DialogContent>
-
-            {/* Buttons */}
-            <DialogActions
-              sx={{
                 justifyContent: "center",
-                gap: 2,
-                mt: 2,
-                pb: 1,
+                backgroundColor: isDarkMode
+                  ? "rgba(244, 67, 54, 0.15)"
+                  : "rgba(244, 67, 54, 0.08)",
+                border: "0px solid",
               }}
             >
-              <Button
-                variant="outlined"
-                onClick={() => setConfirmDeleteOpen(false)}
+              <WarningAmberRoundedIcon
                 sx={{
-                  textTransform: "none",
-                  borderRadius: 3,
-                  px: 3,
-                  py: 0.8,
-                  fontWeight: 600,
-                  borderColor: mode === "dark" ? "#888" : "#aaa",
-                  color: mode === "dark" ? "#fff" : "#000",
-                  "&:hover": {
-                    backgroundColor:
-                      mode === "dark" ? "#2a2a2a" : "#f0f0f0",
-                    borderColor: mode === "dark" ? "#bbb" : "#000",
-                  },
+                  fontSize: 40,
+                  color: "#ef4444",
                 }}
-              >
-                Cancel
-              </Button>
-
-              <motion.div whileTap={{ scale: 0.95 }}>
-                <Button
-                  variant="contained"
-                  color="error"
-                  onClick={handleDeleteTrip}
-                  sx={{
-                    textTransform: "none",
-                    borderRadius: 3,
-                    px: 3,
-                    py: 0.8,
-                    fontWeight: 600,
-                    background:
-                      "linear-gradient(135deg, #ff4e4e, #d32f2f)",
-                    boxShadow: "none",
-                    "&:hover": {
-                      background:
-                        "linear-gradient(135deg, #ff3c3c, #b71c1c)",
-                    },
-                  }}
-                >
-                  Delete
-                </Button>
-              </motion.div>
-            </DialogActions>
+              />
+            </Box>
           </motion.div>
-        </Dialog>
-      )}
-    </AnimatePresence>
+        </Box>
+
+        <Typography
+          variant="body1"
+          color="text.secondary"
+          textAlign="center"
+          sx={{
+            px: 2,
+            fontSize: "0.95rem",
+            lineHeight: 1.6,
+            mb: 3.5,
+          }}
+        >
+          Are you sure you want to permanently delete this trip? <br />
+          <Typography
+            component="span"
+            sx={{
+              display: "inline-block",
+              mt: 0.75,
+              color: "#ef4444",
+              fontWeight: 700,
+              fontSize: "0.88rem",
+            }}
+          >
+            This action cannot be undone and will remove all associated data.
+          </Typography>
+        </Typography>
+
+        {/* Action Buttons */}
+<Stack direction="row" spacing={1.5}>
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={handleClose}
+            sx={{
+              borderRadius: 8,
+              py: 1.4,
+              textTransform: "none",
+              fontWeight: 700,
+              fontSize: "0.95rem",
+              border: "none",
+              boxShadow: isDarkMode ? 'inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 4px rgba(0,0,0,0.1)' : 'inset 0 1px 4px rgba(12, 12, 12, 0.11), 0 1px 4px rgba(0,0,0,0.1)',
+              color: "text.primary",
+              bgcolor: isDarkMode ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                backgroundColor: isDarkMode ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+              },
+            }}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            fullWidth
+            variant="contained"
+            color="error"
+            onClick={handleDeleteTrip}
+            sx={{
+              borderRadius: 8,
+              py: 1.4,
+              textTransform: "none",
+              fontWeight: 700,
+              fontSize: "0.95rem",
+              boxShadow: "none",
+              background: '#b900002e',
+              color: mode === "dark" ? "#ffabab" : "#ae3636" ,
+              transition: "all 0.2s ease",
+              "&:hover": {
+                background: '#b900004d',
+              },
+            }}
+          >
+            Delete Trip
+          </Button>
+        </Stack>
+      </Box>
+    </SwipeableDrawer>
   );
 };
 
-export default ConfirmDeleteDialog;
+export default ConfirmDeleteDrawer;

@@ -14,15 +14,12 @@ import {
   Breadcrumbs,
   Chip,
   Stack,
-  Card,
-  CardContent,
 } from "@mui/material";
 import {
   ShieldOutlined as ShieldIcon,
   Home as HomeIcon,
   NavigateNext as NavigateNextIcon,
   CheckCircleOutlineRounded as CheckIcon,
-  InfoOutlined as InfoIcon,
   LockOutlined as LockIcon,
 } from "@mui/icons-material";
 import { Link } from "react-router-dom";

@@ -1,7 +1,7 @@
 import React from "react";
 import {
   Box, Typography, Button, SwipeableDrawer,
-  List, ListItem, ListItemIcon, ListItemText, Checkbox,
+  List, ListItem, ListItemIcon, ListItemText, Checkbox, Stack,
 } from "@mui/material";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
@@ -33,37 +33,53 @@ const ChecklistViewAllDrawer = ({
       open={checklistViewAllOpen}
       onClose={() => setChecklistViewAllOpen(false)}
       onOpen={() => setChecklistViewAllOpen(true)}
-      PaperProps={{ sx: drawerPaperSx(mode, { maxHeight: "90vh", p: 0, m: 0, borderRadius: "22px 22px 0 0" }) }}
+      PaperProps={{ sx: drawerPaperSx(mode, { maxHeight: "90vh", p: 0 }) }}
       sx={{ "& .MuiBackdrop-root": drawerBackdropSx }}
     >
-      <DrawerHandle mode={mode} />
+      <Box sx={{ display: { xs: "block", md: "none" } }}>
+        <DrawerHandle mode={mode} />
+      </Box>
 
-      <Box sx={{ px: 3, pb: 2, ...flexBetweenSx }}>
-        <Typography variant="h6" fontWeight={700}>Full Checklist</Typography>
+      <Box sx={{ px: 3,
+          pt: { xs: 1, md: 3 }, pb: 2, ...flexBetweenSx }}>
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <Box>
+            <Typography variant="h6" fontWeight={700} lineHeight={1.2}>
+              Full Checklist
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {checklist.length} {checklist.length === 1 ? "checklist" : "checklists"}
+            </Typography>
+          </Box>
+        </Stack>
 
         <Box display="flex" alignItems="center" gap={1}>
           {isDevBeta && (
             <Button
               size="small"
               variant="outlined"
-              startIcon={<AutoAwesomeIcon sx={{ color: "#00E676" }} />}
+              startIcon={<AutoAwesomeIcon sx={{ color: mode === "dark" ? "#ffffff" : "#000000" }} />}
               onClick={onAiOptimizeChecklist}
               sx={{
                 borderRadius: designTokens.radii.chip,
                 textTransform: "none",
-                fontWeight: 700,
-                borderColor: "#00E676",
-                color: mode === "dark" ? "#00E676" : "#00A855",
+                fontWeight: 600,
+                border: 0,
+                color: mode === "dark" ? "#ffffff" : "#000000",
+                bgcolor:
+                  mode === "dark"
+                    ? "rgba(255, 255, 255, 0.06)"
+                    : "rgba(1, 1, 1, 0.1)",
               }}
             >
-              ✨ AI Re-organize
+              AI Checklist
             </Button>
           )}
 
           <Button
             size="small"
             onClick={() => setChecklistViewAllOpen(false)}
-            sx={glassIconBtnSx(mode, { p: 1 })}
+            sx={glassIconBtnSx(mode, { p: 1, display: { xs: 'none', md: 'flex' } })}
             aria-label="Close checklist view"
           >
             <CloseOutlinedIcon fontSize="small" />
