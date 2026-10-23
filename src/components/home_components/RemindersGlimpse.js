@@ -2,11 +2,10 @@ import React, { useRef, useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Typography, IconButton, Button } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarMonth, NotificationsNone, Check } from "../../icons";
+import { CalendarMonth, NotificationsNone, Check, AccessTime } from "../../icons";
 import { designTokens, glass } from "../../theme/designSystem";
 
-const REMCARD_WIDTH = 140;
-const MAX_VISIBLE = 4;
+const MAX_VISIBLE = 4; // Updated to show exactly 4 reminders
 
 const ConfettiParticle = ({ x, y, rotate, color }) => (
   <motion.div
@@ -26,39 +25,53 @@ const ConfettiParticle = ({ x, y, rotate, color }) => (
   />
 );
 
-const ProgressRing = ({ progress, color }) => {
-  const radius = 14;
-  const stroke = 3;
-  const normalizedRadius = radius - stroke * 2;
-  const circumference = normalizedRadius * 2 * Math.PI;
-  const strokeDashoffset = circumference - progress * circumference;
-
-  return (
-    <svg width={radius * 2} height={radius * 2}>
-      <circle
-        stroke="rgba(0,0,0,0.1)"
-        fill="transparent"
-        strokeWidth={stroke}
-        r={normalizedRadius}
-        cx={radius}
-        cy={radius}
-      />
-      <circle
-        stroke={color}
-        fill="transparent"
-        strokeWidth={stroke}
-        strokeLinecap="round"
-        strokeDasharray={`${circumference} ${circumference}`}
-        style={{ strokeDashoffset }}
-        r={normalizedRadius}
-        cx={radius}
-        cy={radius}
-      />
-    </svg>
-  );
+const formatDisplayDate = (val) => {
+  if (!val) return "";
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? "" : val.toLocaleDateString();
+  }
+  if (typeof val === "object" && val !== null) {
+    if (typeof val.toDate === "function") {
+      try {
+        const d = val.toDate();
+        return isNaN(d.getTime()) ? "" : d.toLocaleDateString();
+      } catch {
+        return "";
+      }
+    }
+    if (typeof val.seconds === "number") {
+      const d = new Date(val.seconds * 1000);
+      return isNaN(d.getTime()) ? "" : d.toLocaleDateString();
+    }
+    return "";
+  }
+  return String(val);
 };
 
-const ReminderCard = ({ rem, mode, onToggleComplete }) => {
+const formatDisplayTime = (val) => {
+  if (!val) return "";
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? "" : val.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+  if (typeof val === "object" && val !== null) {
+    if (typeof val.toDate === "function") {
+      try {
+        const d = val.toDate();
+        return isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      } catch {
+        return "";
+      }
+    }
+    if (typeof val.seconds === "number") {
+      const d = new Date(val.seconds * 1000);
+      return isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+    return "";
+  }
+  return String(val);
+};
+
+const ReminderTimelineItem = ({ rem, mode, onToggleComplete, isLast }) => {
   const navigate = useNavigate();
   const prevCompleted = useRef(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -82,131 +95,29 @@ const ReminderCard = ({ rem, mode, onToggleComplete }) => {
       <Box
         onClick={() => navigate("/reminders")}
         sx={{
-          minWidth: 290,
-          height: 160,
-          scrollSnapAlign: "start",
-          borderRadius: 5,
-          p: 2.4,
+          width: "100%",
+          py: 3,
+          px: 2.5,
+          borderRadius: designTokens.radii.card,
           position: "relative",
           overflow: "hidden",
-          mx: "auto",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           gap: 0.8,
-          background:
-            mode === "dark"
-              ? `
-                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
-                repeating-linear-gradient(
-                  0deg,
-                  rgba(255,255,255,0.04),
-                  rgba(255,255,255,0.04) 1px,
-                  transparent 1px,
-                  transparent 18px
-                ),
-                repeating-linear-gradient(
-                  90deg,
-                  rgba(255,255,255,0.035),
-                  rgba(255,255,255,0.035) 1px,
-                  transparent 1px,
-                  transparent 18px
-                )
-              `
-              : `
-                linear-gradient(180deg, #ffffff, #f8fafc),
-                repeating-linear-gradient(
-                  0deg,
-                  rgba(0,0,0,0.035),
-                  rgba(0,0,0,0.035) 1px,
-                  transparent 1px,
-                  transparent 20px
-                ),
-                repeating-linear-gradient(
-                  90deg,
-                  rgba(0,0,0,0.03),
-                  rgba(0,0,0,0.03) 1px,
-                  transparent 1px,
-                  transparent 20px
-                )
-              `,
-          border:
-            mode === "dark"
-              ? "1px dashed rgba(255,255,255,0.18)"
-              : "1px dashed rgba(0,0,0,0.12)",
-          boxShadow:
-            mode === "dark"
-              ? "0 10px 26px rgba(0,0,0,0.4)"
-              : "0 10px 22px rgba(0,0,0,0.14)",
-          opacity: 0.9,
-          userSelect: "none",
+          background: mode === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)",
+          border: mode === "dark" ? "1px dashed rgba(255,255,255,0.15)" : "1px dashed rgba(0,0,0,0.1)",
           cursor: "pointer",
+          textAlign: "center",
         }}
       >
-        <CalendarMonth
-          sx={{
-            position: "absolute",
-            right: -20,
-            bottom: -20,
-            fontSize: 120,
-            opacity: mode === "dark" ? 0.06 : 0.05,
-            pointerEvents: "none",
-          }}
-        />
-
-        <Box
-          sx={{
-            width: 42,
-            height: 42,
-            borderRadius: "50%",
-            display: "grid",
-            placeItems: "center",
-            background:
-              mode === "dark"
-                ? "rgba(255,255,255,0.08)"
-                : "rgba(0,0,0,0.06)",
-            boxShadow:
-              mode === "dark"
-                ? "0 0 0 6px rgba(255,255,255,0.04)"
-                : "0 0 0 6px rgba(0,0,0,0.04)",
-          }}
-        >
-          <NotificationsNone sx={{ fontSize: 22, opacity: 0.55 }} />
-        </Box>
-
-        <Typography
-          sx={{
-            fontWeight: 800,
-            fontSize: 15,
-            opacity: 0.85,
-          }}
-        >
+        <NotificationsNone sx={{ fontSize: 24, opacity: 0.55, mb: 0.5 }} />
+        <Typography sx={{ fontWeight: 800, fontSize: 15, opacity: 0.85 }}>
           No reminders yet
         </Typography>
-
-        <Typography
-          variant="caption"
-          sx={{
-            maxWidth: 220,
-            textAlign: "center",
-            lineHeight: 1.5,
-            opacity: 0.6,
-          }}
-        >
-          Your upcoming reminders will appear here once you add one.
-        </Typography>
-
-        <Typography
-          variant="caption"
-          sx={{
-            mt: 0.4,
-            fontWeight: 600,
-            letterSpacing: "0.03em",
-            opacity: 0.45,
-          }}
-        >
-          Tap <strong>the card</strong> to create your first reminder
+        <Typography variant="caption" sx={{ opacity: 0.6 }}>
+          Your upcoming reminders will appear here once you add one. Tap to create.
         </Typography>
       </Box>
     );
@@ -214,13 +125,8 @@ const ReminderCard = ({ rem, mode, onToggleComplete }) => {
 
   const now = Date.now();
   const dueTime = rem?.dueAt ? new Date(rem.dueAt).getTime() : null;
-  const createdAt = rem?.createdAt
-    ? new Date(rem.createdAt).getTime()
-    : now;
-
   const isOverdue = !isCompleted && dueTime && dueTime < now;
-  const isUrgent =
-    !isCompleted && dueTime && dueTime - now < 1000 * 60 * 60 * 24;
+  const isUrgent = !isCompleted && dueTime && dueTime - now < 1000 * 60 * 60 * 24;
 
   const accent = isCompleted
     ? "#22c55e"
@@ -230,91 +136,124 @@ const ReminderCard = ({ rem, mode, onToggleComplete }) => {
     ? "#facc15"
     : "#60a5fa";
 
-  const progress =
-    isCompleted || !dueTime
-      ? 1
-      : Math.min(
-          Math.max((now - createdAt) / (dueTime - createdAt), 0),
-          1
-        );
+  const displayDateStr = formatDisplayDate(rem?.date);
+  const displayTimeStr = formatDisplayTime(rem?.time);
+  const dateTimeLabel = [displayDateStr, displayTimeStr].filter(Boolean).join(" • ");
 
   return (
     <motion.div
-      whileHover={!isCompleted ? { y: -6 } : {}}
-      transition={{ type: "spring", stiffness: 260, damping: 22 }}
-      sx={{ backgroundColor: "transparent" }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.2 }}
+      style={{ width: "100%", position: "relative" }}
     >
-      <Box
-        sx={{
-          minWidth: 180,
-          height: 75,
-          borderRadius: designTokens.radii.card,
-          p: 2,
-          position: "relative",
-          overflow: "hidden",
-          ...glass(mode, {
-            background: `
-              linear-gradient(
-                120deg,
-                ${accent}22,
-                ${
-                  mode === "dark"
-                    ? "rgba(255,255,255,0.04)"
-                    : "rgba(255,255,255,0.85)"
-                },
-                ${accent}22
-              ),
-              repeating-linear-gradient(
-                  0deg,
-                  rgba(255,255,255,0.04),
-                  rgba(255,255,255,0.04) 1px,
-                  transparent 1px,
-                  transparent 18px
-                )
-            `,
-          }),
-          backgroundSize: "300% 300%",
-          animation: isCompleted ? "none" : "gradientShift 8s ease infinite",
-          boxShadow: isOverdue
-            ? "0 0 0 1px rgba(239,68,68,0.4), 0 18px 40px rgba(239,68,68,0.25)"
-            : undefined,
-          opacity: isCompleted ? 0.7 : 1,
-        }}
-      >
-        <CalendarMonth
-          sx={{
-            position: "absolute",
-            right: -18,
-            bottom: -18,
-            fontSize: 120,
-            opacity: 0.06,
-            pointerEvents: "none",
-          }}
-        />
-
-        <AnimatePresence>
-          {showConfetti &&
-            [...Array(10)].map((_, i) => (
-              <ConfettiParticle
-                key={i}
-                x={(Math.random() - 0.5) * 120}
-                y={(Math.random() - 1) * 120}
-                rotate={Math.random() * 360}
-                color={accent}
-              />
-            ))}
-        </AnimatePresence>
-
+      <Box sx={{ display: "flex", alignItems: "stretch", position: "relative" }}>
+        
+        {/* Timeline Node & Vertical Track Line */}
         <Box
           sx={{
             display: "flex",
-            justifyContent: "space-between",
+            flexDirection: "column",
             alignItems: "center",
-            mb: 1,
+            mr: 1,
+            position: "relative",
+            minWidth: 24,
           }}
         >
-          <ProgressRing progress={progress} color={accent} />
+          {/* Timeline Dot Indicator */}
+          <Box
+            sx={{
+              width: 14,
+              height: 14,
+              borderRadius: "50%",
+              backgroundColor: rem.completed ? accent : mode === "dark" ? "#f1f1f116" : '#0c0c0c14',
+              boxShadow: `0`,
+              zIndex: 2,
+              mt: 2,
+              flexShrink: 0,
+            }}
+          />
 
+          {/* Vertical Connecting Track Line */}
+          {!isLast && (
+            <Box
+              sx={{
+                width: 2,
+                flexGrow: 1,
+                backgroundColor: mode === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)",
+                my: 1,
+              }}
+            />
+          )}
+        </Box>
+
+        {/* Timeline Content Card */}
+        <Box
+          sx={{
+            flexGrow: 1,
+            py: 0.2,
+            px: 2,
+            mb: 0.5, 
+            borderRadius: 4,
+            position: "relative",
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+            border: "none",
+            borderLeft: `0px solid ${accent}`,
+            ...glass(mode, {
+              background: 'transparent',
+            }),
+            boxShadow: "none",
+            opacity: isCompleted ? 0.65 : 1,
+            transition: "transform 0.2s ease, box-shadow 0.2s ease",
+            "&:hover": {
+              transform: "translateX(2px)",
+            },
+          }}
+        >
+          <AnimatePresence>
+            {showConfetti &&
+              [...Array(8)].map((_, i) => (
+                <ConfettiParticle
+                  key={i}
+                  x={(Math.random() - 0.5) * 80}
+                  y={(Math.random() - 1) * 80}
+                  rotate={Math.random() * 360}
+                  color={accent}
+                />
+              ))}
+          </AnimatePresence>
+
+          {/* Text Content */}
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography
+              sx={{
+                fontSize: 14.5,
+                fontWeight: 700,
+                textDecoration: isCompleted ? "line-through" : "none",
+                color: mode === "dark" ? "#fff" : "#111",
+                mb: 0.3,
+              }}
+              noWrap
+            >
+              {typeof rem?.text === "string" ? rem.text : (rem?.text ? String(rem.text) : (rem?.title ? String(rem.title) : "Reminder"))}
+            </Typography>
+
+            {dateTimeLabel && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, opacity: 0.65 }}>
+                <AccessTime sx={{ fontSize: 13 }} />
+                <Typography variant="caption" noWrap>
+                  {dateTimeLabel}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          {/* Complete Button */}
           <IconButton
             size="small"
             onClick={(e) => {
@@ -322,68 +261,37 @@ const ReminderCard = ({ rem, mode, onToggleComplete }) => {
               onToggleComplete?.(rem.id, rem.completed);
             }}
             sx={{
-              p: 0.6,
-              borderRadius: 2.5,
-              height: 25,
+              p: 0.8,
+              borderRadius: "50%",
+              width: 32,
+              height: 32,
+              flexShrink: 0,
               background: rem.completed
                 ? `${accent}22`
                 : mode === "dark"
-                ? "rgba(255,255,255,0.08)"
+                ? "rgba(255,255,255,0.01)"
                 : "rgba(0, 0, 0, 0.01)",
               border: rem.completed
-                ? `1px solid ${accent}55`
+                ? `0px solid ${accent}55`
                 : mode === "dark"
-                ? "1px solid rgba(255,255,255,0)"
-                : "1px solid rgba(0, 0, 0, 0.11)",
-              boxShadow: rem.completed
-                ? `0 0 0 3px ${accent}22`
-                : "0 2px 8px rgba(0,0,0,0)",
-              transition:
-                "background .25s ease, box-shadow .25s ease, transform .15s ease",
+                ? "1px solid rgba(255,255,255,0.1)"
+                : "1px solid rgba(0,0,0,0.08)",
+              transition: "all 0.2s ease",
               "&:hover": {
                 background: `${accent}33`,
-                transform: "scale(1.08)",
-              },
-              "&:active": {
-                transform: "scale(0.96)",
+                transform: "scale(1.1)",
               },
             }}
           >
-            <motion.div
-              initial={false}
-              animate={{
-                scale: rem.completed ? 1.05 : 0.9,
-                rotate: rem.completed ? 0 : -20,
+            <Check
+              sx={{
+                fontSize: 16,
+                color: rem.completed ? accent : mode === "dark" ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.3)",
+                display: rem.completed ? "flex" : 'none'
               }}
-              transition={{ type: "spring", stiffness: 420, damping: 26 }}
-            >
-              <Check
-                sx={{
-                  fontSize: 18,
-                  color: rem.completed ? accent : `${accent}cc`,
-                  filter: rem.completed
-                    ? "drop-shadow(0 0 6px rgba(34,197,94,0.6))"
-                    : "none",
-                }}
-              />
-            </motion.div>
+            />
           </IconButton>
         </Box>
-
-        <Typography
-          sx={{
-            fontSize: 15,
-            fontWeight: 800,
-            textDecoration: isCompleted ? "line-through" : "none",
-            mb: 0.6,
-          }}
-        >
-          {rem.text}
-        </Typography>
-
-        <Typography variant="caption" sx={{ opacity: 0.7 }}>
-          {rem.date} • {rem.time}
-        </Typography>
       </Box>
     </motion.div>
   );
@@ -395,8 +303,6 @@ export default function RemindersGlimpse({
   handleToggleReminderComplete,
 }) {
   const navigate = useNavigate();
-  const remindersScrollRef = useRef(null);
-  const [, setReminderIndex] = useState(0);
 
   const sortedReminders = useMemo(() => {
     return [...reminders].sort((a, b) => {
@@ -419,166 +325,49 @@ export default function RemindersGlimpse({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          mb: 2,
+          mb: 1.5,
         }}
       >
         <Typography variant="h6" fontWeight={600}>
-          Reminders
+          Reminders Timeline
         </Typography>
-
-        <Button
-          size="small"
-          onClick={() => navigate("/reminders")}
-          sx={{
-            textTransform: "none",
-            fontSize: 13,
-            fontWeight: 600,
-            opacity: 0.7,
-          }}
-        >
-          View all
-        </Button>
       </Box>
 
-      {/* Cards Row */}
-      <Box sx={{ position: "relative", mt: 1, backgroundColor: "transparent" }}>
-        {/* SCROLL CONTAINER */}
-        <Box
-          ref={remindersScrollRef}
-          sx={{
-            display: "flex",
-            gap: 1,
-            pl: 1,
-            overflowX: "auto",
-            paddingBottom: 1,
-            scrollSnapType: "x mandatory",
-            backgroundColor: "transparent",
-            "&::-webkit-scrollbar": {
-              display: "none",
-            },
-          }}
-          onScroll={(e) => {
-            setReminderIndex(
-              Math.round(e.target.scrollLeft / REMCARD_WIDTH)
-            );
-          }}
-        >
-          {displayReminders.map((rem, index) => (
-            <motion.div
-              key={rem?.id ?? "empty-reminder"}
-              style={{ scrollSnapAlign: "start" }}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
-              transition={{
-                type: "spring",
-                stiffness: 240,
-                damping: 18,
-                mass: 0.55,
-                delay: index * 0.05,
-              }}
-            >
-              <Box sx={{ backgroundColor: "transparent" }}>
-                <ReminderCard
-                  rem={rem}
-                  mode={mode}
-                  onToggleComplete={handleToggleReminderComplete}
-                />
-              </Box>
-            </motion.div>
-          ))}
+      {/* Timeline Container */}
+      <Box sx={{ display: "flex", flexDirection: "column", pl: 0.5 }}>
+        {displayReminders.map((rem, index) => (
+          <ReminderTimelineItem
+            key={rem?.id ?? "empty-reminder"}
+            rem={rem}
+            mode={mode}
+            onToggleComplete={handleToggleReminderComplete}
+            isLast={index === displayReminders.length - 1 && remainingCount === 0}
+          />
+        ))}
 
-          {/* ➕ GROUPED "+N MORE" CARD */}
-          {remainingCount > 0 && (
-            <motion.div
-              style={{ scrollSnapAlign: "start" }}
-              initial={{ scale: 0.85, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.95 }}
-              transition={{
-                type: "spring",
-                stiffness: 220,
-                damping: 16,
-                mass: 0.5,
-              }}
-            >
-              <Box
-                onClick={() => navigate("/reminders")}
-                sx={{
-                  minWidth: 240,
-                  height: 100,
-                  borderRadius: 5,
-                  p: 2.5,
-                  cursor: "pointer",
-                  position: "relative",
-                  overflow: "hidden",
-                  userSelect: "none",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 0.6,
-                  background:
-                    mode === "dark"
-                      ? `
-                        linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
-                        repeating-linear-gradient(
-                          0deg,
-                          rgba(255,255,255,0.04),
-                          rgba(255,255,255,0.04) 1px,
-                          transparent 1px,
-                          transparent 18px
-                        )
-                      `
-                      : `
-                        linear-gradient(180deg, #ffffff, #f8fafc),
-                        repeating-linear-gradient(
-                          0deg,
-                          rgba(0,0,0,0.035),
-                          rgba(0,0,0,0.035) 1px,
-                          transparent 1px,
-                          transparent 18px
-                        )
-                      `,
-                  border:
-                    mode === "dark"
-                      ? "1px dashed rgba(255,255,255,0.18)"
-                      : "1px dashed rgba(0,0,0,0.12)",
-                  boxShadow:
-                    mode === "dark"
-                      ? "0 10px 26px rgba(0,0,0,0.4)"
-                      : "0 10px 22px rgba(0,0,0,0.14)",
-                  transition: "box-shadow .3s ease",
-                }}
-              >
-                <CalendarMonth
-                  sx={{
-                    position: "absolute",
-                    right: -18,
-                    bottom: -18,
-                    fontSize: 120,
-                    opacity: 0.06,
-                    pointerEvents: "none",
-                  }}
-                />
-
-                <Typography fontSize={26} fontWeight={900}>
-                  +{remainingCount}
-                </Typography>
-
-                <Typography variant="caption" sx={{ opacity: 0.65, fontWeight: 600 }}>
-                  more reminders
-                </Typography>
-
-                <Typography variant="caption" sx={{ opacity: 0.45 }}>
-                  View all →
-                </Typography>
-              </Box>
-            </motion.div>
-          )}
-        </Box>
+        {/* Remaining Count Footer if more than MAX_VISIBLE */}
+        {remainingCount > 0 && (
+          <Box
+            onClick={() => navigate("/reminders")}
+            sx={{
+              ml: 4.2,
+              py: 1.2,
+              textAlign: "center",
+              cursor: "pointer",
+              borderRadius: 8,
+              boxShadow: mode === "dark" ? 'inset 0 1px 1px rgba(255, 255, 255, 0.08)' : 'inset 0 1px 4px rgba(0, 0, 0, 0.04)',
+              background: mode === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)",
+              transition: "background 0.2s ease",
+              "&:hover": {
+                background: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+              },
+            }}
+          >
+            <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.8, color: "#7c7c7c" }}>
+              +{remainingCount} more reminder{remainingCount > 1 ? "s" : ""} in timeline — View all →
+            </Typography>
+          </Box>
+        )}
       </Box>
     </Box>
   );

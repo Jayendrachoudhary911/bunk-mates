@@ -4,6 +4,7 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getMessaging } from 'firebase/messaging';
 import { getStorage } from "firebase/storage";
+import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCP_l2uREbRMcV6aHhB8yZXK7NdGNltxpA",
@@ -21,6 +22,49 @@ const googleProvider = new GoogleAuthProvider();
 const firestore = getFirestore(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
-const messaging = getMessaging(app);
+let messaging = null;
+try {
+  if (typeof window !== "undefined" && typeof navigator !== "undefined" && navigator.serviceWorker) {
+    messaging = getMessaging(app);
+  }
+} catch (e) {
+  console.warn("Firebase messaging not supported in this environment:", e.message);
+}
+const functions = getFunctions(app);
 
-export { auth, googleProvider, db, firestore, storage, messaging };
+// Add cleanup hooks for QR session user and remote device kill-switch on signOut
+const originalSignOut = auth.signOut ? auth.signOut.bind(auth) : null;
+auth.signOut = async () => {
+  if (typeof window !== "undefined") {
+    const fbaseKey = `firebase:authUser:${firebaseConfig.apiKey}:[DEFAULT]`;
+    sessionStorage.removeItem("bunkmates_auth_user");
+    sessionStorage.removeItem("bunkmates_auth_welcome");
+    sessionStorage.removeItem("bunkmates_qr_user");
+    localStorage.removeItem("bunkmates_auth_user");
+    localStorage.removeItem("bunkmates_linked_device_id");
+    localStorage.removeItem("bunkmates_linked_uid");
+    localStorage.removeItem(fbaseKey);
+
+    try {
+      if (window.indexedDB) {
+        const req = window.indexedDB.open("firebaseLocalStorageDb", 1);
+        req.onsuccess = (e) => {
+          const idb = e.target.result;
+          if (idb.objectStoreNames.contains("firebaseLocalStorage")) {
+            const tx = idb.transaction("firebaseLocalStorage", "readwrite");
+            tx.objectStore("firebaseLocalStorage").delete(fbaseKey);
+          }
+        };
+      }
+    } catch (idbErr) {
+      console.warn("Could not delete from firebaseLocalStorageDb on sign out:", idbErr);
+    }
+  }
+  if (originalSignOut) {
+    return await originalSignOut();
+  }
+};
+
+export { firebaseConfig, auth, googleProvider, db, firestore, storage, messaging, functions };
+
+

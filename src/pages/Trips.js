@@ -78,7 +78,6 @@ import Notifications from "../elements/Notifications";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBackButtonClose } from "../hooks/useBackButtonClose";
 import { SquarePen } from "lucide-react"; 
-import CreateTripDrawer from "../components/trips_components/CreateDrawer";
 import {
   designTokens as tokens,
 } from "../theme/designSystem";
@@ -2103,7 +2102,7 @@ export default function Trips() {
                     </Typography>
 
                     <Button
-                      onClick={() => setCreateDialogOpen(true)}
+                      onClick={() => navigate("/trips/create")}
                       startIcon={
                         <Add
                           sx={{
@@ -2534,7 +2533,7 @@ export default function Trips() {
 
                   <Button
                     variant="contained"
-                    onClick={() => setCreateDialogOpen(true)}
+                    onClick={() => navigate("/trips/create")}
                     startIcon={<Add sx={{ fontSize: 18 }} />}
                     sx={{
                       height: 44,
@@ -3531,7 +3530,7 @@ export default function Trips() {
           </Box>
           
           <Button
-            onClick={() => { setCreateDialogOpen(true); }} 
+            onClick={() => { navigate("/trips/create"); }} 
             onMouseEnter={() => !scrolled && setExpanded(true)}
             onMouseLeave={() => !scrolled && setExpanded(false)}
             startIcon={<SquarePen sx={{ fontSize: expanded ? 27 : 42 }} />}
@@ -3920,24 +3919,6 @@ export default function Trips() {
           </Stack>
         </SwipeableDrawer>
 
-        <CreateTripDrawer
-          createDialogOpen={createDialogOpen}
-          closeDrawer={handleCloseDrawer}
-          step={step}
-          setStep={setStep}
-          newTrip={newTrip}
-          setNewTrip={setNewTrip}
-          selectedMembers={selectedMembers}
-          setSelectedMembers={setSelectedMembers}
-          handleNext={handleNext}
-          handleBack={handleBack}
-          handleCreateTrip={handleCreateTrip}
-          createdTripDetails={createdTripDetails}
-          setCreatedTripDetails={setCreatedTripDetails}
-          user={user}
-          db={db}
-          mode={mode}
-        />
         
       </Box>
     </ThemeProvider>

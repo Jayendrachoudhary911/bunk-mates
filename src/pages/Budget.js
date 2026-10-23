@@ -60,7 +60,6 @@ import { getTheme } from "../theme";
 
 import ProfilePic from "../components/Profile";
 import BetaAccessGuard from "../components/BetaAccessGuard";
-import DeviceGuard from "../components/DeviceGuard";
 import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 function setCookie(name, value, days = 7) {
@@ -1889,7 +1888,6 @@ const canEditExpenses = (() => {
 
   return (
     <ThemeProvider theme={theme}>
-      <DeviceGuard>
               <BetaAccessGuard>
       <Box
         sx={{
@@ -2876,7 +2874,6 @@ const canEditExpenses = (() => {
         </Fab>
 </Grid>      
       </BetaAccessGuard>
-      </DeviceGuard>
     </ThemeProvider>
   );
 };

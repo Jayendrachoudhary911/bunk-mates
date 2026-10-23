@@ -25,8 +25,10 @@ import {
   ListItemIcon,
   useMediaQuery,
   Badge,
+  SwipeableDrawer,
+  Divider,
 } from "@mui/material";
-import { ThemeProvider } from "@mui/material/styles";
+import { ThemeProvider, alpha } from "@mui/material/styles";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DoneIcon from "@mui/icons-material/Done";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
@@ -45,6 +47,7 @@ import ContactMailOutlinedIcon from "@mui/icons-material/ContactMailOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import {
   collection,
   query,
@@ -56,6 +59,7 @@ import {
   deleteDoc,
   arrayUnion,
   setDoc,
+  getDoc,
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -63,6 +67,9 @@ import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { useSwipeable } from "react-swipeable";
 import { AnimatePresence, motion, LayoutGroup } from "framer-motion";
+import {
+  drawerBackdropSx
+} from "../theme/designSystem";
 
 // ============================================================================
 // Category Mapping (Chat & Group Chat Separated), Helpers & Styling
@@ -240,7 +247,7 @@ const CategorizedAvatar = ({
           minWidth: 19,
           height: 19,
           padding: "0 4px",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.35)",
+          boxShadow: "0",
           zIndex: 3,
         },
       }}
@@ -290,7 +297,10 @@ const CategorizedAvatar = ({
 // ============================================================================
 const NotificationsSkeleton = memo(({ isMobile }) => {
   const skeletonGroups = [
-    { labelWidth: 65, items: [{ stacked: true }, { stacked: false }, { stacked: true }] },
+    {
+      labelWidth: 65,
+      items: [{ stacked: true }, { stacked: false }, { stacked: true }],
+    },
     { labelWidth: 85, items: [{ stacked: false }, { stacked: false }] },
   ];
 
@@ -298,7 +308,6 @@ const NotificationsSkeleton = memo(({ isMobile }) => {
     <List sx={{ width: "100%", px: 0 }}>
       {skeletonGroups.map((section, sIdx) => (
         <React.Fragment key={`skel-sec-${sIdx}`}>
-          {/* Date Header Skeleton */}
           <Box sx={{ pt: 2, pb: 1, px: 1.5 }}>
             <Skeleton
               animation="wave"
@@ -318,7 +327,6 @@ const NotificationsSkeleton = memo(({ isMobile }) => {
                 borderRadius: 6,
               }}
             >
-              {/* Simulated 3D Stack Backdrop Layers */}
               {item.stacked && (
                 <>
                   <Box
@@ -360,7 +368,6 @@ const NotificationsSkeleton = memo(({ isMobile }) => {
                 </>
               )}
 
-              {/* Foreground Skeleton Card */}
               <Card
                 elevation={0}
                 sx={(theme) => ({
@@ -387,7 +394,6 @@ const NotificationsSkeleton = memo(({ isMobile }) => {
                   sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}
                 >
                   <ListItem disablePadding sx={{ alignItems: "flex-start" }}>
-                    {/* Avatar + Category Badge Skeleton */}
                     <ListItemAvatar sx={{ mt: 0.5 }}>
                       <Box sx={{ position: "relative", width: 46, height: 46 }}>
                         <Skeleton
@@ -701,7 +707,7 @@ const ExpandedNotificationItem = memo(
                 py: 1.75,
                 px: 2.25,
                 borderRadius: 6,
-                cursor: isRequest ? "default" : "pointer",
+                cursor: "pointer", // Enabled pointer for friend requests too
                 backgroundColor: notif.seen
                   ? mode === "dark"
                     ? "rgba(255, 255, 255, 0.07)"
@@ -710,8 +716,9 @@ const ExpandedNotificationItem = memo(
                   ? "rgba(75, 75, 75, 0.98)"
                   : "rgba(212, 212, 212, 0.99)",
                 border: "0px solid",
-                boxShadow: 'none',
-                transition: "background-color 0.15s ease, border-color 0.2s ease",
+                boxShadow: "none",
+                transition:
+                  "background-color 0.15s ease, border-color 0.2s ease",
               }}
             >
               <Box
@@ -766,6 +773,16 @@ const ExpandedNotificationItem = memo(
                       📞 Missed Call
                     </Typography>
                   )}
+                  {isRequest && (
+                    <Typography
+                      variant="caption"
+                      color="secondary.main"
+                      fontWeight={700}
+                      sx={{ mb: 0.25 }}
+                    >
+                      👤 Friend Request — Tap to View Profile
+                    </Typography>
+                  )}
                   <motion.div layout="position">
                     <Typography
                       variant="body2"
@@ -794,18 +811,24 @@ const ExpandedNotificationItem = memo(
                   </motion.div>
 
                   {isRequest && (
-                    <Box display="flex" gap={1} mt={1.25} mb={0.5}>
+                    <Box
+                      display="flex"
+                      gap={1}
+                      mt={1.25}
+                      mb={0.5}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Button
                         variant="contained"
-                        color="success"
+                        color="primary"
                         size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onFriendRequest(notif, "accepted");
-                        }}
+                        disableElevation
+                        onClick={() => onFriendRequest(notif, "accepted")}
                         sx={{
                           borderRadius: 99,
-                          px: 2,
+                          px: 2.25,
+                          py: 0.5,
+                          fontSize: "0.8125rem",
                           textTransform: "none",
                           fontWeight: 600,
                         }}
@@ -814,20 +837,25 @@ const ExpandedNotificationItem = memo(
                       </Button>
                       <Button
                         variant="outlined"
-                        color="error"
                         size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onFriendRequest(notif, "rejected");
-                        }}
+                        onClick={() => onFriendRequest(notif, "rejected")}
                         sx={{
                           borderRadius: 99,
-                          px: 2,
+                          px: 2.25,
+                          py: 0.5,
+                          fontSize: "0.8125rem",
                           textTransform: "none",
                           fontWeight: 600,
+                          color: "text.secondary",
+                          borderColor: "divider",
+                          "&:hover": {
+                            borderColor: "error.main",
+                            color: "error.main",
+                            bgcolor: "rgba(211, 47, 47, 0.04)",
+                          },
                         }}
                       >
-                        Reject
+                        Decline
                       </Button>
                     </Box>
                   )}
@@ -999,10 +1027,10 @@ const NotificationStackCard = memo(
                         ? "rgb(21, 21, 21)"
                         : "#f0eeee",
                     border: "0px solid",
-                    transform: "translate3d(0, 29px, 0) scale(0.82)",
+                    transform: "translate3d(0, 22px, 0) scale(0.82)",
                     zIndex: 0,
                     pointerEvents: "none",
-                    boxShadow: 'none',
+                    boxShadow: "none",
                   })}
                 />
               )}
@@ -1016,16 +1044,16 @@ const NotificationStackCard = memo(
                       ? "rgb(25, 25, 25)"
                       : "#f4f4f4",
                   border: "0px solid",
-                  transform: "translate3d(0, 14px, 0) scale(0.92)",
+                  transform: "translate3d(0, 10px, 0) scale(0.92)",
                   zIndex: 1,
                   pointerEvents: "none",
-                  boxShadow: 'none',
+                  boxShadow: "none",
                 })}
               />
             </>
           )}
 
-          {/* Shared Layout Morph Target Container (Desktop only uses layoutId for popup) */}
+          {/* Shared Layout Morph Target Container */}
           <motion.div
             layoutId={
               !isMobile && opensPopup ? `stack-${group.groupKey}` : undefined
@@ -1111,9 +1139,9 @@ const NotificationStackCard = memo(
                   backgroundImage: "none",
                   borderRadius: 7,
                   border: "0px solid",
-                  boxShadow: 'none',
+                  boxShadow: "none",
                   "&:hover": {
-                    transform: 'translate(0)',
+                    transform: "translate(0)",
                   },
                 })}
               >
@@ -1194,29 +1222,6 @@ const NotificationStackCard = memo(
                               >
                                 {latestNotif.title || "Notification"}
                               </Typography>
-                              <Chip
-                                label={formatLabel(group.groupType)}
-                                size="small"
-                                variant="outlined"
-                                color={
-                                  latestNotif.type === "missed_call" &&
-                                  !isGroupSeen
-                                    ? "error"
-                                    : group.groupType === "group_chat"
-                                    ? "info"
-                                    : POPUP_ALLOWED_SINGLE_CATEGORIES.has(
-                                        group.groupType
-                                      )
-                                    ? "secondary"
-                                    : "default"
-                                }
-                                sx={{
-                                  height: 20,
-                                  fontSize: "0.65rem",
-                                  fontWeight: 600,
-                                  flexShrink: 0,
-                                }}
-                              />
                             </Box>
 
                             <Typography
@@ -1239,48 +1244,87 @@ const NotificationStackCard = memo(
                               <Box
                                 sx={{
                                   display: "flex",
-                                  gap: 1,
-                                  alignItems: "center",
-                                  flexWrap: "wrap",
-                                  mt: 0.5,
+                                  flexDirection: "column",
+                                  gap: 1.25,
+                                  mt: 0.75,
+                                  width: "100%",
                                 }}
-                                onClick={(e) => e.stopPropagation()}
                               >
+                                {/* Letting text click bubble up to CardActionArea to open the profile drawer */}
                                 <Typography
                                   variant="body2"
                                   color="text.secondary"
-                                  sx={{ width: "100%", mb: 0.5 }}
+                                  sx={{
+                                    lineHeight: 1.45,
+                                    fontWeight: 400,
+                                    wordBreak: "break-word",
+                                  }}
                                 >
                                   {latestNotif.content || latestNotif.message}
                                 </Typography>
-                                <Button
-                                  variant="contained"
-                                  color="success"
-                                  size="small"
+
+                                {/* Stop propagation ONLY on the buttons row */}
+                                <Box
                                   sx={{
-                                    borderRadius: 99,
-                                    textTransform: "none",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
                                   }}
-                                  onClick={() =>
-                                    handleFriendRequest(latestNotif, "accepted")
-                                  }
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  Accept
-                                </Button>
-                                <Button
-                                  variant="outlined"
-                                  color="error"
-                                  size="small"
-                                  sx={{
-                                    borderRadius: 99,
-                                    textTransform: "none",
-                                  }}
-                                  onClick={() =>
-                                    handleFriendRequest(latestNotif, "rejected")
-                                  }
-                                >
-                                  Reject
-                                </Button>
+                                  <Button
+                                    variant="contained"
+                                    color="primary"
+                                    size="small"
+                                    disableElevation
+                                    sx={{
+                                      borderRadius: 99,
+                                      textTransform: "none",
+                                      fontWeight: 600,
+                                      px: 2.25,
+                                      py: 0.5,
+                                      fontSize: "0.8125rem",
+                                      transition: "transform 0.15s ease",
+                                      "&:active": { transform: "scale(0.96)" },
+                                    }}
+                                    onClick={() =>
+                                      handleFriendRequest(
+                                        latestNotif,
+                                        "accepted"
+                                      )
+                                    }
+                                  >
+                                    Accept
+                                  </Button>
+
+                                  <Button
+                                    variant="outlined"
+                                    size="small"
+                    sx={{
+                      borderRadius: 99,
+                      textTransform: "none",
+                      fontWeight: 600,
+                                      px: 2.25,
+                                      py: 0.5,
+                      color: "text.secondary",
+                      boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)',
+                      border: "none",
+                        bgcolor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
+                      "&:hover": {
+                        bgcolor: (theme) =>
+                          alpha(theme.palette.error.main, 0.05),
+                      },
+                                    }}
+                                    onClick={() =>
+                                      handleFriendRequest(
+                                        latestNotif,
+                                        "rejected"
+                                      )
+                                    }
+                                  >
+                                    Decline
+                                  </Button>
+                                </Box>
                               </Box>
                             ) : (
                               <Box
@@ -1338,7 +1382,9 @@ const NotificationStackCard = memo(
                                     >
                                       {isMobile && isMobileStackOpen
                                         ? `Tap to collapse ${groupCount} stacked alerts`
-                                        : `+${groupCount - 1} more in ${formatLabel(
+                                        : `+${
+                                            groupCount - 1
+                                          } more in ${formatLabel(
                                             group.groupType
                                           )} • Tap to ${
                                             isMobile ? "unstack" : "expand"
@@ -1493,7 +1539,7 @@ const NotificationStackCard = memo(
                         py: 0.2,
                         textTransform: "none",
                         color: "text.secondary",
-                        background: mode === "dark" ? "#f1f1f111" : "#0c0c0c11"
+                        background: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
                       }}
                     >
                       Collapse
@@ -1570,7 +1616,10 @@ const NotificationStackCard = memo(
 // ============================================================================
 // 3. Main Notifications Page / Panel Component
 // ============================================================================
-export default function Notifications({ isPanel = false }) {
+export default function Notifications({
+  isPanel = false,
+  onOpenUserProfile, // Optional prop if you have a parent profile drawer
+}) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
@@ -1581,6 +1630,12 @@ export default function Notifications({ isPanel = false }) {
   const [expandedDetailId, setExpandedDetailId] = useState(null);
   const [inlineExpandedGroupKeys, setInlineExpandedGroupKeys] = useState({});
   const [mobileOpenStackKeys, setMobileOpenStackKeys] = useState({});
+
+  // Profile Swipeable Drawer State
+  const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
+  const [selectedProfileUser, setSelectedProfileUser] = useState(null);
+  const [selectedRequestNotif, setSelectedRequestNotif] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
 
   const { mode } = useThemeToggle();
   const theme = useMemo(() => getTheme(mode), [mode]);
@@ -1641,19 +1696,61 @@ export default function Notifications({ isPanel = false }) {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Dynamically derive extra categories (excluding pinned "chat" and "group_chat")
-  const notificationCategories = useMemo(() => {
-    const categories = new Set();
-    notifications.forEach((n) => {
-      if (n.type) {
-        const normalized = normalizeCategory(n.type);
-        if (normalized !== "chat" && normalized !== "group_chat") {
-          categories.add(normalized);
-        }
+  // Opens the User's Profile Swipeable Drawer for any friend_request notification
+  const openUserProfileDrawer = useCallback(
+    async (notif) => {
+      if (!notif) return;
+
+      const senderUid = notif.senderId;
+
+      // If parent passed a custom profile drawer handler, invoke it as well
+      if (typeof onOpenUserProfile === "function" && senderUid) {
+        onOpenUserProfile(senderUid, notif);
+        return;
       }
-    });
-    return Array.from(categories);
-  }, [notifications]);
+
+      setSelectedRequestNotif(notif);
+      setSelectedProfileUser({
+        uid: senderUid || "",
+        displayName: notif.title || "User",
+        photoURL: notif.pic || "",
+        bio: "",
+      });
+      setProfileDrawerOpen(true);
+
+      if (!senderUid) return;
+
+      setLoadingProfile(true);
+      try {
+        const userSnap = await getDoc(doc(db, "users", senderUid));
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          setSelectedProfileUser((prev) => ({
+            ...prev,
+            ...userData,
+            uid: userSnap.id,
+            displayName:
+              userData.displayName ||
+              userData.name ||
+              userData.username ||
+              notif.title ||
+              "User",
+            photoURL:
+              userData.photoURL ||
+              userData.pic ||
+              userData.avatar ||
+              notif.pic ||
+              "",
+          }));
+        }
+      } catch (err) {
+        console.error("Error fetching sender profile:", err);
+      } finally {
+        setLoadingProfile(false);
+      }
+    },
+    [onOpenUserProfile]
+  );
 
   const filteredNotifications = useMemo(() => {
     const recentNotifications = notifications.filter((n) =>
@@ -1819,6 +1916,12 @@ export default function Notifications({ isPanel = false }) {
       const singleNotif = group.notifications[0];
       if (!singleNotif) return;
 
+      // Open the user's profile SwipeableDrawer on any friend_request notification
+      if (singleNotif.type === "friend_request") {
+        openUserProfileDrawer(singleNotif);
+        return;
+      }
+
       if (
         (group.groupType === "chat" || group.groupType === "group_chat") &&
         singleNotif.senderId
@@ -1834,14 +1937,14 @@ export default function Notifications({ isPanel = false }) {
             },
           }
         );
-      } else if (singleNotif.type !== "friend_request") {
+      } else {
         setInlineExpandedGroupKeys((prev) => ({
           ...prev,
           [group.groupKey]: !prev[group.groupKey],
         }));
       }
     },
-    [markGroupAsRead, isMobile, navigate]
+    [markGroupAsRead, isMobile, navigate, openUserProfileDrawer]
   );
 
   const handlePopupNotificationClick = useCallback(
@@ -1849,6 +1952,13 @@ export default function Notifications({ isPanel = false }) {
       if (!notif.seen) {
         markSingleAsRead(notif.id);
       }
+
+      // Open the user's profile SwipeableDrawer when a friend_request is clicked inside a stack/modal
+      if (notif.type === "friend_request") {
+        openUserProfileDrawer(notif);
+        return;
+      }
+
       const category = normalizeCategory(notif.type);
       if (
         (category === "chat" || category === "group_chat") &&
@@ -1866,11 +1976,11 @@ export default function Notifications({ isPanel = false }) {
             },
           }
         );
-      } else if (notif.type !== "friend_request") {
+      } else {
         setExpandedDetailId((prev) => (prev === notif.id ? null : notif.id));
       }
     },
-    [markSingleAsRead, navigate]
+    [markSingleAsRead, navigate, openUserProfileDrawer]
   );
 
   const closeModal = useCallback(() => {
@@ -1889,6 +1999,34 @@ export default function Notifications({ isPanel = false }) {
     }
     return activeGroup.notifications;
   }, [activeGroup, globalUserView, notifications]);
+
+  // 1. Dynamically build the filter list (Pinned + Dynamic categories from Firestore)
+const filterTabs = useMemo(() => {
+  const baseTabs = [
+    { key: "all", label: "All" },
+    { key: "unreads", label: "Unreads" },
+    { key: "chat", label: "Chat" },
+    { key: "group_chat", label: "Group Chat" },
+  ];
+
+  const dynamicSet = new Set();
+  notifications.forEach((n) => {
+    if (n.type) {
+      const normalized = normalizeCategory(n.type);
+      if (normalized !== "chat" && normalized !== "group_chat") {
+        dynamicSet.add(normalized);
+      }
+    }
+  });
+
+  const dynamicTabs = Array.from(dynamicSet).map((category) => ({
+    key: category,
+    label: formatLabel(category),
+  }));
+
+  return [...baseTabs, ...dynamicTabs];
+}, [notifications]);
+
 
   return (
     <ThemeProvider theme={theme}>
@@ -1909,14 +2047,36 @@ export default function Notifications({ isPanel = false }) {
               sx={{ bgcolor: "transparent", color: "text.primary" }}
             >
               <Toolbar>
-                <IconButton
-                  edge="start"
-                  color="inherit"
-                  onClick={() => navigate(-1)}
-                  sx={{ mr: 2 }}
-                >
-                  <ArrowBackIcon />
-                </IconButton>
+    <IconButton
+      edge="start"
+      color="inherit"
+      onClick={() => navigate(-1)}
+      sx={(theme) => ({
+        mr: 1.5,
+        width: 38,
+        height: 38,
+        borderRadius: "50%",
+        position: 'sticky',
+        bgcolor:
+          theme.palette.mode === "dark"
+            ? "rgba(255, 255, 255, 0.06)"
+            : "rgba(0, 0, 0, 0.04)",
+        backdropFilter: "blur(8px)",
+        transition: "all 0.15s ease",
+        "&:hover": {
+          bgcolor:
+            theme.palette.mode === "dark"
+              ? "rgba(255, 255, 255, 0.12)"
+              : "rgba(0, 0, 0, 0.08)",
+          transform: "translateX(-2px)",
+        },
+        "&:active": {
+          transform: "scale(0.94)",
+        },
+      })}
+    >
+      <ArrowBackIcon fontSize="small" />
+    </IconButton>
                 <Typography
                   variant="h6"
                   color="inherit"
@@ -1924,60 +2084,87 @@ export default function Notifications({ isPanel = false }) {
                 >
                   Notifications
                 </Typography>
-                <Chip
-                  label="Last 30 Days"
-                  size="small"
-                  variant="outlined"
-                  sx={{ fontSize: "0.7rem", fontWeight: 600 }}
-                />
               </Toolbar>
             </AppBar>
           )}
 
-          {/* CHIP FILTER SECTION (Separate Chat & Group Chat Chips) */}
-          <Box
-            sx={{
-              display: "flex",
-              overflowX: "auto",
-              p: 1,
-              gap: 1,
-              "&::-webkit-scrollbar": { display: "none" },
-            }}
-          >
-            <Chip
-              label="All"
-              onClick={() => setFilter("all")}
-              color={filter === "all" ? "primary" : "default"}
-              variant={filter === "all" ? "filled" : "outlined"}
-            />
-            <Chip
-              label="Unreads"
-              onClick={() => setFilter("unreads")}
-              color={filter === "unreads" ? "primary" : "default"}
-              variant={filter === "unreads" ? "filled" : "outlined"}
-            />
-            <Chip
-              label="Chat"
-              onClick={() => setFilter("chat")}
-              color={filter === "chat" ? "primary" : "default"}
-              variant={filter === "chat" ? "filled" : "outlined"}
-            />
-            <Chip
-              label="Group Chat"
-              onClick={() => setFilter("group_chat")}
-              color={filter === "group_chat" ? "primary" : "default"}
-              variant={filter === "group_chat" ? "filled" : "outlined"}
-            />
-            {notificationCategories.map((category) => (
-              <Chip
-                key={category}
-                label={formatLabel(category)}
-                onClick={() => setFilter(category)}
-                color={filter === category ? "primary" : "default"}
-                variant={filter === category ? "filled" : "outlined"}
-              />
-            ))}
-          </Box>
+          {/* CHIP FILTER SECTION */}
+<Box
+  sx={{
+    display: "flex",
+    overflowX: "auto",
+    p: 1,
+    gap: 1,
+    "&::-webkit-scrollbar": { display: "none" },
+  }}
+>
+  {filterTabs.map(({ key, label }) => {
+    const isSelected = filter === key;
+
+    return (
+      <Chip
+        key={key}
+        label={label}
+        onClick={() => setFilter(key)}
+        sx={{
+          borderRadius: 4,
+          fontSize: "0.85rem",
+          fontWeight: isSelected ? 600 : 500,
+          px: 0.5,
+          transition: "all 0.2s ease-in-out",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          border: "0px solid",
+          ...(isSelected
+            ? {
+                backgroundColor:
+                  mode === "dark"
+                    ? "rgba(255, 255, 255, 0.9)"
+                    : "rgba(0, 0, 0, 0.85)",
+                color: mode === "dark" ? "#000" : "#fff",
+                borderColor: "transparent",
+                boxShadow:
+                  mode === "dark"
+                    ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)`
+                    : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.05)`,
+                "&:hover": {
+                  backgroundColor: mode === "dark" ? "#ffffff" : "#000000",
+                },
+              }
+            : {
+                backgroundColor:
+                  mode === "dark"
+                    ? "rgba(255, 255, 255, 0)"
+                    : "rgba(0, 0, 0, 0.03)",
+                color:
+                  mode === "dark"
+                    ? "rgba(255, 255, 255, 0.7)"
+                    : "rgba(0, 0, 0, 0.65)",
+                borderColor:
+                  mode === "dark"
+                    ? "rgba(255, 255, 255, 0.06)"
+                    : "rgba(0, 0, 0, 0.05)",
+                boxShadow:
+                  mode === "dark"
+                    ? `inset 0 1px 1px rgba(255, 255, 255, 0.08)`
+                    : `inset 0 1px 1px rgba(255, 255, 255, 0.6)`,
+                "&:hover": {
+                  backgroundColor:
+                    mode === "dark"
+                      ? "rgba(255, 255, 255, 0.09)"
+                      : "rgba(0, 0, 0, 0.06)",
+                  borderColor:
+                    mode === "dark"
+                      ? "rgba(255, 255, 255, 0.15)"
+                      : "rgba(0, 0, 0, 0.12)",
+                  color: mode === "dark" ? "#fff" : "#000",
+                },
+              }),
+        }}
+      />
+    );
+  })}
+</Box>
 
           <Container sx={{ mt: 0, p: 0, pb: 6 }}>
             {indexError && (
@@ -2125,12 +2312,12 @@ export default function Notifications({ isPanel = false }) {
                           : "rgba(255,255,255,0)",
                       border: "0px solid",
                       boxShadow: "0",
-                      backdropFilter: 'blur(0)',
+                      backdropFilter: "blur(0)",
                       position: "relative",
                       "&:hover": {
-                        transform: 'translate(0)',
+                        transform: "translate(0)",
                         boxShadow: "0",
-                      }
+                      },
                     }}
                   >
                     {/* Modal Header */}
@@ -2298,6 +2485,218 @@ export default function Notifications({ isPanel = false }) {
               </Box>
             )}
           </AnimatePresence>
+
+          {/* ==================================================================== */}
+          {/* USER PROFILE SWIPEABLE DRAWER (Opens on Friend Request Click)        */}
+          {/* ==================================================================== */}
+          <SwipeableDrawer
+            anchor={"bottom"}
+            open={profileDrawerOpen}
+            onClose={() => setProfileDrawerOpen(false)}
+            onOpen={() => setProfileDrawerOpen(true)}
+            disableSwipeToOpen
+            PaperProps={{
+              sx: (theme) => ({
+                borderRadius: 8,
+                bgcolor:
+                  theme.palette.mode === "dark" ? "#0c0c0c01" : "#ffffff11",
+                backgroundImage: "none",
+                p: 3,
+                m:2,
+                pb: isMobile ? 4 : 3,
+                boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(255, 255, 255, 0.07), 0 1px 0px rgba(0,0,0,0.1)',
+              }),
+            }}
+            sx={{ "& .MuiBackdrop-root": drawerBackdropSx }}
+          >
+            {/* Mobile Drag Handle Pill */}
+            {isMobile && (
+              <Box
+                sx={{
+                  width: 42,
+                  height: 5,
+                  borderRadius: 99,
+                  bgcolor: "divider",
+                  mx: "auto",
+                  mb: 2.5,
+                }}
+              />
+            )}
+
+            {/* Drawer Top Controls */}
+            <Box
+              display={ isMobile ? "none" : 'flex' }
+              justifyContent="flex-end"
+              alignItems="center"
+              mb={2}
+            >
+              <IconButton
+                size="small"
+                onClick={() => setProfileDrawerOpen(false)}
+                sx={{ bgcolor: "action.hover", boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)' }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Box>
+
+            {/* User Profile Content */}
+            <Box
+              display="flex"
+              flexDirection="column"
+              alignItems="center"
+              textAlign="center"
+              mt={1}
+            >
+              <Avatar
+                src={selectedProfileUser?.photoURL}
+                alt={selectedProfileUser?.displayName}
+                sx={{
+                  width: 92,
+                  height: 92,
+                  mb: 1.75,
+                  fontSize: "2rem",
+                  fontWeight: 700,
+                  bgcolor: "primary.main",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+                }}
+              >
+                {selectedProfileUser?.displayName?.charAt(0)?.toUpperCase() ||
+                  "U"}
+              </Avatar>
+
+              {loadingProfile ? (
+                <>
+                  <Skeleton variant="text" width={140} height={28} />
+                  <Skeleton variant="text" width={100} height={20} />
+                </>
+              ) : (
+                <>
+                  <Typography variant="h6" fontWeight={700}>
+                    {selectedProfileUser?.displayName || "User"}
+                  </Typography>
+
+                  {selectedProfileUser?.username && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.25 }}
+                    >
+                      @{selectedProfileUser.username}
+                    </Typography>
+                  )}
+
+                  {selectedProfileUser?.email && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ mt: 0.25 }}
+                    >
+                      {selectedProfileUser.email}
+                    </Typography>
+                  )}
+
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      mt: 1.5,
+                      px: 1,
+                      lineHeight: 1.5,
+                      maxWidth: 300,
+                    }}
+                  >
+                    {selectedProfileUser?.bio ||
+                      selectedProfileUser?.status ||
+                      selectedRequestNotif?.content ||
+                      selectedRequestNotif?.message ||
+                      "Sent you a friend request."}
+                  </Typography>
+                </>
+              )}
+            </Box>
+
+            <Divider sx={{ my: 2.5 }} />
+
+            {/* Friend Request Actions inside Drawer */}
+            {selectedRequestNotif &&
+              selectedRequestNotif.type === "friend_request" && (
+                <Box display="flex" gap={1.25} width="100%" mb={1.5}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    sx={{
+                      borderRadius: 99,
+                      py: 1,
+                      textTransform: "none",
+                      fontWeight: 700,
+                      color: "text.secondary",
+                      boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)',
+                      border: "none",
+                        bgcolor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
+                      "&:hover": {
+                        bgcolor: (theme) =>
+                          alpha(theme.palette.error.main, 0.05),
+                      },
+                    }}
+                    onClick={() => {
+                      handleFriendRequest(selectedRequestNotif, "rejected");
+                      setProfileDrawerOpen(false);
+                    }}
+                  >
+                    Decline
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    color="primary"
+                    disableElevation
+                    sx={{
+                      borderRadius: 99,
+                      py: 1,
+                      textTransform: "none",
+                      fontWeight: 700,
+                    }}
+                    onClick={() => {
+                      handleFriendRequest(selectedRequestNotif, "accepted");
+                      setProfileDrawerOpen(false);
+                    }}
+                  >
+                    Accept
+                  </Button>
+                </Box>
+              )}
+
+            {/* Optional Full Profile Navigation Button */}
+            {selectedProfileUser?.uid && (
+              <Button
+                fullWidth
+                variant="text"
+                color="inherit"
+                startIcon={<PersonOutlineIcon />}
+                onClick={() => {
+                  const targetUid = selectedProfileUser.uid;
+                  setProfileDrawerOpen(false);
+                  navigate(`/profile/${targetUid}`);
+                }}
+                    sx={{
+                      borderRadius: 99,
+                      py: 1,
+                      textTransform: "none",
+                      fontWeight: 700,
+                      color: "text.secondary",
+                      boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)',
+                      border: "none",
+                        bgcolor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
+                      "&:hover": {
+                        bgcolor: (theme) =>
+                          alpha(theme.palette.error.main, 0.05),
+                      },
+                }}
+              >
+                View Full Profile
+              </Button>
+            )}
+          </SwipeableDrawer>
         </Box>
       </LayoutGroup>
     </ThemeProvider>

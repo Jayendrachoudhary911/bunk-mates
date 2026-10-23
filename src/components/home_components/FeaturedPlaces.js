@@ -1,32 +1,49 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
   Grid,
   IconButton,
+  Button,
   Card,
   Stack,
   useTheme,
   alpha,
   CircularProgress,
+  SwipeableDrawer,
 } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
-  Favorite,
-  FavoriteBorder,
-  Bookmark,
-  BookmarkBorder,
+  Favorite as FavoriteIcon, 
+  FavoriteBorder as FavoriteBorderIcon, 
+  Bookmark as BookmarkIcon, 
+  BookmarkBorder as BookmarkBorderIcon, 
+  Close as CloseIcon,
+  ExploreOutlined as ExploreIcon,
 } from "../../icons";
 import PlaceDetailsDialog from "../../elements/PlaceDetailsDialog";
 import { usePlaceLikesCount } from "../../hooks/usePlaceLikesCount";
 import AnimatedLikeCount from "../../elements/AnimatedLikeCount";
 import { toggleLikePlace, toggleSavePlace } from "../../utils/placeActions";
-import { glass } from "../../theme/designSystem";
+import { glass, glassIconBtnSx, ctaButtonSx, drawerPaperSx, drawerBackdropSx, drawerHandleSx } from "../../theme/designSystem";
 
-const CARD_WIDTH = 365 + 16;
+const CARD_WIDTH = 270;
+const CARD_GAP = 16;
+const SCROLL_AMOUNT = CARD_WIDTH + CARD_GAP;
 const PARTICLES = 8;
+
+const InfoItem = ({ label, value, full }) => (
+  <Box sx={{ gridColumn: full ? "span 2" : "auto" }}>
+    <Typography opacity={0.6} fontSize={12}>
+      {label}
+    </Typography>
+    <Typography fontWeight={600} fontSize={14}>
+      {value}
+    </Typography>
+  </Box>
+);
 
 const haptic = (pattern = 10) => {
   if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -34,7 +51,7 @@ const haptic = (pattern = 10) => {
   }
 };
 
-const LikeBurst = ({ x = 0, y = 0 }) => {
+const LikeBurst = () => {
   return (
     <>
       {Array.from({ length: PARTICLES }).map((_, i) => {
@@ -44,12 +61,7 @@ const LikeBurst = ({ x = 0, y = 0 }) => {
         return (
           <motion.span
             key={i}
-            initial={{
-              opacity: 1,
-              scale: 0,
-              x: 0,
-              y: 0,
-            }}
+            initial={{ opacity: 1, scale: 0, x: 0, y: 0 }}
             animate={{
               opacity: 0,
               scale: 1,
@@ -72,7 +84,10 @@ const LikeBurst = ({ x = 0, y = 0 }) => {
   );
 };
 
-const PlaceCard = ({ place, userData, onPlanTrip, relatedPlaces = [] }) => {
+const PlaceCard = ({ place, userData, onPlanTrip, relatedPlaces,
+  onClose,
+  onLike,
+  onSave, mode = [] }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
@@ -98,19 +113,15 @@ const PlaceCard = ({ place, userData, onPlanTrip, relatedPlaces = [] }) => {
 
   const handleLike = (e) => {
     e.stopPropagation();
-
     const next = !liked;
     setLiked(next);
-
     if (next) {
       haptic([15, 20, 15]);
       setLikeAnim(true);
       setShowBurst(true);
-
       setTimeout(() => setLikeAnim(false), 220);
       setTimeout(() => setShowBurst(false), 500);
     }
-
     toggleLikePlace(place.id, liked);
   };
 
@@ -132,148 +143,100 @@ const PlaceCard = ({ place, userData, onPlanTrip, relatedPlaces = [] }) => {
         style={{
           borderRadius: 24,
           overflow: "hidden",
+          flexShrink: 0,
+          width: CARD_WIDTH,
+          border: 0,
+          textDecoration: "none",
+          WebkitTapHighlightColor: "transparent",
         }}
       >
         <Card
+          component="div"
           elevation={0}
           sx={{
             position: "relative",
-            height: 360,
-            width: "100%",
-            maxWidth: 410,
-            minWidth: 360,
             p: 1,
-            mx: "auto",
-            cursor: "default",
+            cursor: "pointer",
             userSelect: "none",
+            textDecoration: "none",
+            color: "inherit",
+            WebkitTapHighlightColor: "transparent",
             borderRadius: 3,
+            border: 0,
             overflow: "hidden",
             backgroundColor: isDark ? "#131313" : "#ffffff",
-            boxShadow: isDark
-              ? "0 16px 34px rgba(0,0,0,0.55)"
-              : "0 14px 30px rgba(0,0,0,0.14)",
-            transition: "box-shadow .25s ease, transform .25s ease",
-            "&:hover": {
-              boxShadow: isDark
-                ? "0 20px 42px rgba(0,0,0,0.65)"
-                : "0 18px 36px rgba(0,0,0,0.18)",
-            },
-            "&:active": {
-              transform: "scale(0.99)",
-            },
-            "&:focus-visible": {
-              outline: "none",
-            },
+            boxShadow: 'none',
           }}
         >
-          {/* ───── IMAGE HERO ───── */}
+          {/* IMAGE HERO */}
           <Box
             sx={{
-              height: 260,
+              height: 150,
               width: "100%",
-              maxWidth: 348,
               borderRadius: 4,
               position: "relative",
               overflow: "hidden",
               backgroundImage: `url(${place.images?.[0]})`,
               backgroundSize: "cover",
               backgroundPosition: "center",
-              transition: "transform .35s ease",
             }}
           >
-            {/* ───── ACTIONS ───── */}
             <Stack
               spacing={1}
-              sx={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                zIndex: 3,
-              }}
+              sx={{ position: "absolute", top: 12, right: 12, zIndex: 3 }}
             >
               <IconButton
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleLike(e);
-                }}
+                onClick={handleSave}
                 sx={{
                   backdropFilter: "blur(14px)",
-                  background: alpha(
-                    isDark ? theme.palette.common.black : "#000",
-                    0.25
-                  ),
-                  borderRadius: 6,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  color: "#fff",
-                  transform: likeAnim ? "scale(1.4)" : "scale(1)",
-                  transition:
-                    "transform 200ms cubic-bezier(.34,1.56,.64,1), background .25s ease",
-                  "&:hover": {
-                    background: alpha(theme.palette.error.main, 0.25),
-                  },
-                }}
-              >
-                {liked ? (
-                  <Favorite
-                    fill={theme.palette.error.main}
-                    sx={{ color: theme.palette.error.main }}
-                  />
-                ) : (
-                  <FavoriteBorder />
-                )}
-
-                <AnimatedLikeCount
-                  value={likesCount}
-                  sx={{ color: "#fff", fontSize: 8 }}
-                />
-
-                {showBurst && (
-                  <Box sx={{ position: "absolute", inset: 0 }}>
-                    <LikeBurst />
-                  </Box>
-                )}
-              </IconButton>
-
-              <IconButton
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSave(e);
-                }}
-                sx={{
-                  backdropFilter: "blur(14px)",
-                  background: alpha(
-                    isDark ? theme.palette.common.black : "#000",
-                    0.25
-                  ),
+                  background: alpha(isDark ? theme.palette.common.black : "#000", 0.25),
                   color: saved ? "#facc15" : "#fff",
                   transform: saveAnim ? "scale(1.4)" : "scale(1)",
                   transition: "transform 200ms cubic-bezier(.34,1.56,.64,1)",
                 }}
               >
-                {saved ? <Bookmark fill="#facc15" /> : <BookmarkBorder />}
+                {saved ? <BookmarkIcon fill="#facc15" /> : <BookmarkBorderIcon />}
               </IconButton>
             </Stack>
           </Box>
 
-          {/* ───── CONTENT PANEL ───── */}
+          {/* CONTENT PANEL */}
           <Box
             sx={{
               px: 1.2,
               pr: 2.2,
-              py: 2.2,
+              py: 1.4,
               display: "flex",
               flexDirection: "column",
-              gap: 0.6,
+              gap: 0.5,
               ...glass(isDark ? "dark" : "light", {
-                backgroundColor: isDark ? "rgba(20, 20, 20, 0.9)" : "rgba(255, 255, 255, 0.9)",
+                backgroundColor: isDark ? "rgba(20, 20, 20, 0)" : "rgba(255, 255, 255, 0)",
+                border: 0, boxShadow: 0,
               }),
             }}
           >
-            <Typography fontWeight={900} fontSize={16}>
+            <Typography fontWeight={900} fontSize={15} noWrap sx={{ textDecoration: "none" }}>
               {place.name}
             </Typography>
+
+            {/* LOCATION SUBTITLE */}
+            {(place.city || place.state || place.location) && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  textDecoration: "none",
+                }}
+                noWrap
+              >
+                📍 {place.location || `${place.city || ""}, ${place.state || ""}`.trim()}
+              </Typography>
+            )}
 
             <Typography
               variant="caption"
@@ -283,45 +246,244 @@ const PlaceCard = ({ place, userData, onPlanTrip, relatedPlaces = [] }) => {
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: "vertical",
                 overflow: "hidden",
+                textDecoration: "none",
+                lineHeight: 1.35,
               }}
             >
               {place.description}
             </Typography>
+
+            {/* METADATA ROW: TYPE & BEST TIME */}
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{ mt: 0.8, pt: 0.6, borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}` }}
+            >
+              {place.type && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: "0.7rem",
+                    px: 1,
+                    py: 0.2,
+                    borderRadius: 1.5,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                    color: isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.75)",
+                  }}
+                  noWrap
+                >
+                  🏷️ {place.type}
+                </Typography>
+              )}
+
+              {place.bestTimeToVisit && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontSize: "0.7rem", fontWeight: 500 }}
+                  noWrap
+                >
+                  ☀️ {place.bestTimeToVisit}
+                </Typography>
+              )}
+            </Stack>
           </Box>
         </Card>
       </motion.div>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 1600,
+      {/* ───── SWIPEABLE FULL-SCREEN DRAWER ───── */}
+      <SwipeableDrawer
+        anchor="bottom"
+        open={open}
+        onOpen={() => setOpen(true)}
+        onClose={() => setOpen(false)}
+        disableBackdropTransition={true}
+        disableDiscovery={true}
+        swipeAreaWidth={56}
+        ModalProps={{
+          keepMounted: true, // Keeps DOM node mounted for instant slide performance
+        }}
+        PaperProps={{
+          sx: drawerPaperSx(mode, { maxHeight: "90vh" }),
+        }}
+        sx={{ "& .MuiBackdrop-root": drawerBackdropSx }}
+      >
+        <Box sx={{ display: { xs: "flex", md: "none" }, justifyContent: "center", pt: -1, pb: 1 }}>
+          <Box mode={mode} sx={{ ...drawerHandleSx() }} />
+        </Box>
+
+        <Box sx={{ p: 0, overflowY: "auto", flexGrow: 1 }}>
+          <Box
+            sx={{
+              flexGrow: 1,
+              overflowY: "auto",
+              px: 0,
+              pb: 0,
+              "&::-webkit-scrollbar": { width: 6 },
+              "&::-webkit-scrollbar-thumb": {
+                borderRadius: 6,
+                background: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)",
+              },
             }}
           >
-            <PlaceDetailsDialog
-              key={place.id}
-              place={place}
-              open={open}
-              onClose={() => setOpen(false)}
-              liked={liked}
-              saved={saved}
-              likesCount={likesCount}
-              onLike={() => handleLike({ stopPropagation: () => {} })}
-              onSave={() => handleSave({ stopPropagation: () => {} })}
-              relatedPlaces={relatedPlaces}
-              onPlanTrip={onPlanTrip}
-              onRedirect={(nextPlace) => {
-                place(nextPlace);
+            {/* HERO IMAGE & FLOATING ACTIONS */}
+            <Box
+              sx={{
+                height: 280,
+                backgroundImage: `url(${place.images?.[0]})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                borderRadius: 6,
+                position: "relative",
+                mb: 3,
               }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+            >
+              <IconButton
+                onClick={() => setOpen(false)}
+                sx={{
+                  position: "absolute",
+                  display: { xs: "none", md: "flex" },
+                  top: 16,
+                  right: 16,
+                  zIndex: 3,
+                  ...glassIconBtnSx("dark"),
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  position: "absolute",
+                  bottom: 12,
+                  left: 12,
+                  right: 12,
+                  zIndex: 3,
+                  p: 0.8,
+                  borderRadius: 4,
+                  alignItems: "center",
+                }}
+              >
+                <Button
+                  onClick={handleLike}
+                  sx={{
+                    minWidth: 44,
+                    height: 44,
+                    px: 1.6,
+                    borderRadius: 6,
+                    fontWeight: 700,
+                    fontSize: 13,
+                    backdropFilter: "blur(22px) saturate(0.8) brightness(1.9)",
+                    background: liked ? "rgba(255, 255, 255, 0.65)" : "rgba(255,255,255,0.12)",
+                    color: "#fff",
+                    "&:hover": { transform: "scale(1.05)" },
+                    transition: "all .25s ease",
+                  }}
+                >
+                  {liked ? (
+                    <FavoriteIcon sx={{ color: theme.palette.error.main }} />
+                  ) : (
+                    <FavoriteBorderIcon />
+                  )}
+                </Button>
+
+                <Button
+                  onClick={handleSave}
+                  startIcon={saved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+                  sx={{
+                    minWidth: 78,
+                    height: 44,
+                    px: 1.8,
+                    borderRadius: 6,
+                    fontWeight: 700,
+                    fontSize: 13,
+                    background: saved ? "rgba(255, 234, 0, 0.14)" : "rgba(0, 0, 0, 0.17)",
+                    color: "#fff",
+                    backdropFilter: "blur(22px) saturate(0.8) brightness(1.9)",
+                    "&:hover": { transform: "scale(1.05)" },
+                    transition: "all .25s ease",
+                  }}
+                >
+                  {saved ? "Saved" : "Save"}
+                </Button>
+
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPlanTrip?.(place);
+                  }}
+                  sx={ctaButtonSx("dark", "primary", {
+                    flex: 1,
+                    height: 48,
+                    ml: 0.5,
+                    borderRadius: 6,
+                    fontSize: "0.95rem",
+                  })}
+                >
+                  Plan this Trip
+                </Button>
+              </Stack>
+            </Box>
+
+            {/* PLACE DETAILS INFO */}
+            <Box sx={{ px: 2 }}>
+              <Typography fontWeight={900} variant="h5" mb={0.5}>
+                {place.name}
+              </Typography>
+
+              <Typography opacity={0.65} mb={1.5} fontSize={15}>
+                {place.city}, {place.state}
+              </Typography>
+
+              <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", mb: 3 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: "inline-block",
+                    px: 1.5,
+                    py: 0.6,
+                    borderRadius: 2,
+                    bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                    fontWeight: 600,
+                  }}
+                >
+                  {place.type}
+                </Typography>
+
+                {likesCount > 0 && (
+                  <Typography variant="caption" fontWeight={600} opacity={0.7}>
+                    ❤️ {likesCount} Likes
+                  </Typography>
+                )}
+              </Box>
+
+              <Typography sx={{ mb: 4, lineHeight: 1.8, fontSize: "0.95rem", opacity: 0.9 }}>
+                {place.description}
+              </Typography>
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 2.5,
+                  p: 2.5,
+                  borderRadius: 4,
+                  bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+                  border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                }}
+              >
+                <InfoItem label="Best Time to Visit" value={place.bestTimeToVisit} />
+                <InfoItem label="Season" value={place.season} />
+                <InfoItem label="Weather" value={place.weather} full />
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      </SwipeableDrawer>
     </>
   );
 };
@@ -333,16 +495,19 @@ export default function FeaturedPlaces({
   mode,
   navigate,
 }) {
-  const [placeIndex, setPlaceIndex] = useState(0);
   const placesScrollRef = useRef(null);
 
-  const carouselPlaces = useMemo(() => {
-    return allFlattenedPlaces.slice(0, 4);
-  }, [allFlattenedPlaces]);
+  const scrollLeft = () => {
+    if (placesScrollRef.current) {
+      placesScrollRef.current.scrollBy({ left: -SCROLL_AMOUNT, behavior: "smooth" });
+    }
+  };
 
-  const remainingPlaces = useMemo(() => {
-    return allFlattenedPlaces.slice(4);
-  }, [allFlattenedPlaces]);
+  const scrollRight = () => {
+    if (placesScrollRef.current) {
+      placesScrollRef.current.scrollBy({ left: SCROLL_AMOUNT, behavior: "smooth" });
+    }
+  };
 
   if (!allFlattenedPlaces || allFlattenedPlaces.length === 0) {
     return (
@@ -355,149 +520,161 @@ export default function FeaturedPlaces({
     );
   }
 
+  // Limit to only 10 places initially
+  const displayedPlaces = allFlattenedPlaces.slice(0, 10);
+  const hasMore = allFlattenedPlaces.length > 10;
+
   return (
-    <Grid item xs={12} sx={{ px: { xs: 1, md: 0 }, mt: 4, mb: 10 }}>
-      {/* Carousel for first 4 places */}
-      {carouselPlaces.length > 0 && (
+    <Grid item xs={12} sx={{ mt: 4, mb: 4, overflow: "hidden" }}>
+      {allFlattenedPlaces.length > 0 && (
         <>
-          <Typography
-            variant="h6"
-            textAlign="left"
-            mb={1.5}
-            sx={{ fontWeight: 600, px: 1 }}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              px: { xs: 2, md: 0 },
+              mb: 1.5,
+            }}
           >
-            Featured Places
-          </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Explore Places
+            </Typography>
 
-          <Box sx={{ position: "relative" }}>
-            {/* ◀ LEFT */}
-            <IconButton
-              onClick={() =>
-                placesScrollRef.current.scrollBy({
-                  left: -CARD_WIDTH,
-                  behavior: "smooth",
-                })
-              }
-              sx={{
-                position: "absolute",
-                left: -6,
-                top: "45%",
-                zIndex: 5,
-                backdropFilter: "blur(14px)",
-                background: "rgba(0,0,0,0.35)",
-                color: "#fff",
-              }}
-            >
-              <ChevronLeft />
-            </IconButton>
-
-            {/* ▶ RIGHT */}
-            <IconButton
-              onClick={() =>
-                placesScrollRef.current.scrollBy({
-                  left: CARD_WIDTH,
-                  behavior: "smooth",
-                })
-              }
-              sx={{
-                position: "absolute",
-                right: -6,
-                top: "45%",
-                zIndex: 5,
-                backdropFilter: "blur(14px)",
-                background: "rgba(0,0,0,0.35)",
-                color: "#fff",
-              }}
-            >
-              <ChevronRight />
-            </IconButton>
-
-            {/* SCROLL AREA */}
-            <Box
-              ref={placesScrollRef}
-              onScroll={(e) => {
-                setPlaceIndex(Math.round(e.target.scrollLeft / CARD_WIDTH));
-              }}
-              sx={{
-                display: "flex",
-                gap: 2,
-                px: 1,
-                mb: 2,
-                overflowX: "auto",
-                scrollSnapType: "x mandatory",
-                "&::-webkit-scrollbar": { display: "none" },
-              }}
-            >
-              {carouselPlaces.map((place) => (
-                <Box
-                  key={place.id}
-                  sx={{ width: 365, scrollSnapAlign: "start" }}
-                >
-                  <PlaceCard
-                    place={place}
-                    userData={userData}
-                    onPlanTrip={onPlanTrip}
-                  />
-                </Box>
-              ))}
-            </Box>
-
-            {/* DOTS */}
-            <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
-              {carouselPlaces.map((_, i) => (
-                <Box
-                  key={i}
-                  onClick={() =>
-                    placesScrollRef.current.scrollTo({
-                      left: i * CARD_WIDTH,
-                      behavior: "smooth",
-                    })
-                  }
-                  sx={{
-                    width: i === placeIndex ? 18 : 6,
-                    height: 6,
-                    borderRadius: 99,
-                    cursor: "pointer",
-                    transition: "all .3s ease",
-                    background:
-                      i === placeIndex
-                        ? mode === "dark"
-                          ? "rgba(255,255,255,0.85)"
-                          : "rgba(0,0,0,0.85)"
-                        : mode === "dark"
-                        ? "rgba(255,255,255,0.25)"
-                        : "rgba(0,0,0,0.22)",
-                  }}
-                />
-              ))}
+            <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 1 }}>
+              <IconButton
+                onClick={scrollLeft}
+                size="small"
+                sx={{
+                  background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                  color: mode === "dark" ? "#fff" : "#000",
+                }}
+              >
+                <ChevronLeft fontSize="small" />
+              </IconButton>
+              <IconButton
+                onClick={scrollRight}
+                size="small"
+                sx={{
+                  background: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                  color: mode === "dark" ? "#fff" : "#000",
+                }}
+              >
+                <ChevronRight fontSize="small" />
+              </IconButton>
             </Box>
           </Box>
-        </>
-      )}
 
-      {/* Remaining places in a grid */}
-      {remainingPlaces.length > 0 && (
-        <Box sx={{ mt: 6 }}>
-          <Typography
-            variant="h6"
-            textAlign="left"
-            mb={2}
-            sx={{ fontWeight: 600 }}
-          >
-            More Places
-          </Typography>
-          <Grid container spacing={2}>
-            {remainingPlaces.map((place, index) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
+          {/* SCROLLER CONTAINER WITH ADAPTIVE EDGE MASKS */}
+          <Box sx={{ position: "relative" }}>
+            {/* Left Edge Mask Gradient */}
+            <Box
+              sx={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 32,
+                zIndex: 2,
+                pointerEvents: "none",
+                background:
+                  mode === "dark"
+                    ? "linear-gradient(to right, rgba(12,12,12,0.9), transparent)"
+                    : "linear-gradient(to right, rgba(241,241,241,0.9), transparent)",
+              }}
+            />
+
+            {/* Right Edge Mask Gradient */}
+            <Box
+              sx={{
+                position: "absolute",
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: 32,
+                zIndex: 2,
+                pointerEvents: "none",
+                background:
+                  mode === "dark"
+                    ? "linear-gradient(to left, rgba(12,12,12,0.9), transparent)"
+                    : "linear-gradient(to left, rgba(241,241,241,0.9), transparent)",
+              }}
+            />
+
+            <Box
+              ref={placesScrollRef}
+              sx={{
+                display: "flex",
+                gap: `${CARD_GAP}px`,
+                px: { xs: 2, md: 0 },
+                pr: { xs: 4, md: 2 },
+                overflowX: "auto",
+                scrollSnapType: "none",
+                WebkitOverflowScrolling: "touch",
+                "&::-webkit-scrollbar": { display: "none" },
+                scrollbarWidth: "none",
+                alignItems: "center",
+              }}
+            >
+              {displayedPlaces.map((place) => (
                 <PlaceCard
+                  key={place.id}
                   place={place}
                   userData={userData}
                   onPlanTrip={onPlanTrip}
+                  mode={mode}
                 />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
+              ))}
+
+              {/* OPTIONAL EXPLORE MORE CARD / BUTTON */}
+              {hasMore && (
+                <Box
+                  onClick={() => navigate ? navigate("/explore") : null}
+                  sx={{
+                    flexShrink: 0,
+                    width: 220,
+                    height: 310,
+                    borderRadius: 4,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 1.5,
+                    cursor: "pointer",
+                    backgroundColor: mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                    border: `1px dashed ${mode === "dark" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"}`,
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      backgroundColor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                      borderColor: "#00d2ff",
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 50,
+                      height: 50,
+                      borderRadius: "50%",
+                      backgroundColor: mode === "dark" ? "rgba(0,210,255,0.15)" : "rgba(0,210,255,0.1)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#00d2ff",
+                    }}
+                  >
+                    <ExploreIcon />
+                  </Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: mode === "dark" ? "#fff" : "#000" }}>
+                    Explore More
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ px: 2 }}>
+                    Discover all available destinations
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </>
       )}
     </Grid>
   );

@@ -1,5 +1,5 @@
 import React from "react";
-import { motion, useMotionValue, useTransform } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Box,
   Typography,
@@ -7,6 +7,7 @@ import {
   Button,
   IconButton,
   useTheme,
+  SwipeableDrawer,
 } from "@mui/material";
 import { 
   Favorite as FavoriteIcon, 
@@ -16,9 +17,6 @@ import {
   Close as CloseIcon 
 } from "../icons";
 import { glassIconBtnSx, ctaButtonSx } from "../theme/designSystem";
-
-const CLOSE_THRESHOLD = 120;
-const NEXT_THRESHOLD = -120;
 
 const InfoItem = ({ label, value, full }) => (
   <Box sx={{ gridColumn: full ? "span 2" : "auto" }}>
@@ -31,119 +29,101 @@ const InfoItem = ({ label, value, full }) => (
   </Box>
 );
 
-const rubberBand = (d, dim = 300, r = 0.55) =>
-  (dim * r * d) / (dim + r * Math.abs(d));
-
 const PlaceDetailsDialog = ({
   place,
   open,
   onClose,
-  onNext,
   liked,
   saved,
   likesCount,
   onLike,
   onSave,
-  onPlanTrip, 
-  relatedPlaces = [],
+  onPlanTrip,
 }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-
-  /* ───────── MOTION MAPPINGS ───────── */
-  const scale = useTransform(y, [0, 300], [1, 0.96]);
-  const backdropOpacity = useTransform(y, [0, 300], [1, 0]);
-
-  if (!open) return null;
+  if (!place) return null;
 
   return (
-    <>
-      {/* ───────────────── BACKDROP ───────────────── */}
-      <motion.div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 1500,
-
-          background: isDark
-            ? "radial-gradient(120% 90% at 50% 100%, rgba(32, 32, 32, 0.92), rgba(32, 32, 32, 0.92))"
-            : "radial-gradient(120% 90% at 50% 100%, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.87))",
-
-          opacity: backdropOpacity,
+    <SwipeableDrawer
+      anchor="bottom"
+      open={open}
+      onOpen={() => {}}
+      onClose={onClose}
+      disableBackdropTransition={false}
+      disableDiscovery={false}
+      swipeAreaWidth={56}
+      sx={{
+        zIndex: 1600,
+        "& .MuiBackdrop-root": {
           backdropFilter: "blur(20px) saturate(120%)",
           WebkitBackdropFilter: "blur(20px) saturate(120%)",
-          willChange: "opacity",
-        }}
-      />
-
-      {/* ───────────────── DIALOG ───────────────── */}
-      <motion.div
-        layoutId={`place-${place.id}`}
-        drag
-        dragElastic={0}
-        dragConstraints={{ top: 0, bottom: 0, left: 0, right: 0 }}
-        onDrag={(e, info) => {
-          x.set(rubberBand(info.offset.x));
-          y.set(rubberBand(info.offset.y));
-        }}
-        onDragEnd={(e, info) => {
-          if (
-            info.offset.y > CLOSE_THRESHOLD ||
-            info.offset.x > CLOSE_THRESHOLD
-          ) {
-            onClose();
-          } else if (info.offset.x < NEXT_THRESHOLD) {
-            onNext?.();
-          } else {
-            x.set(0);
-            y.set(0);
-          }
-        }}
-        style={{
-          position: "absolute",
-          inset: 0,
-          zIndex: 1600,
-
-          left: 12,
-          right: 12,
-          top: 18,
-          bottom: 72,
-          height: "80vh",
-          margin: "auto",
-
           background: isDark
-            ? "linear-gradient(180deg, #0b0b0b 0%, #121212 100%)"
-            : "#ffffff",
-
-          borderRadius: 35,
+            ? "rgba(18, 18, 18, 0)"
+            : "rgba(255, 255, 255, 0)",
+        },
+        "& .MuiDrawer-paper": {
+          borderRadius: 8,
+          m: 1.5,
+          backgroundColor: isDark ? "#0b0b0b01" : "#ffffff07",
+          color: theme.palette.text.primary,
           overflow: "hidden",
-
+          display: "flex",
+          flexDirection: "column",
           boxShadow: isDark
-            ? "0 40px 120px rgba(0,0,0,0.85)"
-            : "0 40px 120px rgba(0,0,0,0.35)",
-
-          x,
-          y,
-          scale,
-          touchAction: "none",
-          willChange: "transform",
+            ? 'inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)'
+            : 'inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)',
+        },
+      }}
+    >
+      {/* ───────── PULL HANDLE INDICATOR ───────── */}
+      <Box
+        sx={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+          pt: 1.5,
+          pb: 1,
+          flexShrink: 0,
+          cursor: "grab",
         }}
-        transition={{ type: "spring", stiffness: 260, damping: 30 }}
+        onClick={onClose}
       >
-        {/* ───────── HERO ───────── */}
         <Box
           sx={{
-            height: 260,
+            width: 44,
+            height: 5,
+            borderRadius: 3,
+            backgroundColor: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)",
+          }}
+        />
+      </Box>
+
+      {/* ───────── SCROLLABLE CONTENT BODY ───────── */}
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflowY: "auto",
+          px: 2,
+          pb: 4,
+          "&::-webkit-scrollbar": { width: 6 },
+          "&::-webkit-scrollbar-thumb": {
+            borderRadius: 6,
+            background: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)",
+          },
+        }}
+      >
+        {/* ───────── HERO IMAGE & FLOATING ACTIONS ───────── */}
+        <Box
+          sx={{
+            height: 280,
             backgroundImage: `url(${place.images?.[0]})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
-            m: 1,
-            borderRadius: 7.5,
+            borderRadius: 6,
             position: "relative",
+            mb: 3,
           }}
         >
           <IconButton
@@ -159,202 +139,139 @@ const PlaceDetailsDialog = ({
             <CloseIcon />
           </IconButton>
 
-<Stack
-  direction="row"
-  spacing={1}
-  sx={{
-    position: "absolute",
-    bottom: 2,
-    left: 2,
-    right: 2,
-    zIndex: 3,
-
-    p: 0.8,
-    borderRadius: 4,
-
-    alignItems: "center",
-  }}
->
-  {/* LIKE */}
-  <Button
-    onClick={onLike}
-    sx={{
-      minWidth: 40,
-      height: 44,
-      px: 1.6,
-      borderRadius: 6,
-      fontWeight: 700,
-      fontSize: 13,
-      backdropFilter: "blur(22px) saturate(0.8) brightness(1.9)",
-
-      background: liked ? "rgba(255, 255, 255, 0.65)" : "rgba(255,255,255,0.12)",
-      color: "#fff",
-
-      "&:hover": {
-        transform: "scale(1.05)",
-      },
-      transition: "all .25s ease",
-    }}
-  >
-    {liked ? <FavoriteIcon sx={{ color: liked ? theme.palette.error.main : "#fff" }} /> : <FavoriteBorderIcon />}
-  </Button>
-
-  {/* SAVE */}
-  <Button
-    onClick={onSave}
-    startIcon={saved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
-    sx={{
-      minWidth: 78,
-      height: 44,
-      px: 1.8,
-      borderRadius: 6,
-      fontWeight: 700,
-      fontSize: 13,
-
-      background: saved
-        ? "rgba(255, 234, 0, 0.14)"
-        : "rgba(0, 0, 0, 0.17)",
-      color: saved ? "#ffffff" :"#fff",
-      backdropFilter: "blur(22px) saturate(0.8) brightness(1.9)",
-
-      "&:hover": {
-        transform: "scale(1.05)",
-      },
-      transition: "all .25s ease",
-    }}
-  >
-    {saved ? "Saved" : "Save"}
-  </Button>
-
-  {/* PRIMARY CTA */}
-  <Button
-    onClick={(e) => {
-      e.stopPropagation();
-      onPlanTrip?.(place);
-    }}
-    sx={ctaButtonSx("dark", "primary", {
-      flex: 1,
-      height: 48,
-      ml: 0.5,
-      borderRadius: 6,
-      fontSize: "0.95rem",
-    })}
-  >
-    Plan this Trip
-  </Button>
-</Stack>
-
-        </Box>
-
-    {/* ─────────────── CONTENT ─────────────── */}
-<Box
-  sx={{
-    p: 3,
-    color: theme.palette.text.primary,
-
-    "&::-webkit-scrollbar": { width: 6 },
-    "&::-webkit-scrollbar-thumb": {
-      borderRadius: 6,
-      background: "rgba(0,0,0,0.25)",
-    },
-  }}
->
-  {/* ───────── TITLE ───────── */}
-  <Typography fontWeight={900} variant="h6" mb={0.5}>
-    {place.name}
-  </Typography>
-
-  <Typography opacity={0.65} mb={1}>
-    {place.city}, {place.state}
-  </Typography>
-
-  <Typography
-    variant="caption"
-    sx={{
-      display: "inline-block",
-      px: 1.2,
-      py: 0.4,
-      borderRadius: 2,
-      bgcolor: "rgba(0,0,0,0.06)",
-      mb: 2,
-      fontWeight: 600,
-    }}
-  >
-    {place.type}
-  </Typography>
-
-  <Typography>
-    {likesCount}
-  </Typography>
-
-  {/* ───────── DESCRIPTION ───────── */}
-  <Typography sx={{ mb: 3, lineHeight: 1.7 }}>
-    {place.description}
-  </Typography>
-
-  {/* ───────── INFO GRID ───────── */}
-  <Box
-    sx={{
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 2,
-      mb: 3,
-    }}
-  >
-    <InfoItem label="Best Time" value={place.bestTimeToVisit} />
-    <InfoItem label="Season" value={place.season} />
-    <InfoItem label="Weather" value={place.weather} full />
-  </Box>
-
-
-  {/* ───────── NEARBY ATTRACTIONS ───────── */}
-  {/* {place.nearestAttractions?.length > 0 && (
-    <>
-      <Typography fontWeight={800} mb={1}>
-        📍 Nearby Attractions
-      </Typography>
-
-      <Stack spacing={1.5}>
-        {place.nearestAttractions.map((a, i) => (
-          <Box
-            key={i}
+          <Stack
+            direction="row"
+            spacing={1}
             sx={{
-              p: 1.5,
-              borderRadius: 3,
-              background: "rgba(0,0,0,0.04)",
-              display: "flex",
-              gap: 1.5,
+              position: "absolute",
+              bottom: 12,
+              left: 12,
+              right: 12,
+              zIndex: 3,
+              p: 0.8,
+              borderRadius: 4,
+              alignItems: "center",
             }}
           >
-            <Box
+            {/* LIKE BUTTON */}
+            <Button
+              onClick={onLike}
               sx={{
-                width: 56,
-                height: 56,
-                borderRadius: 2,
-                backgroundImage: `url(${a.image})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                flexShrink: 0,
+                minWidth: 44,
+                height: 44,
+                px: 1.6,
+                borderRadius: 6,
+                fontWeight: 700,
+                fontSize: 13,
+                backdropFilter: "blur(22px) saturate(0.8) brightness(1.9)",
+                background: liked ? "rgba(255, 255, 255, 0.65)" : "rgba(255,255,255,0.12)",
+                color: "#fff",
+                "&:hover": { transform: "scale(1.05)" },
+                transition: "all .25s ease",
               }}
-            />
-            <Box>
-              <Typography fontWeight={700} fontSize={14}>
-                {a.name}
+            >
+              {liked ? (
+                <FavoriteIcon sx={{ color: theme.palette.error.main }} />
+              ) : (
+                <FavoriteBorderIcon />
+              )}
+            </Button>
+
+            {/* SAVE BUTTON */}
+            <Button
+              onClick={onSave}
+              startIcon={saved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+              sx={{
+                minWidth: 78,
+                height: 44,
+                px: 1.8,
+                borderRadius: 6,
+                fontWeight: 700,
+                fontSize: 13,
+                background: saved ? "rgba(255, 234, 0, 0.14)" : "rgba(0, 0, 0, 0.17)",
+                color: "#fff",
+                backdropFilter: "blur(22px) saturate(0.8) brightness(1.9)",
+                "&:hover": { transform: "scale(1.05)" },
+                transition: "all .25s ease",
+              }}
+            >
+              {saved ? "Saved" : "Save"}
+            </Button>
+
+            {/* PRIMARY PLAN TRIP CTA */}
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                onPlanTrip?.(place);
+              }}
+              sx={ctaButtonSx("dark", "primary", {
+                flex: 1,
+                height: 48,
+                ml: 0.5,
+                borderRadius: 6,
+                fontSize: "0.95rem",
+              })}
+            >
+              Plan this Trip
+            </Button>
+          </Stack>
+        </Box>
+
+        {/* ───────── PLACE DETAILS INFO ───────── */}
+        <Box sx={{ px: 1 }}>
+          <Typography fontWeight={900} variant="h5" mb={0.5}>
+            {place.name}
+          </Typography>
+
+          <Typography opacity={0.65} mb={1.5} fontSize={15}>
+            {place.city}, {place.state}
+          </Typography>
+
+          <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", mb: 3 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                display: "inline-block",
+                px: 1.5,
+                py: 0.6,
+                borderRadius: 2,
+                bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                fontWeight: 600,
+              }}
+            >
+              {place.type}
+            </Typography>
+
+            {likesCount > 0 && (
+              <Typography variant="caption" fontWeight={600} opacity={0.7}>
+                ❤️ {likesCount} Likes
               </Typography>
-              <Typography opacity={0.7} fontSize={12}>
-                {a.description}
-              </Typography>
-            </Box>
+            )}
           </Box>
-        ))}
-      </Stack>
-    </>
-  )} */}
-</Box>
 
-  </motion.div>
-</>
+          <Typography sx={{ mb: 4, lineHeight: 1.8, fontSize: "0.95rem", opacity: 0.9 }}>
+            {place.description}
+          </Typography>
 
+          {/* ───────── INFO GRID ───────── */}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 2.5,
+              p: 2.5,
+              borderRadius: 4,
+              bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+              border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+            }}
+          >
+            <InfoItem label="Best Time to Visit" value={place.bestTimeToVisit} />
+            <InfoItem label="Season" value={place.season} />
+            <InfoItem label="Weather" value={place.weather} full />
+          </Box>
+        </Box>
+      </Box>
+    </SwipeableDrawer>
   );
 };
 

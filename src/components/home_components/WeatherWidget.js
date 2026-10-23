@@ -250,7 +250,6 @@ export default function WeatherWidget({
           flexDirection: "column",
           borderRadius: designTokens.radii.card,
           transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
-          width: expandedDesktop && isDesktop ? { xs: "100%", md: "420px" } : { xs: "100%", sm: "auto" },
           position: "relative",
           zIndex: expandedDesktop ? 10 : 2,
         }}
@@ -268,11 +267,11 @@ export default function WeatherWidget({
             maxWidth: expandedDesktop && isDesktop ? "100%" : 220,
             cursor: "pointer",
             ...cardHover,
-            background: isDark ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.02)",
-            border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)"}`,
+            background: 'transparent',
+            border: `0px solid ${isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)"}`,
             backdropFilter: "blur(14px)",
             WebkitBackdropFilter: "blur(14px)",
-            boxShadow: isDark ? "inset 0 1px 1px rgba(255,255,255,0.1)" : "inset 0 1px 1px rgba(255,255,255,0.8)",
+            boxShadow: 'none',
           }}
         >
           {weatherLoading ? (

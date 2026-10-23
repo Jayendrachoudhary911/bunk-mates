@@ -29,7 +29,7 @@ Example:
         Authorization: `Bearer ${keyToUse}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.5,
       }),
@@ -97,7 +97,7 @@ Example:
         Authorization: `Bearer ${keyToUse}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.6,
       }),
@@ -152,7 +152,7 @@ Return strictly raw JSON object without markdown code blocks:
         Authorization: `Bearer ${keyToUse}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.4,
       }),
@@ -196,7 +196,7 @@ Highlight key insights across matching destinations, community members, notes, a
         Authorization: `Bearer ${keyToUse}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.4,
       }),

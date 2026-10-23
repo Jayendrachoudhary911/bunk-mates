@@ -1087,3 +1087,64 @@ export const tagChipSx = (mode = "dark", color = "#4ADE80", custom = {}) => {
   };
 };
 
+/**
+ * Monochrome Design System Configuration
+ * Incorporating top/bottom reflections, strict monochrome palette, and custom radiuses.
+ */
+export const MONOCHROME_DESIGN_SYSTEM = {
+  colors: {
+    dark: {
+      main: "#000000",
+      card: "rgba(30, 30, 30, 0.22)",
+      cta: "#ffffff",
+      text: "#ffffff",
+      textSecondary: "rgba(255, 255, 255, 0.7)",
+      border: "rgba(255, 255, 255, 0.11)",
+    },
+    light: {
+      main: "#f1f1f1",
+      card: "rgba(255, 255, 255, 0.4)",
+      cta: "#000000",
+      text: "#000000",
+      textSecondary: "rgba(0, 0, 0, 0.65)",
+      border: "rgba(0, 0, 0, 0.08)",
+    },
+  },
+  shadows: {
+    largeComponent: (mode) =>
+      mode === "dark"
+        ? "inset 0 1px 1px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(255, 255, 255, 0.07), 0 1px 0px rgba(0,0,0,0.1)"
+        : "inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0,0,0,0.1), 0 1px 0px rgba(0,0,0,0.1)",
+    smallComponent: (mode) =>
+      mode === "dark"
+        ? "inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)"
+        : "inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0,0,0,0.1)",
+  },
+  radii: {
+    card: "28px",
+    button: "24px",
+    container: "32px",
+  },
+};
+
+/**
+ * Refined CTA Button & interactive element styles
+ * Top-only reflection style with high-contrast monochrome CTA text
+ */
+export const monochromeButtonSx = (mode) => ({
+  borderRadius: "24px",
+  backgroundColor: mode === "dark" ? "#ffffff" : "#000000",
+  color: mode === "dark" ? "#000000" : "#ffffff",
+  fontWeight: 700,
+  textTransform: "none",
+  backdropFilter: "blur(20px)",
+  boxShadow:
+    mode === "dark"
+      ? "inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)"
+      : "inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)",
+  "&:hover": {
+    opacity: 0.9,
+  },
+});
+
+

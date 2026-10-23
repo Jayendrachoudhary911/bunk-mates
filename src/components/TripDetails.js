@@ -779,7 +779,7 @@ Return strictly raw JSON format:
                     Authorization: `Bearer ${activeKey}` 
                 },
                 body: JSON.stringify({
-                    model: "llama-3.3-70b-versatile",
+                    model: "openai/gpt-oss-120b",
                     messages: [{ role: "user", content: prompt }],
                     temperature: 0.3,
                 }),
@@ -896,7 +896,7 @@ Return strictly raw JSON format without conversational text:
             const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${activeKey}` },
-                body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }] }),
+                body: JSON.stringify({ model: "openai/gpt-oss-120b", messages: [{ role: "user", content: prompt }] }),
             });
 
             if (!res.ok) {
@@ -952,7 +952,7 @@ Return strictly raw JSON format without markdown preamble:
             const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${activeKey}` },
-                body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }] }),
+                body: JSON.stringify({ model: "openai/gpt-oss-120b", messages: [{ role: "user", content: prompt }] }),
             });
 
             if (!res.ok) {

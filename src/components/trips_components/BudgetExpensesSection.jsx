@@ -431,7 +431,7 @@ export default function BudgetExpensesSection({
                                         }
                                         secondary={
                                             <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                                                {exp.category || "General"} • {exp.date} {exp.time ? `at ${exp.time}` : ""}
+                                                {exp.category || "General"} • {typeof exp.date === "object" && exp.date !== null ? (exp.date instanceof Date ? exp.date.toLocaleDateString() : (exp.date.toDate ? exp.date.toDate().toLocaleDateString() : "")) : String(exp.date || "")} {exp.time ? `at ${typeof exp.time === "object" && exp.time !== null ? (exp.time instanceof Date ? exp.time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "") : String(exp.time)}` : ""}
                                             </Typography>
                                         }
                                     />

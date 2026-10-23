@@ -147,7 +147,7 @@ const TripsPanelContent = () => {
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                     <CalendarIcon sx={{ fontSize: 13, color: "text.secondary" }} />
                     <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                      {trip.startDate}
+                      {typeof trip.startDate === "object" && trip.startDate !== null ? (trip.startDate instanceof Date ? trip.startDate.toLocaleDateString() : (trip.startDate.toDate ? trip.startDate.toDate().toLocaleDateString() : "")) : String(trip.startDate)}
                     </Typography>
                   </Box>
                 )}

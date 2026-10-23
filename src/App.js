@@ -2,7 +2,7 @@ import React, { useEffect, Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { messaging } from './firebase';
 import { getToken, onMessage } from 'firebase/messaging';
-import { Box, CircularProgress, useMediaQuery, useTheme } from "@mui/material";
+import { Box, useMediaQuery, useTheme } from "@mui/material";
 import "./App.css";
 import 'leaflet/dist/leaflet.css';
 
@@ -44,6 +44,9 @@ const ForgotPassword = lazy(() => import("./auth/ForgotPassword"));
 const ResetPassword = lazy(() => import("./auth/ResetPassword"));
 const AccountDeletionPolicy = lazy(() => import("./components/AccountDeletionPolicy"));
 const GroupList = lazy(() => import("./components/DevBeta/GroupList"));
+const SavedTrips = lazy(() => import("./pages/SavedTripsPage"));
+const CreateTripPage = lazy(() => import("./pages/CreateTripPage"));
+const QrMobileApprove = lazy(() => import("./auth/QrMobileApprove"));
 
 
 const vapidKey = 'BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs';
@@ -156,6 +159,10 @@ function AppContent() {
     "/privacy-policy",
     "/terms",
     "/account-deletion-policy",
+    "/trips/create",
+    "/create-trip",
+    "/qr-login",
+    "/auth/qr-approve",
   ];
 
   const isAllowedMobileRoute =
@@ -185,13 +192,38 @@ function AppContent() {
     <Box
       sx={{
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         minHeight: "70vh",
         width: "100%",
+        gap: 2,
       }}
     >
-      <CircularProgress size={38} thickness={3.8} sx={{ color: "primary.main" }} />
+      <Box
+        className="shimmer"
+        sx={{
+          p: 2.5,
+          borderRadius: "24px",
+          bgcolor: "rgba(30, 30, 30, 0.22)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Box sx={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.7 }}>
+          <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2C7.58 2 4 5.58 4 10c0 3.31 2.01 6.16 4.9 7.37.1.34.25.96.38 1.48.24.96.95 1.65 1.94 1.65h1.56c.99 0 1.7-.69 1.94-1.65.13-.52.28-1.14.38-1.48C17.99 16.16 20 13.31 20 10c0-4.42-3.58-8-8-8z" />
+            <circle cx="9" cy="10" r="1.5" fill="currentColor" />
+            <circle cx="15" cy="10" r="1.5" fill="currentColor" />
+            <path d="M12 13v1" />
+            <path d="M10 19v1.5" />
+            <path d="M14 19v1.5" />
+          </svg>
+        </Box>
+      </Box>
     </Box>
   );
 
@@ -212,15 +244,19 @@ function AppContent() {
           <Route path="/notes/:id/workspace" element={<RequireAuth><NoteWorkspace /></RequireAuth>} />
           <Route path="/notes/new/workspace" element={<RequireAuth><NoteWorkspace /></RequireAuth>} />
           <Route path="/trips" element={<RequireAuth><Trips /></RequireAuth>} />
+          <Route path="/trips/create" element={<RequireAuth><CreateTripPage /></RequireAuth>} />
+          <Route path="/create-trip" element={<RequireAuth><CreateTripPage /></RequireAuth>} />
           <Route path="/chats" element={<RequireAuth><ChatWorkspace /></RequireAuth>} />
           <Route path="/chat/:friendId" element={<RequireAuth><ChatWorkspace /></RequireAuth>} />
           <Route path="/group/:groupName" element={<RequireAuth><ChatWorkspace /></RequireAuth>} />
           <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+          <Route path="/profile/:id" element={<RequireAuth><Profile /></RequireAuth>} />
           <Route path="/travel-ai" element={<RequireAuth><TravelAI /></RequireAuth>} />
           <Route path="/home-dummy" element={<RequireAuth><Homepage /></RequireAuth>} />
           <Route path="/budget-mngr" element={<RequireAuth><Budgetmngr /></RequireAuth>} />
           <Route path="/reminders" element={<RequireAuth><Reminders /></RequireAuth>} />
+          <Route path="/saved-trips" element={<RequireAuth><SavedTrips /></RequireAuth>} />
 
           {/* Auth Routes (Restricted when Session is Active) */}
           <Route path="/auth/*" element={<RestrictAuthForLoggedIn><AuthPage /></RestrictAuthForLoggedIn>} />
@@ -230,6 +266,8 @@ function AppContent() {
           <Route path="/reset-password" element={<RestrictAuthForLoggedIn><ResetPassword /></RestrictAuthForLoggedIn>} />
 
           {/* Other routes remain accessible or protected as needed */}
+          <Route path="/qr-login" element={<QrMobileApprove />} />
+          <Route path="/auth/qr-approve" element={<QrMobileApprove />} />
           <Route path="/grouplists" element={<RequireAuth><GroupList /></RequireAuth>} />
           <Route path="/trips/:id" element={<RequireAuth><TripDetails /></RequireAuth>} />
           <Route path="/join" element={<JoinTrip />} />

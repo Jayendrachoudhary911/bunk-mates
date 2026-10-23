@@ -667,8 +667,8 @@ const handleShare = async () => {
                                   alignItems: "center",
                                 }}
                               >
-                                <AccessTime sx={{ fontSize: 16, mr: 1 }} /> {tripInfo.startDate} →
-                                {tripInfo.date}
+                                <AccessTime sx={{ fontSize: 16, mr: 1 }} /> {typeof tripInfo.startDate === "object" && tripInfo.startDate !== null ? (tripInfo.startDate instanceof Date ? tripInfo.startDate.toLocaleDateString() : (tripInfo.startDate.toDate ? tripInfo.startDate.toDate().toLocaleDateString() : "")) : String(tripInfo.startDate || "")} →{" "}
+                                {typeof tripInfo.date === "object" && tripInfo.date !== null ? (tripInfo.date instanceof Date ? tripInfo.date.toLocaleDateString() : (tripInfo.date.toDate ? tripInfo.date.toDate().toLocaleDateString() : "")) : String(tripInfo.date || "")}
                               </Typography>
                             )}
                           </Box>

@@ -427,4 +427,6 @@ export function getTheme(mode = "dark", accent = "default") {
   });
 }
 
+export { MONOCHROME_DESIGN_SYSTEM, monochromeButtonSx } from "./theme/designSystem";
+
 export default getTheme;

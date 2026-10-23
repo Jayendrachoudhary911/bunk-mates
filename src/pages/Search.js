@@ -56,8 +56,6 @@ import {
   addDoc,
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
-import { useCreateTripDrawer } from "../hooks/useCreateTripDrawer";
-import CreateTripDrawer from "../components/trips_components/CreateDrawer";
 
 // Modular utilities and AI Services
 import {
@@ -425,23 +423,7 @@ export default function SearchPage() {
     });
   };
 
-  const {
-    createDialogOpen,
-    step,
-    setStep,
-    newTrip,
-    setNewTrip,
-    selectedMembers,
-    setSelectedMembers,
-    openDrawerWithPrefill,
-    closeDrawer: closeTripDrawer,
-    handleNext,
-    handleBack,
-    handleCreateTrip,
-    isFetchingLocation,
-    createdTripDetails,
-    setCreatedTripDetails,
-  } = useCreateTripDrawer();
+
 
   const [aiResults, setAiResults] = useState([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -546,15 +528,19 @@ export default function SearchPage() {
     const today = new Date();
     const endDate = new Date(today.getTime() + (rec.durationDays || 3) * 24 * 60 * 60 * 1000);
 
-    openDrawerWithPrefill({
-      name: rec.name || `${rec.from || "Origin"} to ${rec.to || "Destination"}`,
-      from: rec.from || userLocation || "",
-      to: rec.to || "",
-      location: rec.to ? `${rec.from ? rec.from + " → " : ""}${rec.to}` : "Destination",
-      startDate: today.toISOString().slice(0, 10),
-      endDate: endDate.toISOString().slice(0, 10),
-      budget: rec.budget ? rec.budget.toString() : "",
-      description: rec.description || "",
+    navigate("/trips/create", {
+      state: {
+        prefill: {
+          name: rec.name || `${rec.from || "Origin"} to ${rec.to || "Destination"}`,
+          from: rec.from || userLocation || "",
+          to: rec.to || "",
+          location: rec.to ? `${rec.from ? rec.from + " → " : ""}${rec.to}` : "Destination",
+          startDate: today.toISOString().slice(0, 10),
+          endDate: endDate.toISOString().slice(0, 10),
+          budget: rec.budget ? rec.budget.toString() : "",
+          description: rec.description || "",
+        },
+      },
     });
   };
 
@@ -576,7 +562,6 @@ export default function SearchPage() {
   };
 
   useBackButtonClose(drawerOpen, closeDrawer);
-  useBackButtonClose(createDialogOpen, () => closeTripDrawer());
 
   useEffect(() => {
     const bottomBar = document.getElementById("bottom-nav");
@@ -1463,15 +1448,19 @@ export default function SearchPage() {
                   const today = new Date();
                   const endDate = new Date(today.getTime() + (placeAiGuide.recommendedDays || 3) * 24 * 60 * 60 * 1000);
                   closeDrawer();
-                  openDrawerWithPrefill({
-                    name: place.name || "",
-                    from: userLocation || "",
-                    to: `${place.city || ""}, ${place.state || ""}`.trim() || place.name,
-                    location: place.location || `${place.city || ""}, ${place.state || ""}`.trim(),
-                    startDate: today.toISOString().slice(0, 10),
-                    endDate: endDate.toISOString().slice(0, 10),
-                    budget: placeAiGuide.estimatedBudget ? placeAiGuide.estimatedBudget.toString() : "",
-                    description: `AI recommended trip to ${place.name}. Highlights: ${(placeAiGuide.topAttractions || []).join(", ")}.`,
+                  navigate("/trips/create", {
+                    state: {
+                      prefill: {
+                        name: place.name || "",
+                        from: userLocation || "",
+                        to: `${place.city || ""}, ${place.state || ""}`.trim() || place.name,
+                        location: place.location || `${place.city || ""}, ${place.state || ""}`.trim(),
+                        startDate: today.toISOString().slice(0, 10),
+                        endDate: endDate.toISOString().slice(0, 10),
+                        budget: placeAiGuide.estimatedBudget ? placeAiGuide.estimatedBudget.toString() : "",
+                        description: `AI recommended trip to ${place.name}. Highlights: ${(placeAiGuide.topAttractions || []).join(", ")}.`,
+                      },
+                    },
                   });
                 }}
                 sx={{
@@ -1581,15 +1570,19 @@ export default function SearchPage() {
               const today = new Date();
               const plus2 = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
 
-              openDrawerWithPrefill({
-                name: place.name || "",
-                from: userLocation || "",
-                to: `${place.city || ""}, ${place.state || ""}`.trim(),
-                location:
-                  place.location ||
-                  `${place.city || ""}, ${place.state || ""}`.trim(),
-                startDate: today.toISOString().slice(0, 10),
-                endDate: plus2.toISOString().slice(0, 10),
+              navigate("/trips/create", {
+                state: {
+                  prefill: {
+                    name: place.name || "",
+                    from: userLocation || "",
+                    to: `${place.city || ""}, ${place.state || ""}`.trim(),
+                    location:
+                      place.location ||
+                      `${place.city || ""}, ${place.state || ""}`.trim(),
+                    startDate: today.toISOString().slice(0, 10),
+                    endDate: plus2.toISOString().slice(0, 10),
+                  },
+                },
               });
             }}
             sx={{
@@ -1832,15 +1825,19 @@ export default function SearchPage() {
             startIcon={<FlightTakeoffIcon />}
             onClick={() => {
               closeDrawer();
-              openDrawerWithPrefill({
-                name: trip.name || trip.title || `Trip to ${trip.to || trip.location || trip.place || "Destination"}`,
-                from: trip.from || userLocation || "",
-                to: trip.to || trip.location || trip.place || "",
-                location: trip.to || trip.location || trip.place || "",
-                startDate: today.toISOString().slice(0, 10),
-                endDate: endDate.toISOString().slice(0, 10),
-                budget: trip.budget ? trip.budget.toString() : "",
-                description: trip.description || `AI trip itinerary to ${trip.to || trip.location || trip.place}`,
+              navigate("/trips/create", {
+                state: {
+                  prefill: {
+                    name: trip.name || trip.title || `Trip to ${trip.to || trip.location || trip.place || "Destination"}`,
+                    from: trip.from || userLocation || "",
+                    to: trip.to || trip.location || trip.place || "",
+                    location: trip.to || trip.location || trip.place || "",
+                    startDate: today.toISOString().slice(0, 10),
+                    endDate: endDate.toISOString().slice(0, 10),
+                    budget: trip.budget ? trip.budget.toString() : "",
+                    description: trip.description || `AI trip itinerary to ${trip.to || trip.location || trip.place}`,
+                  },
+                },
               });
             }}
             sx={{
@@ -2812,25 +2809,6 @@ export default function SearchPage() {
         )}
       </SwipeableDrawer>
 
-      <CreateTripDrawer
-        createDialogOpen={createDialogOpen}
-        closeDrawer={closeTripDrawer}
-        step={step}
-        setStep={setStep}
-        newTrip={newTrip}
-        setNewTrip={setNewTrip}
-        selectedMembers={selectedMembers}
-        setSelectedMembers={setSelectedMembers}
-        handleNext={handleNext}
-        handleBack={handleBack}
-        handleCreateTrip={handleCreateTrip}
-        isFetchingLocation={isFetchingLocation}
-        createdTripDetails={createdTripDetails}
-        setCreatedTripDetails={setCreatedTripDetails}
-        user={currentUser || auth.currentUser}
-        db={db}
-        mode={mode}
-      />
     </Box>
   );
 }

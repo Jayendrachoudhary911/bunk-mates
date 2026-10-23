@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ========================================================
+    // QR Code Login & Device Pairings: Zero-Knowledge Protocol
+    // ========================================================
+    match /device_pairings/{sessionId} {
+      // 1. Session Creation (Desktop initiates session)
+      allow create: if 
+        (request.resource.data.id == sessionId || request.resource.data.sessionId == sessionId) &&
+        (request.resource.data.status == "pending" || request.resource.data.status == "waiting_scan");
+
+      // 2. Reading session state (Desktop listener & Mobile approval drawer)
+      allow get: if true;
+      allow list: if false;
+
+      // 3. State updates during the workflow
+      allow update: if
+        (
+          // Case A: Mobile device recorded scan
+          request.resource.data.status == "scanned" ||
+
+          // Case B: Mobile user approval
+          request.resource.data.status == "approved" ||
+
+          // Case C: Mobile user rejection
+          request.resource.data.status == "rejected" ||
+
+          // Case D: Desktop exchange & consumption
+          request.resource.data.status == "consumed" ||
+          (
+            request.resource.data.status == "completed" &&
+            request.resource.data.consumed == true
+          ) ||
+
+          // Case E: Session expired
+          request.resource.data.status == "expired"
+        );
+
+      // 4. Session cancellation / cleanup
+      allow delete: if true;
+    }
+
+    match /qr_login_sessions/{sessionId} {
+      // Backwards compatibility matching
+      allow create: if 
+        request.resource.data.sessionId == sessionId &&
+        (request.resource.data.status == "waiting_scan" || request.resource.data.status == "pending");
+
+      allow get: if true;
+      allow list: if false;
+
+      allow update: if
+        (
+          request.resource.data.status == "scanned" ||
+          request.resource.data.status == "approved" ||
+          request.resource.data.status == "rejected" ||
+          request.resource.data.status == "consumed" ||
+          (
+            request.resource.data.status == "completed" &&
+            request.resource.data.consumed == true
+          ) ||
+          request.resource.data.status == "expired"
+        );
+
+      allow delete: if true;
+    }
+
+    // ========================================================
+    // Existing application collections (fallback safe policies)
+    // ========================================================
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+      
+      match /{allSubcollections=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /trips/{tripId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

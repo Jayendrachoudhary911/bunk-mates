@@ -288,7 +288,6 @@ export default function AQIWidget({ aqiData, mode }) {
           flexDirection: "column",
           borderRadius: designTokens.radii.card,
           transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
-          width: expandedDesktop && isDesktop ? { xs: "100%", md: "400px" } : "auto",
           position: "relative",
           zIndex: expandedDesktop ? 10 : 2,
         }}
@@ -297,42 +296,36 @@ export default function AQIWidget({ aqiData, mode }) {
         <Box
           onClick={handleWidgetClick}
           sx={{
-            px: 2,
+            px: 0,
             py: 1,
+            pr: 0,
             borderRadius: designTokens.radii.card,
             cursor: "pointer",
             ...cardHover,
             minHeight: 56,
             minWidth: 120,
             maxWidth: expandedDesktop && isDesktop ? "100%" : 160,
-            background: isDark ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.02)",
-            border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)"}`,
+            background: 'transaprent',
+            border: `0px solid ${isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)"}`,
             backdropFilter: "blur(14px)",
             WebkitBackdropFilter: "blur(14px)",
-            boxShadow: isDark ? "inset 0 1px 1px rgba(255,255,255,0.1)" : "inset 0 1px 1px rgba(255,255,255,0.8)",
+            boxShadow: "none",
             display: "flex",
-            alignItems: "center",
+            alignItems: "right",
+            alignContent: 'right',
             justifyContent: "space-between",
             gap: 1,
           }}
         >
-          <Box sx={{ textAlign: "left", lineHeight: 1.2 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
-              <Box
-                sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  bgcolor: color,
-                  boxShadow: `0 0 8px ${color}`,
-                }}
-              />
-              <Typography variant="h6" sx={{ fontWeight: 900, color }}>
+          <Box sx={{ textAlign: "right", lineHeight: 1.2, pr: 0 }}>
+              <Typography variant="h5" sx={{ fontWeight: 900, color }}>
                 {aqiValue}
+              <Typography variant="caption" sx={{ color: textMuted, fontWeight: 300 }}>
+                AQI
               </Typography>
-            </Box>
+              </Typography>
             <Typography variant="caption" sx={{ color: textMuted, fontWeight: 600 }}>
-              AQI • {label}
+              {label}
             </Typography>
           </Box>
 
@@ -350,7 +343,7 @@ export default function AQIWidget({ aqiData, mode }) {
                 <ExpandMoreIcon fontSize="small" />
               </IconButton>
             ) : (
-              <InfoOutlined sx={{ fontSize: 16, color: textMuted, opacity: 0.7 }} />
+              <InfoOutlined sx={{ fontSize: 16, color: textMuted, opacity: 0 }} />
             )}
           </Box>
         </Box>

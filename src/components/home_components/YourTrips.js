@@ -212,20 +212,27 @@ export default function YourTrips({
                               {tripInfo?.location || "Unknown"}
                             </Typography>
 
-                            {(tripInfo?.startDate || tripInfo?.date) && (
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  color: "rgba(255,255,255,0.7)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  mt: 0.3,
-                                }}
-                              >
-                                <AccessTime sx={{ fontSize: 16, mr: 0.7, flexShrink: 0 }} />
-                                {tripInfo?.startDate || "?"} → {tripInfo?.date || "?"}
-                              </Typography>
-                            )}
+{(tripInfo?.startDate || tripInfo?.date) && (
+  <Typography
+    variant="body2"
+    sx={{
+      color: "rgba(255,255,255,0.7)",
+      display: "flex",
+      alignItems: "center",
+      mt: 0.3,
+    }}
+  >
+    <AccessTime sx={{ fontSize: 16, mr: 0.7, flexShrink: 0 }} />
+    {/* 👇 FIX: Format the dates safely to strings */}
+    {tripInfo?.startDate instanceof Date 
+      ? tripInfo.startDate.toLocaleDateString() 
+      : tripInfo?.startDate || "?"} 
+    {" → "} 
+    {tripInfo?.date instanceof Date 
+      ? tripInfo.date.toLocaleDateString() 
+      : tripInfo?.date || "?"}
+  </Typography>
+)}
                           </Box>
 
                           {/* Avatar Group */}

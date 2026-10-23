@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Box,
   Typography,
   Button,
   TextField,
-  SwipeableDrawer,
   IconButton,
   Stack,
   Chip,
@@ -14,7 +14,6 @@ import {
   useTheme,
   ToggleButton,
   ToggleButtonGroup,
-  CircularProgress,
   Paper,
   InputAdornment,
   Autocomplete,
@@ -43,12 +42,11 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "re
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import {
-  drawerPaperSx,
-  drawerBackdropSx,
-  DrawerHandle,
   glassInputSx,
   glassIconBtnSx,
 } from "../../theme/designSystem";
+import { SkullGlyph, CreateTripSkullLoader } from "../loaders/SkullSkeletonLoader";
+import { useThemeToggle } from "../../contexts/ThemeToggleContext";
 
 // Fallback nature image definition
 const randomNatureImage = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80";
@@ -221,14 +219,14 @@ const AirbnbStyleCalendar = ({ startDate, endDate, onChange, isDarkMode }) => {
 };
 
 const CreateTripDrawer = ({
-  mode,
-  user,
+  mode: modeProp,
+  user: userProp,
   db: dbProp,
-  createDialogOpen,
+  createDialogOpen = true,
   step,
   setStep,
-  newTrip = {},
-  setNewTrip,
+  newTrip: newTripProp = {},
+  setNewTrip: setNewTripProp,
   selectedMembers,
   setSelectedMembers,
   closeDrawer,
@@ -239,9 +237,42 @@ const CreateTripDrawer = ({
   createdTripDetails,
   setCreatedTripDetails,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
-  const isDarkMode = mode === "dark" || theme.palette.mode === "dark";
+  const { mode: contextMode } = useThemeToggle();
+  const mode = modeProp || contextMode || theme.palette.mode || "dark";
+  const isDarkMode = mode === "dark";
   const effectiveDb = dbProp || firestore || db;
+  const user = userProp || auth.currentUser;
+
+  const [internalTripState, setInternalTripState] = useState(() => ({
+    name: "",
+    from: "",
+    to: "",
+    location: "",
+    startDate: "",
+    endDate: "",
+    time: "",
+    duration: "",
+    budget: "",
+    description: "",
+    iconDataUri: "",
+    ...(location?.state?.prefill || {}),
+    ...(newTripProp || {}),
+  }));
+
+  const newTrip = newTripProp && Object.keys(newTripProp).length > 0 ? newTripProp : internalTripState;
+  const setNewTrip = typeof setNewTripProp === "function" ? setNewTripProp : setInternalTripState;
+
+  useEffect(() => {
+    if (location?.state?.prefill) {
+      setNewTrip((prev) => ({
+        ...prev,
+        ...location.state.prefill,
+      }));
+    }
+  }, [location?.state?.prefill, setNewTrip]);
 
   const [friendCards, setFriendCards] = useState([]);
 
@@ -254,6 +285,13 @@ const CreateTripDrawer = ({
   const updateSelectedMembers = typeof setSelectedMembers === "function"
     ? setSelectedMembers
     : setInternalMembers;
+
+  const handleExit = useCallback(() => {
+    if (typeof closeDrawer === "function") {
+      closeDrawer();
+    }
+    navigate(-1);
+  }, [closeDrawer, navigate]);
 
   const [originCoords, setOriginCoords] = useState(null);
   const [destCoords, setDestCoords] = useState(null);
@@ -495,7 +533,7 @@ Do not output markdown.`;
             Authorization: `Bearer ${groqApiKey}`,
           },
           body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
+            model: "openai/gpt-oss-120b",
             messages: [{ role: "user", content: prompt }],
             temperature: 0.3,
           }),
@@ -600,7 +638,7 @@ Do not output markdown.`;
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: "openai/gpt-oss-120b",
           messages: [{ role: "user", content: prompt }],
           temperature: 0.3,
         }),
@@ -707,7 +745,10 @@ Do not output markdown.`;
         });
       }
 
-      closeDrawer();
+      if (typeof closeDrawer === "function") {
+        closeDrawer();
+      }
+      navigate(tripId ? `/trips/${tripId}` : "/trips");
     } catch (err) {
       console.error("Error saving timeline or checklist:", err);
       alert("Failed to save timeline & checklist to trip.");
@@ -860,36 +901,32 @@ Do not output markdown.`;
         : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png");
 
   return (
-    <SwipeableDrawer
-      anchor="bottom"
-      open={createDialogOpen}
-      onClose={closeDrawer}
-      onOpen={() => {}}
-      PaperProps={{
-        sx: {
-          ...drawerPaperSx(mode, {
-            height: "85vh",
-          }),
-          overflowY: "auto",
-        },
-      }}
-      ModalProps={{
-        BackdropProps: { sx: drawerBackdropSx },
+    <Box
+      sx={{
+        minHeight: "100vh",
+        width: "100%",
+        bgcolor: isDarkMode ? "#000000" : "#f1f1f1",
+        py: { xs: 2, sm: 3, md: 5 },
+        px: { xs: 1.5, sm: 2.5, md: 3 },
+        boxSizing: "border-box",
+        transition: "background 0.3s ease",
       }}
     >
-      <Box sx={{ display: { xs: "block", md: "none" } }}>
-        <DrawerHandle mode={mode} />
-      </Box>
-
       <Box
         sx={{
-          px: { xs: 0.5, sm: 4, md: 6 },
-          pb: { xs: 0, md: 0 },
-          pt: { xs: 0, md: 0 },
-          maxWidth: 720,
+          maxWidth: 820,
           mx: "auto",
           width: "100%",
           boxSizing: "border-box",
+          backgroundColor: isDarkMode ? "rgba(30, 30, 30, 0.22)" : "rgba(255, 255, 255, 0.4)",
+          backdropFilter: "blur(22px)",
+          WebkitBackdropFilter: "blur(22px)",
+          border: isDarkMode ? "1px solid rgba(255, 255, 255, 0.11)" : "1px solid rgba(0, 0, 0, 0.08)",
+          borderRadius: { xs: "24px", md: "32px" },
+          p: { xs: 2, sm: 3.5, md: 4.5 },
+          boxShadow: isDarkMode
+            ? "inset 0 1px 1px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(255, 255, 255, 0.07), 0 1px 0px rgba(0,0,0,0.1)"
+            : "inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0,0,0,0.1), 0 1px 0px rgba(0,0,0,0.1)",
         }}
       >
         {/* Header */}
@@ -898,24 +935,39 @@ Do not output markdown.`;
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            mb: 2.5,
+            mb: 3,
             pb: 2,
             borderBottom: "1px solid",
             borderColor: isDarkMode ? "rgba(255,255,255,0.08)" : "divider",
           }}
         >
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 900, letterSpacing: "-0.5px" }}>
-              Create a Trip
-            </Typography>
-            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
-              Step {activeStep + 1} of 5 — {stepsList[activeStep]}
-            </Typography>
-          </Box>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <IconButton
+              onClick={handleExit}
+              size="small"
+              sx={glassIconBtnSx(mode, { p: 1 })}
+              aria-label="Back"
+            >
+              <ChevronLeft fontSize="medium" />
+            </IconButton>
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="h5" sx={{ fontWeight: 900, letterSpacing: "-0.5px" }}>
+                  Create a Trip
+                </Typography>
+                <SkullGlyph size={22} opacity={0.6} />
+              </Stack>
+              <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                Step {activeStep + 1} of 5 — {stepsList[activeStep]}
+              </Typography>
+            </Box>
+          </Stack>
+
           <IconButton
-            onClick={closeDrawer}
+            onClick={handleExit}
             size="small"
-            sx={glassIconBtnSx(mode, { p: 1, display: { xs: 'none', md: 'block' } })}
+            sx={glassIconBtnSx(mode, { p: 1 })}
+            aria-label="Close"
           >
             <CloseOutlined fontSize="small" />
           </IconButton>
@@ -1008,7 +1060,7 @@ Do not output markdown.`;
                         helperText={
                           isFetchingLoc ? (
                             <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.8, color: "#4ADE80", fontWeight: 600, mt: 0.5 }}>
-                              <CircularProgress size={12} sx={{ color: "#4ADE80" }} /> Fetching precise current location...
+                              <SkullGlyph size={14} opacity={0.8} /> Fetching precise current location...
                             </Box>
                           ) : null
                         }
@@ -1018,7 +1070,7 @@ Do not output markdown.`;
                           startAdornment: (
                             <InputAdornment position="start">
                               {isFetchingLoc ? (
-                                <CircularProgress size={20} sx={{ color: "#4ADE80" }} />
+                                <SkullGlyph size={20} opacity={0.8} />
                               ) : (
                                 <LocationOn sx={{ color: "#4ADE80" }} />
                               )}
@@ -1182,7 +1234,7 @@ Do not output markdown.`;
                 <Typography variant="subtitle2" fontWeight={800} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <WbSunny sx={{ color: "#FACC15" }} /> Live Destination Weather
                 </Typography>
-                {isWeatherLoading && <CircularProgress size={16} />}
+                {isWeatherLoading && <SkullGlyph size={16} opacity={0.7} />}
               </Box>
 
               {weatherData?.current_weather ? (
@@ -1230,7 +1282,7 @@ Do not output markdown.`;
               sx={glassInputSx(mode)}
               InputProps={{
                 endAdornment: isDevBeta && (
-                  isGeneratingItinerary ? <CircularProgress size={18} /> : <AutoAwesome sx={{ color: "primary.main" }} />
+                  isGeneratingItinerary ? <SkullGlyph size={18} opacity={0.8} /> : <AutoAwesome sx={{ color: "primary.main" }} />
                 ),
               }}
             />
@@ -1393,7 +1445,7 @@ Do not output markdown.`;
                 variant="contained"
                 onClick={onCreateTripAndProceedToStep5}
                 disabled={isCreatingTrip}
-                startIcon={isCreatingTrip ? <CircularProgress size={18} color="inherit" /> : null}
+                startIcon={isCreatingTrip ? <SkullGlyph size={18} opacity={0.9} /> : null}
                 sx={{ borderRadius: 3, py: 1.2, fontWeight: 700, textTransform: "none", bgcolor: isDarkMode ? "#fff" : "#000", color: isDarkMode ? "#000" : "#fff", boxShadow: "none" }}
               >
                 {isCreatingTrip ? "Creating Trip..." : "Create Trip"}
@@ -1418,12 +1470,7 @@ Do not output markdown.`;
             </Box>
 
             {isAiGeneratingStep5 ? (
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", py: 4, gap: 2 }}>
-                <CircularProgress size={24} sx={{ color: "#4ADE80" }} />
-                <Typography variant="body2" fontWeight={600}>
-                  Building schedule and packing essentials...
-                </Typography>
-              </Box>
+              <CreateTripSkullLoader isAiGenerating={true} />
             ) : (
               <Stack spacing={3}>
                 {/* Timeline Preview */}
@@ -1550,7 +1597,7 @@ Do not output markdown.`;
                 variant="contained"
                 onClick={handleFinishAndSaveSubcollections}
                 disabled={isSavingSubcollections || isAiGeneratingStep5}
-                startIcon={isSavingSubcollections ? <CircularProgress size={18} color="inherit" /> : <CheckCircle />}
+                startIcon={isSavingSubcollections ? <SkullGlyph size={18} opacity={0.9} /> : <CheckCircle />}
                 sx={{
                   py: 1.4,
                   borderRadius: 3.5,
@@ -1568,7 +1615,7 @@ Do not output markdown.`;
               <Button
                 fullWidth
                 variant="outlined"
-                onClick={closeDrawer}
+                onClick={handleExit}
                 disabled={isSavingSubcollections}
                 sx={{ borderRadius: 3.5, textTransform: "none", fontWeight: 700 }}
               >
@@ -1578,7 +1625,7 @@ Do not output markdown.`;
           </Box>
         )}
       </Box>
-    </SwipeableDrawer>
+    </Box>
   );
 };
 

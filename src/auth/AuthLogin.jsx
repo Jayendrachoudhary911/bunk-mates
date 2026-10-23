@@ -16,8 +16,12 @@ import {
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import QrCode2Icon from "@mui/icons-material/QrCode2";
 import { motion, AnimatePresence } from "framer-motion";
 import { GoogleColoredIcon } from "./AuthWelcome";
+import QrLoginPanel from "../components/auth/QrLoginPanel";
+import { auth, db } from "../firebase";
+import { doc, setDoc } from "firebase/firestore";
 
 const smoothEase = [0.16, 1, 0.3, 1];
 
@@ -61,9 +65,26 @@ export default function AuthLogin({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showQrLogin, setShowQrLogin] = useState(false);
 
   const primaryBg = activeTheme?.light?.bg || "#D7E3FF";
   const accentColor = activeTheme?.accent || "#88b7f0";
+
+  const handleQrSuccess = async (authenticatedUser) => {
+    try {
+      sessionStorage.setItem("bunkmates_auth_welcome", "true");
+      if (authenticatedUser?.uid) {
+        // Preserve user profile, update only non-destructive lastLogin metadata
+        await setDoc(
+          doc(db, "users", authenticatedUser.uid),
+          { lastLogin: new Date().toISOString() },
+          { merge: true }
+        ).catch((err) => console.warn("Could not update lastLogin metadata:", err));
+      }
+    } finally {
+      navigate("/auth/continue");
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -100,6 +121,17 @@ export default function AuthLogin({
       opacity: 1,
     },
   };
+
+  if (showQrLogin) {
+    return (
+      <QrLoginPanel
+        onSuccess={handleQrSuccess}
+        onBackToConventional={() => setShowQrLogin(false)}
+        activeTheme={activeTheme}
+        haptic={haptic}
+      />
+    );
+  }
 
   return (
     <motion.div
@@ -502,6 +534,51 @@ export default function AuthLogin({
             >
               <GoogleColoredIcon />
               Continue with Google
+            </Button>
+          </motion.div>
+
+          {/* CONTINUE WITH QR */}
+          <motion.div
+            variants={itemVariants}
+            whileHover={{ scale: 1.015 }}
+            whileTap={{ scale: 0.985 }}
+            style={{ willChange: "transform" }}
+          >
+            <Button
+              fullWidth
+              startIcon={<QrCode2Icon sx={{ fontSize: 20 }} />}
+              onClick={() => {
+                if (haptic) haptic(15);
+                if (auth.currentUser) {
+                  const existingName = auth.currentUser.displayName || auth.currentUser.email || "another user";
+                  const proceed = window.confirm(
+                    `You are already signed in as ${existingName}. Would you like to sign out first to log in with QR?`
+                  );
+                  if (!proceed) return;
+                  auth.signOut();
+                }
+                setShowQrLogin(true);
+              }}
+              disabled={loading}
+              sx={{
+                backgroundColor: "rgba(255, 255, 255, 0.08)",
+                color: "#ffffff",
+                border: "1px solid rgba(255, 255, 255, 0.14)",
+                boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.11), 0 1px 0px rgba(0,0,0,0.1)",
+                borderRadius: "28px",
+                py: 1.25,
+                fontWeight: 800,
+                fontSize: "0.82rem",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                transition: "border-color 0.25s ease, background-color 0.25s ease",
+                "&:hover": {
+                  borderColor: "rgba(255, 255, 255, 0.6)",
+                  backgroundColor: "rgba(255, 255, 255, 0.15)",
+                },
+              }}
+            >
+              Continue with QR
             </Button>
           </motion.div>
         </Stack>

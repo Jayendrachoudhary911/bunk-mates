@@ -11,8 +11,8 @@ import { Backgrounds } from "../theme/backgroundPresets";
 import { useBackground } from "../contexts/BackgroundContext";
 import placesData from "../data/data.json";
 import { Search } from "../icons";
-import { useCreateTripDrawer } from "../hooks/useCreateTripDrawer";
 import FloatingSearch from "../elements/FloatingSearch";
+import { HomeSkullLoader, PlacesGridSkullLoader } from "../components/loaders/SkullSkeletonLoader";
 import {
   AppBar,
   Toolbar,
@@ -21,15 +21,26 @@ import {
   Box,
   Grid,
   Card,
-  CircularProgress,
   ThemeProvider,
   Button,
+  IconButton,
+  SwipeableDrawer,
   useTheme,
   useMediaQuery,
   keyframes,
 } from "@mui/material";
 import BetaAccessGuard from "../components/BetaAccessGuard";
 import Notifications from "../elements/Notifications";
+
+// Icons for Quick Actions & Buttons
+import CompassIcon from "@mui/icons-material/ExploreOutlined";
+import ReceiptIcon from "@mui/icons-material/ReceiptLongOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import NoteAltOutlinedIcon from "@mui/icons-material/NoteAltOutlined";
+import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
+import GpsFixedOutlinedIcon from "@mui/icons-material/GpsFixedOutlined";
+import MoreHorizOutlinedIcon from "@mui/icons-material/MoreHorizOutlined";
+import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 
 // Import our new home components
 import WeatherWidget from "../components/home_components/WeatherWidget";
@@ -38,8 +49,9 @@ import OngoingTripsAlerts from "../components/home_components/OngoingTripsAlerts
 import UpcomingTripsAlerts from "../components/home_components/UpcomingTripsAlerts";
 // import YourTrips from "../components/home_components/YourTrips";
 import RemindersGlimpse from "../components/home_components/RemindersGlimpse";
-import FeaturedPlaces from "../components/home_components/FeaturedPlaces";
-import CreateTripDrawer from "../components/home_components/CreateTripDrawer";
+import ExploreAndTripsDashboard from "../components/home_components/ExploreAndTripsDashboard";
+import SavedTripsView from "../components/home_components/SavedTripsView";
+import { drawerBackdropSx, drawerPaperSx, glassIconBtnSx, DrawerHandle } from "../theme/designSystem"; 
 
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
 const WEATHER_API_KEY = process.env.REACT_APP_OPENWEATHER_API_KEY || "c5298240cb3e71775b479a32329803ab";
@@ -117,6 +129,39 @@ function computeProgress(start) {
   return Math.min(Math.max(elapsed / total, 0), 1);
 }
 
+const M3_EXPRESSIVE_PALETTE = {
+  blue: {
+    accent: "#88b7f0",
+    ambientGradient: "radial-gradient(ellipse at 80% 30%, #0e346e8c 0%, #09090b 75%)",
+    light: { bg: "#D7E3FF", text: "#001B3F", container: "#EEF2FF", onContainer: "#004785", badgeBg: "#BACDF8" },
+    dark: { bg: "#d3e7ff", text: "#203362", container: "#e2f0ff", onContainer: "#457ed8", badgeBg: "#003F7D" },
+  },
+  amber: {
+    accent: "#f5d397",
+    ambientGradient: "radial-gradient(ellipse at 80% 30%, rgba(110, 75, 0, 0.55) 0%, #09090b 75%)",
+    light: { bg: "#FFDEA5", text: "#271900", container: "#FFF2D9", onContainer: "#765B00", badgeBg: "#F0CA85" },
+    dark: { bg: "#ffefbe", text: "#271900", container: "#fff5e2", onContainer: "#d99f17", badgeBg: "#594300" },
+  },
+  emerald: {
+    accent: "#8cefcb",
+    ambientGradient: "radial-gradient(ellipse at 80% 30%, rgba(0, 85, 42, 0.55) 0%, #09090b 75%)",
+    light: { bg: "#A6F5BA", text: "#00210E", container: "#DBFCE3", onContainer: "#006D37", badgeBg: "#8CE3A3" },
+    dark: { bg: "#b6ffd7", text: "#21542e", container: "#e4fff0", onContainer: "#17c14d", badgeBg: "#005228" },
+  },
+  orange: {
+    accent: "#ffd6b4",
+    ambientGradient: "radial-gradient(ellipse at 80% 30%, rgba(115, 45, 0, 0.55) 0%, #09090b 75%)",
+    light: { bg: "#FFDBCA", text: "#341000", container: "#FFECE2", onContainer: "#984013", badgeBg: "#F6C1A7" },
+    dark: { bg: "#ffdac5", text: "#703e26", container: "#ffeae2", onContainer: "#fb712c", badgeBg: "#772F03" },
+  },
+  purple: {
+    accent: "#c8b6ff",
+    ambientGradient: "radial-gradient(ellipse at 80% 30%, rgba(75, 36, 140, 0.55) 0%, #09090b 75%)",
+    light: { bg: "#EBDCFF", text: "#25005A", container: "#F6EEFF", onContainer: "#6940A5", badgeBg: "#D4BFF2" },
+    dark: { bg: "#e2d1ff", text: "#44236f", container: "#ecdeff", onContainer: "#a473ff", badgeBg: "#422271" },
+  },
+};
+
 const Home = () => {
   const navigate = useNavigate();
   const muiTheme = useTheme();
@@ -135,8 +180,11 @@ const Home = () => {
   const [reminders, setReminders] = useState([]);
   const [, setRemindersLoading] = useState(true);
 
+  // Search & Filter state for the search component
+  const [moreToolsOpen, setMoreToolsOpen] = useState(false);
+
   const [myTrips, setMyTrips] = useState([]);
-  const [, setTripMembersMap] = useState({});
+  const [tripMembersMap, setTripMembersMap] = useState({});
   const [, setTimelineStatsMap] = useState({});
   const [tripGroupsMap, setTripGroupsMap] = useState({});
   const [, setSliderIndex] = useState(0);
@@ -149,7 +197,6 @@ const Home = () => {
   const [liveAlerts, setLiveAlerts] = useState({ upcoming: [], ongoing: [], reminders: [] });
   
   const watchIdRef = useRef(null);
-  const [friendCards, setFriendCards] = useState([]);
   
   const [, setScrolled] = useState(false);
   const [, setShowAppBar] = useState(true);
@@ -186,7 +233,7 @@ const Home = () => {
       endDate: plus2.toISOString().slice(0, 10),
     };
 
-    openDrawerWithPrefill(prefill);
+    navigate("/trips/create", { state: { prefill } });
   };
 
   const handleToggleReminderComplete = async (reminderId, current) => {
@@ -211,67 +258,6 @@ const Home = () => {
     }
   };
 
-  const {
-    createDialogOpen,
-    step,
-    setStep,
-    newTrip,
-    setNewTrip,
-    selectedMembers,
-    setSelectedMembers,
-    openDrawerWithPrefill,
-    closeDrawer,
-    handleNext,
-    handleBack,
-    handleContributionChange,
-    totalContribution,
-    handleCreateTrip,
-    isPostCreateAiModalOpen,
-    setIsPostCreateAiModalOpen,
-    createdTripDetails,
-    isGeneratingPostAi,
-    handleGeneratePostAiTimelineAndChecklist,
-  } = useCreateTripDrawer();
-
-  useEffect(() => {
-    if (!user?.uid) {
-      setFriendCards([]);
-      return;
-    }
-
-    const fetchFriends = async () => {
-      try {
-        const userRef = doc(db, "users", user.uid);
-        const snap = await getDoc(userRef);
-        if (snap.exists()) {
-          const friends = snap.data().friends || [];
-          const friendsData = await Promise.all(
-            friends.map(async (uid) => {
-              const f = await getDoc(doc(db, "users", uid));
-              return f.exists() ? { uid: f.id, ...convertTimestamps(f.data()), contribution: "" } : null;
-            })
-          );
-          setFriendCards(friendsData.filter(Boolean));
-        } else {
-          setFriendCards([]);
-        }
-      } catch (e) {
-        console.warn("Failed to fetch friends", e);
-        setFriendCards([]);
-      }
-    };
-
-    fetchFriends();
-  }, [user]);
-
-  const handleAddMember = (member) => {
-    if (selectedMembers.some((m) => m.uid === member.uid)) return;
-    setSelectedMembers((prev) => [...prev, member]);
-  };
-
-  const handleRemoveMember = (uid) => {
-    setSelectedMembers((prev) => prev.filter((m) => m.uid !== uid));
-  };
 
   useEffect(() => {
     let lastScrollYVal = window.scrollY;
@@ -627,7 +613,6 @@ const Home = () => {
       setAqiData(null);
       setAqiLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.locationMode]);
 
   useEffect(() => {
@@ -642,10 +627,27 @@ const Home = () => {
     const unsubscribe = onSnapshot(
       query(collection(db, "reminders"), where("uid", "==", user.uid)),
       (snapshot) => {
-        const remindersData = snapshot.docs.map((doc) => ({ 
-          id: doc.id, 
-          ...convertTimestamps(doc.data()) 
-        }));
+        const remindersData = snapshot.docs.map((doc) => {
+          const data = convertTimestamps(doc.data()) || {};
+          let dateStr = "";
+          if (data.date instanceof Date) {
+            dateStr = !isNaN(data.date.getTime()) ? data.date.toLocaleDateString() : "";
+          } else if (typeof data.date === "string") {
+            dateStr = data.date;
+          }
+          let timeStr = "";
+          if (data.time instanceof Date) {
+            timeStr = !isNaN(data.time.getTime()) ? data.time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+          } else if (typeof data.time === "string") {
+            timeStr = data.time;
+          }
+          return { 
+            id: doc.id, 
+            ...data,
+            date: dateStr,
+            time: timeStr,
+          };
+        });
         setReminders(remindersData);
         setRemindersLoading(false);
       },
@@ -893,11 +895,7 @@ const Home = () => {
   }, []);
 
   if (!authInitialized) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <HomeSkullLoader />;
   }
 
   if (notLoggedIn) {
@@ -1003,71 +1001,43 @@ const Home = () => {
                   </Button>
                 )}
 
-                  {isSmallScreen && (
-                    <Box
-                      sx={{
-                        transition: "transform 0.3s ease",
-                        backgroundColor: mode === "dark" ? "#f1f1f102" : "#0c0c0c11",
-                        backdropFilter: "blur(120px)",
-                        WebkitBackdropFilter: "blur(120px)",
-                        color: textColor,
-                        borderRadius: "50%",
-                        boxShadow: 
-            mode === "dark"
-              ? `
-                inset 0 1px 1px rgba(255, 255, 255, 0.11),
-                inset 0 -1px 1px rgba(255, 255, 255, 0.07),
-                0 1px 0px rgba(0,0,0,0.1)
-              `
-              : `
-                inset 0 1px 1px rgba(255,255,255,0.8),
-                inset 0 -1px 1px rgba(0,0,0,0.1),
-                0 1px 0px rgba(0,0,0,0.1)
-              `,
-                        p: 1.2,
-                        border: mode === "dark" ? "1px solid #ffffff46" : "1px solid #ffffff00",
-                        "&:hover": { transform: "scale(1.05)" },
-                      }}
-                    >
-                      <Notifications sx={{ color: textColor }} />
-                    </Box>
-                  )}
+                {isSmallScreen && (
+                  <Box
+                    sx={{
+                      transition: "transform 0.3s ease",
+                      backgroundColor: mode === "dark" ? "#f1f1f102" : "#0c0c0c11",
+                      backdropFilter: "blur(120px)",
+                      WebkitBackdropFilter: "blur(120px)",
+                      color: textColor,
+                      borderRadius: "50%",
+                      boxShadow: 
+                        mode === "dark"
+                          ? `
+                            inset 0 1px 1px rgba(255, 255, 255, 0.11),
+                            inset 0 -1px 1px rgba(255, 255, 255, 0.07),
+                            0 1px 0px rgba(0,0,0,0.1)
+                          `
+                          : `
+                            inset 0 1px 1px rgba(255,255,255,0.8),
+                            inset 0 -1px 1px rgba(0,0,0,0.1),
+                            0 1px 0px rgba(0,0,0,0.1)
+                          `,
+                      p: 1.2,
+                      border: mode === "dark" ? "0px solid #ffffff46" : "0px solid #ffffff00",
+                      "&:hover": { transform: "scale(1.05)" },
+                    }}
+                  >
+                    <Notifications sx={{ color: textColor }} />
+                  </Box>
+                )}
               </Toolbar>
             </AppBar>
 
             <Box
               sx={{
-                position: "fixed",
-                inset: 0,
-                zIndex: 0,
-                pointerEvents: "none",
-                ...backgroundStyle,
-                transition: "background 1.2s cubic-bezier(.4,0,.2,1)",
-                "&::before": {
-                  content: '""',
-                  position: "absolute",
-                  inset: 0,
-                  background: "radial-gradient(circle at top center, rgba(255,255,255,0.08), transparent 60%)",
-                  opacity: 0.6,
-                },
-                "&::after": {
-                  content: '""',
-                  position: "absolute",
-                  inset: 0,
-                  backgroundImage: "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"120\"><filter id=\"n\"><feTurbulence type=\"fractalNoise\" baseFrequency=\"0.8\" numOctaves=\"4\" stitchTiles=\"stitch\"/></filter><rect width=\"120\" height=\"120\" filter=\"url(%23n)\" opacity=\"0.035\"/></svg>')",
-                  opacity: 0.35,
-                  mixBlendMode: "overlay",
-                },
-              }}
-            />
-
-            <Box
-              sx={{
                 zIndex: 1,
-                position: "relative",
                 mb: 2,
                 color: textColor,
-                borderRadius: "0 0 34px 34px",
               }}
             >
               <Container
@@ -1077,6 +1047,7 @@ const Home = () => {
                   pb: 2,
                   position: "relative",
                   zIndex: 3,
+                  background: mode === "dark" ? 'linear-gradient(to top, #00000000 0%, #003c6e50 50%, #00345e84 100%)': 'linear-gradient(to top, #00000000 0%, #5eb7ff84 50%, #5eb7ff84 100%)',
                 }}
               >
                 <Box
@@ -1090,7 +1061,7 @@ const Home = () => {
                     borderRadius: 3,
                     pt: { xs: 8, md: 10 },
                     pb: 1,
-                    px: { xs: 0.5, sm: 1 },
+                    px: { xs: 0, sm: 1 },
                     animation: `${fadeIn} 0.7s`,
                     zIndex: 3,
                     position: "relative",
@@ -1113,16 +1084,16 @@ const Home = () => {
                 <Card
                   sx={{
                     display: "flex",
-                    flexDirection: "row",
+                    flexDirection: "column",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    px: 1,
-                    py: 1.5,
-                    borderRadius: 4,
+                    p: 0,
+                    mt: 2,
+                    borderRadius: 8,
                     backgroundImage: "none",
                     backgroundColor: 'transparent',
                     color: mode === "dark" ? "#f5f5f5" : "#111",
-                    boxShadow: 'none',
+                    boxShadow: mode === "dark" ? 'inset 0 1px 3px rgba(255, 255, 255, 0.08), inset 0 -1px 3px rgba(255, 255, 255, 0.02), 0 0px 0px rgba(0,0,0,0.1)' : 'inset 0 1px 8px rgba(0, 0, 0, 0.04), inset 0 -1px 8px rgba(0, 0, 0, 0.03), 0 0px 0px rgba(0,0,0,0.1)',
                     border: 'none',
                     minWidth: 260,
                     maxWidth: 480,
@@ -1142,6 +1113,317 @@ const Home = () => {
                     isSmallScreen={isSmallScreen}
                   />
                 </Card>
+
+                {/* BunkMates App Shortcuts */}
+<Box sx={{ my: 2, mb: 0, px: 1.5 }}>
+
+
+  {(() => {
+    // Primary 3 actions visible directly in the 4x1 row
+    const primaryActions = [
+      {
+        title: "Create Trip",
+        icon: <CompassIcon />,
+        color: "blue",
+        onClick: () => navigate("/trips/create"),
+      },
+      {
+        title: "Notes",
+        icon: <NoteAltOutlinedIcon />,
+        color: "purple",
+        onClick: () => navigate("/notes"),
+      },
+      {
+        title: "Explore",
+        icon: <GpsFixedOutlinedIcon />,
+        color: "emerald",
+        onClick: () => navigate("/explore"),
+      },
+    ];
+
+    // All tools available inside the "More" drawer popup
+    const allTools = [
+      {
+        title: "Create Trip",
+        icon: <CompassIcon />,
+        color: "blue",
+        onClick: () => { setMoreToolsOpen(false); navigate("/trips/create"); },
+      },
+      {
+        title: "Notes",
+        icon: <NoteAltOutlinedIcon />,
+        color: "purple",
+        onClick: () => { setMoreToolsOpen(false); navigate("/notes"); },
+      },
+      {
+        title: "Explore",
+        icon: <GpsFixedOutlinedIcon />,
+        color: "emerald",
+        onClick: () => { setMoreToolsOpen(false); navigate("/explore"); },
+      },
+      {
+        title: "Expenses",
+        icon: <ReceiptIcon />,
+        color: "emerald",
+        onClick: () => { setMoreToolsOpen(false); navigate("/expenses"); },
+      },
+      {
+        title: "To-do list",
+        icon: <CheckCircleOutlineIcon />,
+        color: "amber",
+        onClick: () => { setMoreToolsOpen(false); navigate("/todos"); },
+      },
+      {
+        title: "Invite friends",
+        icon: <PersonAddAltOutlinedIcon />,
+        color: "orange",
+        onClick: () => { setMoreToolsOpen(false); navigate("/friends"); },
+      },
+    ];
+
+    return (
+      <>
+        {/* 4x1 Grid Row */}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+            gap: { xs: 1, sm: 1.5 },
+            width: "100%",
+            minWidth: 0,
+          }}
+        >
+          {primaryActions.map((action) => {
+            const palette = M3_EXPRESSIVE_PALETTE[action.color];
+            const colors = mode === "dark" ? palette.dark : palette.light;
+
+            return (
+              <Box
+                key={action.title}
+                component="div"
+                role="button"
+                tabIndex={0}
+                onClick={action.onClick}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    action.onClick();
+                  }
+                }}
+                sx={{
+                  minWidth: 0,
+                  minHeight: { xs: 88, sm: 96 },
+                  p: { xs: 0.8, sm: 1.2 },
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 0.8,
+                  borderRadius: 5,
+                  cursor: "pointer",
+                  userSelect: "none",
+                  WebkitTapHighlightColor: "transparent",
+                  bgcolor: mode === "dark" ? "#f1f1f104" : `${palette.accent}10`,
+                  border: "0px solid transparent",
+                  boxShadow: mode === "dark" ? 'inset 0 1px 1px rgba(255, 255, 255, 0.08)' : 'inset 0 1px 4px rgba(0, 0, 0, 0.04)',
+                  transition: "background-color 150ms ease, transform 150ms ease",
+                  "&:hover": {
+                    bgcolor: mode === "dark" ? "rgba(255,255,255,0.055)" : "rgba(0,0,0,0.035)",
+                    transform: "translateY(-2px)",
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    width: { xs: 40, sm: 46 },
+                    height: { xs: 40, sm: 46 },
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: 7,
+                    bgcolor: mode === "dark" ? `${palette.accent}20` : `${palette.accent}80`,
+                    color: mode === "dark" ? palette.accent : colors.onContainer,
+                    "& .MuiSvgIcon-root": { fontSize: { xs: 21, sm: 23 } },
+                  }}
+                >
+                  {action.icon}
+                </Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    width: "100%",
+                    minWidth: 0,
+                    textAlign: "center",
+                    fontSize: { xs: "0.68rem", sm: "0.75rem" },
+                    lineHeight: 1.2,
+                    fontWeight: 600,
+                    color: textColor,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {action.title}
+                </Typography>
+              </Box>
+            );
+          })}
+
+          {/* 4th Card: "More" Button */}
+          <Box
+            component="div"
+            role="button"
+            tabIndex={0}
+            onClick={() => setMoreToolsOpen(true)}
+            sx={{
+              minWidth: 0,
+              minHeight: { xs: 88, sm: 96 },
+              p: { xs: 0.8, sm: 1.2 },
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 0.8,
+              borderRadius: 5,
+              cursor: "pointer",
+              userSelect: "none",
+              WebkitTapHighlightColor: "transparent",
+              bgcolor: mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+                  boxShadow: mode === "dark" ? 'inset 0 1px 1px rgba(255, 255, 255, 0.08)' : 'inset 0 1px 4px rgba(0, 0, 0, 0.04)',
+              transition: "background-color 150ms ease, transform 150ms ease",
+              "&:hover": {
+                bgcolor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
+                transform: "translateY(-2px)",
+              },
+            }}
+          >
+            <Box
+              sx={{
+                width: { xs: 40, sm: 46 },
+                height: { xs: 40, sm: 46 },
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 7,
+                bgcolor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+                color: textColor,
+              }}
+            >
+              <MoreHorizOutlinedIcon sx={{ fontSize: { xs: 22, sm: 24 } }} />
+            </Box>
+            <Typography
+              variant="caption"
+              sx={{
+                width: "100%",
+                minWidth: 0,
+                textAlign: "center",
+                fontSize: { xs: "0.68rem", sm: "0.75rem" },
+                lineHeight: 1.2,
+                fontWeight: 600,
+                color: textColor,
+              }}
+            >
+              More
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* ─── MORE TOOLS SWIPEABLE BOTTOM DRAWER ─── */}
+        <SwipeableDrawer
+          anchor="bottom"
+          open={moreToolsOpen}
+          onOpen={() => setMoreToolsOpen(true)}
+          onClose={() => setMoreToolsOpen(false)}
+                  PaperProps={{
+                    sx: drawerPaperSx(mode, { maxHeight: "80vh" }),
+                  }}
+                  sx={{ "& .MuiBackdrop-root": drawerBackdropSx }}
+        >
+
+      <Box sx={{ display: { xs: "block", md: "none" } }}>
+        <DrawerHandle mode={mode} />
+      </Box>
+
+          {/* Pull Handle & Close Header */}
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, px: { xs: 1.5, md: 0 } }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              All Quick Tools
+            </Typography>
+            
+                      <IconButton
+                        onClick={() => setMoreToolsOpen(false)}
+                        size="small"
+                        sx={glassIconBtnSx(mode, { p: 1, display: { xs: 'none', md: 'flex' } })}
+                      >
+                        <CloseOutlinedIcon fontSize="small" />
+                      </IconButton>
+          </Box>
+
+          {/* Grid of All Tools inside Drawer */}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 1.5,
+              pb: -2,
+            }}
+          >
+            {allTools.map((tool) => {
+              const palette = M3_EXPRESSIVE_PALETTE[tool.color];
+              const colors = mode === "dark" ? palette.dark : palette.light;
+
+              return (
+                <Box
+                  key={tool.title}
+                  onClick={tool.onClick}
+                  sx={{
+                    p: 2,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 1,
+                    borderRadius: 5,
+                    cursor: "pointer",
+                    backgroundColor: mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                    border: `0px solid ${mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      backgroundColor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                      transform: "translateY(-3px)",
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: 3,
+                      bgcolor: mode === "dark" ? `${palette.accent}20` : `${palette.accent}80`,
+                      color: mode === "dark" ? palette.accent : colors.onContainer,
+                    }}
+                  >
+                    {tool.icon}
+                  </Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600, textAlign: "center" }}>
+                    {tool.title}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+        </SwipeableDrawer>
+      </>
+    );
+  })()}
+</Box>
               </Container>
             </Box>
 
@@ -1155,11 +1437,25 @@ const Home = () => {
                   flexDirection: "column",
                   gap: 4,
                   animation: `${fadeIn} 0.8s ease both`,
-                  px: 4,
+                  px: { xs: 2, md: 4 },
+                  my: 1,
                 }}
               >
-                <Grid container spacing={3} justifyContent={"center"} mt={3}>
-                  <Grid item xs={12} md={6} lg={4} xl={2.4}>
+
+{/* Replace the placeholder with the fully-connected dashboard component */}
+<ExploreAndTripsDashboard
+  initialTrips={myTrips}
+  initialPlaces={allFlattenedPlaces}
+  userData={userData}
+  onPlanTrip={onPlanTrip}
+  mode={mode}
+  navigate={navigate}
+  tripGroupsMap={tripGroupsMap}
+  tripMembersMap={tripMembersMap}
+/>
+
+                <Grid container spacing={3} justifyContent={"center"} mt={1}>
+                  <Grid item xs={12} md={12} lg={12}>
                     {/* <YourTrips
                       myTrips={myTrips}
                       tripGroupsMap={tripGroupsMap}
@@ -1172,13 +1468,28 @@ const Home = () => {
                     /> */}
                   </Grid>
 
-                  <Container maxWidth="lg" sx={{ mt: 4 }}>
+
+<Container maxWidth="lg" sx={{ mt: 0, px: 1.5 }}>
+<SavedTripsView 
+  userId={user?.uid} 
+  userData={userData} 
+  mode={mode} 
+  layout="carousel"
+  onPlanTrip={onPlanTrip}
+  navigate={navigate}
+  tripGroupsMap={tripGroupsMap}
+  tripMembersMap={tripMembersMap}
+/>
+</Container>
+
+                  <Container maxWidth="lg" sx={{ mt: 0, px: 1.5 }}>
                     <RemindersGlimpse
                       reminders={reminders}
                       mode={mode}
                       handleToggleReminderComplete={handleToggleReminderComplete}
                     />
                   </Container>
+
                 </Grid>
               </Container>
 
@@ -1205,18 +1516,9 @@ const Home = () => {
                   <FloatingSearch mode={mode} />
 
                   {loading ? (
-                    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-                      <CircularProgress color={theme.palette.background?.main || "primary"} />
-                    </Box>
+                    <PlacesGridSkullLoader count={6} />
                   ) : (
                     <Grid container spacing={3} pt={1} justifyContent={"center"}>
-                      <FeaturedPlaces
-                        allFlattenedPlaces={allFlattenedPlaces}
-                        userData={userData}
-                        onPlanTrip={onPlanTrip}
-                        mode={mode}
-                        navigate={navigate}
-                      />
 
                       <Box
                         sx={{
@@ -1230,6 +1532,7 @@ const Home = () => {
                           opacity: 0.55,
                           transition: "opacity .25s ease",
                           "&:hover": { opacity: 0.85 },
+                          width: "100%",
                         }}
                       >
                         <Typography
@@ -1263,31 +1566,7 @@ const Home = () => {
           </Box>
         </Box>
 
-        <CreateTripDrawer
-          createDialogOpen={createDialogOpen}
-          closeDrawer={closeDrawer}
-          step={step}
-          setStep={setStep}
-          newTrip={newTrip}
-          setNewTrip={setNewTrip}
-          handleNext={handleNext}
-          handleBack={handleBack}
-          selectedMembers={selectedMembers}
-          setSelectedMembers={setSelectedMembers}
-          handleRemoveMember={handleRemoveMember}
-          handleContributionChange={handleContributionChange}
-          totalContribution={totalContribution}
-          handleCreateTrip={handleCreateTrip}
-          handleAddMember={handleAddMember}
-          friendCards={friendCards}
-          mode={mode}
-          theme={theme}
-          isPostCreateAiModalOpen={isPostCreateAiModalOpen}
-          setIsPostCreateAiModalOpen={setIsPostCreateAiModalOpen}
-          createdTripDetails={createdTripDetails}
-          isGeneratingPostAi={isGeneratingPostAi}
-          handleGeneratePostAiTimelineAndChecklist={handleGeneratePostAiTimelineAndChecklist}
-        />
+
       </BetaAccessGuard>
     </ThemeProvider>
   );

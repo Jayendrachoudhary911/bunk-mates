@@ -164,24 +164,28 @@ export default function OngoingTripsAlerts({
             >
               <Box
                 sx={{
-                  width: 340,
-                  p: 1.6,
-                  borderRadius: designTokens.radii.card,
+                  width: "100vw",
+                  position: "relative",
+                  left: "50%",
+                  right: "50%",
+                  marginLeft: "-50vw",
+                  marginRight: "-50vw",
+                  px: 4.1, // Using horizontal padding instead of `p: 1.6` to keep content safe from screen edges
+                  py: 1.6,
+                  boxSizing: "border-box",
+                  borderRadius: 0, // Set to 0 for true full-width edge-to-edge, or keep your design token if preferred
                   display: "flex",
                   flexDirection: "column",
                   gap: 1.2,
-                  ...glass(mode, {
-                    background: completed
-                      ? "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(16,185,129,0.08))"
-                      : mode === "dark"
-                      ? tripGroupsMap[t.id]?.iconURL
-                        ? `linear-gradient(rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0))`
-                        : "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.04))"
-                      : "linear-gradient(135deg, rgba(0,0,0,0.05), rgba(0,0,0,0.02))",
-                    border: completed
-                      ? "1px solid rgba(16,185,129,0.4)"
-                      : undefined,
-                  }),
+                  background: completed
+                    ? "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(16,185,129,0.08))"
+                    : mode === "dark"
+                    ? tripGroupsMap[t.id]?.iconURL
+                      ? `linear-gradient(rgba(215, 214, 214, 0.01), rgba(0, 0, 0, 0))`
+                      : "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.04))"
+                    : "linear-gradient(135deg, rgba(0,0,0,0), rgba(0,0,0,0))",
+                  borderTop: completed ? "1px solid rgba(16,185,129,0.4)" : undefined,
+                  borderBottom: completed ? "1px solid rgba(16,185,129,0.4)" : undefined,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                   backgroundRepeat: "no-repeat",
@@ -307,7 +311,7 @@ export default function OngoingTripsAlerts({
                             variant="outlined"
                             size="small"
                             onClick={() => navigate(`/trips/${t.id}?tab=details`)}
-                            sx={ctaButtonSx(mode, "secondary", { py: 0.9, borderRadius: 6 })}
+                            sx={ctaButtonSx(mode, "secondary", { py: 0.9, borderRadius: 6, border: 0 })}
                           >
                             Trip Details
                           </Button>
