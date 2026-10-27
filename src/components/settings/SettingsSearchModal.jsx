@@ -14,7 +14,7 @@ import {
   ArrowForwardIos,
   HelpOutline,
 } from "@mui/icons-material";
-import { SETTINGS_REGISTRY, SETTINGS_CATEGORIES } from "./settingsRegistry";
+import { SETTINGS_REGISTRY, SETTINGS_CATEGORIES } from "./SettingsRegistry";
 import { SETTINGS_THEME } from "./SettingsShared";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
