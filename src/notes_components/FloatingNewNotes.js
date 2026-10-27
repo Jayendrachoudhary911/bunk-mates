@@ -47,16 +47,8 @@ export default function FloatingNewNotes({ mode }) {
     >
       <Button
         onClick={() => {
-              // Reset everything so the drawer always opens as a fresh new note
-              setNoteTitle("");
-              setNoteContent("");
-              titleInputRef.current = "";
-              contentInputRef.current = "";
-              setNoteLabels([]);
-              setCollaborators([]);
-              setSelectedNote(null);
-              navigate(`/notes/${note.id}/workspace`);
-            }}
+          navigate("/notes/new/workspace");
+        }}
         onMouseEnter={() => !scrolled && setExpanded(true)}
         onMouseLeave={() => !scrolled && setExpanded(false)}
         startIcon={<Search sx={{ fontSize: expanded ? 30 : 54 }} />}

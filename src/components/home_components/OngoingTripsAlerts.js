@@ -11,7 +11,7 @@ import { MapContainer, TileLayer, Polyline, Marker } from "react-leaflet";
 import L from "leaflet";
 import Confetti from "react-confetti";
 import { CheckCircleOutline } from "../../icons";
-import { designTokens, glass, ctaButtonSx } from "../../theme/designSystem";
+import { ctaButtonSx } from "../../theme/designSystem";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({

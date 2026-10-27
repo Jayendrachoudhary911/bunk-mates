@@ -51,6 +51,11 @@ import {
   LinearProgress,
   useMediaQuery,
 } from '@mui/material';
+import {
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+} from "../../theme/designSystem";
 
 import {
   ArrowBack as ArrowBackIcon,
@@ -75,6 +80,7 @@ import { useParams } from 'react-router-dom';
 import { useThemeToggle } from "../../contexts/ThemeToggleContext";
 import { getTheme } from "../../theme";
 import { isValidImageUrl, safeImageUrl } from "../../utils/uiHelpers";
+import SharedMediaLinksWidgetsTabs from "../chats_components/SharedMediaLinksWidgetsTabs";
 
 const GroupInfoDrawer = ({
   profileOpen,
@@ -85,6 +91,9 @@ const GroupInfoDrawer = ({
   memberInfo,
   currentUser,
   user,
+  messages = [],
+  onOpenImage,
+  onJumpToMessage,
   setGroupSettingsOpen,
   groupSettingsOpen,
   membersDrawerOpen,
@@ -957,6 +966,27 @@ const handleShare = async () => {
 </List>
 
                   </Box>
+                    {/* Shared Media, Links & Widgets */}
+                    <Box sx={{ mt: 2.5, mb: 1 }}>
+                      <Typography
+                        variant="subtitle1"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: "1rem",
+                          mb: 1,
+                          color: mode === "dark" ? "#fff" : "#111",
+                        }}
+                      >
+                        Shared in Group
+                      </Typography>
+                      <SharedMediaLinksWidgetsTabs
+                        messages={messages}
+                        onOpenImage={onOpenImage}
+                        onJumpToMessage={onJumpToMessage}
+                        isDark={mode === "dark"}
+                      />
+                    </Box>
+
                     {/* Exit Group Button */}
                     <Box
                       sx={{
@@ -995,100 +1025,103 @@ const handleShare = async () => {
                 </Box>
               </Box>
 
-              {/* Dialog to confirm remove member */}
-              <Dialog
+              {/* Drawer to confirm remove member */}
+              <SwipeableDrawer
+                anchor="bottom"
                 open={confirmDialogOpen}
                 onClose={() => setConfirmDialogOpen(false)}
+                onOpen={() => {}}
+                disableSwipeToOpen={false}
+                ModalProps={{
+                  BackdropProps: {
+                    sx: drawerBackdropSx,
+                  },
+                }}
                 PaperProps={{
                   sx: {
-                    bgcolor: mode === "dark" ? "#00000061" : "#f1f1f161",
-                    color: mode === "dark" ? "#fff" : "#222",
-                    backdropFilter: "blur(20px)",
-                    borderRadius: 4,
-                    boxShadow: mode === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
-                    p: 2,
-                    minWidth: 320,
-                    maxWidth: 400,
+                    ...drawerPaperSx(mode, {
+                      maxHeight: "85vh",
+                    }),
+                    overflowY: "auto",
                   },
                 }}
               >
-                <DialogTitle
-                  sx={{
-                    color: mode === "dark" ? "#ff4444" : "#d32f2f",
-                    fontWeight: 700,
-                    fontSize: 20,
-                    textAlign: "center",
-                    pb: 1,
-                    letterSpacing: 1,
-                    alignItems: "center",
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
-                >
-                  <RemoveCircleOutlineIcon
-                    sx={{ mr: 1, color: mode === "dark" ? "#ff4444" : "#d32f2f" }}
-                  />
-                  Remove Member
-                </DialogTitle>
-                <DialogContent sx={{ textAlign: "center", py: 2 }}>
-                  <Typography
-                    sx={{
-                      color: mode === "dark" ? "#fff" : "#222",
-                      fontSize: 16,
-                      mb: 2,
-                    }}
-                  >
-                    Are you sure you want to remove this member from the group?
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: mode === "dark" ? "#9b9b9bff" : "#333" }}
-                  >
-                    This action cannot be undone.
-                  </Typography>
-                </DialogContent>
-                <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
-                  <Button
-                    onClick={() => setConfirmDialogOpen(false)}
-                    variant="outlined"
-                    sx={{
-                      color: mode === "dark" ? "#fff" : "#222",
-                      borderColor: mode === "dark" ? "#555" : "#ccc",
-                      fontWeight: 600,
-                      px: 3,
-                      borderRadius: 8,
-                      mr: 1,
-                      backgroundColor: mode === "dark" ? "#23232300" : "#f7f7f700",
-                      "&:hover": {
-                        backgroundColor: mode === "dark" ? "#333" : "#e0e0e0",
-                      },
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={async () => {
-                      await handleRemoveMember(selectedMemberToRemove);
-                      setConfirmDialogOpen(false);
-                    }}
-                    color="error"
-                    variant="contained"
-                    sx={{
-                      fontWeight: 700,
-                      px: 3,
-                      borderRadius: 8,
-                      bgcolor: "#ff4444",
-                      color: mode === "dark" ? "#fff" : "#000",
-                      boxShadow: "none",
-                      "&:hover": {
-                        bgcolor: "#d32f2f",
-                      },
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </DialogActions>
-              </Dialog>
+                <Box sx={{ display: { xs: "block", md: "none" } }}>
+                  <DrawerHandle mode={mode} />
+                </Box>
+                <Box sx={{ maxWidth: 500, mx: "auto", width: "100%", boxSizing: "border-box", pt: { xs: 1, md: 2 } }}>
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 1 }}>
+                    <RemoveCircleOutlineIcon
+                      sx={{ color: mode === "dark" ? "#ff4444" : "#d32f2f", fontSize: 24 }}
+                    />
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        color: mode === "dark" ? "#ff4444" : "#d32f2f",
+                        fontWeight: 800,
+                        fontSize: 20,
+                        textAlign: "center",
+                      }}
+                    >
+                      Remove Member
+                    </Typography>
+                  </Box>
+                  <Box sx={{ textAlign: "center", py: 2 }}>
+                    <Typography
+                      sx={{
+                        color: mode === "dark" ? "#fff" : "#222",
+                        fontSize: 16,
+                        mb: 1,
+                      }}
+                    >
+                      Are you sure you want to remove this member from the group?
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: mode === "dark" ? "#9b9b9bff" : "#666" }}
+                    >
+                      This action cannot be undone.
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: "flex", justifyContent: "center", gap: 2, pb: 2 }}>
+                    <Button
+                      onClick={() => setConfirmDialogOpen(false)}
+                      variant="outlined"
+                      sx={{
+                        color: mode === "dark" ? "#fff" : "#222",
+                        borderColor: mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
+                        fontWeight: 600,
+                        px: 3,
+                        borderRadius: "12px",
+                        textTransform: "none",
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        await handleRemoveMember(selectedMemberToRemove);
+                        setConfirmDialogOpen(false);
+                      }}
+                      color="error"
+                      variant="contained"
+                      sx={{
+                        backgroundColor: mode === "dark" ? "#ff4444" : "#d32f2f",
+                        color: "#fff",
+                        fontWeight: 700,
+                        px: 3,
+                        borderRadius: "12px",
+                        textTransform: "none",
+                        "&:hover": {
+                          backgroundColor: mode === "dark" ? "#cc0000" : "#b71c1c",
+                        },
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </Box>
+                </Box>
+              </SwipeableDrawer>
 
 
 <SwipeableDrawer

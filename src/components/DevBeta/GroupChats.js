@@ -32,6 +32,12 @@ import { useThemeToggle } from "../../contexts/ThemeToggleContext";
 import { getTheme } from "../../theme";
 import GroupInfoDrawer from "../GroupChat/GroupInfoDrawer";
 import PollIcon from '@mui/icons-material/Poll';
+import {
+  drawerPaperSx,
+  drawerBackdropSx,
+  DrawerHandle,
+} from "../../theme/designSystem";
+import ProgressiveBlur from "../ProgressiveBlur";
 
 // ---------------- UTILITIES ----------------
 
@@ -615,8 +621,29 @@ function GroupChat() {
       color: effectiveChatTheme === "dark" ? "#fff" : "#000"
     }}>
 
-      <AppBar position="fixed" elevation={0} sx={{ /* ... styles for AppBar ... */ }}>
-        <Box display={"flex"} alignItems={"center"}>
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          backgroundColor: "transparent",
+          backgroundImage: "none",
+          borderBottom: `1px solid ${
+            effectiveChatTheme === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.07)"
+          }`,
+          overflow: "hidden",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1100,
+        }}
+      >
+        <ProgressiveBlur
+          mode={effectiveChatTheme === "dark" ? "dark" : "light"}
+          direction="bottom"
+          blur="28px"
+          height="100%"
+        />
+        <Box display={"flex"} alignItems={"center"} sx={{ position: "relative", zIndex: 1, p: 1.2, px: 2 }}>
           <IconButton onClick={() => navigate(-1)} sx={{ mr: 1, color: headerTextColor }}><ArrowBackIcon /></IconButton>
           <Box onClick={() => setProfileOpen(true)} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flexGrow: 1 }}>
             <Avatar src={groupInfo.iconURL || ""} sx={{ bgcolor: effectiveChatTheme === "dark" ? "#aaa" : "#333", color: headerTextColor, width: 40, height: 40, marginRight: 2 }}>{(groupInfo.iconURL || groupInfo.emoji || groupInfo.name?.[0]?.toUpperCase() || 'G')}</Avatar>
@@ -707,39 +734,47 @@ function GroupChat() {
 
       <Box sx={{
         position: "fixed", bottom: "0", left: "50%", transform: "translateX(-50%)", width: "95%",
-        borderRadius: "30px 30px 0 0", background: effectiveChatTheme === "dark" ? "#00000013" : "#ffffff39",
-        backdropFilter: "blur(30px)", WebkitBackdropFilter: "blur(30px)",
+        borderRadius: "30px 30px 0 0",
+        overflow: "hidden",
         px: 1.2, py: 1.2, boxShadow: "none", zIndex: 1200
       }}>
-        {canSend ? (
-          <Composer
-            text={editingMsg ? editText : newMsg}
-            setText={editingMsg ? setEditText : setNewMsg}
-            isEditing={!!editingMsg}
-            editMessage={editingMsg}
-            onCancelEdit={() => { setEditingMsg(null); setEditText(''); }}
-            onUpdateMessage={updateMessage}
-            onTyping={updateDraft}
-            sendMessage={() => sendMessage(newMsg.trim())}
-            replyTo={replyTo}
-            onCancelReply={() => setReplyTo(null)}
-            onImageUpload={handleImageUpload}
-            onOpenPollDialog={() => setPollDialogOpen(true)}
-            memberUsers={memberUsers}
-            effectiveChatTheme={effectiveChatTheme}
-            onToggleMoreMenu={() => setShowMoreMenu(prev => !prev)}
-            isMoreMenuOpen={showMoreMenu}
-            fetchTripTimeline={fetchTripTimeline}
-            fetchTripChecklist={fetchTripChecklist}
-            sendStructuredMessage={sendStructuredMessage}
-            mentionDrawerOpen={mentionDrawerOpen}
-            handleMentionSelect={handleMentionSelect}
-          />
-        ) : (
-          <Typography variant="body2" sx={{ color: headerTextColor, fontStyle: 'italic', p: 1, textAlign: 'center' }}>
-            🔒 Only Admins can send messages in this group.
-          </Typography>
-        )}
+        <ProgressiveBlur
+          mode={effectiveChatTheme === "dark" ? "dark" : "light"}
+          direction="top"
+          blur="28px"
+          height="100%"
+        />
+        <Box sx={{ position: "relative", zIndex: 1 }}>
+          {canSend ? (
+            <Composer
+              text={editingMsg ? editText : newMsg}
+              setText={editingMsg ? setEditText : setNewMsg}
+              isEditing={!!editingMsg}
+              editMessage={editingMsg}
+              onCancelEdit={() => { setEditingMsg(null); setEditText(''); }}
+              onUpdateMessage={updateMessage}
+              onTyping={updateDraft}
+              sendMessage={() => sendMessage(newMsg.trim())}
+              replyTo={replyTo}
+              onCancelReply={() => setReplyTo(null)}
+              onImageUpload={handleImageUpload}
+              onOpenPollDialog={() => setPollDialogOpen(true)}
+              memberUsers={memberUsers}
+              effectiveChatTheme={effectiveChatTheme}
+              onToggleMoreMenu={() => setShowMoreMenu(prev => !prev)}
+              isMoreMenuOpen={showMoreMenu}
+              fetchTripTimeline={fetchTripTimeline}
+              fetchTripChecklist={fetchTripChecklist}
+              sendStructuredMessage={sendStructuredMessage}
+              mentionDrawerOpen={mentionDrawerOpen}
+              handleMentionSelect={handleMentionSelect}
+            />
+          ) : (
+            <Typography variant="body2" sx={{ color: headerTextColor, fontStyle: 'italic', p: 1, textAlign: 'center' }}>
+              🔒 Only Admins can send messages in this group.
+            </Typography>
+          )}
+        </Box>
       </Box>
 
       <Menu
@@ -786,16 +821,42 @@ function GroupChat() {
         />
       </Popover>
 
-      <Dialog open={imageDrawer} onClose={() => setImageDrawer(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Send Image</DialogTitle>
-        <DialogContent>
-          {imageDataUri && <Box component="img" src={imageDataUri} alt="Preview" sx={{ width: '100%', height: 'auto', borderRadius: 1 }} />}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => { setImageDrawer(false); setImageDataUri(''); }}>Cancel</Button>
-          <Button onClick={handleSendImage} variant="contained" color="primary">Send</Button>
-        </DialogActions>
-      </Dialog>
+      <SwipeableDrawer
+        anchor="bottom"
+        open={imageDrawer}
+        onClose={() => setImageDrawer(false)}
+        onOpen={() => {}}
+        disableSwipeToOpen={false}
+        ModalProps={{
+          BackdropProps: {
+            sx: drawerBackdropSx,
+          },
+        }}
+        PaperProps={{
+          sx: {
+            ...drawerPaperSx(effectiveChatTheme === "dark" ? "dark" : "light", {
+              maxHeight: "85vh",
+            }),
+            overflowY: "auto",
+          },
+        }}
+      >
+        <Box sx={{ display: { xs: "block", md: "none" } }}>
+          <DrawerHandle mode={effectiveChatTheme === "dark" ? "dark" : "light"} />
+        </Box>
+        <Box sx={{ maxWidth: 500, mx: "auto", width: "100%", boxSizing: "border-box", pt: { xs: 1, md: 2 } }}>
+          <Typography variant="h6" fontWeight="bold" sx={{ mb: 1.5, px: 1 }}>
+            Send Image
+          </Typography>
+          <Box sx={{ px: 1 }}>
+            {imageDataUri && <Box component="img" src={imageDataUri} alt="Preview" sx={{ width: '100%', height: 'auto', borderRadius: 2 }} />}
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, pt: 2, pb: 1, px: 1 }}>
+            <Button onClick={() => { setImageDrawer(false); setImageDataUri(''); }} sx={{ textTransform: "none" }}>Cancel</Button>
+            <Button onClick={handleSendImage} variant="contained" color="primary" sx={{ borderRadius: "10px", textTransform: "none", fontWeight: 700, px: 2.5 }}>Send</Button>
+          </Box>
+        </Box>
+      </SwipeableDrawer>
 
       <Dialog
         open={imageViewerOpen}
@@ -1470,24 +1531,88 @@ const PollDialog = ({ open, onClose, onSendPoll, effectiveChatTheme }) => {
     }
   };
 
+  const mode = effectiveChatTheme === "dark" ? "dark" : "light";
+
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ sx: { bgcolor: effectiveChatTheme === "dark" ? "#121212" : "#fff", borderRadius: 4, p: 2 } }}>
-      <DialogTitle sx={{ color: effectiveChatTheme === "dark" ? "#fff" : "#000", fontWeight: "bold" }}>📊 Create Poll</DialogTitle>
-      <DialogContent>
-        <TextField label="Poll Question" fullWidth value={question} onChange={(e) => setQuestion(e.target.value)} variant="outlined" sx={{ mb: 3 }} InputLabelProps={{ style: { color: effectiveChatTheme === "dark" ? '#aaa' : '#555' } }} InputProps={{ style: { color: effectiveChatTheme === "dark" ? "#fff" : "#000" } }} />
-        {options.map((option, index) => (
-          <Box key={index} sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-            <TextField fullWidth placeholder={`Option ${index + 1}`} value={option} onChange={(e) => handleOptionChange(index, e.target.value)} InputLabelProps={{ style: { color: effectiveChatTheme === "dark" ? '#aaa' : '#555' } }} InputProps={{ style: { color: effectiveChatTheme === "dark" ? "#fff" : "#000" } }} />
-            <IconButton onClick={() => handleRemoveOption(index)} disabled={options.length <= 2} sx={{ ml: 1, color: "#ff5555" }}><RemoveIcon /></IconButton>
-          </Box>
-        ))}
-        <Button onClick={handleAddOption} startIcon={<AddIcon />} sx={{ color: effectiveChatTheme === "dark" ? "#00f721" : "#00a300" }}>Add Option</Button>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} sx={{ color: effectiveChatTheme === "dark" ? "#ccc" : "#555" }}>Cancel</Button>
-        <Button onClick={handleSend} variant="contained" disabled={question.trim() === '' || options.filter(opt => opt.trim()).length < 2} sx={{ bgcolor: effectiveChatTheme === "dark" ? "#00f721" : "#00a300", color: "#fff" }}>Send Poll</Button>
-      </DialogActions>
-    </Dialog>
+    <SwipeableDrawer
+      anchor="bottom"
+      open={open}
+      onClose={onClose}
+      onOpen={() => {}}
+      disableSwipeToOpen={false}
+      ModalProps={{
+        BackdropProps: {
+          sx: drawerBackdropSx,
+        },
+      }}
+      PaperProps={{
+        sx: {
+          ...drawerPaperSx(mode, {
+            maxHeight: "85vh",
+          }),
+          overflowY: "auto",
+        },
+      }}
+    >
+      <Box sx={{ display: { xs: "block", md: "none" } }}>
+        <DrawerHandle mode={mode} />
+      </Box>
+      <Box sx={{ maxWidth: 500, mx: "auto", width: "100%", boxSizing: "border-box", pt: { xs: 1, md: 2 } }}>
+        <Typography variant="h6" sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: "bold", mb: 2, px: 1 }}>
+          📊 Create Poll
+        </Typography>
+        <Box sx={{ px: 1 }}>
+          <TextField
+            label="Poll Question"
+            fullWidth
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            variant="outlined"
+            sx={{ mb: 3 }}
+            InputLabelProps={{ style: { color: mode === "dark" ? '#aaa' : '#555' } }}
+            InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+          />
+          {options.map((option, index) => (
+            <Box key={index} sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+              <TextField
+                fullWidth
+                placeholder={`Option ${index + 1}`}
+                value={option}
+                onChange={(e) => handleOptionChange(index, e.target.value)}
+                InputLabelProps={{ style: { color: mode === "dark" ? '#aaa' : '#555' } }}
+                InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+              />
+              <IconButton onClick={() => handleRemoveOption(index)} disabled={options.length <= 2} sx={{ ml: 1, color: "#ff5555" }}>
+                <RemoveIcon />
+              </IconButton>
+            </Box>
+          ))}
+          <Button onClick={handleAddOption} startIcon={<AddIcon />} sx={{ color: mode === "dark" ? "#00f721" : "#00a300", textTransform: "none", fontWeight: 600 }}>
+            Add Option
+          </Button>
+        </Box>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, pt: 2, pb: 1, px: 1 }}>
+          <Button onClick={onClose} sx={{ color: mode === "dark" ? "#ccc" : "#555", textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSend}
+            variant="contained"
+            disabled={question.trim() === '' || options.filter(opt => opt.trim()).length < 2}
+            sx={{
+              bgcolor: mode === "dark" ? "#00f721" : "#00a300",
+              color: "#fff",
+              borderRadius: "10px",
+              textTransform: "none",
+              fontWeight: 700,
+              px: 2.5,
+            }}
+          >
+            Send Poll
+          </Button>
+        </Box>
+      </Box>
+    </SwipeableDrawer>
   );
 };
 

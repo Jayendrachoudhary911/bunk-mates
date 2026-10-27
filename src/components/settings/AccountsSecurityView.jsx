@@ -1,365 +1,418 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
   Button,
   TextField,
-  Alert,
-  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Alert,
+  CircularProgress,
   Chip,
 } from "@mui/material";
 import {
   LockOutlined,
-  VerifiedUserOutlined,
-  DeleteForeverOutlined,
-  WarningAmber,
+  VpnKeyOutlined,
+  DevicesOutlined,
+  DeleteOutline,
   CheckCircle,
-} from "../../icons";
+} from "@mui/icons-material";
 import {
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+} from "firebase/auth";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
+import { auth, firestore } from "../../firebase";
+import {
+  SettingsLayout,
   SettingsHeader,
-  SettingsCard,
-  SettingsSectionTitle,
+  SettingsSection,
+  SettingsGroup,
   SettingsRow,
   SETTINGS_THEME,
-} from "./SettingsComponents";
-import { auth, db } from "../../firebase";
-import { updatePassword, reauthenticateWithCredential, EmailAuthProvider, deleteUser } from "firebase/auth";
-import { doc, deleteDoc } from "firebase/firestore";
+} from "./SettingsShared";
 
-export const AccountsSecurityView = ({ onBack, onNavigateLinkedDevices }) => {
-  const currentUser = auth.currentUser;
-  const isPasswordUser = currentUser?.providerData?.some(
-    (p) => p.providerId === "password"
-  );
-  const isGoogleUser = currentUser?.providerData?.some(
+export default function AccountsSecurityView({ onBack }) {
+  const user = auth.currentUser;
+  const isGoogleUser = user?.providerData?.some(
     (p) => p.providerId === "google.com"
   );
 
-  // Password change state
+  // Password Change Dialog
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordMsg, setPasswordMsg] = useState({ type: "", text: "" });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
-  // Delete account state
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  // 2FA Dialog
+  const [twoFactorDialogOpen, setTwoFactorDialogOpen] = useState(false);
 
-  const handleOpenPasswordDialog = () => {
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setPasswordMsg({ type: "", text: "" });
-    setPasswordDialogOpen(true);
+  // Linked Devices
+  const [devices, setDevices] = useState([]);
+  const [loadingDevices, setLoadingDevices] = useState(false);
+  const [selectedDevice, setSelectedDevice] = useState(null);
+  const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+
+  useEffect(() => {
+    loadLinkedDevices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadLinkedDevices = async () => {
+    if (!user) return;
+    setLoadingDevices(true);
+    try {
+      const q = query(
+        collection(firestore, "device_pairings"),
+        where("authUid", "==", user.uid)
+      );
+      const snap = await getDocs(q);
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      // If list is empty, display current browser session as current device
+      if (list.length === 0) {
+        list.push({
+          id: "current_device",
+          browser: navigator.userAgent.includes("Chrome")
+            ? "Chrome Desktop"
+            : "Mobile Browser",
+          platform: navigator.platform || "Web",
+          isCurrent: true,
+          status: "active",
+          createdAt: { toDate: () => new Date() },
+        });
+      }
+      setDevices(list);
+    } catch (err) {
+      console.warn("Could not fetch device pairings:", err);
+    } finally {
+      setLoadingDevices(false);
+    }
+  };
+
+  const handleRevokeDevice = async () => {
+    if (!selectedDevice || selectedDevice.id === "current_device") return;
+    try {
+      await deleteDoc(doc(firestore, "device_pairings", selectedDevice.id));
+      setDevices((prev) => prev.filter((d) => d.id !== selectedDevice.id));
+      setRevokeDialogOpen(false);
+      setSelectedDevice(null);
+    } catch (e) {
+      alert("Failed to revoke device session.");
+    }
   };
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    setPasswordMsg({ type: "", text: "" });
+    setPasswordError("");
+    setPasswordSuccess(false);
 
-    if (!newPassword || newPassword.length < 6) {
-      setPasswordMsg({ type: "error", text: "New password must be at least 6 characters." });
+    if (newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordMsg({ type: "error", text: "Passwords do not match." });
+      setPasswordError("Passwords do not match.");
       return;
     }
 
     setPasswordLoading(true);
     try {
-      if (currentUser?.email && currentPassword) {
-        const cred = EmailAuthProvider.credential(currentUser.email, currentPassword);
-        await reauthenticateWithCredential(currentUser, cred);
-      }
-      await updatePassword(currentUser, newPassword);
-      setPasswordMsg({ type: "success", text: "Password updated successfully!" });
-      setTimeout(() => setPasswordDialogOpen(false), 1500);
+      // Reauthenticate user with current password
+      const cred = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, cred);
+      await updatePassword(user, newPassword);
+
+      setPasswordSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (err) {
-      console.error("Password update error:", err);
-      setPasswordMsg({
-        type: "error",
-        text: err.code === "auth/wrong-password"
-          ? "Incorrect current password."
-          : err.message || "Failed to update password. Please re-login and try again.",
-      });
+      console.error(err);
+      if (err.code === "auth/wrong-password") {
+        setPasswordError("Incorrect current password.");
+      } else if (err.code === "auth/requires-recent-login") {
+        setPasswordError("Please log in again before changing password.");
+      } else {
+        setPasswordError(err.message || "Failed to update password.");
+      }
     } finally {
       setPasswordLoading(false);
     }
   };
 
-  const handleDeleteAccount = async () => {
-    if (!currentUser) return;
-    setDeleteLoading(true);
-    try {
-      const uid = currentUser.uid;
-      // Delete Firestore document
-      await deleteDoc(doc(db, "users", uid)).catch(() => {});
-      // Delete Auth user
-      await deleteUser(currentUser);
-      window.location.href = "/login";
-    } catch (err) {
-      console.error("Delete account error:", err);
-      alert("Failed to delete account. You may need to log out and log back in to verify credentials.");
-    } finally {
-      setDeleteLoading(false);
-      setDeleteDialogOpen(false);
-    }
-  };
-
   return (
-    <Box sx={{ minHeight: "100%", pb: 6, backgroundColor: SETTINGS_THEME.bg }}>
+    <SettingsLayout>
       <SettingsHeader title="Accounts & Security" onBack={onBack} />
 
-      {/* Password & Authentication */}
-      <SettingsSectionTitle>PASSWORD & AUTHENTICATION</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
-        {isPasswordUser ? (
-          <SettingsRow
-            icon={<LockOutlined sx={{ fontSize: 20 }} />}
-            title="Change Password"
-            subtitle="Update your BunkMates account password"
-            onClick={handleOpenPasswordDialog}
-          />
-        ) : isGoogleUser ? (
-          <SettingsRow
-            icon={<LockOutlined sx={{ fontSize: 20 }} />}
-            title="Sign-in Provider"
-            subtitle="Managed securely via Google Authentication"
-            trailing={
-              <Chip
-                label="Google Account"
-                size="small"
-                sx={{
-                  backgroundColor: "rgba(255, 255, 255, 0.08)",
-                  color: "#FFFFFF",
-                  fontWeight: 600,
-                  fontSize: "0.75rem",
-                }}
-              />
-            }
-          />
-        ) : (
-          <SettingsRow
-            icon={<LockOutlined sx={{ fontSize: 20 }} />}
-            title="Account Password"
-            subtitle="Password-less authentication active"
-          />
-        )}
-
+      {/* Password Settings */}
+      <SettingsSection title="PASSWORD & AUTHENTICATION" sx={{ ml: 0.5, mt: 0 }} />
+      <SettingsGroup sx={{ mb: 3 }}>
         <SettingsRow
-          icon={<VerifiedUserOutlined sx={{ fontSize: 20 }} />}
-          title="Two-Factor Authentication (2FA)"
-          subtitle="Additional security layer for your account"
-          isLast
-          trailing={
-            <Chip
-              label="Standard Auth"
-              size="small"
-              sx={{
-                backgroundColor: "rgba(41, 201, 154, 0.15)",
-                color: SETTINGS_THEME.success,
-                fontWeight: 600,
-                fontSize: "0.72rem",
-              }}
-            />
+          icon={LockOutlined}
+          title="Change Password"
+          subtitle={
+            isGoogleUser
+              ? "Signed in with Google. Passwords managed via Google Account."
+              : "Update your login password and manage credentials"
+          }
+          onClick={
+            isGoogleUser
+              ? () =>
+                  alert(
+                    "You signed in with Google. Password changes must be performed in your Google Account settings."
+                  )
+              : () => setPasswordDialogOpen(true)
           }
         />
-      </SettingsCard>
 
-      {/* Devices & Sessions */}
-      <SettingsSectionTitle>DEVICES & SESSIONS</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
         <SettingsRow
-          icon={<CheckCircle sx={{ fontSize: 20, color: SETTINGS_THEME.success }} />}
-          title="Linked Devices"
-          subtitle="Manage active web browser sessions and mobile QR logins"
-          onClick={onNavigateLinkedDevices}
-          isLast
+          icon={VpnKeyOutlined}
+          title="Two-Factor Authentication (2FA)"
+          subtitle="Add an extra layer of protection to your BunkMates account"
+          showDivider
+          onClick={() => setTwoFactorDialogOpen(true)}
         />
-      </SettingsCard>
+      </SettingsGroup>
 
-      {/* Account Deletion */}
-      <SettingsSectionTitle>DANGER ZONE</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
-        <SettingsRow
-          icon={<DeleteForeverOutlined sx={{ fontSize: 20, color: SETTINGS_THEME.error }} />}
-          iconBg="rgba(240, 82, 82, 0.15)"
-          title="Delete Account"
-          subtitle="Permanently delete your profile, trips, and cloud data"
-          destructive
-          isLast
-          onClick={() => setDeleteDialogOpen(true)}
-        />
-      </SettingsCard>
+      {/* Linked Devices */}
+      <SettingsSection title="LINKED DEVICES & ACTIVE SESSIONS" sx={{ ml: 0.5 }} />
+      <SettingsGroup sx={{ mb: 3 }}>
+        {loadingDevices ? (
+          <Box sx={{ p: 3, display: "flex", justifyContent: "center" }}>
+            <CircularProgress size={24} sx={{ color: SETTINGS_THEME.accent }} />
+          </Box>
+        ) : devices.length > 0 ? (
+          devices.map((dev, idx) => (
+            <SettingsRow
+              key={dev.id}
+              icon={DevicesOutlined}
+              title={
+                dev.browser || dev.platform || "Connected Web Session"
+              }
+              subtitle={
+                dev.isCurrent
+                  ? "This Device • Active Now"
+                  : dev.status === "active"
+                  ? "Active QR Session • Remote"
+                  : "Signed in session"
+              }
+              trailing={
+                dev.isCurrent ? (
+                  <Chip
+                    label="Current"
+                    size="small"
+                    sx={{
+                      bgcolor: "rgba(41, 201, 154, 0.15)",
+                      color: "#29C99A",
+                      fontWeight: 700,
+                      fontSize: "0.75rem",
+                      borderRadius: "12px",
+                    }}
+                  />
+                ) : (
+                  <Button
+                    size="small"
+                    color="error"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDevice(dev);
+                      setRevokeDialogOpen(true);
+                    }}
+                    sx={{ textTransform: "none", fontSize: "0.8rem" }}
+                  >
+                    Revoke
+                  </Button>
+                )
+              }
+              showChevron={false}
+              showDivider={idx < devices.length - 1}
+            />
+          ))
+        ) : (
+          <Box sx={{ p: 2.5, textAlign: "center" }}>
+            <Typography variant="body2" sx={{ color: SETTINGS_THEME.textSecondary }}>
+              No other active devices found.
+            </Typography>
+          </Box>
+        )}
+      </SettingsGroup>
 
-      {/* Password Change Dialog */}
+      {/* Password Dialog */}
       <Dialog
         open={passwordDialogOpen}
-        onClose={() => !passwordLoading && setPasswordDialogOpen(false)}
-        maxWidth="xs"
-        fullWidth
+        onClose={() => setPasswordDialogOpen(false)}
         PaperProps={{
           sx: {
-            backgroundColor: "#161616",
-            color: "#FFFFFF",
+            bgcolor: SETTINGS_THEME.card,
+            color: SETTINGS_THEME.textPrimary,
             borderRadius: "24px",
-            border: `1px solid ${SETTINGS_THEME.divider}`,
             p: 1,
+            width: "100%",
+            maxWidth: 420,
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: "1.2rem" }}>Change Password</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>Change Password</DialogTitle>
         <DialogContent>
-          {passwordMsg.text && (
+          {passwordSuccess ? (
             <Alert
-              severity={passwordMsg.type === "success" ? "success" : "error"}
-              sx={{ mb: 2, borderRadius: "12px" }}
+              icon={<CheckCircle fontSize="inherit" />}
+              severity="success"
+              sx={{ bgcolor: "rgba(41, 201, 154, 0.15)", color: "#29C99A", borderRadius: "16px" }}
             >
-              {passwordMsg.text}
+              Password updated successfully!
             </Alert>
+          ) : (
+            <Box component="form" onSubmit={handleChangePassword} sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+              {passwordError && (
+                <Alert severity="error" sx={{ bgcolor: "rgba(240, 82, 82, 0.15)", color: "#F05252", borderRadius: "16px" }}>
+                  {passwordError}
+                </Alert>
+              )}
+              <TextField
+                type="password"
+                label="Current Password"
+                fullWidth
+                required
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                InputLabelProps={{ sx: { color: SETTINGS_THEME.textSecondary } }}
+                InputProps={{ sx: { color: "#FFFFFF", borderRadius: "14px", bgcolor: SETTINGS_THEME.surface } }}
+              />
+              <TextField
+                type="password"
+                label="New Password"
+                fullWidth
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                InputLabelProps={{ sx: { color: SETTINGS_THEME.textSecondary } }}
+                InputProps={{ sx: { color: "#FFFFFF", borderRadius: "14px", bgcolor: SETTINGS_THEME.surface } }}
+              />
+              <TextField
+                type="password"
+                label="Confirm New Password"
+                fullWidth
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                InputLabelProps={{ sx: { color: SETTINGS_THEME.textSecondary } }}
+                InputProps={{ sx: { color: "#FFFFFF", borderRadius: "14px", bgcolor: SETTINGS_THEME.surface } }}
+              />
+            </Box>
           )}
-
-          <TextField
-            margin="dense"
-            label="Current Password"
-            type="password"
-            fullWidth
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            disabled={passwordLoading}
-            sx={{
-              mb: 1.5,
-              "& .MuiOutlinedInput-root": {
-                backgroundColor: "#202024",
-                borderRadius: "14px",
-                color: "#FFFFFF",
-              },
-            }}
-          />
-
-          <TextField
-            margin="dense"
-            label="New Password"
-            type="password"
-            fullWidth
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            disabled={passwordLoading}
-            sx={{
-              mb: 1.5,
-              "& .MuiOutlinedInput-root": {
-                backgroundColor: "#202024",
-                borderRadius: "14px",
-                color: "#FFFFFF",
-              },
-            }}
-          />
-
-          <TextField
-            margin="dense"
-            label="Confirm New Password"
-            type="password"
-            fullWidth
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            disabled={passwordLoading}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                backgroundColor: "#202024",
-                borderRadius: "14px",
-                color: "#FFFFFF",
-              },
-            }}
-          />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() => setPasswordDialogOpen(false)}
-            disabled={passwordLoading}
-            sx={{ color: SETTINGS_THEME.textSecondary, textTransform: "none", fontWeight: 600 }}
+            sx={{ color: SETTINGS_THEME.textSecondary, textTransform: "none" }}
           >
-            Cancel
+            Close
           </Button>
+          {!passwordSuccess && (
+            <Button
+              onClick={handleChangePassword}
+              variant="contained"
+              disabled={passwordLoading || !currentPassword || !newPassword}
+              sx={{
+                bgcolor: SETTINGS_THEME.accent,
+                borderRadius: "14px",
+                textTransform: "none",
+                fontWeight: 700,
+              }}
+            >
+              {passwordLoading ? <CircularProgress size={18} color="inherit" /> : "Update Password"}
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* 2FA Info Dialog */}
+      <Dialog
+        open={twoFactorDialogOpen}
+        onClose={() => setTwoFactorDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            bgcolor: SETTINGS_THEME.card,
+            color: SETTINGS_THEME.textPrimary,
+            borderRadius: "24px",
+            p: 1,
+            width: "100%",
+            maxWidth: 440,
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>Two-Factor Authentication</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: SETTINGS_THEME.textSecondary, lineHeight: 1.6, mb: 2 }}>
+            Two-Factor Authentication (MFA) requires entering an authentication code sent via SMS or authenticator app each time you sign in from an unrecognized device.
+          </Typography>
+          <Alert severity="info" sx={{ bgcolor: "rgba(40, 127, 224, 0.15)", color: "#287FE0", borderRadius: "16px" }}>
+            Firebase MFA enrollment requires phone verification setup on your project backend. Multi-factor enrollment is currently being configured for BunkMates cloud instances.
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
+            onClick={() => setTwoFactorDialogOpen(false)}
             variant="contained"
-            onClick={handleChangePassword}
-            disabled={passwordLoading}
-            sx={{
-              backgroundColor: SETTINGS_THEME.accent,
-              color: "#FFFFFF",
-              textTransform: "none",
-              fontWeight: 700,
-              borderRadius: "14px",
-              px: 3,
-            }}
+            sx={{ bgcolor: SETTINGS_THEME.accent, borderRadius: "14px", textTransform: "none" }}
           >
-            {passwordLoading ? <CircularProgress size={20} color="inherit" /> : "Update Password"}
+            Got it
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Delete Account Confirmation Dialog */}
+      {/* Revoke Confirmation Dialog */}
       <Dialog
-        open={deleteDialogOpen}
-        onClose={() => !deleteLoading && setDeleteDialogOpen(false)}
-        maxWidth="xs"
-        fullWidth
+        open={revokeDialogOpen}
+        onClose={() => setRevokeDialogOpen(false)}
         PaperProps={{
           sx: {
-            backgroundColor: "#161616",
-            color: "#FFFFFF",
+            bgcolor: SETTINGS_THEME.card,
+            color: SETTINGS_THEME.textPrimary,
             borderRadius: "24px",
-            border: `1px solid ${SETTINGS_THEME.divider}`,
             p: 1,
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: "1.2rem", display: "flex", alignItems: "center", gap: 1 }}>
-          <WarningAmber sx={{ color: SETTINGS_THEME.error }} /> Delete Account?
-        </DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>Revoke Session</DialogTitle>
         <DialogContent>
-          <Typography sx={{ color: SETTINGS_THEME.textSecondary, fontSize: "0.92rem", lineHeight: 1.5 }}>
-            This action is <strong>permanent</strong>. All your trips, chat records, notes, and budgets
-            will be erased and cannot be recovered.
+          <Typography variant="body2" sx={{ color: SETTINGS_THEME.textSecondary }}>
+            Are you sure you want to disconnect this device? It will be immediately signed out and must be paired again via QR login.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={() => setDeleteDialogOpen(false)}
-            disabled={deleteLoading}
-            sx={{ color: SETTINGS_THEME.textSecondary, textTransform: "none", fontWeight: 600 }}
-          >
+          <Button onClick={() => setRevokeDialogOpen(false)} sx={{ color: SETTINGS_THEME.textSecondary, textTransform: "none" }}>
             Cancel
           </Button>
           <Button
+            onClick={handleRevokeDevice}
             variant="contained"
-            onClick={handleDeleteAccount}
-            disabled={deleteLoading}
-            sx={{
-              backgroundColor: SETTINGS_THEME.error,
-              color: "#FFFFFF",
-              textTransform: "none",
-              fontWeight: 700,
-              borderRadius: "14px",
-              px: 3,
-              "&:hover": {
-                backgroundColor: "#D32F2F",
-              },
-            }}
+            color="error"
+            startIcon={<DeleteOutline />}
+            sx={{ borderRadius: "14px", textTransform: "none", fontWeight: 700 }}
           >
-            {deleteLoading ? <CircularProgress size={20} color="inherit" /> : "Delete Forever"}
+            Revoke Access
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </SettingsLayout>
   );
-};
-
-export default AccountsSecurityView;
+}

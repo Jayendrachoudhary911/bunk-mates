@@ -1,321 +1,198 @@
 import React from "react";
+import { Box, Typography, Card, MenuItem, Select, FormControl } from "@mui/material";
 import {
-  Box,
-  Typography,
-  Select,
-  MenuItem,
-  FormControl,
-} from "@mui/material";
-import {
-  LanguageOutlined,
-  PublicOutlined,
-  CalendarTodayOutlined,
-  AccessTimeOutlined,
-  DateRangeOutlined,
-} from "../../icons";
-import {
+  SettingsLayout,
   SettingsHeader,
-  SettingsCard,
-  SettingsSectionTitle,
+  SettingsSection,
+  SettingsGroup,
   SettingsSegmentedControl,
   SETTINGS_THEME,
-} from "./SettingsComponents";
+} from "./SettingsShared";
 
 const LANGUAGES = [
-  { code: "en-IN", name: "English (India)" },
-  { code: "en-US", name: "English (US)" },
-  { code: "en-GB", name: "English (UK)" },
-  { code: "hi-IN", name: "Hindi (हिन्दी)" },
-  { code: "es-ES", name: "Spanish (Español)" },
-  { code: "fr-FR", name: "French (Français)" },
-  { code: "de-DE", name: "German (Deutsch)" },
-  { code: "ja-JP", name: "Japanese (日本語)" },
+  { code: "en-IN", label: "English (India)" },
+  { code: "en-US", label: "English (United States)" },
+  { code: "en-GB", label: "English (UK)" },
+  { code: "hi-IN", label: "Hindi (हिन्दी)" },
+  { code: "es-ES", label: "Spanish (Español)" },
+  { code: "fr-FR", label: "French (Français)" },
+  { code: "de-DE", label: "German (Deutsch)" },
+  { code: "ja-JP", label: "Japanese (日本語)" },
 ];
 
 const REGIONS = [
-  { code: "IN", name: "India (+91)" },
-  { code: "US", name: "United States (+1)" },
-  { code: "GB", name: "United Kingdom (+44)" },
-  { code: "AE", name: "United Arab Emirates (+971)" },
-  { code: "SG", name: "Singapore (+65)" },
-  { code: "AU", name: "Australia (+61)" },
-  { code: "CA", name: "Canada (+1)" },
-  { code: "DE", name: "Germany (+49)" },
+  { code: "IN", label: "India (₹ INR)" },
+  { code: "US", label: "United States ($ USD)" },
+  { code: "GB", label: "United Kingdom (£ GBP)" },
+  { code: "EU", label: "European Union (€ EUR)" },
+  { code: "JP", label: "Japan (¥ JPY)" },
+  { code: "AU", label: "Australia ($ AUD)" },
+  { code: "CA", label: "Canada ($ CAD)" },
 ];
 
-const DATE_FORMATS = [
-  { value: "DD/MM/YYYY", label: "DD/MM/YYYY (e.g. 23/10/2026)" },
-  { value: "MM/DD/YYYY", label: "MM/DD/YYYY (e.g. 10/23/2026)" },
-  { value: "YYYY-MM-DD", label: "YYYY-MM-DD (e.g. 2026-10-23)" },
-];
+export default function LanguageRegionView({
+  onBack,
+  preferences,
+  onUpdatePreferences,
+}) {
+  const locale = preferences.locale || {};
 
-export const LanguageRegionView = ({ onBack, preferences, onUpdatePreference }) => {
-  const locale = preferences?.locale || {
-    language: "en-IN",
-    region: "IN",
-    dateFormat: "DD/MM/YYYY",
-    timeFormat: "24h",
-    firstDayOfWeek: "monday",
+  const updateField = (field, value) => {
+    onUpdatePreferences({
+      ...preferences,
+      locale: {
+        ...locale,
+        [field]: value,
+      },
+    });
   };
 
-  const handleUpdate = (key, value) => {
-    onUpdatePreference("locale", { [key]: value });
-  };
-
-  // Live formatted time and date preview
+  // Live formatted date string preview
   const now = new Date();
-  const formatTime = () => {
-    return locale.timeFormat === "12h"
-      ? now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })
-      : now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  const formatTime = (timeFormat) => {
+    return timeFormat === "24h"
+      ? now.toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit" })
+      : now.toLocaleTimeString([], { hour12: true, hour: "2-digit", minute: "2-digit" });
   };
 
-  const formatDate = () => {
+  const formatDate = (dateFormat) => {
     const day = String(now.getDate()).padStart(2, "0");
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const year = now.getFullYear();
 
-    if (locale.dateFormat === "MM/DD/YYYY") return `${month}/${day}/${year}`;
-    if (locale.dateFormat === "YYYY-MM-DD") return `${year}-${month}-${day}`;
+    if (dateFormat === "MM/DD/YYYY") return `${month}/${day}/${year}`;
+    if (dateFormat === "YYYY-MM-DD") return `${year}-${month}-${day}`;
     return `${day}/${month}/${year}`;
   };
 
   return (
-    <Box sx={{ minHeight: "100%", pb: 6, backgroundColor: SETTINGS_THEME.bg }}>
+    <SettingsLayout>
       <SettingsHeader title="Language & Region" onBack={onBack} />
 
-      {/* Live Locale Preview Card */}
-      <SettingsSectionTitle>LOCALE PREVIEW</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 2.5, backgroundColor: "#18181C" }}>
-        <Typography
-          sx={{
-            fontSize: "0.72rem",
-            fontWeight: 700,
-            color: "#7E828D",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            mb: 1,
-          }}
-        >
-          SYSTEM FORMATTED PREVIEW
+      {/* Locale Selectors */}
+      <SettingsSection title="APP LOCALE" sx={{ ml: 0.5, mt: 0 }} />
+      <SettingsGroup sx={{ p: 2, mb: 3 }}>
+        <Typography variant="body2" sx={{ color: SETTINGS_THEME.textSecondary, mb: 0.8 }}>
+          App Language
         </Typography>
-
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Box>
-            <Typography sx={{ fontWeight: 800, fontSize: "1.4rem", color: "#FFFFFF" }}>
-              {formatTime()}
-            </Typography>
-            <Typography sx={{ color: SETTINGS_THEME.textSecondary, fontSize: "0.9rem" }}>
-              {formatDate()} • {now.toLocaleDateString([], { weekday: "long" })}
-            </Typography>
-          </Box>
-          <Box
-            sx={{
-              backgroundColor: "rgba(40, 127, 224, 0.15)",
-              color: SETTINGS_THEME.accent,
-              px: 1.5,
-              py: 0.8,
-              borderRadius: "12px",
-              fontWeight: 700,
-              fontSize: "0.85rem",
-            }}
-          >
-            {locale.region || "IN"}
-          </Box>
-        </Box>
-      </SettingsCard>
-
-      {/* Locale Configuration */}
-      <SettingsSectionTitle>APP LOCALE</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
-        {/* App Language */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            py: 2,
-            px: 2,
-            borderBottom: `1px solid ${SETTINGS_THEME.divider}`,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.8 }}>
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: "50%",
-                backgroundColor: SETTINGS_THEME.iconBg,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#FFFFFF",
-              }}
-            >
-              <LanguageOutlined sx={{ fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontWeight: 600, fontSize: "0.98rem", color: "#FFFFFF" }}>
-                App Language
-              </Typography>
-              <Typography sx={{ fontSize: "0.82rem", color: SETTINGS_THEME.textSecondary }}>
-                Primary user interface language
-              </Typography>
-            </Box>
-          </Box>
-
-          <FormControl size="small">
-            <Select
-              value={locale.language || "en-IN"}
-              onChange={(e) => handleUpdate("language", e.target.value)}
-              sx={{
-                color: "#FFFFFF",
-                backgroundColor: "#202024",
-                borderRadius: "12px",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                "& fieldset": { borderColor: SETTINGS_THEME.divider },
-                "& .MuiSvgIcon-root": { color: "#FFFFFF" },
-              }}
-            >
-              {LANGUAGES.map((l) => (
-                <MenuItem key={l.code} value={l.code}>
-                  {l.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
-
-        {/* Region */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            py: 2,
-            px: 2,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.8 }}>
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: "50%",
-                backgroundColor: SETTINGS_THEME.iconBg,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#FFFFFF",
-              }}
-            >
-              <PublicOutlined sx={{ fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontWeight: 600, fontSize: "0.98rem", color: "#FFFFFF" }}>
-                Region & Country
-              </Typography>
-              <Typography sx={{ fontSize: "0.82rem", color: SETTINGS_THEME.textSecondary }}>
-                Formatting numbers and phone prefixes
-              </Typography>
-            </Box>
-          </Box>
-
-          <FormControl size="small">
-            <Select
-              value={locale.region || "IN"}
-              onChange={(e) => handleUpdate("region", e.target.value)}
-              sx={{
-                color: "#FFFFFF",
-                backgroundColor: "#202024",
-                borderRadius: "12px",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                "& fieldset": { borderColor: SETTINGS_THEME.divider },
-                "& .MuiSvgIcon-root": { color: "#FFFFFF" },
-              }}
-            >
-              {REGIONS.map((r) => (
-                <MenuItem key={r.code} value={r.code}>
-                  {r.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
-      </SettingsCard>
-
-      {/* Date & Time Formatting */}
-      <SettingsSectionTitle>DATE & TIME FORMAT</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 2.5 }}>
-        {/* Time Format */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-          <AccessTimeOutlined sx={{ fontSize: 20, color: SETTINGS_THEME.accent }} />
-          <Typography sx={{ fontWeight: 600, fontSize: "0.95rem", color: "#FFFFFF" }}>
-            Time Display Mode
-          </Typography>
-        </Box>
-
-        <SettingsSegmentedControl
-          value={locale.timeFormat || "24h"}
-          onChange={(val) => handleUpdate("timeFormat", val)}
-          options={[
-            { label: "12-Hour (1:30 PM)", value: "12h" },
-            { label: "24-Hour (13:30)", value: "24h" },
-          ]}
-          sx={{ mb: 3 }}
-        />
-
-        {/* Date Format */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-          <CalendarTodayOutlined sx={{ fontSize: 20, color: SETTINGS_THEME.accent }} />
-          <Typography sx={{ fontWeight: 600, fontSize: "0.95rem", color: "#FFFFFF" }}>
-            Date Format
-          </Typography>
-        </Box>
-
-        <FormControl fullWidth size="small" sx={{ mb: 3 }}>
+        <FormControl fullWidth sx={{ mb: 2.5 }}>
           <Select
-            value={locale.dateFormat || "DD/MM/YYYY"}
-            onChange={(e) => handleUpdate("dateFormat", e.target.value)}
+            value={locale.language || "en-IN"}
+            onChange={(e) => updateField("language", e.target.value)}
             sx={{
+              bgcolor: SETTINGS_THEME.surface,
               color: "#FFFFFF",
-              backgroundColor: "#202024",
               borderRadius: "14px",
-              fontSize: "0.88rem",
-              fontWeight: 600,
-              "& fieldset": { borderColor: SETTINGS_THEME.divider },
-              "& .MuiSvgIcon-root": { color: "#FFFFFF" },
+              "& .MuiSelect-icon": { color: "#FFFFFF" },
+              "& fieldset": { borderColor: "rgba(255, 255, 255, 0.08)" },
             }}
           >
-            {DATE_FORMATS.map((df) => (
-              <MenuItem key={df.value} value={df.value}>
-                {df.label}
+            {LANGUAGES.map((l) => (
+              <MenuItem key={l.code} value={l.code}>
+                {l.label}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
 
-        {/* First Day of Week */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-          <DateRangeOutlined sx={{ fontSize: 20, color: SETTINGS_THEME.accent }} />
-          <Typography sx={{ fontWeight: 600, fontSize: "0.95rem", color: "#FFFFFF" }}>
-            First Day of Week
-          </Typography>
+        <Typography variant="body2" sx={{ color: SETTINGS_THEME.textSecondary, mb: 0.8 }}>
+          Region
+        </Typography>
+        <FormControl fullWidth>
+          <Select
+            value={locale.region || "IN"}
+            onChange={(e) => updateField("region", e.target.value)}
+            sx={{
+              bgcolor: SETTINGS_THEME.surface,
+              color: "#FFFFFF",
+              borderRadius: "14px",
+              "& .MuiSelect-icon": { color: "#FFFFFF" },
+              "& fieldset": { borderColor: "rgba(255, 255, 255, 0.08)" },
+            }}
+          >
+            {REGIONS.map((r) => (
+              <MenuItem key={r.code} value={r.code}>
+                {r.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </SettingsGroup>
+
+      {/* System Formats */}
+      <SettingsSection title="DATE & TIME FORMATS" sx={{ ml: 0.5 }} />
+      <SettingsGroup sx={{ p: 2, mb: 3 }}>
+        <Typography variant="body2" sx={{ color: SETTINGS_THEME.textSecondary, mb: 0.8 }}>
+          Date Format
+        </Typography>
+        <Box sx={{ mb: 2.5 }}>
+          <SettingsSegmentedControl
+            value={locale.dateFormat || "DD/MM/YYYY"}
+            onChange={(v) => updateField("dateFormat", v)}
+            options={[
+              { label: "DD/MM/YYYY", value: "DD/MM/YYYY" },
+              { label: "MM/DD/YYYY", value: "MM/DD/YYYY" },
+              { label: "YYYY-MM-DD", value: "YYYY-MM-DD" },
+            ]}
+          />
         </Box>
 
+        <Typography variant="body2" sx={{ color: SETTINGS_THEME.textSecondary, mb: 0.8 }}>
+          Time Format
+        </Typography>
+        <Box sx={{ mb: 2.5 }}>
+          <SettingsSegmentedControl
+            value={locale.timeFormat || "12h"}
+            onChange={(v) => updateField("timeFormat", v)}
+            options={[
+              { label: "12-Hour (AM/PM)", value: "12h" },
+              { label: "24-Hour", value: "24h" },
+            ]}
+          />
+        </Box>
+
+        <Typography variant="body2" sx={{ color: SETTINGS_THEME.textSecondary, mb: 0.8 }}>
+          First Day of the Week
+        </Typography>
         <SettingsSegmentedControl
           value={locale.firstDayOfWeek || "monday"}
-          onChange={(val) => handleUpdate("firstDayOfWeek", val)}
+          onChange={(v) => updateField("firstDayOfWeek", v)}
           options={[
             { label: "Monday", value: "monday" },
             { label: "Sunday", value: "sunday" },
           ]}
         />
-      </SettingsCard>
-    </Box>
-  );
-};
+      </SettingsGroup>
 
-export default LanguageRegionView;
+      {/* Live Formatted Preview */}
+      <Card
+        sx={{
+          bgcolor: SETTINGS_THEME.surface,
+          p: 2.2,
+          borderRadius: "20px",
+          border: "1px solid rgba(255, 255, 255, 0.05)",
+        }}
+      >
+        <Typography
+          variant="caption"
+          sx={{
+            color: SETTINGS_THEME.accent,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+            mb: 0.8,
+            display: "block",
+          }}
+        >
+          Live Format Preview
+        </Typography>
+        <Typography sx={{ color: SETTINGS_THEME.textPrimary, fontWeight: 700, fontSize: "1.1rem" }}>
+          {formatDate(locale.dateFormat || "DD/MM/YYYY")} • {formatTime(locale.timeFormat || "12h")}
+        </Typography>
+        <Typography variant="caption" sx={{ color: SETTINGS_THEME.textSecondary, mt: 0.3, display: "block" }}>
+          Calendar week starts on: {locale.firstDayOfWeek === "sunday" ? "Sunday" : "Monday"}
+        </Typography>
+      </Card>
+    </SettingsLayout>
+  );
+}

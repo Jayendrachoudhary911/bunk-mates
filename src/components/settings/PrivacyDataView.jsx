@@ -7,270 +7,229 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Snackbar,
   CircularProgress,
 } from "@mui/material";
 import {
-  LockOutlined,
-  MyLocationOutlined,
-  HistoryToggleOffOutlined,
-  VisibilityOffOutlined,
-  CloudDownloadOutlined,
+  VisibilityOutlined,
+  LocationOnOutlined,
+  DownloadOutlined,
   DeleteSweepOutlined,
-  ShieldOutlined,
-} from "../../icons";
+} from "@mui/icons-material";
+import { auth } from "../../firebase";
+import { exportUserData } from "../../services/settingsService";
 import {
+  SettingsLayout,
   SettingsHeader,
-  SettingsCard,
-  SettingsSectionTitle,
-  SettingsSwitchRow,
+  SettingsSection,
+  SettingsGroup,
   SettingsRow,
+  SettingsSwitchRow,
+  SettingsSegmentedControl,
   SETTINGS_THEME,
-} from "./SettingsComponents";
-import { auth, db } from "../../firebase";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+} from "./SettingsShared";
 
-export const PrivacyDataView = ({ onBack, preferences, onUpdatePreference }) => {
-  const [downloadLoading, setDownloadLoading] = useState(false);
-  const [clearHistoryDialogOpen, setClearHistoryDialogOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
+export default function PrivacyDataView({
+  onBack,
+  preferences,
+  onUpdatePreferences,
+  userProfile,
+}) {
+  const privacy = preferences.privacy || {};
+  const [downloading, setDownloading] = useState(false);
+  const [clearHistoryOpen, setClearHistoryOpen] = useState(false);
 
-  const privacy = preferences?.privacy || {
-    profileVisibility: "public",
-    shareLiveLocation: false,
-    activityStatus: true,
-    hidePastTrips: false,
-    analyticsCollection: true,
+  const updateField = (field, value) => {
+    onUpdatePreferences({
+      ...preferences,
+      privacy: {
+        ...privacy,
+        [field]: value,
+      },
+    });
   };
 
-  const handleToggle = (key, value) => {
-    onUpdatePreference("privacy", { [key]: value });
-  };
-
-  const handleDownloadMyData = async () => {
+  const handleExportData = async () => {
     const user = auth.currentUser;
     if (!user) return;
-    setDownloadLoading(true);
-
+    setDownloading(true);
     try {
-      // 1. Fetch user profile
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const profileData = userDoc.exists() ? userDoc.data() : {};
-
-      // 2. Fetch user's trips
-      const tripsQuery = query(
-        collection(db, "trips"),
-        where("members", "array-contains", user.uid)
-      );
-      const tripsSnap = await getDocs(tripsQuery);
-      const tripsData = tripsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-      // 3. Construct export payload
-      const exportData = {
-        exportedAt: new Date().toISOString(),
-        user: {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          profile: profileData,
-        },
-        trips: tripsData,
-        settings: preferences,
-      };
-
-      // 4. Trigger JSON download
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-        type: "application/json",
-      });
+      const data = await exportUserData(user.uid, userProfile);
+      const jsonStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `bunkmates_data_export_${user.uid.slice(0, 8)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `bunkmates_data_export_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-      setSnackbarMessage("Your data export has been downloaded successfully!");
-    } catch (err) {
-      console.error("Export error:", err);
-      setSnackbarMessage("Failed to export data. Please try again.");
+    } catch (e) {
+      alert("Failed to export your data. Please try again.");
     } finally {
-      setDownloadLoading(false);
+      setDownloading(false);
     }
   };
 
   const handleClearSearchHistory = () => {
-    try {
-      localStorage.removeItem("bunkmates_search_history");
-      localStorage.removeItem("bunkmates_recent_destinations");
-      setClearHistoryDialogOpen(false);
-      setSnackbarMessage("Search and destination history cleared.");
-    } catch (_) {
-      setClearHistoryDialogOpen(false);
-    }
+    localStorage.removeItem("bunkmates_recent_searches");
+    localStorage.removeItem("bunkmate_search_history");
+    sessionStorage.removeItem("bunkmate_search_cache");
+    setClearHistoryOpen(false);
+    alert("Search history cleared.");
   };
 
   return (
-    <Box sx={{ minHeight: "100%", pb: 6, backgroundColor: SETTINGS_THEME.bg }}>
+    <SettingsLayout>
       <SettingsHeader title="Privacy & Data" onBack={onBack} />
 
-      {/* Profile Privacy */}
-      <SettingsSectionTitle>PROFILE PRIVACY</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
-        <SettingsSwitchRow
-          icon={<LockOutlined sx={{ fontSize: 20 }} />}
-          title="Private Profile"
-          subtitle="Only mutual trip mates and approved friends can see your profile details"
-          checked={privacy.profileVisibility === "private"}
-          onChange={(checked) =>
-            handleToggle("profileVisibility", checked ? "private" : "public")
-          }
-          isLast
+      {/* Profile Visibility */}
+      <SettingsSection title="PROFILE PRIVACY" sx={{ ml: 0.5, mt: 0 }} />
+      <SettingsGroup sx={{ p: 1.5, mb: 3 }}>
+        <Typography variant="body2" sx={{ color: SETTINGS_THEME.textPrimary, fontWeight: 600, mb: 1, ml: 0.5 }}>
+          Profile Visibility
+        </Typography>
+        <SettingsSegmentedControl
+          value={privacy.profileVisibility || "public"}
+          onChange={(val) => updateField("profileVisibility", val)}
+          options={[
+            { label: "Public", value: "public" },
+            { label: "Private", value: "private" },
+          ]}
         />
-      </SettingsCard>
+        <Typography variant="caption" sx={{ color: SETTINGS_THEME.textSecondary, mt: 1, ml: 0.5, display: "block" }}>
+          {privacy.profileVisibility === "private"
+            ? "Only accepted friends and fellow trip participants can view your travel stats and profile."
+            : "Your public profile and travel badges can be discovered by BunkMates members."}
+        </Typography>
+      </SettingsGroup>
 
-      {/* Location Services */}
-      <SettingsSectionTitle>LOCATION & ACTIVITY</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
+      {/* Location & Status */}
+      <SettingsSection title="LOCATION & ACTIVITY" sx={{ ml: 0.5 }} />
+      <SettingsGroup sx={{ mb: 3 }}>
         <SettingsSwitchRow
-          icon={<MyLocationOutlined sx={{ fontSize: 20 }} />}
+          icon={LocationOnOutlined}
           title="Share Live Location"
-          subtitle="Share real-time GPS location with fellow members on active trips"
-          checked={privacy.shareLiveLocation}
-          onChange={(checked) => handleToggle("shareLiveLocation", checked)}
+          subtitle="Share real-time coordinate updates with active trip members"
+          checked={Boolean(privacy.shareLiveLocation)}
+          onChange={(v) => updateField("shareLiveLocation", v)}
+          showDivider
         />
 
         <SettingsSwitchRow
-          icon={<HistoryToggleOffOutlined sx={{ fontSize: 20 }} />}
+          icon={VisibilityOutlined}
           title="Activity Status"
-          subtitle="Allow bunkmates to see when you are currently online in group chats"
-          checked={privacy.activityStatus}
-          onChange={(checked) => handleToggle("activityStatus", checked)}
+          subtitle="Show other users when you are currently active in chat"
+          checked={Boolean(privacy.activityStatus)}
+          onChange={(v) => updateField("activityStatus", v)}
+          showDivider
         />
 
         <SettingsSwitchRow
-          icon={<VisibilityOffOutlined sx={{ fontSize: 20 }} />}
           title="Hide Past Trips"
-          subtitle="Completed trips will only be visible to you and past co-travelers"
-          checked={privacy.hidePastTrips}
-          onChange={(checked) => handleToggle("hidePastTrips", checked)}
-          isLast
+          subtitle="Keep completed travels confidential on your public profile"
+          checked={Boolean(privacy.hidePastTrips)}
+          onChange={(v) => updateField("hidePastTrips", v)}
         />
-      </SettingsCard>
+      </SettingsGroup>
 
-      {/* Data Privacy & Management */}
-      <SettingsSectionTitle>DATA & ARCHIVES</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
+      {/* Data Controls */}
+      <SettingsSection title="DATA & STORAGE" sx={{ ml: 0.5 }} />
+      <SettingsGroup sx={{ mb: 3 }}>
         <SettingsSwitchRow
-          icon={<ShieldOutlined sx={{ fontSize: 20 }} />}
-          title="Analytics & Telemetry"
-          subtitle="Help improve BunkMates by sharing anonymous crash logs and feature usage"
-          checked={privacy.analyticsCollection}
-          onChange={(checked) => handleToggle("analyticsCollection", checked)}
+          title="Analytics Collection"
+          subtitle="Allow non-identifying telemetry to help improve BunkMates features"
+          checked={Boolean(privacy.analyticsCollection)}
+          onChange={(v) => updateField("analyticsCollection", v)}
+          showDivider
         />
 
         <SettingsRow
-          icon={<CloudDownloadOutlined sx={{ fontSize: 20 }} />}
+          icon={DownloadOutlined}
           title="Download My Data"
-          subtitle="Export a complete copy of your profile, trips, budgets, and settings"
-          trailing={
-            downloadLoading ? (
-              <CircularProgress size={20} sx={{ color: SETTINGS_THEME.accent }} />
-            ) : null
-          }
-          onClick={handleDownloadMyData}
+          subtitle="Export a copy of your personal trips, notes, and profile as JSON"
+          trailing={downloading ? <CircularProgress size={18} color="inherit" /> : null}
+          onClick={handleExportData}
+          showChevron={!downloading}
+          showDivider
         />
 
         <SettingsRow
-          icon={<DeleteSweepOutlined sx={{ fontSize: 20 }} />}
+          icon={DeleteSweepOutlined}
           title="Clear Search History"
-          subtitle="Wipe your recent destination searches and local route cache"
-          isLast
-          onClick={() => setClearHistoryDialogOpen(true)}
+          subtitle="Remove destination queries and cached location keywords"
+          onClick={() => setClearHistoryOpen(true)}
+          showChevron
         />
-      </SettingsCard>
+      </SettingsGroup>
 
-      {/* Privacy Statement Card */}
-      <SettingsCard sx={{ p: 2.5, backgroundColor: "rgba(22, 22, 22, 0.7)" }}>
+      {/* Privacy Notice Box */}
+      <Box
+        sx={{
+          bgcolor: SETTINGS_THEME.surface,
+          p: 2.2,
+          borderRadius: "20px",
+          border: "1px solid rgba(255, 255, 255, 0.05)",
+        }}
+      >
         <Typography
+          variant="caption"
           sx={{
+            color: SETTINGS_THEME.accent,
             fontWeight: 700,
-            fontSize: "0.95rem",
-            color: "#FFFFFF",
-            mb: 0.8,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+            mb: 0.5,
+            display: "block",
           }}
         >
-          <ShieldOutlined sx={{ fontSize: 18, color: SETTINGS_THEME.accent }} /> BunkMates Privacy
-          Commitment
+          Our Privacy Commitment
         </Typography>
-        <Typography sx={{ color: SETTINGS_THEME.textSecondary, fontSize: "0.82rem", lineHeight: 1.5 }}>
-          Your trip documents, expenses, and chats belong to you. We never sell your personal data or
-          track your exact location outside active trip coordination. All cloud synchronizations are
-          encrypted in transit and at rest.
+        <Typography
+          variant="caption"
+          sx={{
+            color: SETTINGS_THEME.textSecondary,
+            lineHeight: 1.5,
+            display: "block",
+          }}
+        >
+          BunkMates prioritizes your travel privacy. We do not sell personal details to advertisers. Location sharing is strictly opt-in and restricted to your designated trip companions.
         </Typography>
-      </SettingsCard>
+      </Box>
 
-      {/* Clear Search History Confirmation Dialog */}
+      {/* Clear Search Dialog */}
       <Dialog
-        open={clearHistoryDialogOpen}
-        onClose={() => setClearHistoryDialogOpen(false)}
-        maxWidth="xs"
-        fullWidth
+        open={clearHistoryOpen}
+        onClose={() => setClearHistoryOpen(false)}
         PaperProps={{
           sx: {
-            backgroundColor: "#161616",
-            color: "#FFFFFF",
+            bgcolor: SETTINGS_THEME.card,
+            color: SETTINGS_THEME.textPrimary,
             borderRadius: "24px",
-            border: `1px solid ${SETTINGS_THEME.divider}`,
             p: 1,
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: "1.2rem" }}>
-          Clear Search History?
-        </DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>Clear Search History?</DialogTitle>
         <DialogContent>
-          <Typography sx={{ color: SETTINGS_THEME.textSecondary, fontSize: "0.9rem" }}>
-            This will remove all recent destination searches and temporary location suggestions from
-            this device. Your saved trips and notes will not be affected.
+          <Typography variant="body2" sx={{ color: SETTINGS_THEME.textSecondary }}>
+            This will permanently remove your stored search suggestions and recently visited destinations on this device.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={() => setClearHistoryDialogOpen(false)}
-            sx={{ color: SETTINGS_THEME.textSecondary, textTransform: "none", fontWeight: 600 }}
-          >
+          <Button onClick={() => setClearHistoryOpen(false)} sx={{ color: SETTINGS_THEME.textSecondary, textTransform: "none" }}>
             Cancel
           </Button>
           <Button
-            variant="contained"
             onClick={handleClearSearchHistory}
-            sx={{
-              backgroundColor: SETTINGS_THEME.accent,
-              color: "#FFFFFF",
-              textTransform: "none",
-              fontWeight: 700,
-              borderRadius: "14px",
-              px: 3,
-            }}
+            variant="contained"
+            color="error"
+            sx={{ borderRadius: "14px", textTransform: "none", fontWeight: 700 }}
           >
             Clear History
           </Button>
         </DialogActions>
       </Dialog>
-
-      <Snackbar
-        open={Boolean(snackbarMessage)}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarMessage("")}
-        message={snackbarMessage}
-      />
-    </Box>
+    </SettingsLayout>
   );
-};
-
-export default PrivacyDataView;
+}

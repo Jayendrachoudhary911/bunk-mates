@@ -28,9 +28,38 @@
     <meta property="twitter:url" content="https://bunk-mates.vercel.app/" />
     <meta property="twitter:title" content="BunkMates — Your Smart Trip Companion" />
     <meta property="twitter:description" content="Plan, chat, manage budgets, and explore together — all in one seamless app for travelers and friends." />
-    <meta property="twitter:image" content="https://bunk-mates.vercel.app/meta/preview.png" />
+    <!-- Pre-load Critical Theme Styles & Eliminate White Flash on Refresh -->
+    <style>
+      html, body {
+        background-color: #0c0c0c;
+        color: #ffffff;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #root {
+        min-height: 100vh;
+        background-color: inherit;
+      }
+    </style>
+    <script>
+      (function() {
+        try {
+          var mode = localStorage.getItem("bunkmate_theme_mode") || "dark";
+          var bg = mode === "light" ? "#f1f1f1" : "#0c0c0c";
+          var color = mode === "light" ? "#111111" : "#ffffff";
+          document.documentElement.style.backgroundColor = bg;
+          document.documentElement.style.color = color;
+          if (document.body) {
+            document.body.style.backgroundColor = bg;
+            document.body.style.color = color;
+          }
+        } catch(e) {}
+      })();
+    </script>
   </head>
-  <body>
+  <body style="background-color: #0c0c0c; color: #ffffff;">
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
   </body>

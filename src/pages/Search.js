@@ -34,6 +34,7 @@ import {
   Clear as ClearIcon,
   Refresh as RefreshIcon,
   ArrowForwardIos as ArrowForwardIosIcon,
+  Share as ShareIcon,
 } from "../icons";
 import { motion, AnimatePresence } from "framer-motion";
 import useUniversalSearch from "../hooks/useUniversalSearch";
@@ -41,6 +42,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { useBackButtonClose } from "../hooks/useBackButtonClose";
 import { getTheme } from "../theme";
+import UniversalShareToChatDialog from "../components/chats_components/UniversalShareToChatDialog";
 import {
   designTokens,
   glass,
@@ -106,6 +108,15 @@ export default function SearchPage() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [drawerContentType, setDrawerContentType] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareItemType, setShareItemType] = useState("trip");
+  const [shareItemData, setShareItemData] = useState({});
+
+  const handleOpenShare = (type, item) => {
+    setShareItemType(type);
+    setShareItemData(item);
+    setShareDialogOpen(true);
+  };
 
 
   // Close drawer and clean URL search params without clearing search query or results
@@ -173,7 +184,7 @@ export default function SearchPage() {
   }, [searchParams]); // Removed `drawerOpen` from dependency array to prevent immediate close loop
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [, setCurrentUser] = useState(null);
 
   const [fetchedAllUsers, setFetchedAllUsers] = useState([]);
   const [isFetchingAllUsers, setIsFetchingAllUsers] = useState(true);
@@ -1283,6 +1294,14 @@ export default function SearchPage() {
                 {visibility === "private" ? "Send Friend Request" : "Add Friend"}
               </Button>
             )}
+            <Button
+              variant="outlined"
+              startIcon={<ShareIcon />}
+              onClick={() => handleOpenShare("user", user)}
+              sx={{ borderRadius: 8, minWidth: 100, fontWeight: 700 }}
+            >
+              Share
+            </Button>
           </Stack>
         </Box>
       </Box>
@@ -1555,12 +1574,20 @@ export default function SearchPage() {
 
         <Stack direction="row" spacing={1.5} justifyContent="space-between" sx={{ pt: 1 }}>
           <Button
-            fullWidth
             variant="outlined"
             onClick={closeDrawer}
-            sx={{ borderRadius: 8, borderColor: theme.palette.mode === "dark" ? "#555555" : "#cccccc", color: "text.primary", px: 3, fontWeight: 700 }}
+            sx={{ borderRadius: 8, borderColor: theme.palette.mode === "dark" ? "#555555" : "#cccccc", color: "text.primary", px: 2, fontWeight: 700 }}
           >
             Close
+          </Button>
+
+          <Button
+            variant="outlined"
+            startIcon={<ShareIcon />}
+            onClick={() => handleOpenShare("place", place)}
+            sx={{ borderRadius: 8, px: 2, fontWeight: 700 }}
+          >
+            Share
           </Button>
 
           <Button
@@ -1811,12 +1838,20 @@ export default function SearchPage() {
 
         <Stack direction="row" spacing={1.5} justifyContent="space-between">
           <Button
-            fullWidth
             variant="outlined"
             onClick={closeDrawer}
-            sx={{ borderRadius: 8, borderColor: mode === "dark" ? "#555" : "#ccc", color: "text.primary", fontWeight: 700, px: 3 }}
+            sx={{ borderRadius: 8, borderColor: mode === "dark" ? "#555" : "#ccc", color: "text.primary", fontWeight: 700, px: 2 }}
           >
             Close
+          </Button>
+
+          <Button
+            variant="outlined"
+            startIcon={<ShareIcon />}
+            onClick={() => handleOpenShare("trip", trip)}
+            sx={{ borderRadius: 8, px: 2, fontWeight: 700 }}
+          >
+            Share
           </Button>
 
           <Button
@@ -2677,13 +2712,31 @@ export default function SearchPage() {
                                                 ) : (
                                                   <Box />
                                                 )}
-                                                <Button
-                                                  size="small"
-                                                  endIcon={<ArrowForwardIosIcon sx={{ fontSize: 12 }} />}
-                                                  sx={{ textTransform: "none", fontWeight: 700, color: "#a855f7" }}
-                                                >
-                                                  View Place Details
-                                                </Button>
+                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                  <IconButton
+                                                    size="small"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleOpenShare("place", place);
+                                                    }}
+                                                    sx={{
+                                                      p: 0.75,
+                                                      bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                                      color: theme.palette.primary.main,
+                                                      "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.2) },
+                                                    }}
+                                                    title="Share Place to Chat"
+                                                  >
+                                                    <ShareIcon sx={{ fontSize: 16 }} />
+                                                  </IconButton>
+                                                  <Button
+                                                    size="small"
+                                                    endIcon={<ArrowForwardIosIcon sx={{ fontSize: 12 }} />}
+                                                    sx={{ textTransform: "none", fontWeight: 700, color: "#a855f7" }}
+                                                  >
+                                                    View Place Details
+                                                  </Button>
+                                                </Stack>
                                               </Stack>
                                             </Box>
                                           </Stack>
@@ -2715,7 +2768,26 @@ export default function SearchPage() {
                                         }}
                                         onClick={() => handleItemClick(group.key, item)}
                                       >
-                                        <ListItem>
+                                        <ListItem
+                                          secondaryAction={
+                                            <IconButton
+                                              edge="end"
+                                              size="small"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                const detectedType = group.key === "users" ? "user" : group.key === "trips" ? "trip" : group.key === "notes" ? "note" : "place";
+                                                handleOpenShare(detectedType, item);
+                                              }}
+                                              sx={{
+                                                color: "text.secondary",
+                                                "&:hover": { color: theme.palette.primary.main, bgcolor: alpha(theme.palette.primary.main, 0.1) },
+                                              }}
+                                              title="Share to Chat"
+                                            >
+                                              <ShareIcon fontSize="small" />
+                                            </IconButton>
+                                          }
+                                        >
                                           <ListItemAvatar>
                                             <Avatar
                                               src={
@@ -2809,6 +2881,14 @@ export default function SearchPage() {
         )}
       </SwipeableDrawer>
 
+      <UniversalShareToChatDialog
+        open={shareDialogOpen}
+        onClose={() => setShareDialogOpen(false)}
+        itemType={shareItemType}
+        itemData={shareItemData || {}}
+        currentUser={auth.currentUser}
+        effectiveChatTheme={mode === "dark" ? "dark" : "light"}
+      />
     </Box>
   );
 }

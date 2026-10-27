@@ -13,10 +13,14 @@ import { SettingsProvider } from "./contexts/SettingsContext";
 import { ThemeToggleProvider, useThemeToggle } from './contexts/ThemeToggleContext';
 import { BackgroundProvider } from "./contexts/BackgroundContext";
 import { DesktopPanelProvider } from "./contexts/DesktopPanelContext";
+import { CallProvider } from "./contexts/CallContext";
+import GlobalCallOverlay from "./components/call/GlobalCallOverlay";
 
 // Desktop Layout Components
 import DesktopWorkspace from "./components/DesktopWorkspace";
 import BottomNavBar from './components/BottomNavBar';
+import PageTitleManager from "./components/PageTitleManager";
+import { initIdleRoutePrefetch } from "./utils/routePrefetcher";
 
 // Lazy Loaded Pages and Components for Performance & Code Splitting
 const Home = lazy(() => import("./pages/Home"));
@@ -84,7 +88,18 @@ const RequireAuth = ({ children }) => {
   const location = useLocation();
 
   if (loading) {
-    return null; // Or return a sleek loading spinner/skeleton here
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          width: "100%",
+          bgcolor: "inherit",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      />
+    );
   }
 
   if (!user) {
@@ -98,7 +113,18 @@ const RestrictAuthForLoggedIn = ({ children }) => {
   const location = useLocation();
 
   if (loading) {
-    return null;
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          width: "100%",
+          bgcolor: "inherit",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      />
+    );
   }
 
   if (user) {
@@ -121,6 +147,10 @@ function AppContent() {
   const location = useLocation();
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+
+  useEffect(() => {
+    initIdleRoutePrefetch();
+  }, []);
 
   /* -------------------------------
      MOBILE BOTTOM NAV VISIBILITY
@@ -296,7 +326,11 @@ function App() {
             <UserProvider>
               <DesktopPanelProvider>
                 <Router>
-                  <AppContent />
+                  <PageTitleManager />
+                  <CallProvider>
+                    <GlobalCallOverlay />
+                    <AppContent />
+                  </CallProvider>
                 </Router>
               </DesktopPanelProvider>
             </UserProvider>

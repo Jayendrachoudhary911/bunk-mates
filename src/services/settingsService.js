@@ -1,28 +1,28 @@
-import { db, auth } from "../firebase";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, collection, getDocs, query, where } from "firebase/firestore";
+import { firestore } from "../firebase";
 
-const LOCAL_STORAGE_SETTINGS_KEY = "bunkmate_user_preferences";
+export const LOCAL_SETTINGS_KEY = "bunkmate_user_preferences_v1";
 
 export const DEFAULT_PREFERENCES = {
   appearance: {
-    theme: "dark", // 'dark' | 'light' | 'system'
-    accentColor: "blue", // 'blue' | 'coral' | 'orange' | 'green' | 'purple' | 'turquoise' | 'white'
-    fontSize: "medium", // 'small' | 'medium' | 'large'
+    theme: "dark", // "dark" | "light" | "system"
+    accentColor: "oceanBlue", // "oceanBlue" | "coral" | "green" | "orange" | "cyan" | "violet" | "white"
+    fontSize: "medium", // "small" | "medium" | "large"
     reduceAnimations: false,
   },
   accessibility: {
-    screenReaderOptimized: true,
+    screenReaderOptimized: false,
     highContrast: false,
     largeTouchTargets: false,
+    colorBlindMode: "off", // "off" | "protanopia" | "deuteranopia" | "tritanopia"
     boldText: false,
     reduceTransparency: false,
-    colorBlindMode: "off", // 'off' | 'protanopia' | 'deuteranopia' | 'tritanopia'
     reduceMotion: false,
     hapticFeedback: true,
-    audioCues: true,
+    audioCues: false,
   },
   privacy: {
-    profileVisibility: "public", // 'public' | 'private'
+    profileVisibility: "public", // "public" | "private"
     shareLiveLocation: false,
     activityStatus: true,
     hidePastTrips: false,
@@ -32,63 +32,71 @@ export const DEFAULT_PREFERENCES = {
     language: "en-IN",
     region: "IN",
     dateFormat: "DD/MM/YYYY",
-    timeFormat: "24h", // '12h' | '24h'
-    firstDayOfWeek: "monday", // 'sunday' | 'monday'
+    timeFormat: "12h",
+    firstDayOfWeek: "monday",
   },
-  chat: {
+  chats: {
     wallpaper: "none",
-    enterIsSend: true,
+    enterIsSend: false,
     linkPreviews: true,
     readReceipts: true,
     typingIndicator: true,
-    disappearingMessages: "off", // 'off' | '24h' | '7d' | '90d'
-    autoDownloadMedia: true,
+    disappearingMessages: "off", // "off" | "24h" | "7d" | "90d"
+    mediaAutoDownload: true,
     saveToGallery: false,
+    keepChatsArchived: true,
+  },
+  ai: {
+    smartRecommendations: true,
+    aiAssistantEnabled: true,
+    groqApiKey: "",
+    preferredModel: "llama-3.3-70b-versatile",
   },
   maps: {
-    preferredApp: "google", // 'google' | 'apple' | 'waze'
-    distanceUnits: "km", // 'km' | 'mi'
+    preferredMapApp: "google", // "google" | "apple" | "waze"
+    distanceUnits: "km", // "km" | "miles"
     autoReroute: true,
     avoidTolls: false,
-    mapStyle: "standard", // 'standard' | 'satellite' | 'terrain'
+    mapStyle: "standard", // "standard" | "satellite" | "terrain"
     showPointsOfInterest: true,
   },
   offline: {
-    autoSyncTrips: true,
-    wifiOnly: true,
+    autoCacheTrips: true,
+    maxCacheSizeMb: 500,
+    downloadedMapsCount: 0,
   },
   weather: {
-    temperatureUnit: "celsius", // 'celsius' | 'fahrenheit'
-    forecastHorizon: "5", // '3' | '5' | '7'
-    severeAlerts: true,
-    rainAlerts: true,
-    pollutionWarnings: true,
-    refreshInterval: "1h", // '30m' | '1h' | '3h'
+    temperatureUnit: "celsius", // "celsius" | "fahrenheit"
+    forecastHorizon: 5, // 3 | 5 | 7
+    severeWeatherAlerts: true,
+    precipitationAlerts: true,
+    pollutionWarnings: false,
+    refreshInterval: "1h", // "30m" | "1h" | "3h"
   },
   tripPreferences: {
-    mode: "auto", // 'auto' | 'manual'
-    defaultStyle: "public", // 'public' | 'private'
+    mode: "auto", // "auto" | "manual"
+    defaultTripStyle: "public", // "public" | "private"
     smartRecommendations: true,
-    travelStyle: "mid-range", // 'budget' | 'mid-range' | 'luxury'
+    travelStyle: "midRange", // "budget" | "midRange" | "luxury"
     typicalDuration: "3-5 days",
-    idealGroupSize: "4-6",
-    accommodations: ["Hotel", "Airbnb"],
-    dietaryRestrictions: ["No Restrictions"],
-    interests: ["Mountains", "Sightseeing", "Food Exploring", "Photography"],
+    idealGroupSize: "4-6 people",
+    accommodations: ["hotel", "airbnb"],
+    diet: "noRestrictions",
+    activities: ["sightseeing", "food", "nature", "nightlife"],
   },
   currency: {
-    baseCurrency: "INR",
-    showSymbol: true,
+    baseCurrency: "INR", // "INR" | "USD" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD"
+    showCurrencySymbol: true,
     autoRoundOff: true,
-    defaultSplitMethod: "equal", // 'equal' | 'percentage' | 'exact'
-    autoCategorize: true,
-    monthlySavingsGoalEnabled: true,
-    monthlySavingsGoalAmount: 15000,
+    defaultSplitMethod: "equal", // "equal" | "exact" | "percentage"
+    autoCategorizeGroupSpends: true,
+    savingsGoalEnabled: false,
+    savingsGoalAmount: 15000,
   },
   notifications: {
-    allPush: true,
+    pushEnabled: true,
     tripUpdates: true,
-    chatMessages: true,
+    messagesChat: true,
     reminders: true,
     recommendations: true,
     promotions: false,
@@ -99,121 +107,213 @@ export const DEFAULT_PREFERENCES = {
 };
 
 /**
- * Merge nested preference objects safely without overwriting defaults with undefined
+ * Load preferences with fallback to localStorage and defaults
  */
-export function deepMergePreferences(target, source) {
-  if (!source) return target;
-  const output = { ...target };
-  for (const key of Object.keys(source)) {
-    if (
-      source[key] !== null &&
-      typeof source[key] === "object" &&
-      !Array.isArray(source[key])
-    ) {
-      output[key] = deepMergePreferences(target[key] || {}, source[key]);
-    } else if (source[key] !== undefined) {
-      output[key] = source[key];
+export async function loadUserPreferences(uid) {
+  let localData = null;
+  try {
+    const raw = localStorage.getItem(`${LOCAL_SETTINGS_KEY}_${uid}`);
+    if (raw) localData = JSON.parse(raw);
+  } catch (err) {
+    console.warn("Failed to read local preferences:", err);
+  }
+
+  if (!uid) {
+    return localData || DEFAULT_PREFERENCES;
+  }
+
+  try {
+    const prefRef = doc(firestore, "users", uid, "settings", "preferences");
+    const snap = await getDoc(prefRef);
+    let remoteData = snap.exists() ? snap.data() : {};
+
+    // Also check root user doc for accessibilityPreferences & appearancePreferences (matching DB schema)
+    try {
+      const userSnap = await getDoc(doc(firestore, "users", uid));
+      if (userSnap.exists()) {
+        const uData = userSnap.data();
+        if (uData.accessibilityPreferences) {
+          const ap = uData.accessibilityPreferences;
+          remoteData.accessibility = {
+            ...(remoteData.accessibility || {}),
+            audioCues: Boolean(ap.audioCues),
+            boldText: Boolean(ap.boldText),
+            colorBlindMode: (ap.colorBlindMode || "off").toLowerCase(),
+            hapticFeedback: Boolean(ap.hapticFeedback),
+            highContrast: Boolean(ap.highContrastMode),
+            largeTouchTargets: Boolean(ap.largeTouchTargets),
+            reduceMotion: Boolean(ap.reduceMotion),
+            reduceTransparency: Boolean(ap.reduceTransparency),
+            screenReaderOptimized: Boolean(ap.screenReaderCompat),
+          };
+        } else {
+          // Initialize schema directly on root user doc if not present
+          setDoc(doc(firestore, "users", uid), {
+            accessibilityPreferences: {
+              audioCues: true,
+              boldText: false,
+              colorBlindMode: "Off",
+              hapticFeedback: true,
+              highContrastMode: false,
+              largeTouchTargets: false,
+              reduceMotion: false,
+              reduceTransparency: false,
+              screenReaderCompat: false,
+            },
+            appearancePreferences: {
+              accent: "white",
+            },
+          }, { merge: true }).catch(() => {});
+        }
+        if (uData.appearancePreferences?.accent) {
+          remoteData.appearance = {
+            ...(remoteData.appearance || {}),
+            accentColor: uData.appearancePreferences.accent,
+          };
+        }
+      }
+    } catch (e) {}
+
+    // Deep merge with defaults to ensure any new keys are populated
+    const merged = deepMerge(DEFAULT_PREFERENCES, remoteData);
+    try {
+      localStorage.setItem(`${LOCAL_SETTINGS_KEY}_${uid}`, JSON.stringify(merged));
+    } catch (e) {}
+    return merged;
+  } catch (error) {
+    console.warn("Firestore preferences read failed, falling back to local:", error);
+  }
+
+  return localData ? deepMerge(DEFAULT_PREFERENCES, localData) : DEFAULT_PREFERENCES;
+}
+
+/**
+ * Persist preferences to Firestore and localStorage
+ */
+export async function saveUserPreferences(uid, updatedPreferences) {
+  if (!uid) {
+    try {
+      localStorage.setItem(`${LOCAL_SETTINGS_KEY}_guest`, JSON.stringify(updatedPreferences));
+    } catch (e) {}
+    return updatedPreferences;
+  }
+
+  try {
+    localStorage.setItem(`${LOCAL_SETTINGS_KEY}_${uid}`, JSON.stringify(updatedPreferences));
+  } catch (e) {}
+
+  try {
+    const prefRef = doc(firestore, "users", uid, "settings", "preferences");
+    await setDoc(prefRef, {
+      ...updatedPreferences,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+
+    // Also persist accessibilityPreferences & appearancePreferences directly to users/{uid} matching DB schema
+    const userDocRef = doc(firestore, "users", uid);
+    const accessibility = updatedPreferences.accessibility || {};
+    const appearance = updatedPreferences.appearance || {};
+
+    const colorBlindModeRaw = accessibility.colorBlindMode || "off";
+    const colorBlindModeCapitalized =
+      colorBlindModeRaw === "off" ? "Off" :
+      colorBlindModeRaw === "protanopia" ? "Protanopia" :
+      colorBlindModeRaw === "deuteranopia" ? "Deuteranopia" :
+      colorBlindModeRaw === "tritanopia" ? "Tritanopia" :
+      colorBlindModeRaw;
+
+    const accentVal = appearance.accentColor || appearance.accent || "white";
+
+    await setDoc(userDocRef, {
+      accessibilityPreferences: {
+        audioCues: Boolean(accessibility.audioCues),
+        boldText: Boolean(accessibility.boldText),
+        colorBlindMode: colorBlindModeCapitalized,
+        hapticFeedback: Boolean(accessibility.hapticFeedback),
+        highContrastMode: Boolean(accessibility.highContrast || accessibility.highContrastMode),
+        largeTouchTargets: Boolean(accessibility.largeTouchTargets),
+        reduceMotion: Boolean(accessibility.reduceMotion),
+        reduceTransparency: Boolean(accessibility.reduceTransparency),
+        screenReaderCompat: Boolean(accessibility.screenReaderCompat || accessibility.screenReaderOptimized),
+      },
+      appearancePreferences: {
+        accent: accentVal,
+      },
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  } catch (error) {
+    console.error("Failed to persist preferences to Firestore:", error);
+    throw error;
+  }
+
+  return updatedPreferences;
+}
+
+/**
+ * Export authorized user data as JSON
+ */
+export async function exportUserData(uid, userProfile = {}) {
+  if (!uid) throw new Error("Authentication required for export.");
+
+  const exportPayload = {
+    exportDate: new Date().toISOString(),
+    userId: uid,
+    profile: {
+      name: userProfile.name || "",
+      username: userProfile.username || "",
+      email: userProfile.email || "",
+      type: userProfile.type || "Standard",
+      createdAt: userProfile.createdAt || null,
+    },
+    preferences: {},
+    trips: [],
+    notes: [],
+  };
+
+  try {
+    const prefRef = doc(firestore, "users", uid, "settings", "preferences");
+    const pSnap = await getDoc(prefRef);
+    if (pSnap.exists()) {
+      exportPayload.preferences = pSnap.data();
     }
+  } catch (e) {}
+
+  try {
+    const tripsQuery = query(
+      collection(firestore, "trips"),
+      where("members", "array-contains", uid)
+    );
+    const tripsSnap = await getDocs(tripsQuery);
+    exportPayload.trips = tripsSnap.docs.map(d => ({
+      id: d.id,
+      name: d.data().name || d.data().destination || "Trip",
+      destination: d.data().destination || "",
+      startDate: d.data().startDate || null,
+      endDate: d.data().endDate || null,
+    }));
+  } catch (e) {}
+
+  return exportPayload;
+}
+
+function deepMerge(target, source) {
+  const output = { ...target };
+  if (isObject(target) && isObject(source)) {
+    Object.keys(source).forEach((key) => {
+      if (isObject(source[key])) {
+        if (!(key in target)) {
+          Object.assign(output, { [key]: source[key] });
+        } else {
+          output[key] = deepMerge(target[key], source[key]);
+        }
+      } else {
+        Object.assign(output, { [key]: source[key] });
+      }
+    });
   }
   return output;
 }
 
-/**
- * Load user settings from Firestore (with localStorage fallback)
- */
-export async function loadUserSettings(uid) {
-  let localData = null;
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
-    if (raw) localData = JSON.parse(raw);
-  } catch (err) {
-    console.debug("Local storage read error for settings:", err);
-  }
-
-  if (!uid && auth.currentUser) {
-    uid = auth.currentUser.uid;
-  }
-
-  if (!uid) {
-    return deepMergePreferences(DEFAULT_PREFERENCES, localData);
-  }
-
-  try {
-    const prefRef = doc(db, "users", uid, "settings", "preferences");
-    const snap = await getDoc(prefRef);
-    if (snap.exists()) {
-      const firestoreData = snap.data();
-      const merged = deepMergePreferences(DEFAULT_PREFERENCES, firestoreData);
-      try {
-        localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(merged));
-      } catch (_) {}
-      return merged;
-    } else {
-      // If no subcollection exists yet, check parent user doc for legacy preferences
-      const userDocRef = doc(db, "users", uid);
-      const userSnap = await getDoc(userDocRef);
-      let legacyPrefs = {};
-      if (userSnap.exists()) {
-        const udata = userSnap.data();
-        if (udata.privacy) legacyPrefs.privacy = udata.privacy;
-        if (udata.settings) legacyPrefs = { ...legacyPrefs, ...udata.settings };
-      }
-      const merged = deepMergePreferences(DEFAULT_PREFERENCES, {
-        ...legacyPrefs,
-        ...localData,
-      });
-      // Save initial defaults to Firestore
-      try {
-        await setDoc(prefRef, merged, { merge: true });
-      } catch (saveErr) {
-        console.debug("Initial save to Firestore preferences skipped:", saveErr);
-      }
-      return merged;
-    }
-  } catch (err) {
-    console.error("Error loading settings from Firestore:", err);
-    return deepMergePreferences(DEFAULT_PREFERENCES, localData);
-  }
-}
-
-/**
- * Save user settings to Firestore and localStorage
- */
-export async function saveUserSettings(uid, groupKey, partialSettings) {
-  if (!uid && auth.currentUser) {
-    uid = auth.currentUser.uid;
-  }
-
-  // Update localStorage immediately
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
-    const current = raw ? JSON.parse(raw) : DEFAULT_PREFERENCES;
-    const updated = {
-      ...current,
-      [groupKey]: {
-        ...(current[groupKey] || {}),
-        ...partialSettings,
-      },
-    };
-    localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(updated));
-  } catch (_) {}
-
-  if (!uid) return;
-
-  try {
-    const prefRef = doc(db, "users", uid, "settings", "preferences");
-    const payload = groupKey ? { [groupKey]: partialSettings } : partialSettings;
-    await setDoc(prefRef, payload, { merge: true });
-
-    // Synchronize high-priority legacy fields directly to userDoc for backward compatibility
-    if (groupKey === "privacy" && partialSettings.profileVisibility) {
-      const userRef = doc(db, "users", uid);
-      await updateDoc(userRef, {
-        "privacy.profileVisibility": partialSettings.profileVisibility,
-        isPrivate: partialSettings.profileVisibility === "private",
-      }).catch(() => {});
-    }
-  } catch (err) {
-    console.error(`Error saving user settings group [${groupKey}]:`, err);
-  }
+function isObject(item) {
+  return item && typeof item === "object" && !Array.isArray(item);
 }

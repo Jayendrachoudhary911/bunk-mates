@@ -17,6 +17,7 @@ import { getTheme } from "../theme";
 import { glass } from "../theme/designSystem";
 import ProfilePic from "./Profile";
 import { useAuth } from "../hooks/useAuth";
+import { prefetchRoute } from "../utils/routePrefetcher";
 
 const BottomNavBar = () => {
   const location = useLocation();
@@ -170,6 +171,8 @@ return (
 <Box
   key={item.label}
   onClick={() => navigate(item.path)}
+  onMouseEnter={() => prefetchRoute(item.label.toLowerCase())}
+  onTouchStart={() => prefetchRoute(item.label.toLowerCase())}
   sx={{
     display: "flex",
     flexDirection: "column",

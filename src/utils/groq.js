@@ -93,10 +93,12 @@ If user asks to create → generate new trip
   }
 };
 
+export const groqClient = client;
+
 export const extractPreferences = async ({ message }) => {
   try {
     const res = await client.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: "openai/gpt-oss-120b",
       messages: [
         {
           role: "system",

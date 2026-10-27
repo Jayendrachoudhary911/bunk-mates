@@ -1,182 +1,110 @@
 import React from "react";
 import {
-  Box,
-  Typography,
-  Select,
-  MenuItem,
-  FormControl,
-} from "@mui/material";
-import {
-  VisibilityOutlined,
-  ContrastOutlined,
-  TouchAppOutlined,
-  ColorLensOutlined,
-  FormatBoldOutlined,
-  LayersClearOutlined,
-  VibrationOutlined,
-  VolumeUpOutlined,
-  MotionPhotosOffOutlined,
-} from "../../icons";
-import {
+  SettingsLayout,
   SettingsHeader,
-  SettingsCard,
-  SettingsSectionTitle,
+  SettingsSection,
+  SettingsGroup,
   SettingsSwitchRow,
-  SETTINGS_THEME,
-} from "./SettingsComponents";
+  SettingsSegmentedControl,
+} from "./SettingsShared";
 
-export const AccessibilityView = ({ preferences, onUpdatePreference, onBack }) => {
-  const accessibility = preferences?.accessibility || {
-    screenReaderOptimized: true,
-    highContrast: false,
-    largeTouchTargets: false,
-    boldText: false,
-    reduceTransparency: false,
-    colorBlindMode: "off",
-    reduceMotion: false,
-    hapticFeedback: true,
-    audioCues: true,
-  };
+export default function AccessibilityView({ onBack, preferences, onUpdatePreferences }) {
+  const accessibility = preferences.accessibility || {};
 
-  const handleToggle = (key, value) => {
-    onUpdatePreference("accessibility", { [key]: value });
+  const updateField = (field, value) => {
+    onUpdatePreferences({
+      ...preferences,
+      accessibility: {
+        ...accessibility,
+        [field]: value,
+      },
+    });
+
+    if (field === "hapticFeedback" && value && navigator.vibrate) {
+      navigator.vibrate(50);
+    }
   };
 
   return (
-    <Box sx={{ minHeight: "100%", pb: 6, backgroundColor: SETTINGS_THEME.bg }}>
+    <SettingsLayout>
       <SettingsHeader title="Accessibility" onBack={onBack} />
 
       {/* Vision Support */}
-      <SettingsSectionTitle>VISION SUPPORT</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
+      <SettingsSection title="VISION SUPPORT" sx={{ ml: 0.5, mt: 0 }} />
+      <SettingsGroup sx={{ mb: 3 }}>
         <SettingsSwitchRow
-          icon={<VisibilityOutlined sx={{ fontSize: 20 }} />}
-          title="Screen Reader Optimization"
-          subtitle="Add descriptive ARIA accessibility labels and semantic landmarks"
-          checked={accessibility.screenReaderOptimized}
-          onChange={(checked) => handleToggle("screenReaderOptimized", checked)}
-        />
-
-        <SettingsSwitchRow
-          icon={<ContrastOutlined sx={{ fontSize: 20 }} />}
           title="High Contrast Mode"
-          subtitle="Increase contrast borders and contrast ratios across cards and buttons"
-          checked={accessibility.highContrast}
-          onChange={(checked) => handleToggle("highContrast", checked)}
+          subtitle="Increase contrast between text, controls, borders, and surfaces"
+          checked={Boolean(accessibility.highContrast)}
+          onChange={(v) => updateField("highContrast", v)}
+          showDivider
         />
 
         <SettingsSwitchRow
-          icon={<TouchAppOutlined sx={{ fontSize: 20 }} />}
           title="Large Touch Targets"
-          subtitle="Enlarge clickable hitboxes and switch padding for easier tapping"
-          checked={accessibility.largeTouchTargets}
-          onChange={(checked) => handleToggle("largeTouchTargets", checked)}
+          subtitle="Increase interactive button and switch touch dimensions"
+          checked={Boolean(accessibility.largeTouchTargets)}
+          onChange={(v) => updateField("largeTouchTargets", v)}
+          showDivider
         />
 
         <SettingsSwitchRow
-          icon={<FormatBoldOutlined sx={{ fontSize: 20 }} />}
           title="Bold Text"
-          subtitle="Increase font weight across headings, labels, and chat messages"
-          checked={accessibility.boldText}
-          onChange={(checked) => handleToggle("boldText", checked)}
+          subtitle="Increase typography weights across labels and content"
+          checked={Boolean(accessibility.boldText)}
+          onChange={(v) => updateField("boldText", v)}
+          showDivider
         />
 
         <SettingsSwitchRow
-          icon={<LayersClearOutlined sx={{ fontSize: 20 }} />}
           title="Reduce Transparency"
-          subtitle="Replace translucent glass surfaces with solid, opaque backgrounds"
-          checked={accessibility.reduceTransparency}
-          onChange={(checked) => handleToggle("reduceTransparency", checked)}
+          subtitle="Replace translucent blur surfaces with opaque dark panels"
+          checked={Boolean(accessibility.reduceTransparency)}
+          onChange={(v) => updateField("reduceTransparency", v)}
         />
+      </SettingsGroup>
 
-        {/* Color Blind Mode Selector */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            py: 2,
-            px: 2,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.8 }}>
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: "50%",
-                backgroundColor: SETTINGS_THEME.iconBg,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#FFFFFF",
-              }}
-            >
-              <ColorLensOutlined sx={{ fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontWeight: 600, fontSize: "0.98rem", color: "#FFFFFF" }}>
-                Color Blind Preset
-              </Typography>
-              <Typography sx={{ fontSize: "0.82rem", color: SETTINGS_THEME.textSecondary }}>
-                Adjust color palette for color vision deficiencies
-              </Typography>
-            </Box>
-          </Box>
-
-          <FormControl size="small">
-            <Select
-              value={accessibility.colorBlindMode || "off"}
-              onChange={(e) => handleToggle("colorBlindMode", e.target.value)}
-              sx={{
-                color: "#FFFFFF",
-                backgroundColor: "#202024",
-                borderRadius: "12px",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                "& fieldset": { borderColor: SETTINGS_THEME.divider },
-                "& .MuiSvgIcon-root": { color: "#FFFFFF" },
-              }}
-            >
-              <MenuItem value="off">Off (Default)</MenuItem>
-              <MenuItem value="protanopia">Protanopia (Red-weak)</MenuItem>
-              <MenuItem value="deuteranopia">Deuteranopia (Green-weak)</MenuItem>
-              <MenuItem value="tritanopia">Tritanopia (Blue-weak)</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-      </SettingsCard>
+      {/* Color Blind Mode */}
+      <SettingsSection title="COLOR BLIND MODE" sx={{ ml: 0.5 }} />
+      <SettingsGroup sx={{ p: 1.5, mb: 3 }}>
+        <SettingsSegmentedControl
+          value={accessibility.colorBlindMode || "off"}
+          onChange={(val) => updateField("colorBlindMode", val)}
+          options={[
+            { label: "Off", value: "off" },
+            { label: "Protanopia", value: "protanopia" },
+            { label: "Deuteranopia", value: "deuteranopia" },
+            { label: "Tritanopia", value: "tritanopia" },
+          ]}
+        />
+      </SettingsGroup>
 
       {/* Motion & Feedback */}
-      <SettingsSectionTitle>MOTION & FEEDBACK</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
+      <SettingsSection title="MOTION & FEEDBACK" sx={{ ml: 0.5 }} />
+      <SettingsGroup>
         <SettingsSwitchRow
-          icon={<MotionPhotosOffOutlined sx={{ fontSize: 20 }} />}
           title="Reduce Motion"
-          subtitle="Turn off non-essential micro-animations and screen shakes"
-          checked={accessibility.reduceMotion}
-          onChange={(checked) => handleToggle("reduceMotion", checked)}
+          subtitle="Minimize decorative movement and page transitions"
+          checked={Boolean(accessibility.reduceMotion)}
+          onChange={(v) => updateField("reduceMotion", v)}
+          showDivider
         />
 
         <SettingsSwitchRow
-          icon={<VibrationOutlined sx={{ fontSize: 20 }} />}
           title="Haptic Feedback"
-          subtitle="Vibrate slightly when buttons, switches, or tabs are pressed"
-          checked={accessibility.hapticFeedback}
-          onChange={(checked) => handleToggle("hapticFeedback", checked)}
+          subtitle="Subtle tactile vibration on supported mobile devices"
+          checked={Boolean(accessibility.hapticFeedback)}
+          onChange={(v) => updateField("hapticFeedback", v)}
+          showDivider
         />
 
         <SettingsSwitchRow
-          icon={<VolumeUpOutlined sx={{ fontSize: 20 }} />}
           title="Audio Cues"
-          subtitle="Play subtle sounds for chat sends, alerts, and reminder pings"
-          checked={accessibility.audioCues}
-          onChange={(checked) => handleToggle("audioCues", checked)}
-          isLast
+          subtitle="Audible tones for major success and error alerts"
+          checked={Boolean(accessibility.audioCues)}
+          onChange={(v) => updateField("audioCues", v)}
         />
-      </SettingsCard>
-    </Box>
+      </SettingsGroup>
+    </SettingsLayout>
   );
-};
-
-export default AccessibilityView;
+}

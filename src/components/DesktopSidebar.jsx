@@ -32,6 +32,8 @@ import {
   onSnapshot,
   getDoc,
 } from "firebase/firestore";
+import { getCachedData, setCachedData } from "../utils/chatCache";
+import { prefetchRoute } from "../utils/routePrefetcher";
 
 const COLLAPSED_WIDTH = 44;
 const EXPANDED_WIDTH = 236;
@@ -49,8 +51,20 @@ const DesktopSidebar = () => {
 
   // Always starts collapsed by default
   const [isHovered, setIsHovered] = useState(false);
-  const [unreadChats, setUnreadChats] = useState(0);
-  const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [unreadChats, setUnreadChats] = useState(() => {
+    try {
+      const stored = localStorage.getItem("bm_total_unread_chats");
+      if (stored !== null) {
+        const val = parseInt(stored, 10);
+        return isNaN(val) ? 0 : val;
+      }
+    } catch (e) {}
+    return 0;
+  });
+  const [unreadNotifs, setUnreadNotifs] = useState(() => {
+    const uid = currentUser?.uid;
+    return uid ? getCachedData(`user_unread_notifs_${uid}`, 0) : 0;
+  });
   const [userData, setUserData] = useState({ name: "", username: "", photoURL: "" });
 
   const hoverTimerRef = useRef(null);
@@ -82,32 +96,117 @@ const DesktopSidebar = () => {
     fetchUser();
   }, [currentUser]);
 
-  // Unread chats listener
+  // Unread chats listener (direct + group chats + real-time events)
   useEffect(() => {
-    if (!currentUser?.uid) return;
+    const handleUnreadTotal = (e) => {
+      const count = typeof e.detail === "number" ? e.detail : parseInt(e.detail, 10);
+      if (!isNaN(count)) setUnreadChats(Math.max(0, count));
+    };
+
+    const handleChatListChanged = () => {
+      try {
+        const stored = localStorage.getItem("bm_total_unread_chats");
+        if (stored !== null) {
+          const count = parseInt(stored, 10);
+          if (!isNaN(count)) setUnreadChats(Math.max(0, count));
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener("bm_unread_total_changed", handleUnreadTotal);
+    window.addEventListener("bm_unread_chats_changed", handleChatListChanged);
+
+    if (!currentUser?.uid) {
+      return () => {
+        window.removeEventListener("bm_unread_total_changed", handleUnreadTotal);
+        window.removeEventListener("bm_unread_chats_changed", handleChatListChanged);
+      };
+    }
+
+    let directCount = 0;
+    let groupCount = 0;
+
+    const updateTotal = () => {
+      setUnreadChats(directCount + groupCount);
+    };
+
     const unsubs = [];
 
-    // Direct chats
+    // 1. Direct chats listener
     const userChatRef = doc(db, "userChats", currentUser.uid);
-    const unsubDirect = onSnapshot(userChatRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const chats = docSnap.data();
-        let count = 0;
-        Object.values(chats).forEach((chat) => {
-          if (
-            chat.lastMessage &&
-            chat.lastMessage.sender !== currentUser.uid &&
-            !chat.lastMessage.readBy?.includes(currentUser.uid)
-          ) {
-            count++;
-          }
-        });
-        setUnreadChats(count);
-      }
-    });
+    const unsubDirect = onSnapshot(
+      userChatRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const chats = docSnap.data();
+          let count = 0;
+          Object.values(chats).forEach((chat) => {
+            if (
+              chat.lastMessage &&
+              chat.lastMessage.sender !== currentUser.uid &&
+              !chat.lastMessage.readBy?.includes(currentUser.uid)
+            ) {
+              count++;
+            }
+          });
+          directCount = count;
+          updateTotal();
+        }
+      },
+      (err) => console.error("Error in direct chats listener:", err)
+    );
     unsubs.push(unsubDirect);
 
-    return () => unsubs.forEach((u) => u && u());
+    // 2. Group chats listener
+    const groupsQuery = query(
+      collection(db, "groupChats"),
+      where("members", "array-contains", currentUser.uid)
+    );
+    const unsubGroups = onSnapshot(
+      groupsQuery,
+      (snapshot) => {
+        let count = 0;
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (
+            data &&
+            data.lastMessage &&
+            data.lastMessageSender &&
+            data.lastMessageSender !== currentUser.uid
+          ) {
+            const userReadTs = data.readTimestamps?.[currentUser.uid];
+            const lastMsgTs = data.lastMessageTimestamp || data.updatedAt;
+            if (lastMsgTs) {
+              const lastMs = lastMsgTs.toMillis
+                ? lastMsgTs.toMillis()
+                : typeof lastMsgTs === "number"
+                ? lastMsgTs
+                : 0;
+              const readMs = userReadTs
+                ? userReadTs.toMillis
+                  ? userReadTs.toMillis()
+                  : typeof userReadTs === "number"
+                  ? userReadTs
+                  : 0
+                : 0;
+              if (lastMs > readMs) {
+                count++;
+              }
+            }
+          }
+        });
+        groupCount = count;
+        updateTotal();
+      },
+      (err) => console.error("Error in group chats listener:", err)
+    );
+    unsubs.push(unsubGroups);
+
+    return () => {
+      window.removeEventListener("bm_unread_total_changed", handleUnreadTotal);
+      window.removeEventListener("bm_unread_chats_changed", handleChatListChanged);
+      unsubs.forEach((u) => u && u());
+    };
   }, [currentUser]);
 
   // Unread notifications listener
@@ -120,6 +219,7 @@ const DesktopSidebar = () => {
     );
     const unsub = onSnapshot(notifQuery, (snap) => {
       setUnreadNotifs(snap.size);
+      setCachedData(`user_unread_notifs_${currentUser.uid}`, snap.size);
     });
     return () => unsub();
   }, [currentUser]);
@@ -244,7 +344,7 @@ const DesktopSidebar = () => {
         backdropFilter: "blur(30px) saturate(1.4)",
         WebkitBackdropFilter: "blur(30px) saturate(1.4)",
         border: 0,
-        boxShadow: 'inset 0 1px 6px rgba(255, 255, 255, 0.02), inset 0 -1px 3px rgba(255, 255, 255, 0.02), inset 2px 1px 3px rgba(255, 255, 255, 0.02), inset -2px 1px 3px rgba(255, 255, 255, 0.02)',
+        boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.02), inset 0 -1px 1px rgba(255, 255, 255, 0.02), inset 2px 1px 1px rgba(255, 255, 255, 0.02), inset -2px 1px 1px rgba(255, 255, 255, 0.02)',
         transition: "width 220ms cubic-bezier(0.16, 1, 0.3, 1), background-color 220ms ease, box-shadow 220ms ease",
         py: 2.5,
         px: 1.5,
@@ -295,7 +395,7 @@ const DesktopSidebar = () => {
             alignItems: "center",
             justifyContent: "center",
             boxShadow: isDark
-              ? "inset 0 1px 2px rgba(255,255,255,0.2), 0 4px 12px rgba(0,0,0,0.3)"
+              ? "inset 0 1px 1px rgba(255,255,255,0.2), 0 4px 12px rgba(0,0,0,0.3)"
               : "inset 0 1px 2px rgba(255,255,255,0.9), 0 3px 10px rgba(0,0,0,0.06)",
             flexShrink: 0,
           }}
@@ -384,6 +484,11 @@ const DesktopSidebar = () => {
                   aria-label={item.label}
                   aria-current={active ? "page" : undefined}
                   onClick={item.onClick}
+                  onMouseEnter={() => {
+                    if (item.path) {
+                      prefetchRoute(item.id);
+                    }
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       item.onClick();

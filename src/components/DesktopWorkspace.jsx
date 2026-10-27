@@ -7,14 +7,6 @@ import { useDesktopPanel } from "../contexts/DesktopPanelContext";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { useLocation } from "react-router-dom";
 
-// Panel Contents
-import ProfilePic from "./Profile";
-import TripsPanelContent from "./panels/TripsPanelContent";
-import NotesPanelContent from "./panels/NotesPanelContent";
-import TodosPanelContent from "./panels/TodosPanelContent";
-import HelpPanelContent from "./panels/HelpPanelContent";
-import Notifications from "./Notifications";
-
 // Icons
 import {
   PersonOutline as PersonIcon,
@@ -24,6 +16,17 @@ import {
   AlarmOutlined as TasksIcon,
   HelpOutline as HelpIcon,
 } from "../icons";
+import GroupsIcon from "@mui/icons-material/GroupsOutlined";
+
+// Lazy-loaded Panel Contents for optimal code splitting & fast initial LCP
+const ProfilePic = React.lazy(() => import("./Profile"));
+const TripsPanelContent = React.lazy(() => import("./panels/TripsPanelContent"));
+const NotesPanelContent = React.lazy(() => import("./panels/NotesPanelContent"));
+const TodosPanelContent = React.lazy(() => import("./panels/TodosPanelContent"));
+const HelpPanelContent = React.lazy(() => import("./panels/HelpPanelContent"));
+const Notifications = React.lazy(() => import("./Notifications"));
+const ChatProfilePanelContent = React.lazy(() => import("./panels/ChatProfilePanelContent"));
+const GroupInfoPanelContent = React.lazy(() => import("./panels/GroupInfoPanelContent"));
 
 // Proper gap from the left so the sidebar and the application content won't override
 const DESKTOP_CONTENT_MARGIN_LEFT = 88;
@@ -35,7 +38,7 @@ const DesktopWorkspace = ({ children }) => {
   const isDark = mode === "dark";
   const location = useLocation();
 
-  const { activePanel, closePanel } = useDesktopPanel();
+  const { activePanel, panelData, closePanel } = useDesktopPanel();
 
   const isAuthRoute =
     location.pathname.startsWith("/auth") ||
@@ -59,7 +62,7 @@ const DesktopWorkspace = ({ children }) => {
   const lockOuterScroll = isDesktop ? isChatRoute : isIndividualChatMobile;
 
   // Determine panel header config based on activePanel
-  const getPanelConfig = () => {
+  const panelConfig = React.useMemo(() => {
     switch (activePanel) {
       case "profile":
       case "settings":
@@ -107,12 +110,44 @@ const DesktopWorkspace = ({ children }) => {
           icon: <HelpIcon sx={{ fontSize: 20 }} />,
           content: <HelpPanelContent />,
         };
+      case "chatProfile":
+        return {
+          title: panelData?.name || panelData?.displayName || "Friend Profile",
+          subtitle: panelData?.username ? `@${panelData.username}` : "Chat details and mutual data",
+          icon: <PersonIcon sx={{ fontSize: 20 }} />,
+          width: 440,
+          hideHeader: true,
+          content: (
+            <ChatProfilePanelContent
+              profileData={panelData}
+              onClose={closePanel}
+            />
+          ),
+        };
+      case "groupInfo":
+        return {
+          title: panelData?.name || panelData?.groupName || "Group Details",
+          subtitle: `${panelData?.members?.length || 0} Members`,
+          icon: <GroupsIcon sx={{ fontSize: 20 }} />,
+          width: 440,
+          hideHeader: true,
+          content: (
+            <GroupInfoPanelContent
+              groupData={panelData}
+              onClose={closePanel}
+            />
+          ),
+        };
       default:
         return null;
     }
-  };
+  }, [activePanel, panelData, closePanel]);
 
-  const panelConfig = getPanelConfig();
+  const lastConfigRef = React.useRef(null);
+  if (panelConfig) {
+    lastConfigRef.current = panelConfig;
+  }
+  const displayConfig = panelConfig || lastConfigRef.current;
 
   return (
     <Box
@@ -156,6 +191,7 @@ const DesktopWorkspace = ({ children }) => {
             WebkitOverflowScrolling: "touch",
             scrollbarWidth: "none",
             "&::-webkit-scrollbar": { display: "none" },
+            transition: "flex 0.35s cubic-bezier(0.16, 1, 0.3, 1), max-width 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
             pb: isAuthRoute
               ? 0
               : { xs: isIndividualChatMobile ? 0 : "96px", md: 0 },
@@ -165,18 +201,20 @@ const DesktopWorkspace = ({ children }) => {
         </Box>
 
         {/* ─── Layer 3: Secondary Desktop Panel (Slide-in Right Layer) ─── */}
-        {!isAuthRoute && isDesktop && panelConfig && (
+        {!isAuthRoute && isDesktop && displayConfig && (
           <DesktopPanel
             open={Boolean(activePanel)}
-            title={panelConfig.title}
-            subtitle={panelConfig.subtitle}
-            icon={panelConfig.icon}
-            width={panelConfig.width}
-            hideHeader={panelConfig.hideHeader}
-            noPadding={panelConfig.noPadding}
+            title={displayConfig.title}
+            subtitle={displayConfig.subtitle}
+            icon={displayConfig.icon}
+            width={displayConfig.width}
+            hideHeader={displayConfig.hideHeader}
+            noPadding={displayConfig.noPadding}
             onClose={closePanel}
           >
-            {panelConfig.content}
+            <React.Suspense fallback={null}>
+              {displayConfig.content}
+            </React.Suspense>
           </DesktopPanel>
         )}
       </Box>

@@ -7,7 +7,6 @@ import { useWeather } from "../contexts/WeatherContext";
 import packageJson from '../../package.json';
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
-import { Backgrounds } from "../theme/backgroundPresets";
 import { useBackground } from "../contexts/BackgroundContext";
 import placesData from "../data/data.json";
 import { Search } from "../icons";
@@ -167,11 +166,20 @@ const Home = () => {
   const muiTheme = useTheme();
   const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
-  const [authInitialized, setAuthInitialized] = useState(false);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [authInitialized, setAuthInitialized] = useState(() => Boolean(auth.currentUser));
+  const [user, setUser] = useState(() => auth.currentUser);
+  const [loading, setLoading] = useState(() => !auth.currentUser);
   const [notLoggedIn, setNotLoggedIn] = useState(false);
-  const [userData, setUserData] = useState({});
+  const [userData, setUserData] = useState(() => {
+    try {
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        const raw = localStorage.getItem(`bunkmate_cache_user_${uid}`);
+        if (raw) return JSON.parse(raw);
+      }
+    } catch (e) {}
+    return {};
+  });
   const [, setUserType] = useState("");
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   const [aqiData, setAqiData] = useState(null);
@@ -190,7 +198,7 @@ const Home = () => {
   const [, setSliderIndex] = useState(0);
   const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
-  const { backgroundType, category, gradientType, presetIndex, animated } = useBackground();
+  useBackground();
 
   const [, setUnreadCount] = useState(0);
 
@@ -300,6 +308,9 @@ const Home = () => {
         if (docSnap.exists()) {
           const data = convertTimestamps(docSnap.data());
           setUserData(data);
+          try {
+            localStorage.setItem(`bunkmate_cache_user_${firebaseUser.uid}`, JSON.stringify(data));
+          } catch (e) {}
           setUserType(data.type || "");
         }
         setNotLoggedIn(false);
@@ -707,27 +718,6 @@ const Home = () => {
     () => (mode === "dark" ? "#fff" : "#000"),
     [mode]
   );
-
-  const backgroundStyle = useMemo(() => {
-    if (backgroundType === "solid") {
-      const color = Backgrounds.solidByIndex({ category, index: presetIndex });
-      return Backgrounds.composeSolid(color);
-    }
-    if (backgroundType === "mesh") {
-      const m = Backgrounds.meshByIndex({ category, index: presetIndex });
-      return Backgrounds.composeGradient(m.value);
-    }
-    if (backgroundType === "gradient") {
-      if (animated) {
-        const g = Backgrounds.animatedGradientByIndex({ index: presetIndex });
-        return Backgrounds.composeGradient(g.value, g.animation);
-      }
-      const g = Backgrounds.gradientByIndex({ type: gradientType, category, index: presetIndex });
-      return Backgrounds.composeGradient(g.value);
-    }
-    const defaultMesh = Backgrounds.meshByIndex({ category: "atmospheric", index: 0 });
-    return Backgrounds.composeGradient(defaultMesh.value);
-  }, [backgroundType, category, gradientType, presetIndex, animated]);
 
   const homeMemberCache = useRef(new Map());
   const homeGroupCache = useRef(new Map());
@@ -1516,7 +1506,7 @@ const Home = () => {
                   <FloatingSearch mode={mode} />
 
                   {loading ? (
-                    <PlacesGridSkullLoader count={6} />
+                    <PlacesGridSkullLoader count={6} /> 
                   ) : (
                     <Grid container spacing={3} pt={1} justifyContent={"center"}>
 

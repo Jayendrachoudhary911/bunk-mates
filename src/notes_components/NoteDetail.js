@@ -54,6 +54,7 @@ import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
 import { useBackButtonClose } from "../hooks/useBackButtonClose";
 import confetti from "canvas-confetti";
+import UniversalShareToChatDialog from "../components/chats_components/UniversalShareToChatDialog";
 
 const PROMPT_SUGGESTIONS = [
   "Summarize the main points into key takeaways",
@@ -406,6 +407,7 @@ const NoteDetail = () => {
   // Structural drawer & modal trigger states
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
   const [collaboratorsDrawerOpen, setCollaboratorsDrawerOpen] = useState(false);
+  const [shareToChatOpen, setShareToChatOpen] = useState(false);
   const [labelsDrawerOpen, setLabelsDrawerOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sharedUsersInfo, setSharedUsersInfo] = useState({});
@@ -1207,9 +1209,29 @@ const NoteDetail = () => {
               />
             </Box>
 
-            <Typography variant="h6" fontWeight={700} mb={2}>
+            <Typography variant="h6" fontWeight={700} mb={1.5}>
               Collaborators
             </Typography>
+
+            <Button
+              fullWidth
+              variant="contained"
+              startIcon={<SendIcon />}
+              onClick={() => setShareToChatOpen(true)}
+              sx={{
+                mb: 2,
+                py: 1.2,
+                borderRadius: "14px",
+                textTransform: "none",
+                fontWeight: 700,
+                fontSize: "0.95rem",
+                background: "linear-gradient(135deg, #ff9800, #f57c00)",
+                boxShadow: "0 4px 14px rgba(255, 152, 0, 0.35)",
+                color: "#fff",
+              }}
+            >
+              Share Note to Chats & Groups
+            </Button>
 
             <TextField
               placeholder="Search friends by name or email..."
@@ -1345,6 +1367,16 @@ const NoteDetail = () => {
               </List>
             )}
           </SwipeableDrawer>
+
+          {/* Universal Share Note to Chat & Groups Dialog */}
+          <UniversalShareToChatDialog
+            open={shareToChatOpen}
+            onClose={() => setShareToChatOpen(false)}
+            itemType="note"
+            itemData={note || {}}
+            currentUser={user}
+            effectiveChatTheme={mode === "dark" ? "dark" : "light"}
+          />
 
           {/* LABELS DRAWER LAYER */}
           <SwipeableDrawer

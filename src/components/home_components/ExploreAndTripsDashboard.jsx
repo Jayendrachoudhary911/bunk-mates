@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Typography,
-  Grid,
-  Button,
   Chip,
   Stack,
   useTheme,
@@ -33,8 +31,8 @@ export default function ExploreAndTripsDashboard({
   // Data states
   const [myTrips, setMyTrips] = useState(initialTrips);
   const [allFlattenedPlaces, setAllFlattenedPlaces] = useState(initialPlaces);
-  const [tripGroupsMap, setTripGroupsMap] = useState({});
-  const [tripMembersMap, setTripMembersMap] = useState({});
+  const [tripGroupsMap] = useState({});
+  const [tripMembersMap] = useState({});
   
   // UI & Loading states
   const [loading, setLoading] = useState(true);

@@ -39,6 +39,8 @@ import {
   glassIconBtnSx
 } from "../../theme/designSystem";
 import { doc, getDoc, updateDoc, collection, getDocs } from "firebase/firestore";
+import SendIcon from "@mui/icons-material/Send";
+import UniversalShareToChatDialog from "../chats_components/UniversalShareToChatDialog";
 
 const ShareDrawer = ({
   shareDrawerOpen,
@@ -55,6 +57,7 @@ const ShareDrawer = ({
   const [searchFriendQuery, setSearchFriendQuery] = useState("");
   const [friendsList, setFriendsList] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
+  const [shareToChatOpen, setShareToChatOpen] = useState(false);
 
   // Fetch account connections
   useEffect(() => {
@@ -386,8 +389,28 @@ const ShareDrawer = ({
                   </InputAdornment>
                 ),
               }}
-              sx={{ mb: 3, ...glassInputSx(mode) }}
+              sx={{ mb: 2, ...glassInputSx(mode) }}
             />
+
+            <Button
+              fullWidth
+              variant="contained"
+              startIcon={<SendIcon />}
+              onClick={() => setShareToChatOpen(true)}
+              sx={{
+                mb: 2,
+                py: 1.2,
+                borderRadius: "14px",
+                textTransform: "none",
+                fontWeight: 700,
+                fontSize: "0.95rem",
+                background: "linear-gradient(135deg, #00b7ff, #0288d1)",
+                boxShadow: "0 4px 14px rgba(0, 183, 255, 0.35)",
+                color: "#fff",
+              }}
+            >
+              Share to BunkMate Chats & Groups
+            </Button>
 
             <Divider sx={{ my: 2, borderColor: isDarkMode ? "rgba(255,255,255,0.08)" : "divider" }} />
 
@@ -533,6 +556,15 @@ const ShareDrawer = ({
             )}
           </Box>
         )}
+        {/* Universal Share to Chat & Groups Dialog */}
+        <UniversalShareToChatDialog
+          open={shareToChatOpen}
+          onClose={() => setShareToChatOpen(false)}
+          itemType="trip"
+          itemData={trip || {}}
+          currentUser={user}
+          effectiveChatTheme={mode === "dark" ? "dark" : "light"}
+        />
       </Box>
     </SwipeableDrawer>
   );

@@ -23,7 +23,7 @@ const DesktopPanel = ({
   const { mode } = useThemeToggle();
   const isDark = mode === "dark";
 
-  // Responsive width: 380px by default, 440px on extra-large screens, or custom width
+  // Responsive width: 390px by default, 440px on extra-large screens, or custom width
   const panelWidth = width || (isLargeScreen ? 440 : 390);
 
   return (
@@ -33,15 +33,38 @@ const DesktopPanel = ({
           component={motion.aside}
           role="complementary"
           aria-label={title || "Secondary Panel"}
-          initial={{ x: 40, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: 40, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 350, damping: 30 }}
-          sx={{
+          initial={{
+            width: 0,
+            opacity: 0,
+            scale: 0.98,
+            marginLeft: 0,
+            marginRight: 0,
+          }}
+          animate={{
             width: panelWidth,
+            opacity: 1,
+            scale: 1,
+            marginLeft: 16,
+            marginRight: 16,
+          }}
+          exit={{
+            width: 0,
+            opacity: 0,
+            scale: 0.98,
+            marginLeft: 0,
+            marginRight: 0,
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 350,
+            damping: 30,
+            mass: 0.8,
+          }}
+          style={{ willChange: "width, transform, opacity" }}
+          sx={{
             flexShrink: 0,
             display: "flex",
-            m: 2,
+            my: 2,
             mt: 3,
             borderRadius: 6,
             flexDirection: "column",
@@ -51,57 +74,71 @@ const DesktopPanel = ({
               isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"
             }`,
             backgroundColor: isDark
-              ? "rgba(14, 14, 14, 0.82)"
-              : "rgba(250, 250, 250, 0.88)",
-            backdropFilter: "blur(26px) saturate(1.3)",
-            WebkitBackdropFilter: "blur(26px) saturate(1.3)",
-            boxShadow: 'none',
+              ? "rgba(14, 14, 14, 0.85)"
+              : "rgba(250, 250, 250, 0.9)",
+            backdropFilter: "blur(28px) saturate(1.4)",
+            WebkitBackdropFilter: "blur(28px) saturate(1.4)",
+            boxShadow: isDark
+              ? "-8px 0 32px rgba(0, 0, 0, 0.35)"
+              : "-8px 0 28px rgba(0, 0, 0, 0.08)",
             overflow: "hidden",
           }}
         >
-          {!hideHeader && title && (
-            <DesktopPanelHeader
-              title={title}
-              subtitle={subtitle}
-              icon={icon}
-              onClose={onClose}
-              onBack={onBack}
-              rightAction={headerRight}
-            />
-          )}
-
-          {/* Panel Scroll Container */}
+          {/* Inner content wrapper with fixed width so contents never squish horizontally during smooth flex transitions */}
           <Box
             sx={{
-              flex: 1,
-              overflowY: "auto",
-              overflowX: "hidden",
-              position: "relative",
-              p: noPadding ? 0 : 0.5,
-              scrollbarWidth: "thin",
-              scrollbarColor: isDark
-                ? "rgba(255, 255, 255, 0.15) transparent"
-                : "rgba(0, 0, 0, 0.15) transparent",
-              "&::-webkit-scrollbar": {
-                width: 6,
-              },
-              "&::-webkit-scrollbar-track": {
-                background: "transparent",
-              },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: isDark
-                  ? "rgba(255, 255, 255, 0.15)"
-                  : "rgba(0, 0, 0, 0.15)",
-                borderRadius: 3,
-                "&:hover": {
-                  backgroundColor: isDark
-                    ? "rgba(255, 255, 255, 0.25)"
-                    : "rgba(0, 0, 0, 0.25)",
-                },
-              },
+              width: panelWidth,
+              minWidth: panelWidth,
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
             }}
           >
-            {children}
+            {!hideHeader && title && (
+              <DesktopPanelHeader
+                title={title}
+                subtitle={subtitle}
+                icon={icon}
+                onClose={onClose}
+                onBack={onBack}
+                rightAction={headerRight}
+              />
+            )}
+
+            {/* Panel Scroll Container */}
+            <Box
+              sx={{
+                flex: 1,
+                overflowY: "auto",
+                overflowX: "hidden",
+                position: "relative",
+                p: noPadding ? 0 : 0.5,
+                scrollbarWidth: "thin",
+                scrollbarColor: isDark
+                  ? "rgba(255, 255, 255, 0.15) transparent"
+                  : "rgba(0, 0, 0, 0.15) transparent",
+                "&::-webkit-scrollbar": {
+                  width: 6,
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "transparent",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  backgroundColor: isDark
+                    ? "rgba(255, 255, 255, 0.15)"
+                    : "rgba(0, 0, 0, 0.15)",
+                  borderRadius: 3,
+                  "&:hover": {
+                    backgroundColor: isDark
+                      ? "rgba(255, 255, 255, 0.25)"
+                      : "rgba(0, 0, 0, 0.25)",
+                  },
+                },
+              }}
+            >
+              {children}
+            </Box>
           </Box>
         </Box>
       )}
@@ -109,4 +146,4 @@ const DesktopPanel = ({
   );
 };
 
-export default DesktopPanel;
+export default React.memo(DesktopPanel);

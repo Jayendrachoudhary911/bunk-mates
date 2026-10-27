@@ -13,8 +13,8 @@ import {
   ChatBubbleOutline as ChatIcon,
   ExploreOutlined as ExploreIcon,
 } from "../icons";
-import Chatroom from "./Chatroom";
-import GroupChat from "./GroupChat";
+import Chatroom from "./chats_components/Chatroom";
+import GroupChat from "./groupchats_components/GroupChat";
 import { useDesktopPanel } from "../contexts/DesktopPanelContext";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import Chats from "../pages/Chats";
@@ -45,7 +45,7 @@ const ChatWorkspace = () => {
     }
   }, [friendId, groupName]);
 
-  const handleSelectChat = (chat) => {
+  const handleSelectChat = React.useCallback((chat) => {
     setSelectedChat(chat);
     if (isDesktop) {
       if (chat.type === "user") {
@@ -60,9 +60,9 @@ const ChatWorkspace = () => {
         navigate(`/group/${chat.id}`);
       }
     }
-  };
+  }, [isDesktop, navigate]);
 
-  const handleOpenProfile = (profileData) => {
+  const handleOpenProfile = React.useCallback((profileData) => {
     if (isDesktop) {
       openPanel("chatProfile", profileData);
     } else {
@@ -70,13 +70,13 @@ const ChatWorkspace = () => {
         navigate(`/chat/${profileData.id}?profile`);
       }
     }
-  };
+  }, [isDesktop, openPanel, navigate]);
 
-  const handleOpenGroupInfo = (groupInfo) => {
+  const handleOpenGroupInfo = React.useCallback((groupInfo) => {
     if (isDesktop) {
       openPanel("groupInfo", groupInfo);
     }
-  };
+  }, [isDesktop, openPanel]);
 
   // ─── Mobile View ───
   if (!isDesktop) {
@@ -97,7 +97,7 @@ const ChatWorkspace = () => {
         width: "100%",
         height: "100%",
         overflow: "hidden",
-        backgroundColor: isDark ? "#090909" : "#f5f6f9",
+        backgroundColor: 'transparent',
       }}
     >
       {/* ─── Left Side: Chat List (fetched directly from /pages/Chats.js) ─── */}
@@ -105,10 +105,11 @@ const ChatWorkspace = () => {
         sx={{
           width: { md: 340, lg: 380 },
           flexShrink: 0,
-          height: "100%",
-          borderRight: `1px solid ${
+          m: 2,
+          border: `1px solid ${
             isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"
           }`,
+          borderRadius: 6,
           backgroundColor: isDark ? "#0c0c0c" : "#f8f9fa",
           display: "flex",
           flexDirection: "column",
@@ -127,7 +128,8 @@ const ChatWorkspace = () => {
       <Box
         sx={{
           flex: 1,
-          minWidth: 0,
+          minWidth: 'auto',
+          width: 'auto',
           height: "100%",
           display: "flex",
           flexDirection: "column",
@@ -167,15 +169,15 @@ const ChatWorkspace = () => {
               sx={{
                 width: 88,
                 height: 88,
-                borderRadius: "28px",
+                borderRadius: 18,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 mb: 2.5,
                 background: isDark
-                  ? "linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))"
+                  ? "linear-gradient(135deg, rgba(255,255,255,0), rgba(255,255,255,0))"
                   : "linear-gradient(135deg, rgba(0,0,0,0.06), rgba(0,0,0,0.01))",
-                border: `1px solid ${
+                border: `0px solid ${
                   isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
                 }`,
                 boxShadow: isDark
@@ -217,19 +219,24 @@ const ChatWorkspace = () => {
 
             <Stack direction="row" spacing={1.5}>
               <Button
-                variant="outlined"
+                variant="contained"
                 startIcon={<ExploreIcon sx={{ fontSize: 18 }} />}
                 onClick={() => navigate("/trips")}
                 sx={{
-                  borderRadius: 3,
+                  borderRadius: 8,
                   py: 1,
                   px: 2.5,
                   textTransform: "none",
                   fontWeight: 600,
+                  border: 'none',
+                  boxShadow: mode === "dark" ? 'inset 0 1px 1px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(0,0,0,0.4)' : 'inset 0 1px 2px rgba(255, 255, 255, 0.71), inset 0 -1px 2px rgba(0,0,0,0.1)',
                   color: isDark ? "#fff" : "#111",
-                  borderColor: isDark
-                    ? "rgba(255,255,255,0.15)"
-                    : "rgba(0,0,0,0.15)",
+                  backgroundColor: isDark
+                    ? "rgba(255,255,255,0.1)"
+                    : "rgba(0,0,0,0.1)",
+                  "&:hover":{
+                    boxShadow: 'none'
+                  }
                 }}
               >
                 Explore Trips

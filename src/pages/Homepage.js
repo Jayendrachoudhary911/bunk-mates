@@ -147,7 +147,6 @@ const Home = () => {
   const [liveAlerts, setLiveAlerts] = useState({ upcoming: [], ongoing: [], reminders: [] });
   
   const watchIdRef = useRef(null);
-  const [friendCards, setFriendCards] = useState([]);
   
   const [, setScrolled] = useState(false);
   const [, setShowAppBar] = useState(true);

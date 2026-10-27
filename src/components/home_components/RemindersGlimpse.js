@@ -1,8 +1,8 @@
 import React, { useRef, useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Typography, IconButton, Button } from "@mui/material";
+import { Box, Typography, IconButton } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarMonth, NotificationsNone, Check, AccessTime } from "../../icons";
+import { NotificationsNone, Check, AccessTime } from "../../icons";
 import { designTokens, glass } from "../../theme/designSystem";
 
 const MAX_VISIBLE = 4; // Updated to show exactly 4 reminders

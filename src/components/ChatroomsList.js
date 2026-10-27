@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Box, Button, Typography, Grid, CircularProgress } from "@mui/material";
+import { Box, Button, Typography, Grid, Skeleton } from "@mui/material";
 import { db } from "../firebase";
-import { collection, query, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { Link } from "react-router-dom";
 
 const ChatroomsList = () => {
@@ -35,7 +35,18 @@ const ChatroomsList = () => {
         Available Chatrooms
       </Typography>
       {loading ? (
-        <CircularProgress sx={{ alignSelf: "center" }} />
+        <Grid container spacing={2}>
+          {[1, 2, 3, 4, 5, 6].map((idx) => (
+            <Grid item xs={12} sm={6} key={idx}>
+              <Skeleton
+                variant="rounded"
+                animation="wave"
+                height={48}
+                sx={{ borderRadius: "10px" }}
+              />
+            </Grid>
+          ))}
+        </Grid>
       ) : (
         <Grid container spacing={2}>
           {chatrooms.map((chatroom) => (

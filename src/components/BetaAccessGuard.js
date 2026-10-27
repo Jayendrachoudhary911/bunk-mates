@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
-  CircularProgress,
   Button,
   Paper,
   Fade,
@@ -24,11 +23,12 @@ import { onAuthStateChanged } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+import ChatListSkeleton from "./chats_components/ChatListSkeleton";
 
 const ALLOWED_USER_TYPES = ["Beta", "Dev Beta"];
 
 
-export default function BetaAccessGuard({ children }) {
+export default function BetaAccessGuard({ children, fallback = null }) {
   const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
   
@@ -66,10 +66,17 @@ export default function BetaAccessGuard({ children }) {
   const toggleDrawer = (open) => () => setDrawerOpen(open);
 
   if (loading) {
+    if (fallback) {
+      return (
+        <ThemeProvider theme={theme}>
+          {fallback}
+        </ThemeProvider>
+      );
+    }
     return (
       <ThemeProvider theme={theme}>
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", bgcolor: "background.default" }}>
-          <CircularProgress size={24} thickness={2} sx={{ color: "text.primary" }} />
+        <Box sx={{ width: "100%", maxWidth: 900, mx: "auto", px: { xs: 2, sm: 2.5 }, pt: 2 }}>
+          <ChatListSkeleton count={7} isDark={mode === "dark"} />
         </Box>
       </ThemeProvider>
     );

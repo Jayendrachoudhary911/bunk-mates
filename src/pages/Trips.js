@@ -58,13 +58,12 @@ import {
   DeleteOutline,
 } from "@mui/icons-material";
 import { db, auth } from "../firebase";
+import UniversalShareToChatDialog from "../components/chats_components/UniversalShareToChatDialog";
 import {
   collection,
   getDocs,
-  addDoc,
   query,
   where,
-  setDoc,
   doc,
   updateDoc,
   onSnapshot,
@@ -137,12 +136,11 @@ export default function Trips() {
   const [currentTab, setCurrentTab] = useState(0); 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [step, setStep] = useState(0); 
-  const [newTrip, setNewTrip] = useState({
+  const [, setNewTrip] = useState({
     name: "", from: "", to: "", location: "", startDate: "", endDate: "", iconDataUri: "", travelType: "Adventure", budgetGoal: ""
   });
   const [selectedMembers, setSelectedMembers] = useState([]);
-  const [latestTripId, setLatestTripId] = useState(null);
-  const [createdTripDetails, setCreatedTripDetails] = useState(null);
+  const [latestTripId] = useState(null);
 
   const [pinnedTripIds, setPinnedTripIds] = useState([]);
 
@@ -155,6 +153,7 @@ export default function Trips() {
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [actionMode, setActionMode] = useState(false);
   const [shareDrawerOpen, setShareDrawerOpen] = useState(false);
+  const [chatShareDialogOpen, setChatShareDialogOpen] = useState(false);
   const [searchFriendQuery, setSearchFriendQuery] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loadingFriends, setLoadingFriends] = useState(false);
@@ -184,7 +183,6 @@ export default function Trips() {
     setStep(0);
     setNewTrip({ name: "", from: "", to: "", location: "", startDate: "", endDate: "", iconDataUri: "", travelType: "Adventure", budgetGoal: "" });
     setSelectedMembers([]);
-    setCreatedTripDetails(null);
   };
 
   useEffect(() => {
@@ -346,49 +344,6 @@ export default function Trips() {
       }
     }
   }, [createDialogOpen, step, user, selectedMembers]);
-
-  const handleNext = () => {
-    setStep(prev => prev + 1);
-  };
-  const handleBack = () => setStep(prev => prev - 1);
-
-  const handleCreateTrip = async (options = {}) => {
-    const { name, from, to, location, startDate, endDate, iconDataUri, description } = newTrip;
-    const iconURL = iconDataUri || "";
-    const members = selectedMembers.map(m => m.uid);
-    const contributors = selectedMembers.map(m => ({ uid: m.uid, name: m.name || m.username, amount: parseInt(m.contribution || 0) }));
-    const total = contributors.reduce((sum, c) => sum + c.amount, 0);
-
-    try {
-      const tripDoc = await addDoc(collection(db, "trips"), { 
-        name: name || `${from} to ${to}`, 
-        from: from || "", 
-        to: to || "", 
-        location: location || `${from} → ${to}`, 
-        description: description || "",
-        startDate: startDate || "", 
-        endDate: endDate || "", 
-        members, 
-        createdBy: user.uid, 
-        createdAt: new Date().toISOString() 
-      });
-      await setDoc(doc(db, "groupChats", tripDoc.id), { tripId: tripDoc.id, name: `${from} → ${to}`, members, iconURL, createdBy: user.uid, createdAt: new Date().toISOString() });
-      await setDoc(doc(db, "budgets", tripDoc.id), { tripId: tripDoc.id, tripName: name, total, used: 0, contributors, createdBy: user.uid, createdAt: new Date().toISOString() });
-      
-      const tripDetails = { id: tripDoc.id, name, from, to, location, startDate, endDate, members };
-      setCreatedTripDetails(tripDetails);
-      setLatestTripId(tripDoc.id);
-
-      if (!options?.keepOpen) {
-        handleCloseDrawer();
-      }
-
-      return tripDetails;
-    } catch (error) { 
-      alert(error.message); 
-      throw error;
-    }
-  };
 
   const fetchFriendsNetwork = async () => {
     if (!user) return;
@@ -2744,7 +2699,15 @@ export default function Trips() {
                   setDesktopMenuAnchorEl(null); 
                 }}>
                   <ListItemIcon><Share fontSize="small" /></ListItemIcon>
-                  Share
+                  Share Network Matrix
+                </MenuItem>
+
+                <MenuItem onClick={() => { 
+                  setChatShareDialogOpen(true); 
+                  setDesktopMenuAnchorEl(null); 
+                }}>
+                  <ListItemIcon><ChatBubbleOutline fontSize="small" /></ListItemIcon>
+                  Share to Chats & Groups
                 </MenuItem>
 
                 <MenuItem onClick={() => { 
@@ -3748,6 +3711,30 @@ export default function Trips() {
           <Typography variant="h6" fontWeight={950} letterSpacing="-0.5px" mb={2}>
             Trip Matrix Access Network
           </Typography>
+
+          <Button
+            variant="contained"
+            fullWidth
+            startIcon={<ChatBubbleOutline />}
+            onClick={() => {
+              setShareDrawerOpen(false);
+              setChatShareDialogOpen(true);
+            }}
+            sx={{
+              mb: 2,
+              py: 1.2,
+              borderRadius: 4,
+              fontWeight: 700,
+              textTransform: "none",
+              background: mode === "dark" ? "#ffffff" : "#0f172a",
+              color: mode === "dark" ? "#000000" : "#ffffff",
+              "&:hover": {
+                background: mode === "dark" ? "#f1f1f1" : "#1e293b",
+              },
+            }}
+          >
+            Share Trip to Chats & Groups
+          </Button>
           
           <TextField
             placeholder="Search account connections..." 
@@ -3918,6 +3905,15 @@ export default function Trips() {
             <Button variant="contained" fullWidth onClick={handleDeleteTrip} sx={{ textTransform: "none", background: mode === "dark" ? "rgba(229, 57, 53, 0.18)" : "rgba(255, 102, 102, 0.69)", backdropFilter: "blur(10px)", boxShadow: theme.palette.mode === "dark" ? `inset 0 1px 2px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(35, 35, 35, 0.07)` : `inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.1)`, borderRadius: 8, py: 1.2, fontWeight: 650, color: mode === "dark" ? "#fff" : "#000", "&:hover": { backgroundColor: "#c62828" } }}>Delete Trip</Button>
           </Stack>
         </SwipeableDrawer>
+
+        <UniversalShareToChatDialog
+          open={chatShareDialogOpen}
+          onClose={() => setChatShareDialogOpen(false)}
+          itemType="trip"
+          itemData={selectedTrip || {}}
+          currentUser={user}
+          effectiveChatTheme={mode}
+        />
 
         
       </Box>

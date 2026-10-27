@@ -12,7 +12,7 @@ import {
   CircularProgress,
   SwipeableDrawer,
 } from "@mui/material";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,17 +22,17 @@ import {
   BookmarkBorder as BookmarkBorderIcon, 
   Close as CloseIcon,
   ExploreOutlined as ExploreIcon,
+  Share as ShareIcon,
 } from "../../icons";
-import PlaceDetailsDialog from "../../elements/PlaceDetailsDialog";
 import { usePlaceLikesCount } from "../../hooks/usePlaceLikesCount";
-import AnimatedLikeCount from "../../elements/AnimatedLikeCount";
 import { toggleLikePlace, toggleSavePlace } from "../../utils/placeActions";
 import { glass, glassIconBtnSx, ctaButtonSx, drawerPaperSx, drawerBackdropSx, drawerHandleSx } from "../../theme/designSystem";
+import { auth } from "../../firebase";
+import UniversalShareToChatDialog from "../chats_components/UniversalShareToChatDialog";
 
 const CARD_WIDTH = 270;
 const CARD_GAP = 16;
 const SCROLL_AMOUNT = CARD_WIDTH + CARD_GAP;
-const PARTICLES = 8;
 
 const InfoItem = ({ label, value, full }) => (
   <Box sx={{ gridColumn: full ? "span 2" : "auto" }}>
@@ -51,39 +51,6 @@ const haptic = (pattern = 10) => {
   }
 };
 
-const LikeBurst = () => {
-  return (
-    <>
-      {Array.from({ length: PARTICLES }).map((_, i) => {
-        const angle = (Math.PI * 2 * i) / PARTICLES;
-        const distance = 18 + Math.random() * 10;
-
-        return (
-          <motion.span
-            key={i}
-            initial={{ opacity: 1, scale: 0, x: 0, y: 0 }}
-            animate={{
-              opacity: 0,
-              scale: 1,
-              x: Math.cos(angle) * distance,
-              y: Math.sin(angle) * distance,
-            }}
-            transition={{ duration: 0.45, ease: "easeOut" }}
-            style={{
-              position: "absolute",
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              backgroundColor: "#ef4444",
-              pointerEvents: "none",
-            }}
-          />
-        );
-      })}
-    </>
-  );
-};
-
 const PlaceCard = ({ place, userData, onPlanTrip, relatedPlaces,
   onClose,
   onLike,
@@ -92,12 +59,11 @@ const PlaceCard = ({ place, userData, onPlanTrip, relatedPlaces,
   const isDark = theme.palette.mode === "dark";
 
   const [open, setOpen] = useState(false);
-  const [likeAnim, setLikeAnim] = useState(false);
-  const [saveAnim, setSaveAnim] = useState(false);
-  const [showBurst, setShowBurst] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveAnim, setSaveAnim] = useState(false);
 
   const likesCount = usePlaceLikesCount(place.id, place.likesCount);
 
@@ -106,21 +72,12 @@ const PlaceCard = ({ place, userData, onPlanTrip, relatedPlaces,
     setSaved(userData?.savedTrips?.includes(place.id) ?? false);
   }, [userData, place.id]);
 
-  const animate = (setter) => {
-    setter(true);
-    setTimeout(() => setter(false), 260);
-  };
-
   const handleLike = (e) => {
     e.stopPropagation();
     const next = !liked;
     setLiked(next);
     if (next) {
       haptic([15, 20, 15]);
-      setLikeAnim(true);
-      setShowBurst(true);
-      setTimeout(() => setLikeAnim(false), 220);
-      setTimeout(() => setShowBurst(false), 500);
     }
     toggleLikePlace(place.id, liked);
   };
@@ -129,7 +86,8 @@ const PlaceCard = ({ place, userData, onPlanTrip, relatedPlaces,
     e.stopPropagation();
     const next = !saved;
     setSaved(next);
-    animate(setSaveAnim);
+    setSaveAnim(true);
+    setTimeout(() => setSaveAnim(false), 260);
     toggleSavePlace(place.id, saved);
   };
 
@@ -196,6 +154,22 @@ const PlaceCard = ({ place, userData, onPlanTrip, relatedPlaces,
                 }}
               >
                 {saved ? <BookmarkIcon fill="#facc15" /> : <BookmarkBorderIcon />}
+              </IconButton>
+
+              <IconButton
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShareOpen(true);
+                }}
+                sx={{
+                  backdropFilter: "blur(14px)",
+                  background: alpha(isDark ? theme.palette.common.black : "#000", 0.25),
+                  color: "#fff",
+                  "&:hover": { background: alpha(isDark ? theme.palette.common.black : "#000", 0.45) },
+                }}
+                title="Share Place to Chat"
+              >
+                <ShareIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Stack>
           </Box>
@@ -480,10 +454,40 @@ const PlaceCard = ({ place, userData, onPlanTrip, relatedPlaces,
                 <InfoItem label="Season" value={place.season} />
                 <InfoItem label="Weather" value={place.weather} full />
               </Box>
+
+              <Button
+                variant="contained"
+                fullWidth
+                startIcon={<ShareIcon />}
+                onClick={() => setShareOpen(true)}
+                sx={{
+                  mt: 3,
+                  py: 1.3,
+                  borderRadius: 3,
+                  fontWeight: 700,
+                  textTransform: "none",
+                  background: isDark ? "#ffffff" : "#0f172a",
+                  color: isDark ? "#000000" : "#ffffff",
+                  "&:hover": {
+                    background: isDark ? "#e2e8f0" : "#1e293b",
+                  },
+                }}
+              >
+                Share Place to Chats & Groups
+              </Button>
             </Box>
           </Box>
         </Box>
       </SwipeableDrawer>
+
+      <UniversalShareToChatDialog
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        itemType="place"
+        itemData={place}
+        currentUser={auth.currentUser}
+        effectiveChatTheme={isDark ? "dark" : "light"}
+      />
     </>
   );
 };

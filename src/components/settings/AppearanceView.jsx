@@ -1,56 +1,39 @@
 import React from "react";
+import { Box, Typography, Card } from "@mui/material";
+import { Check } from "@mui/icons-material";
 import {
-  Box,
-  Typography,
-} from "@mui/material";
-import {
-  WbSunnyOutlined,
-  DarkModeOutlined,
-  SettingsBrightnessOutlined,
-  ColorLensOutlined,
-  FormatSizeOutlined,
-  MotionPhotosOffOutlined,
-  Check,
-} from "../../icons";
-import {
+  SettingsLayout,
   SettingsHeader,
-  SettingsCard,
-  SettingsSectionTitle,
-  SettingsSwitchRow,
+  SettingsSection,
+  SettingsGroup,
   SettingsSegmentedControl,
+  SettingsSwitchRow,
   SETTINGS_THEME,
-} from "./SettingsComponents";
+} from "./SettingsShared";
 import { useThemeToggle } from "../../contexts/ThemeToggleContext";
 
 const ACCENT_OPTIONS = [
-  { id: "blue", name: "Ocean Blue", color: "#287FE0" },
-  { id: "green", name: "Emerald", color: "#10B981" },
-  { id: "red", name: "Crimson", color: "#F43F5E" },
-  { id: "purple", name: "Amethyst", color: "#A855F7" },
-  { id: "coral", name: "Coral Red", color: "#FF7043" },
-  { id: "orange", name: "Amber Orange", color: "#FFA726" },
-  { id: "turquoise", name: "Cyan", color: "#00BCD6" },
-  { id: "default", name: "Pure White", color: "#FFFFFF" },
+  { id: "oceanBlue", label: "Ocean Blue", color: "#287FE0" },
+  { id: "coral", label: "Coral Red", color: "#FF5252" },
+  { id: "orange", label: "Orange", color: "#F9971F" },
+  { id: "green", label: "Green", color: "#29C99A" },
+  { id: "violet", label: "Violet", color: "#8B5CF6" },
+  { id: "cyan", label: "Cyan", color: "#00BCD4" },
+  { id: "white", label: "White", color: "#FFFFFF" },
 ];
 
-const FONT_SIZE_OPTIONS = [
-  { label: "Small", value: "small", scale: 0.88 },
-  { label: "Medium", value: "medium", scale: 1.0 },
-  { label: "Large", value: "large", scale: 1.15 },
-];
-
-export const AppearanceView = ({ onBack, preferences, onUpdatePreference }) => {
-  const { mode, setMode, accent, setAccent } = useThemeToggle();
-
-  const appearance = preferences?.appearance || {
-    theme: mode || "dark",
-    accentColor: accent || "blue",
-    fontSize: "medium",
-    reduceAnimations: false,
-  };
+export default function AppearanceView({ onBack, preferences, onUpdatePreferences }) {
+  const { mode, setMode, setAccent } = useThemeToggle();
+  const appearance = preferences.appearance || {};
 
   const handleThemeChange = (newTheme) => {
-    onUpdatePreference("appearance", { theme: newTheme });
+    onUpdatePreferences({
+      ...preferences,
+      appearance: {
+        ...appearance,
+        theme: newTheme,
+      },
+    });
     if (newTheme === "system") {
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       setMode(prefersDark ? "dark" : "light");
@@ -60,35 +43,61 @@ export const AppearanceView = ({ onBack, preferences, onUpdatePreference }) => {
   };
 
   const handleAccentChange = (accentId) => {
-    onUpdatePreference("appearance", { accentColor: accentId });
-    setAccent(accentId);
-  };
-
-  const handleFontSizeChange = (size) => {
-    onUpdatePreference("appearance", { fontSize: size });
-    localStorage.setItem("bunkmate_fontSize_preset", size);
-  };
-
-  const handleReduceAnimationsChange = (checked) => {
-    onUpdatePreference("appearance", { reduceAnimations: checked });
-    if (checked) {
-      document.body.classList.add("reduce-motion");
-    } else {
-      document.body.classList.remove("reduce-motion");
+    onUpdatePreferences({
+      ...preferences,
+      appearance: {
+        ...appearance,
+        accentColor: accentId,
+      },
+    });
+    // Map to theme accent if applicable
+    const accentKeyMap = {
+      oceanBlue: "blue",
+      coral: "coral",
+      orange: "orange",
+      green: "green",
+      violet: "gray",
+      cyan: "turquoise",
+      white: "default",
+    };
+    if (setAccent) {
+      setAccent(accentKeyMap[accentId] || "default");
     }
   };
 
-  const currentThemeMode = appearance.theme || (mode === "dark" ? "dark" : "light");
+  const handleFontSizeChange = (size) => {
+    onUpdatePreferences({
+      ...preferences,
+      appearance: {
+        ...appearance,
+        fontSize: size,
+      },
+    });
+    localStorage.setItem("bunkmate_fontSize", size === "small" ? "13" : size === "large" ? "17" : "15");
+  };
+
+  const handleReduceAnimations = (reduce) => {
+    onUpdatePreferences({
+      ...preferences,
+      appearance: {
+        ...appearance,
+        reduceAnimations: reduce,
+      },
+    });
+  };
+
+  const currentSize = appearance.fontSize || "medium";
+  const previewFontSize = currentSize === "small" ? "0.85rem" : currentSize === "large" ? "1.1rem" : "0.95rem";
 
   return (
-    <Box sx={{ minHeight: "100%", pb: 6, backgroundColor: SETTINGS_THEME.bg }}>
+    <SettingsLayout>
       <SettingsHeader title="Appearance" onBack={onBack} />
 
-      {/* Theme Mode Segmented Control */}
-      <SettingsSectionTitle>THEME MODE</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 2 }}>
+      {/* Theme Selection */}
+      <SettingsSection title="THEME SELECTION" sx={{ ml: 0.5, mt: 0 }} />
+      <SettingsGroup sx={{ p: 1.5, mb: 3 }}>
         <SettingsSegmentedControl
-          value={currentThemeMode}
+          value={appearance.theme || (mode === "dark" ? "dark" : "light")}
           onChange={handleThemeChange}
           options={[
             { label: "Dark", value: "dark" },
@@ -96,49 +105,29 @@ export const AppearanceView = ({ onBack, preferences, onUpdatePreference }) => {
             { label: "System", value: "system" },
           ]}
         />
+      </SettingsGroup>
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 2, px: 0.5 }}>
-          {currentThemeMode === "dark" ? (
-            <DarkModeOutlined sx={{ fontSize: 20, color: SETTINGS_THEME.accent }} />
-          ) : currentThemeMode === "light" ? (
-            <WbSunnyOutlined sx={{ fontSize: 20, color: "#FFA726" }} />
-          ) : (
-            <SettingsBrightnessOutlined sx={{ fontSize: 20, color: SETTINGS_THEME.textSecondary }} />
-          )}
-          <Typography sx={{ fontSize: "0.84rem", color: SETTINGS_THEME.textSecondary }}>
-            {currentThemeMode === "dark"
-              ? "Deep AMOLED dark theme active for optimal battery and eye comfort"
-              : currentThemeMode === "light"
-              ? "Bright daytime theme active"
-              : "Automatically synchronizing with your operating system preference"}
-          </Typography>
-        </Box>
-      </SettingsCard>
-
-      {/* Accent Color Swatches */}
-      <SettingsSectionTitle>ACCENT COLOR</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 2.5 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-          <ColorLensOutlined sx={{ fontSize: 20, color: SETTINGS_THEME.accent }} />
-          <Typography sx={{ fontWeight: 600, fontSize: "0.95rem", color: "#FFFFFF" }}>
-            Select App Accent
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", justifyContent: "flex-start" }}>
-          {ACCENT_OPTIONS.map((item) => {
-            const isSelected = (appearance.accentColor || accent || "blue") === item.id;
+      {/* Accent Color */}
+      <SettingsSection title="ACCENT COLOR" sx={{ ml: 0.5 }} />
+      <SettingsGroup sx={{ p: 2, mb: 3 }}>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "space-between" }}>
+          {ACCENT_OPTIONS.map((opt) => {
+            const isSelected = (appearance.accentColor || "oceanBlue") === opt.id;
             return (
               <Box
-                key={item.id}
-                onClick={() => handleAccentChange(item.id)}
+                key={opt.id}
+                component="button"
+                type="button"
+                onClick={() => handleAccentChange(opt.id)}
                 sx={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
+                  gap: 0.8,
+                  bgcolor: "transparent",
+                  border: "none",
                   cursor: "pointer",
-                  width: 58,
-                  gap: 0.6,
+                  p: 0.5,
                 }}
               >
                 <Box
@@ -146,131 +135,87 @@ export const AppearanceView = ({ onBack, preferences, onUpdatePreference }) => {
                     width: 44,
                     height: 44,
                     borderRadius: "50%",
-                    backgroundColor: item.color,
+                    bgcolor: opt.color,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    border: isSelected ? "3px solid #FFFFFF" : "2px solid transparent",
-                    boxShadow: isSelected
-                      ? `0 0 12px ${item.color}`
-                      : "0 2px 6px rgba(0,0,0,0.3)",
-                    transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                    "&:hover": {
-                      transform: "scale(1.08)",
-                    },
+                    border: isSelected ? "3px solid #FFFFFF" : "2px solid rgba(255, 255, 255, 0.2)",
+                    boxShadow: isSelected ? `0 0 16px ${opt.color}80` : "none",
+                    transition: "transform 0.15s ease",
+                    "&:hover": { transform: "scale(1.08)" },
                   }}
                 >
                   {isSelected && (
-                    <Check
-                      sx={{
-                        fontSize: 20,
-                        color: item.id === "default" ? "#000000" : "#FFFFFF",
-                        strokeWidth: 3,
-                      }}
-                    />
+                    <Check sx={{ color: opt.id === "white" ? "#000000" : "#FFFFFF", fontSize: 22 }} />
                   )}
                 </Box>
                 <Typography
+                  variant="caption"
                   sx={{
-                    fontSize: "0.72rem",
-                    fontWeight: isSelected ? 700 : 500,
                     color: isSelected ? "#FFFFFF" : SETTINGS_THEME.textSecondary,
-                    textAlign: "center",
-                    whiteSpace: "nowrap",
+                    fontWeight: isSelected ? 700 : 500,
+                    fontSize: "0.75rem",
                   }}
                 >
-                  {item.name.split(" ")[0]}
+                  {opt.label}
                 </Typography>
               </Box>
             );
           })}
         </Box>
-      </SettingsCard>
+      </SettingsGroup>
 
-      {/* Font Size & Live Preview */}
-      <SettingsSectionTitle>TYPOGRAPHY</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 2.5 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-          <FormatSizeOutlined sx={{ fontSize: 20, color: SETTINGS_THEME.accent }} />
-          <Typography sx={{ fontWeight: 600, fontSize: "0.95rem", color: "#FFFFFF" }}>
-            Reading Font Size
-          </Typography>
-        </Box>
-
+      {/* Typography & Preview */}
+      <SettingsSection title="FONT SIZE" sx={{ ml: 0.5 }} />
+      <SettingsGroup sx={{ p: 1.5, mb: 2 }}>
         <SettingsSegmentedControl
-          value={appearance.fontSize || "medium"}
+          value={currentSize}
           onChange={handleFontSizeChange}
-          options={FONT_SIZE_OPTIONS}
-          sx={{ mb: 2.5 }}
+          options={[
+            { label: "Small", value: "small" },
+            { label: "Medium", value: "medium" },
+            { label: "Large", value: "large" },
+          ]}
         />
+      </SettingsGroup>
 
-        {/* Live Typography Preview Box */}
-        <Box
+      {/* Live Text Preview Box */}
+      <Card
+        sx={{
+          bgcolor: SETTINGS_THEME.surface,
+          p: 2.2,
+          borderRadius: "20px",
+          border: "1px solid rgba(255, 255, 255, 0.05)",
+          mb: 3,
+        }}
+      >
+        <Typography
+          variant="caption"
+          sx={{ color: SETTINGS_THEME.accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", mb: 0.8, display: "block" }}
+        >
+          Live Text Preview
+        </Typography>
+        <Typography
           sx={{
-            p: 2,
-            backgroundColor: "#202024",
-            borderRadius: "16px",
-            border: `1px solid ${SETTINGS_THEME.divider}`,
+            color: SETTINGS_THEME.textPrimary,
+            fontSize: previewFontSize,
+            lineHeight: 1.6,
           }}
         >
-          <Typography
-            sx={{
-              fontSize: "0.72rem",
-              fontWeight: 700,
-              color: "#7E828D",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              mb: 0.8,
-            }}
-          >
-            LIVE PREVIEW
-          </Typography>
-          <Typography
-            sx={{
-              fontSize:
-                appearance.fontSize === "small"
-                  ? "0.85rem"
-                  : appearance.fontSize === "large"
-                  ? "1.1rem"
-                  : "0.95rem",
-              lineHeight: 1.55,
-              color: "#FFFFFF",
-              transition: "font-size 0.2s ease",
-            }}
-          >
-            "Travel makes one modest. You see what a tiny place you occupy in the world."
-          </Typography>
-          <Typography
-            sx={{
-              fontSize:
-                appearance.fontSize === "small"
-                  ? "0.75rem"
-                  : appearance.fontSize === "large"
-                  ? "0.95rem"
-                  : "0.82rem",
-              color: SETTINGS_THEME.textSecondary,
-              mt: 0.6,
-            }}
-          >
-            — Gustave Flaubert • BunkMates Travel Companion
-          </Typography>
-        </Box>
-      </SettingsCard>
+          Traveling together makes memories that last forever. With BunkMates, explore destinations, organize shared expenses, and stay coordinated seamlessly.
+        </Typography>
+      </Card>
 
-      {/* Motion & Animations */}
-      <SettingsSectionTitle>MOTION</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
+      {/* Motion */}
+      <SettingsSection title="MOTION & ANIMATIONS" sx={{ ml: 0.5 }} />
+      <SettingsGroup>
         <SettingsSwitchRow
-          icon={<MotionPhotosOffOutlined sx={{ fontSize: 20 }} />}
           title="Reduce Animations"
-          subtitle="Minimize transition effects and decorative motion throughout the app"
-          checked={appearance.reduceAnimations}
-          onChange={handleReduceAnimationsChange}
-          isLast
+          subtitle="Minimize nonessential transitions and decorative motion"
+          checked={Boolean(appearance.reduceAnimations)}
+          onChange={handleReduceAnimations}
         />
-      </SettingsCard>
-    </Box>
+      </SettingsGroup>
+    </SettingsLayout>
   );
-};
-
-export default AppearanceView;
+}

@@ -1,0 +1,1063 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  collection,
+  doc,
+  query,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  setDoc,
+  deleteDoc,
+  getDoc,
+  getDocs,
+  where,
+  limit,
+  serverTimestamp,
+  arrayUnion,
+  arrayRemove,
+} from "firebase/firestore";
+import { db, auth } from "../../firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import {
+  getCachedData,
+  setCachedData,
+  serializeMessages,
+  getCachedUser,
+  setCachedUser,
+} from "../../utils/chatCache";
+import {
+  getMessagesFromDB,
+  saveMessagesToDB,
+  getCachedMessagesSync,
+  saveLastMessageToDB,
+  markChatAsReadInDB,
+} from "../../utils/chatIndexedDB";
+import { generatePlaceSuggestions, askQuickAI } from "../../utils/chatHelpers";
+import {
+  getChatDisappearingDuration,
+  isMessageExpired,
+  setActiveChat,
+  clearActiveChat,
+  clearMarkChatUnread,
+} from "../../utils/chatFeaturesService";
+
+/**
+ * Custom hook providing optimized, real-time synced 1-on-1 chat state
+ * with instant 0ms localStorage hydration and minimal network roundtrips.
+ */
+export function useChatSync(friendId) {
+  const [currentUser, setCurrentUser] = useState(() => auth.currentUser);
+  const [authLoading, setAuthLoading] = useState(!auth.currentUser);
+
+  const chatId =
+    currentUser && friendId
+      ? [currentUser.uid, friendId].sort().join("_")
+      : null;
+
+  // 1. Instant hydration of messages from IndexedDB / memory / localStorage (0ms latency)
+  const [messages, setMessages] = useState(() => {
+    if (!chatId) return [];
+    const inMem = getCachedMessagesSync(chatId);
+    if (inMem && inMem.length > 0) return inMem;
+    return getCachedData(`chat_msgs_${chatId}`, []);
+  });
+
+  const [loadingMessages, setLoadingMessages] = useState(() => {
+    if (!chatId) return true;
+    const inMem = getCachedMessagesSync(chatId);
+    if (inMem && inMem.length > 0) return false;
+    const cached = getCachedData(`chat_msgs_${chatId}`, []);
+    return !cached || cached.length === 0;
+  });
+
+  // 2. Hydrate friend details from cache
+  const [friendDetails, setFriendDetails] = useState(() => {
+    if (!friendId) return { name: "Loading...", photoURL: "", status: "offline" };
+    const cached = getCachedUser(friendId);
+    return cached || { name: "Loading...", photoURL: "", status: "offline" };
+  });
+
+  const [nickname, setNickname] = useState(() => {
+    if (!currentUser || !friendId) return "";
+    return getCachedData(`nickname_${currentUser.uid}_${friendId}`, "");
+  });
+
+  const [blockedUids, setBlockedUids] = useState([]);
+  const [isFriendTyping, setIsFriendTyping] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [mutualFriends, setMutualFriends] = useState([]);
+  const [commonGroups, setCommonGroups] = useState([]);
+  const [commonTrips, setCommonTrips] = useState([]);
+  const [timelineStatsMap, setTimelineStatsMap] = useState({});
+  const [pinnedMessage, setPinnedMessage] = useState(null);
+  const [pinnedMessages, setPinnedMessages] = useState([]);
+
+  const typingTimeoutRef = useRef(null);
+
+  // Monitor auth state
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (usr) => {
+      setCurrentUser(usr);
+      setAuthLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  // Set active chat, mark unread messages as read in DB and Firestore notifications
+  useEffect(() => {
+    if (!chatId || !friendId || !currentUser?.uid) return;
+
+    setActiveChat({ type: "direct", id: chatId, friendId });
+    markChatAsReadInDB(friendId, false);
+    clearMarkChatUnread(friendId);
+
+    // Mark any unseen notifications from this friend as seen
+    const notifQ = query(
+      collection(db, "notifications"),
+      where("uid", "==", currentUser.uid),
+      where("senderId", "==", friendId),
+      where("seen", "==", false)
+    );
+    getDocs(notifQ)
+      .then((snap) => {
+        snap.forEach((d) => {
+          updateDoc(doc(db, "notifications", d.id), { seen: true }).catch(() => {});
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      clearActiveChat();
+    };
+  }, [chatId, friendId, currentUser?.uid]);
+
+  // Update messages state when chatId changes (load from IndexedDB first)
+  useEffect(() => {
+    if (chatId) {
+      let isMounted = true;
+      getMessagesFromDB(chatId).then((cached) => {
+        if (isMounted && cached && cached.length > 0) {
+          setMessages(cached);
+          setLoadingMessages(false);
+        }
+      });
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [chatId]);
+
+  // 3. Fetch friend details with caching
+  useEffect(() => {
+    if (!friendId) return;
+
+    let isMounted = true;
+    const fetchFriend = async () => {
+      try {
+        const cached = getCachedUser(friendId);
+        if (cached && isMounted) {
+          setFriendDetails(cached);
+        }
+
+        const snap = await getDoc(doc(db, "users", friendId));
+        if (snap.exists() && isMounted) {
+          const data = { id: snap.id, ...snap.data() };
+          setFriendDetails(data);
+          setCachedUser(friendId, data);
+        }
+      } catch (err) {
+        console.error("Error fetching friend details:", err);
+      }
+    };
+
+    fetchFriend();
+    return () => {
+      isMounted = false;
+    };
+  }, [friendId]);
+
+  // 4. Fetch current user's blocked users and nicknames
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    const userDocRef = doc(db, "users", currentUser.uid);
+    const unsub = onSnapshot(userDocRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setBlockedUids(data.blockedUids || []);
+        if (data.nicknames && friendId) {
+          const nick = data.nicknames[friendId] || "";
+          setNickname(nick);
+          setCachedData(`nickname_${currentUser.uid}_${friendId}`, nick);
+        }
+      }
+    });
+
+    return () => unsub();
+  }, [currentUser?.uid, friendId]);
+
+  // 5. Single, high-performance real-time listener for messages
+  useEffect(() => {
+    if (!chatId || !currentUser) {
+      setLoadingMessages(false);
+      return;
+    }
+
+    const cached = getCachedData(`chat_msgs_${chatId}`, []);
+    if (!cached || cached.length === 0) {
+      setLoadingMessages(true);
+    }
+
+    const q = query(
+      collection(db, "chats", chatId, "messages"),
+      orderBy("timestamp", "asc")
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        setLoadingMessages(false);
+        const msgs = [];
+        let hasUnreadFromFriend = false;
+
+        querySnapshot.forEach((docSnap) => {
+          const msg = docSnap.data();
+          msg.id = docSnap.id;
+          msgs.push(msg);
+
+          if (msg.senderId !== currentUser.uid && !msg.isRead) {
+            hasUnreadFromFriend = true;
+          }
+        });
+
+        // Merge and update state (filter out expired disappearing messages)
+        const validMsgs = msgs.filter((m) => !isMessageExpired(m));
+        setMessages(validMsgs);
+
+        // Persist to IndexedDB asynchronously (quota-free & fast)
+        saveMessagesToDB(chatId, validMsgs);
+        if (validMsgs.length > 0 && friendId) {
+          const last = validMsgs[validMsgs.length - 1];
+          saveLastMessageToDB(friendId, {
+            lastMessage: last.text || (last.dataUri ? "Photo" : "Attachment"),
+            timestamp: last.timestamp || Date.now(),
+            unreadCount: 0,
+            isGroup: false,
+          });
+        }
+        // Sync to localStorage as fast backup
+        setCachedData(`chat_msgs_${chatId}`, serializeMessages(validMsgs));
+
+        // Mark as read efficiently with read timestamp
+        if (hasUnreadFromFriend) {
+          markChatAsReadInDB(friendId, false);
+          clearMarkChatUnread(friendId);
+          const nowIso = new Date().toISOString();
+          const unreadMsgs = msgs.filter(
+            (m) => m.senderId !== currentUser.uid && (!m.isRead || !m.read)
+          );
+          for (const um of unreadMsgs) {
+            updateDoc(doc(db, "chats", chatId, "messages", um.id), {
+              isRead: true,
+              read: true,
+              readAt: nowIso,
+            }).catch(() => {});
+          }
+
+          // Mark any notifications from this friend as seen
+          getDocs(
+            query(
+              collection(db, "notifications"),
+              where("uid", "==", currentUser.uid),
+              where("senderId", "==", friendId),
+              where("seen", "==", false)
+            )
+          )
+            .then((snap) => {
+              snap.forEach((d) => {
+                updateDoc(doc(db, "notifications", d.id), { seen: true }).catch(() => {});
+              });
+            })
+            .catch(() => {});
+        }
+      },
+      (err) => {
+        console.error("Firestore message listener error:", err);
+        setLoadingMessages(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [chatId, currentUser, friendId]);
+
+  // 6. Listen for friend's typing / draft status
+  useEffect(() => {
+    if (!chatId || !friendId) return;
+
+    const chatDocRef = doc(db, "chats", chatId);
+    const unsub = onSnapshot(chatDocRef, (snap) => {
+      if (snap.exists()) {
+        const chatData = snap.data();
+        const friendDraft = chatData?.drafts?.[friendId] || "";
+        setIsFriendTyping(Boolean(friendDraft.trim()));
+        setPinnedMessage(chatData?.pinnedMessage || null);
+        setPinnedMessages(
+          Array.isArray(chatData?.pinnedMessages)
+            ? chatData.pinnedMessages
+            : chatData?.pinnedMessage
+            ? [chatData.pinnedMessage]
+            : []
+        );
+      } else {
+        setIsFriendTyping(false);
+        setPinnedMessage(null);
+        setPinnedMessages([]);
+      }
+    });
+
+    return () => unsub();
+  }, [chatId, friendId]);
+
+  // 7. Update draft / typing status (debounced to save writes)
+  const setDraftStatus = useCallback(
+    (text) => {
+      if (!chatId || !currentUser?.uid) return;
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(async () => {
+        try {
+          const chatDocRef = doc(db, "chats", chatId);
+          await updateDoc(chatDocRef, {
+            [`drafts.${currentUser.uid}`]: text,
+          });
+        } catch {
+          // If doc doesn't exist yet, it'll create on first message
+        }
+      }, 350);
+    },
+    [chatId, currentUser?.uid]
+  );
+
+  // 8. Mutual friends calculation (cached)
+  const fetchMutualFriends = useCallback(async () => {
+    if (!currentUser?.uid || !friendId) return;
+    try {
+      const currentSnap = await getDoc(doc(db, "users", currentUser.uid));
+      const friendSnap = await getDoc(doc(db, "users", friendId));
+
+      const myFriends = currentSnap.exists() ? currentSnap.data().friends || [] : [];
+      const theirFriends = friendSnap.exists() ? friendSnap.data().friends || [] : [];
+
+      const mutualUids = myFriends.filter((id) => theirFriends.includes(id));
+
+      if (mutualUids.length > 0) {
+        const details = await Promise.all(
+          mutualUids.map(async (uid) => {
+            const cached = getCachedUser(uid);
+            if (cached) return { id: uid, ...cached };
+            const uSnap = await getDoc(doc(db, "users", uid));
+            if (uSnap.exists()) {
+              const uData = { id: uid, ...uSnap.data() };
+              setCachedUser(uid, uData);
+              return uData;
+            }
+            return null;
+          })
+        );
+        setMutualFriends(details.filter(Boolean));
+      } else {
+        setMutualFriends([]);
+      }
+
+      // Fetch common groups
+      const groupsSnap = await getDocs(
+        query(
+          collection(db, "groupChats"),
+          where("members", "array-contains", currentUser.uid)
+        )
+      );
+      const sharedGroups = groupsSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((g) => (g.members || []).map(String).includes(String(friendId)));
+      setCommonGroups(sharedGroups);
+
+      // Fetch common trips
+      const tripsSnap = await getDocs(collection(db, "trips"));
+      const sharedTrips = tripsSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((t) => {
+          const members = (t.members || []).map(String);
+          const contributors = (t.contributorUids || []).map(String);
+          return (
+            (members.includes(String(currentUser.uid)) && members.includes(String(friendId))) ||
+            (contributors.includes(String(currentUser.uid)) && contributors.includes(String(friendId)))
+          );
+        });
+      setCommonTrips(sharedTrips);
+
+      const statsMap = {};
+      await Promise.all(
+        sharedTrips.map(async (t) => {
+          try {
+            const tlSnap = await getDocs(collection(db, "trips", t.id, "timeline"));
+            const events = tlSnap.docs.map((d) => d.data());
+            const total = events.length || 1;
+            const completed = events.filter((e) => e.completed === true).length;
+            statsMap[t.id] = { completed, total, percent: Math.round((completed / total) * 100) };
+          } catch {
+            // ignore
+          }
+        })
+      );
+      setTimelineStatsMap(statsMap);
+    } catch (e) {
+      console.warn("Failed fetching mutual data:", e);
+    }
+  }, [currentUser?.uid, friendId]);
+
+  // 9. Send message (supports text, image, replies, view-once, disappearing messages)
+  const sendMessage = useCallback(
+    async ({
+      text = "",
+      imageUrl = null,
+      replyingTo = null,
+      viewOnce = false,
+      type = null,
+      images = null,
+    }) => {
+      if ((!text.trim() && !imageUrl && !images) || !chatId || !currentUser) return;
+      setIsSending(true);
+
+      // Clear remote typing indicator
+      if (chatId) {
+        updateDoc(doc(db, "chats", chatId), {
+          [`drafts.${currentUser.uid}`]: "",
+        }).catch(() => {});
+      }
+
+      // Check if blocked
+      const isBlocked = (friendDetails?.blockedUids || []).includes(currentUser.uid);
+      if (isBlocked) {
+        const localKey = `blockedMessages_${friendId}`;
+        const localMessages = getCachedData(localKey, []);
+        const blockedMsg = {
+          id: `blocked_${Date.now()}`,
+          senderId: currentUser.uid,
+          text: text.trim(),
+          dataUri: imageUrl || null,
+          timestamp: new Date().toISOString(),
+          blocked: true,
+          replyTo: replyingTo
+            ? {
+                id: replyingTo.id,
+                text: replyingTo.text || "",
+                senderId: replyingTo.senderId,
+                imageUrl: replyingTo.imageUrl || replyingTo.dataUri || null,
+              }
+            : null,
+        };
+        localMessages.push(blockedMsg);
+        setCachedData(localKey, localMessages);
+        setMessages((prev) => [...prev, blockedMsg]);
+        setIsSending(false);
+        return;
+      }
+
+      const disappearingDuration = getChatDisappearingDuration(chatId) || getChatDisappearingDuration(friendId);
+
+      const newMsg = {
+        senderId: currentUser.uid,
+        text: text.trim(),
+        type: type || (imageUrl ? "image" : images ? "image_group" : "text"),
+        timestamp: serverTimestamp(),
+        isRead: false,
+        reactions: [],
+      };
+
+      if (disappearingDuration > 0) {
+        newMsg.expiresAt = Date.now() + disappearingDuration;
+      }
+
+      if (viewOnce) {
+        newMsg.viewOnce = true;
+        newMsg.viewedOnce = false;
+      }
+
+      if (imageUrl) {
+        newMsg.dataUri = imageUrl;
+      }
+
+      if (images && Array.isArray(images)) {
+        newMsg.images = images;
+      }
+
+      if (replyingTo) {
+        newMsg.replyTo = {
+          id: replyingTo.id,
+          text: replyingTo.text || "",
+          senderId: replyingTo.senderId,
+          imageUrl: replyingTo.imageUrl || replyingTo.dataUri || null,
+        };
+      }
+
+      try {
+        await addDoc(collection(db, "chats", chatId, "messages"), newMsg);
+
+        const lastMsgSnippet = newMsg.text || (newMsg.dataUri ? "Photo" : "Attachment");
+        setDoc(
+          doc(db, "chats", chatId),
+          {
+            lastMessage: {
+              text: lastMsgSnippet,
+              senderId: currentUser.uid,
+              timestamp: serverTimestamp(),
+            },
+            users: [currentUser.uid, friendId],
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        ).catch(() => {});
+
+        if (friendId) {
+          saveLastMessageToDB(friendId, {
+            lastMessage: lastMsgSnippet,
+            timestamp: Date.now(),
+            unreadCount: 0,
+            isGroup: false,
+          });
+        }
+
+        // Dispatch real-time in-app notification to friend only if friend is not in this active chat and not muted
+        if (friendId && friendId !== currentUser.uid) {
+          let shouldSendNotification = true;
+          try {
+            const friendSnap = await getDoc(doc(db, "users", friendId));
+            if (friendSnap.exists()) {
+              const fData = friendSnap.data();
+              const fActive = fData.activeChat;
+              // If the friend currently has THIS chat open, suppress notifications!
+              if (
+                fActive &&
+                (fActive.id === chatId ||
+                 fActive.friendId === currentUser.uid ||
+                 fActive.chatId === chatId)
+              ) {
+                shouldSendNotification = false;
+              }
+              // If the friend has muted notifications for this chat or user
+              if (
+                fData.mutedChats &&
+                (fData.mutedChats[chatId] || fData.mutedChats[currentUser.uid])
+              ) {
+                shouldSendNotification = false;
+              }
+            }
+          } catch {}
+
+          if (shouldSendNotification) {
+            const notifType = imageUrl ? "photo" : replyingTo ? "reply" : "chat";
+            const notifTitle = currentUser.displayName || "New Message";
+            const notifContent = imageUrl
+              ? (text.trim() ? `Sent a photo: "${text.trim()}"` : "Sent a photo")
+              : replyingTo
+              ? `Replied to your message: "${text.trim()}"`
+              : text.trim();
+
+            addDoc(collection(db, "notifications"), {
+              uid: friendId,
+              senderId: currentUser.uid,
+              type: notifType,
+              title: notifTitle,
+              content: notifContent,
+              pic: currentUser.photoURL || "",
+              imageUrl: imageUrl || null,
+              chatId: chatId,
+              seen: false,
+              timestamp: serverTimestamp(),
+            }).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.error("Failed to send message:", err);
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [chatId, currentUser, friendDetails?.blockedUids, friendId]
+  );
+
+  // 10. Reactions handling (toggle emoji)
+  const handleReaction = useCallback(
+    async (emoji, msg) => {
+      if (!msg?.id || !chatId || !currentUser?.uid) return;
+
+      const currentReactions = Array.isArray(msg.reactions) ? msg.reactions : [];
+      const existingIndex = currentReactions.findIndex(
+        (r) => r.user === currentUser.uid && r.emoji === emoji
+      );
+
+      let updated;
+      if (existingIndex > -1) {
+        // Remove reaction
+        updated = currentReactions.filter((_, idx) => idx !== existingIndex);
+      } else {
+        // Add reaction (or replace user's existing reaction)
+        const withoutUser = currentReactions.filter(
+          (r) => r.user !== currentUser.uid
+        );
+        updated = [...withoutUser, { emoji, user: currentUser.uid }];
+      }
+
+      try {
+        await updateDoc(doc(db, "chats", chatId, "messages", msg.id), {
+          reactions: updated,
+        });
+
+        // Dispatch reaction notification to original message author if reacting (and not self)
+        if (msg.senderId && msg.senderId !== currentUser.uid && existingIndex === -1) {
+          try {
+            const authorSnap = await getDoc(doc(db, "users", msg.senderId));
+            if (authorSnap.exists()) {
+              const aData = authorSnap.data();
+              const aActive = aData.activeChat;
+              const isAuthorInChat =
+                aActive &&
+                (aActive.id === chatId || aActive.friendId === currentUser.uid);
+              const isAuthorMuted =
+                aData.mutedChats &&
+                (aData.mutedChats[chatId] || aData.mutedChats[currentUser.uid]);
+
+              if (!isAuthorInChat && !isAuthorMuted) {
+                addDoc(collection(db, "notifications"), {
+                  uid: msg.senderId,
+                  senderId: currentUser.uid,
+                  type: "reaction",
+                  title: "New Reaction",
+                  content: `${currentUser.displayName || "Someone"} reacted ${emoji} to your message`,
+                  pic: currentUser.photoURL || "",
+                  chatId: chatId,
+                  seen: false,
+                  timestamp: serverTimestamp(),
+                }).catch(() => {});
+              }
+            }
+          } catch {}
+        }
+      } catch (e) {
+        console.error("Failed to update reaction:", e);
+      }
+    },
+    [chatId, currentUser]
+  );
+
+  // 11. Delete & Edit message
+  const deleteMessage = useCallback(
+    async (msgId) => {
+      if (!chatId || !msgId) return;
+      try {
+        await deleteDoc(doc(db, "chats", chatId, "messages", msgId));
+      } catch (e) {
+        console.error("Failed to delete message:", e);
+      }
+    },
+    [chatId]
+  );
+
+  const editMessage = useCallback(
+    async (msgId, newText) => {
+      if (!chatId || !msgId || !newText.trim()) return;
+      try {
+        await updateDoc(doc(db, "chats", chatId, "messages", msgId), {
+          text: newText.trim(),
+          edited: true,
+        });
+      } catch (e) {
+        console.error("Failed to edit message:", e);
+      }
+    },
+    [chatId]
+  );
+
+  // 12. Save nickname
+  const saveNickname = useCallback(
+    async (newNick) => {
+      if (!currentUser?.uid || !friendId) return;
+      try {
+        await updateDoc(doc(db, "users", currentUser.uid), {
+          [`nicknames.${friendId}`]: newNick.trim(),
+        });
+        setNickname(newNick.trim());
+        setCachedData(`nickname_${currentUser.uid}_${friendId}`, newNick.trim());
+      } catch (e) {
+        console.error("Failed to save nickname:", e);
+      }
+    },
+    [currentUser?.uid, friendId]
+  );
+
+  // 13. Block / Unblock friend
+  const toggleBlockFriend = useCallback(async () => {
+    if (!currentUser?.uid || !friendId) return;
+    const isCurrentlyBlocked = blockedUids.includes(friendId);
+    const userRef = doc(db, "users", currentUser.uid);
+
+    try {
+      if (isCurrentlyBlocked) {
+        await updateDoc(userRef, { blockedUids: arrayRemove(friendId) });
+        setBlockedUids((prev) => prev.filter((id) => id !== friendId));
+      } else {
+        await updateDoc(userRef, { blockedUids: arrayUnion(friendId) });
+        setBlockedUids((prev) => [...prev, friendId]);
+      }
+    } catch (e) {
+      console.error("Failed to toggle block status:", e);
+    }
+  }, [currentUser?.uid, friendId, blockedUids]);
+
+  // 14. Remove from Friends
+  const removeFriend = useCallback(async () => {
+    if (!currentUser?.uid || !friendId) return;
+    try {
+      await Promise.all([
+        updateDoc(doc(db, "users", currentUser.uid), {
+          friends: arrayRemove(friendId),
+        }),
+        updateDoc(doc(db, "users", friendId), {
+          friends: arrayRemove(currentUser.uid),
+        }),
+      ]);
+    } catch (e) {
+      console.error("Failed to remove friend:", e);
+    }
+  }, [currentUser?.uid, friendId]);
+
+  // 14. Pin / Unpin message in chat with duration support
+  const handlePinMessage = useCallback(
+    async (msg, durationHours = null) => {
+      if (!chatId || !msg) return;
+      const currentPins = Array.isArray(pinnedMessages)
+        ? [...pinnedMessages]
+        : pinnedMessage
+        ? [pinnedMessage]
+        : [];
+
+      const existingIdx = currentPins.findIndex((p) => p.id === msg.id);
+      let updatedPins = [];
+
+      if (existingIdx >= 0) {
+        // Unpin
+        updatedPins = currentPins.filter((p) => p.id !== msg.id);
+      } else {
+        let expiresAt = null;
+        if (typeof durationHours === "number" && durationHours > 0) {
+          expiresAt = Date.now() + durationHours * 60 * 60 * 1000;
+        }
+
+        const newPin = {
+          id: msg.id,
+          text: msg.text || (msg.imageUrl ? "📷 Photo" : "Pinned card"),
+          senderName:
+            msg.senderId === currentUser?.uid
+              ? "You"
+              : friendDetails?.name || "Friend",
+          timestamp: msg.timestamp || null,
+          pinnedAt: Date.now(),
+          expiresAt: expiresAt,
+          pinnedBy: currentUser?.uid || null,
+        };
+        updatedPins = [newPin, ...currentPins];
+      }
+
+      try {
+        await updateDoc(doc(db, "chats", chatId), {
+          pinnedMessages: updatedPins,
+          pinnedMessage: updatedPins[0] || null,
+        });
+      } catch (e) {
+        console.error("Failed to pin chat message:", e);
+      }
+    },
+    [chatId, pinnedMessages, pinnedMessage, currentUser?.uid, friendDetails?.name]
+  );
+
+  // 15. Send Secured Trip Budget & Expenses loaded from Firestore budgets doc
+  const handleSendBudget = useCallback(
+    async (tripOrId = null) => {
+      if (!chatId || !currentUser) return;
+      try {
+        let tId = typeof tripOrId === "string" ? tripOrId : tripOrId?.id;
+        if (!tId && commonTrips && commonTrips.length > 0) {
+          tId = commonTrips[0]?.id;
+        }
+        if (!tId) return;
+
+        // Query budgets doc in Firestore matching tripId
+        let bData = null;
+        try {
+          const directSnap = await getDoc(doc(db, "budgets", tId));
+          if (directSnap.exists()) {
+            bData = directSnap.data();
+          }
+        } catch {}
+
+        if (!bData) {
+          try {
+            const q = query(collection(db, "budgets"), where("tripId", "==", tId), limit(1));
+            const qSnap = await getDocs(q);
+            if (!qSnap.empty) {
+              bData = qSnap.docs[0].data();
+            }
+          } catch {}
+        }
+
+        const tripSnap = await getDoc(doc(db, "trips", tId));
+        const tData = tripSnap.exists()
+          ? tripSnap.data()
+          : typeof tripOrId === "object" && tripOrId !== null
+          ? tripOrId
+          : {};
+
+        const budgetItems = Array.isArray(bData?.items) ? bData.items : [];
+        const activeItem = budgetItems.find((it) => it.tripId === tId) || budgetItems[0] || bData || {};
+
+        const totalBudget = Number(activeItem.total || bData?.total || tData?.budget) || 0;
+        const expenses = Array.isArray(activeItem.expenses)
+          ? activeItem.expenses
+          : Array.isArray(bData?.expenses)
+          ? bData.expenses
+          : Array.isArray(tData?.expenses)
+          ? tData.expenses
+          : [];
+
+        const totalSpent = expenses.length > 0
+          ? expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+          : Number(activeItem.used || bData?.used || 0) || 0;
+        const remaining = totalBudget - totalSpent;
+        const contributors = activeItem.contributors || bData?.contributors || [];
+
+        const allowedMembers = Array.from(
+          new Set(
+            [
+              tData?.createdBy,
+              ...(Array.isArray(tData?.members) ? tData.members : []),
+              currentUser.uid,
+              friendId,
+            ].filter(Boolean)
+          )
+        );
+
+        await sendMessage({
+          type: "budget",
+          cardData: {
+            type: "budget",
+            tripId: tId,
+            tripTitle: tData?.name || "Trip",
+            totalBudget,
+            totalSpent,
+            remaining,
+            contributors,
+            allowedMembers,
+            updatedAt: new Date().toISOString(),
+          },
+        });
+      } catch (e) {
+        console.error("Failed to share trip budget in chat:", e);
+      }
+    },
+    [chatId, currentUser, friendId, commonTrips, sendMessage]
+  );
+
+  // 16. Send Detailed Expenses breakdown loaded from Firestore budgets doc
+  const handleSendExpenses = useCallback(
+    async (tripOrId = null) => {
+      if (!chatId || !currentUser) return;
+      try {
+        let tId = typeof tripOrId === "string" ? tripOrId : tripOrId?.id;
+        if (!tId && commonTrips && commonTrips.length > 0) {
+          tId = commonTrips[0]?.id;
+        }
+        if (!tId) return;
+
+        let bData = null;
+        try {
+          const directSnap = await getDoc(doc(db, "budgets", tId));
+          if (directSnap.exists()) {
+            bData = directSnap.data();
+          }
+        } catch {}
+
+        if (!bData) {
+          try {
+            const q = query(collection(db, "budgets"), where("tripId", "==", tId), limit(1));
+            const qSnap = await getDocs(q);
+            if (!qSnap.empty) {
+              bData = qSnap.docs[0].data();
+            }
+          } catch {}
+        }
+
+        const tripSnap = await getDoc(doc(db, "trips", tId));
+        const tData = tripSnap.exists()
+          ? tripSnap.data()
+          : typeof tripOrId === "object" && tripOrId !== null
+          ? tripOrId
+          : {};
+
+        const budgetItems = Array.isArray(bData?.items) ? bData.items : [];
+        const activeItem = budgetItems.find((it) => it.tripId === tId) || budgetItems[0] || bData || {};
+
+        const totalBudget = Number(activeItem.total || bData?.total || tData?.budget) || 0;
+        const expenses = Array.isArray(activeItem.expenses)
+          ? activeItem.expenses
+          : Array.isArray(bData?.expenses)
+          ? bData.expenses
+          : Array.isArray(tData?.expenses)
+          ? tData.expenses
+          : [];
+
+        const totalSpent = expenses.length > 0
+          ? expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+          : Number(activeItem.used || bData?.used || 0) || 0;
+        const remaining = totalBudget - totalSpent;
+        const contributors = activeItem.contributors || bData?.contributors || [];
+
+        const allowedMembers = Array.from(
+          new Set(
+            [
+              tData?.createdBy,
+              ...(Array.isArray(tData?.members) ? tData.members : []),
+              currentUser.uid,
+              friendId,
+            ].filter(Boolean)
+          )
+        );
+
+        await sendMessage({
+          type: "expenses",
+          cardData: {
+            type: "expenses",
+            tripId: tId,
+            tripTitle: tData?.name || "Trip",
+            totalBudget,
+            totalSpent,
+            remaining,
+            expenses: expenses,
+            contributors,
+            allowedMembers,
+            updatedAt: new Date().toISOString(),
+          },
+        });
+      } catch (e) {
+        console.error("Failed to share trip expenses in chat:", e);
+      }
+    },
+    [chatId, currentUser, friendId, commonTrips, sendMessage]
+  );
+
+  // 17. Send Contact / User Profile Card
+  const handleSendUserProfile = useCallback(
+    async (targetUser) => {
+      if (!targetUser || !chatId || !currentUser) return;
+      try {
+        await sendMessage({
+          type: "user_profile",
+          cardData: {
+            type: "user_profile",
+            uid: targetUser.uid || targetUser.id,
+            id: targetUser.uid || targetUser.id,
+            name: targetUser.name || targetUser.displayName || "User",
+            username: targetUser.username || "",
+            photoURL: targetUser.photoURL || "",
+            bio: targetUser.bio || "",
+          },
+        });
+      } catch (e) {
+        console.error("Failed to send user profile:", e);
+      }
+    },
+    [chatId, currentUser, sendMessage]
+  );
+
+  // 18. Send AI Places recommendations
+  const handleSendAiPlaces = useCallback(
+    async (destination) => {
+      if (!destination || !chatId || !currentUser) return;
+      try {
+        const suggestions = await generatePlaceSuggestions(destination);
+        await sendMessage({
+          type: "ai_places",
+          cardData: {
+            type: "ai_places",
+            destination,
+            content: suggestions,
+          },
+        });
+      } catch (e) {
+        console.error("Failed to send AI places:", e);
+      }
+    },
+    [chatId, currentUser, sendMessage]
+  );
+
+  // 19. Send AI Question response
+  const handleSendAiQuestion = useCallback(
+    async (prompt) => {
+      if (!prompt || !chatId || !currentUser) return;
+      try {
+        const answer = await askQuickAI(prompt);
+        await sendMessage({
+          type: "ai_assistant",
+          cardData: {
+            type: "ai_assistant",
+            prompt,
+            content: answer,
+          },
+        });
+      } catch (e) {
+        console.error("Failed to send AI question:", e);
+      }
+    },
+    [chatId, currentUser, sendMessage]
+  );
+
+  return {
+    currentUser,
+    authLoading,
+    loadingMessages,
+    chatId,
+    messages,
+    friendDetails,
+    nickname,
+    blockedUids,
+    isBlocked: blockedUids.includes(friendId),
+    isFriendTyping,
+    isSending,
+    pinnedMessage,
+    pinnedMessages,
+    mutualFriends,
+    commonGroups,
+    commonTrips,
+    timelineStatsMap,
+    fetchMutualFriends,
+    sendMessage,
+    handleReaction,
+    deleteMessage,
+    editMessage,
+    saveNickname,
+    toggleBlockFriend,
+    removeFriend,
+    setDraftStatus,
+    handlePinMessage,
+    handleSendBudget,
+    handleSendExpenses,
+    handleSendUserProfile,
+    handleSendAiPlaces,
+    handleSendAiQuestion,
+  };
+}
+
+export default useChatSync;

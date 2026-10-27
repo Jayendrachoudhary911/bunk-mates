@@ -48,6 +48,15 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
+import AlternateEmailIcon from "@mui/icons-material/AlternateEmail";
+import TimelineIcon from "@mui/icons-material/Timeline";
+import ChecklistIcon from "@mui/icons-material/Checklist";
+import PollOutlinedIcon from "@mui/icons-material/PollOutlined";
+import ReplyOutlinedIcon from "@mui/icons-material/ReplyOutlined";
+import AddReactionOutlinedIcon from "@mui/icons-material/AddReactionOutlined";
+import { getCachedData, setCachedData } from "../utils/chatCache";
 import {
   collection,
   query,
@@ -72,7 +81,7 @@ import {
 } from "../theme/designSystem";
 
 // ============================================================================
-// Category Mapping (Chat & Group Chat Separated), Helpers & Styling
+// Category Mapping (Chat, System, Photos, Mentions, Timeline, Checklists, Polls, Replies, Reactions)
 // ============================================================================
 const CATEGORY_MAP = {
   call: "calls",
@@ -82,7 +91,38 @@ const CATEGORY_MAP = {
   friend_added: "friends",
   friend_request: "friends",
   chat: "chat",
+  chat_message: "chat",
+  message: "chat",
+  dm: "chat",
+  direct_message: "chat",
   group_chat: "group_chat",
+  group: "group_chat",
+  system: "system",
+  system_message: "system",
+  group_system: "system",
+  photo: "photos",
+  photos: "photos",
+  image: "photos",
+  media: "photos",
+  photo_message: "photos",
+  mention: "mentions",
+  mentions: "mentions",
+  user_mention: "mentions",
+  timeline: "timeline",
+  trip_timeline: "timeline",
+  checklist: "checklists",
+  checklists: "checklists",
+  task: "checklists",
+  todo: "checklists",
+  poll: "polls",
+  polls: "polls",
+  poll_vote: "polls",
+  reply: "replies",
+  replies: "replies",
+  chat_reply: "replies",
+  reaction: "reactions",
+  reactions: "reactions",
+  emoji_reaction: "reactions",
   feedback: "feedbacks",
   feedbacks: "feedbacks",
   contact: "contact",
@@ -90,7 +130,14 @@ const CATEGORY_MAP = {
   contact_us: "contact",
 };
 
-const POPUP_ALLOWED_SINGLE_CATEGORIES = new Set(["feedbacks", "contact"]);
+const POPUP_ALLOWED_SINGLE_CATEGORIES = new Set([
+  "feedbacks",
+  "contact",
+  "system",
+  "timeline",
+  "checklists",
+  "polls",
+]);
 
 const normalizeCategory = (rawType) => {
   if (!rawType) return "general";
@@ -199,6 +246,54 @@ const getCategoryBadgeMeta = (category, rawType) => {
     return {
       icon: <ForumOutlinedIcon sx={{ fontSize: "0.75rem", color: "#fff" }} />,
       bg: "#0ea5e9",
+    };
+  }
+  if (category === "system") {
+    return {
+      icon: <InfoOutlinedIcon sx={{ fontSize: "0.75rem", color: "#fff" }} />,
+      bg: "#64748b",
+    };
+  }
+  if (category === "photos") {
+    return {
+      icon: <CameraAltOutlinedIcon sx={{ fontSize: "0.75rem", color: "#fff" }} />,
+      bg: "#ec4899",
+    };
+  }
+  if (category === "mentions") {
+    return {
+      icon: <AlternateEmailIcon sx={{ fontSize: "0.75rem", color: "#fff" }} />,
+      bg: "#f59e0b",
+    };
+  }
+  if (category === "timeline") {
+    return {
+      icon: <TimelineIcon sx={{ fontSize: "0.75rem", color: "#fff" }} />,
+      bg: "#8b5cf6",
+    };
+  }
+  if (category === "checklists") {
+    return {
+      icon: <ChecklistIcon sx={{ fontSize: "0.75rem", color: "#fff" }} />,
+      bg: "#10b981",
+    };
+  }
+  if (category === "polls") {
+    return {
+      icon: <PollOutlinedIcon sx={{ fontSize: "0.75rem", color: "#fff" }} />,
+      bg: "#f97316",
+    };
+  }
+  if (category === "replies") {
+    return {
+      icon: <ReplyOutlinedIcon sx={{ fontSize: "0.75rem", color: "#fff" }} />,
+      bg: "#06b6d4",
+    };
+  }
+  if (category === "reactions") {
+    return {
+      icon: <AddReactionOutlinedIcon sx={{ fontSize: "0.75rem", color: "#fff" }} />,
+      bg: "#e11d48",
     };
   }
   if (category === "feedbacks") {
@@ -598,8 +693,16 @@ const ExpandedNotificationItem = memo(
     const [menuAnchor, setMenuAnchor] = useState(null);
 
     const isRequest = notif.type === "friend_request";
-    const isDirectChat = notif.type === "chat";
-    const isGroupChat = notif.type === "group_chat";
+    const isDirectChat = notif.type === "chat" || notif.type === "chat_message" || notif.type === "message" || notif.type === "dm";
+    const isGroupChat = notif.type === "group_chat" || notif.type === "group";
+    const isSystem = notif.type === "system" || notif.type === "system_message" || notif.type === "group_system";
+    const isPhoto = notif.type === "photo" || notif.type === "photos" || notif.type === "image" || notif.type === "media" || notif.type === "photo_message";
+    const isMention = notif.type === "mention" || notif.type === "mentions" || notif.type === "user_mention";
+    const isTimeline = notif.type === "timeline" || notif.type === "trip_timeline";
+    const isChecklist = notif.type === "checklist" || notif.type === "checklists" || notif.type === "task" || notif.type === "todo";
+    const isPoll = notif.type === "poll" || notif.type === "polls" || notif.type === "poll_vote";
+    const isReply = notif.type === "reply" || notif.type === "replies" || notif.type === "chat_reply";
+    const isReaction = notif.type === "reaction" || notif.type === "reactions" || notif.type === "emoji_reaction";
     const isMissedCall = notif.type === "missed_call";
     const normalizedCat = normalizeCategory(notif.type);
     const isFeedbackOrContact =
@@ -707,7 +810,7 @@ const ExpandedNotificationItem = memo(
                 py: 1.75,
                 px: 2.25,
                 borderRadius: 6,
-                cursor: "pointer", // Enabled pointer for friend requests too
+                cursor: "pointer",
                 backgroundColor: notif.seen
                   ? mode === "dark"
                     ? "rgba(255, 255, 255, 0.07)"
@@ -746,9 +849,7 @@ const ExpandedNotificationItem = memo(
                   {isDirectChat && (
                     <Typography
                       variant="caption"
-                      color="primary.main"
-                      fontWeight={700}
-                      sx={{ mb: 0.25 }}
+                      sx={{ color: "#3b82f6", fontWeight: 700, mb: 0.25 }}
                     >
                       💬 Direct Chat — Click to Reply
                     </Typography>
@@ -756,11 +857,73 @@ const ExpandedNotificationItem = memo(
                   {isGroupChat && (
                     <Typography
                       variant="caption"
-                      color="info.main"
-                      fontWeight={700}
-                      sx={{ mb: 0.25 }}
+                      sx={{ color: "#0ea5e9", fontWeight: 700, mb: 0.25 }}
                     >
                       👥 Group Chat — Click to Open
+                    </Typography>
+                  )}
+                  {isSystem && (
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#64748b", fontWeight: 700, mb: 0.25 }}
+                    >
+                      ⚙️ System Notice
+                    </Typography>
+                  )}
+                  {isPhoto && (
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#ec4899", fontWeight: 700, mb: 0.25 }}
+                    >
+                      📷 Photo — Click to View
+                    </Typography>
+                  )}
+                  {isMention && (
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#f59e0b", fontWeight: 700, mb: 0.25 }}
+                    >
+                      @ Mention — You were mentioned
+                    </Typography>
+                  )}
+                  {isTimeline && (
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#8b5cf6", fontWeight: 700, mb: 0.25 }}
+                    >
+                      🗓️ Trip Timeline — View Schedule
+                    </Typography>
+                  )}
+                  {isChecklist && (
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#10b981", fontWeight: 700, mb: 0.25 }}
+                    >
+                      ☑️ Trip Checklist — Task Update
+                    </Typography>
+                  )}
+                  {isPoll && (
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#f97316", fontWeight: 700, mb: 0.25 }}
+                    >
+                      📊 Group Poll — Vote & View Results
+                    </Typography>
+                  )}
+                  {isReply && (
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#06b6d4", fontWeight: 700, mb: 0.25 }}
+                    >
+                      ↩️ Reply — Replied to your message
+                    </Typography>
+                  )}
+                  {isReaction && (
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#e11d48", fontWeight: 700, mb: 0.25 }}
+                    >
+                      💖 Reaction — Reacted to your message
                     </Typography>
                   )}
                   {isMissedCall && (
@@ -809,6 +972,37 @@ const ExpandedNotificationItem = memo(
                         "No details provided."}
                     </Typography>
                   </motion.div>
+
+                  {/* Attachment image thumbnail if present */}
+                  {(notif.imageUrl || notif.dataUri) && (
+                    <Box
+                      component="img"
+                      src={notif.imageUrl || notif.dataUri}
+                      alt="Attachment"
+                      sx={{
+                        width: 72,
+                        height: 72,
+                        borderRadius: 3,
+                        objectFit: "cover",
+                        mt: 1,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                      }}
+                    />
+                  )}
+
+                  {/* Reaction Pill if present */}
+                  {notif.reaction && (
+                    <Chip
+                      size="small"
+                      label={notif.reaction}
+                      sx={{
+                        mt: 0.75,
+                        width: "fit-content",
+                        fontSize: "1rem",
+                        bgcolor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                      }}
+                    />
+                  )}
 
                   {isRequest && (
                     <Box
@@ -1355,6 +1549,35 @@ const NotificationStackCard = memo(
                                     "No details available."}
                                 </Typography>
 
+                                {!isStacked && (latestNotif.imageUrl || latestNotif.dataUri) && (
+                                  <Box
+                                    component="img"
+                                    src={latestNotif.imageUrl || latestNotif.dataUri}
+                                    alt="Media preview"
+                                    sx={{
+                                      width: 64,
+                                      height: 64,
+                                      borderRadius: 2.5,
+                                      objectFit: "cover",
+                                      mt: 0.5,
+                                      border: "1px solid rgba(255,255,255,0.1)",
+                                    }}
+                                  />
+                                )}
+
+                                {!isStacked && latestNotif.reaction && (
+                                  <Chip
+                                    size="small"
+                                    label={latestNotif.reaction}
+                                    sx={{
+                                      mt: 0.5,
+                                      width: "fit-content",
+                                      fontSize: "0.95rem",
+                                      bgcolor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                                    }}
+                                  />
+                                )}
+
                                 {isStacked && (
                                   <Box
                                     display="flex"
@@ -1620,9 +1843,16 @@ export default function Notifications({
   isPanel = false,
   onOpenUserProfile, // Optional prop if you have a parent profile drawer
 }) {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => auth.currentUser);
+  const [notifications, setNotifications] = useState(() => {
+    const uid = auth.currentUser?.uid;
+    return uid ? getCachedData(`user_notifications_${uid}`, []) : [];
+  });
+  const [loading, setLoading] = useState(() => {
+    const uid = auth.currentUser?.uid;
+    const cached = uid ? getCachedData(`user_notifications_${uid}`, null) : null;
+    return !cached || cached.length === 0;
+  });
   const [indexError, setIndexError] = useState(null);
   const [filter, setFilter] = useState("all");
   const [selectedGroupKey, setSelectedGroupKey] = useState(null);
@@ -1643,9 +1873,16 @@ export default function Notifications({
   const navigate = useNavigate();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) =>
-      setCurrentUser(user)
-    );
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      if (user?.uid) {
+        const cached = getCachedData(`user_notifications_${user.uid}`, null);
+        if (cached && Array.isArray(cached) && cached.length > 0) {
+          setNotifications(cached);
+          setLoading(false);
+        }
+      }
+    });
     return () => unsubscribe();
   }, []);
 
@@ -1655,7 +1892,14 @@ export default function Notifications({
       setLoading(false);
       return;
     }
-    setLoading(true);
+
+    const cached = getCachedData(`user_notifications_${currentUser.uid}`, null);
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setNotifications(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -1679,6 +1923,22 @@ export default function Notifications({
 
         setNotifications(notifData);
         setLoading(false);
+
+        // Quota-safe cache serialization
+        try {
+          const serializable = notifData.slice(0, 100).map((n) => ({
+            ...n,
+            timestamp: n.timestamp?.toDate ? n.timestamp.toDate().toISOString() : n.timestamp,
+            dataUri: n.dataUri && n.dataUri.length > 100000 ? null : n.dataUri,
+          }));
+          setCachedData(`user_notifications_${currentUser.uid}`, serializable);
+          setCachedData(
+            `user_unread_notifs_${currentUser.uid}`,
+            notifData.filter((n) => !n.seen).length
+          );
+        } catch (e) {
+          console.warn("Notifications caching error:", e);
+        }
       },
       (error) => {
         console.error("Firestore error:", error);
@@ -1922,27 +2182,33 @@ export default function Notifications({
         return;
       }
 
-      if (
-        (group.groupType === "chat" || group.groupType === "group_chat") &&
-        singleNotif.senderId
-      ) {
-        navigate(
-          group.groupType === "group_chat"
-            ? `/group-chat/${singleNotif.senderId}`
-            : `/chat/${singleNotif.senderId}`,
-          {
-            state: {
-              displayName: singleNotif.title,
-              photoURL: singleNotif.pic,
-            },
-          }
-        );
-      } else {
-        setInlineExpandedGroupKeys((prev) => ({
-          ...prev,
-          [group.groupKey]: !prev[group.groupKey],
-        }));
+      const targetGroup =
+        singleNotif.groupName ||
+        (group.groupType === "group_chat" ? singleNotif.senderId : null);
+      if (targetGroup) {
+        navigate(`/group/${targetGroup}`);
+        return;
       }
+
+      if (singleNotif.senderId) {
+        navigate(`/chat/${singleNotif.senderId}`, {
+          state: {
+            displayName: singleNotif.title,
+            photoURL: singleNotif.pic,
+          },
+        });
+        return;
+      }
+
+      if (group.groupType === "timeline" || group.groupType === "checklists") {
+        navigate("/trips");
+        return;
+      }
+
+      setInlineExpandedGroupKeys((prev) => ({
+        ...prev,
+        [group.groupKey]: !prev[group.groupKey],
+      }));
     },
     [markGroupAsRead, isMobile, navigate, openUserProfileDrawer]
   );
@@ -1960,25 +2226,34 @@ export default function Notifications({
       }
 
       const category = normalizeCategory(notif.type);
-      if (
-        (category === "chat" || category === "group_chat") &&
-        notif.senderId
-      ) {
+      const targetGroup =
+        notif.groupName ||
+        (category === "group_chat" ? notif.senderId : null);
+
+      if (targetGroup) {
         setSelectedGroupKey(null);
-        navigate(
-          category === "group_chat"
-            ? `/group-chat/${notif.senderId}`
-            : `/chat/${notif.senderId}`,
-          {
-            state: {
-              displayName: notif.title,
-              photoURL: notif.pic,
-            },
-          }
-        );
-      } else {
-        setExpandedDetailId((prev) => (prev === notif.id ? null : notif.id));
+        navigate(`/group/${targetGroup}`);
+        return;
       }
+
+      if (notif.senderId) {
+        setSelectedGroupKey(null);
+        navigate(`/chat/${notif.senderId}`, {
+          state: {
+            displayName: notif.title,
+            photoURL: notif.pic,
+          },
+        });
+        return;
+      }
+
+      if (category === "timeline" || category === "checklists") {
+        setSelectedGroupKey(null);
+        navigate("/trips");
+        return;
+      }
+
+      setExpandedDetailId((prev) => (prev === notif.id ? null : notif.id));
     },
     [markSingleAsRead, navigate, openUserProfileDrawer]
   );
@@ -2001,31 +2276,39 @@ export default function Notifications({
   }, [activeGroup, globalUserView, notifications]);
 
   // 1. Dynamically build the filter list (Pinned + Dynamic categories from Firestore)
-const filterTabs = useMemo(() => {
-  const baseTabs = [
-    { key: "all", label: "All" },
-    { key: "unreads", label: "Unreads" },
-    { key: "chat", label: "Chat" },
-    { key: "group_chat", label: "Group Chat" },
-  ];
+  const filterTabs = useMemo(() => {
+    const baseTabs = [
+      { key: "all", label: "All" },
+      { key: "unreads", label: "Unreads" },
+      { key: "chat", label: "Chats" },
+      { key: "group_chat", label: "Groups" },
+      { key: "mentions", label: "Mentions" },
+      { key: "photos", label: "Photos" },
+      { key: "polls", label: "Polls" },
+      { key: "checklists", label: "Checklists" },
+      { key: "timeline", label: "Timeline" },
+      { key: "replies", label: "Replies" },
+      { key: "reactions", label: "Reactions" },
+      { key: "system", label: "System" },
+    ];
 
-  const dynamicSet = new Set();
-  notifications.forEach((n) => {
-    if (n.type) {
-      const normalized = normalizeCategory(n.type);
-      if (normalized !== "chat" && normalized !== "group_chat") {
-        dynamicSet.add(normalized);
+    const dynamicSet = new Set();
+    notifications.forEach((n) => {
+      if (n.type) {
+        const normalized = normalizeCategory(n.type);
+        if (!baseTabs.some((t) => t.key === normalized)) {
+          dynamicSet.add(normalized);
+        }
       }
-    }
-  });
+    });
 
-  const dynamicTabs = Array.from(dynamicSet).map((category) => ({
-    key: category,
-    label: formatLabel(category),
-  }));
+    const dynamicTabs = Array.from(dynamicSet).map((category) => ({
+      key: category,
+      label: formatLabel(category),
+    }));
 
-  return [...baseTabs, ...dynamicTabs];
-}, [notifications]);
+    return [...baseTabs, ...dynamicTabs];
+  }, [notifications]);
 
 
   return (

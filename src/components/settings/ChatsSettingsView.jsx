@@ -2,400 +2,298 @@ import React, { useState } from "react";
 import {
   Box,
   Typography,
-  Select,
-  MenuItem,
-  FormControl,
+  Button,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
-  Snackbar,
 } from "@mui/material";
 import {
-  WallpaperOutlined,
-  SendOutlined,
-  LinkOutlined,
-  DoneAllOutlined,
-  EditOutlined,
-  TimerOutlined,
-  CloudDownloadOutlined,
-  DeleteSweepOutlined,
-  DeleteForeverOutlined,
-  RestartAltOutlined,
-  ArchiveOutlined,
-} from "../../icons";
-import {
+  SettingsLayout,
   SettingsHeader,
-  SettingsCard,
-  SettingsSectionTitle,
-  SettingsSwitchRow,
+  SettingsSection,
+  SettingsGroup,
   SettingsRow,
+  SettingsSwitchRow,
+  SettingsSegmentedControl,
   SETTINGS_THEME,
-} from "./SettingsComponents";
+} from "./SettingsShared";
+import {
+  isInAppNotificationsEnabled,
+  setInAppNotificationsEnabled,
+} from "../../utils/chatFeaturesService";
 
 const WALLPAPERS = [
-  { id: "none", name: "Default Pure Dark", url: "none" },
-  { id: "1", name: "Aurora Night", url: "/assets/images/chatbg/1.jpeg" },
-  { id: "2", name: "Deep Indigo", url: "/assets/images/chatbg/2.jpeg" },
-  { id: "3", name: "Cosmic Glow", url: "/assets/images/chatbg/3.jpeg" },
-  { id: "4", name: "Dark Peaks", url: "/assets/images/chatbg/4.jpeg" },
-  { id: "5", name: "Star Trails", url: "/assets/images/chatbg/5.jpeg" },
+  { id: "none", name: "Default Dark", preview: "#121212" },
+  { id: "wp1", name: "Midnight", preview: "#0A0E17" },
+  { id: "wp2", name: "Deep Indigo", preview: "#111827" },
+  { id: "wp3", name: "Charcoal", preview: "#1A1A1A" },
+  { id: "wp4", name: "Forest", preview: "#0B1D15" },
 ];
 
-export const ChatsSettingsView = ({ onBack, preferences, onUpdatePreference }) => {
+export default function ChatsSettingsView({
+  onBack,
+  preferences,
+  onUpdatePreferences,
+}) {
+  const chats = preferences.chats || {};
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [inAppNotifs, setInAppNotifs] = useState(() => isInAppNotificationsEnabled());
 
-  const chat = preferences?.chat || {
-    wallpaper: "none",
-    enterIsSend: true,
-    linkPreviews: true,
-    readReceipts: true,
-    typingIndicator: true,
-    disappearingMessages: "off",
-    autoDownloadMedia: true,
-    saveToGallery: false,
-    keepArchived: true,
-  };
-
-  const handleUpdate = (key, value) => {
-    onUpdatePreference("chat", { [key]: value });
-  };
-
-  const handleClearAllMessages = () => {
-    localStorage.removeItem("bunkmates_chat_local_cache");
-    setClearDialogOpen(false);
-    setSnackbarMessage("Local chat message cache cleared.");
-  };
-
-  const handleDeleteAllChats = () => {
-    setDeleteDialogOpen(false);
-    setSnackbarMessage("Chat storage reset successfully.");
-  };
-
-  const handleResetSettings = () => {
-    onUpdatePreference("chat", {
-      wallpaper: "none",
-      enterIsSend: true,
-      linkPreviews: true,
-      readReceipts: true,
-      typingIndicator: true,
-      disappearingMessages: "off",
-      autoDownloadMedia: true,
-      saveToGallery: false,
-      keepArchived: true,
+  const updateField = (field, value) => {
+    onUpdatePreferences({
+      ...preferences,
+      chats: {
+        ...chats,
+        [field]: value,
+      },
     });
-    setSnackbarMessage("Chat preferences restored to defaults.");
+  };
+
+  const handleResetChatSettings = () => {
+    onUpdatePreferences({
+      ...preferences,
+      chats: {
+        wallpaper: "none",
+        enterIsSend: false,
+        linkPreviews: true,
+        readReceipts: true,
+        typingIndicator: true,
+        disappearingMessages: "off",
+        mediaAutoDownload: true,
+        saveToGallery: false,
+        keepChatsArchived: true,
+      },
+    });
+    setResetDialogOpen(false);
+    alert("Chat preferences reset to default.");
   };
 
   return (
-    <Box sx={{ minHeight: "100%", pb: 6, backgroundColor: SETTINGS_THEME.bg }}>
+    <SettingsLayout>
       <SettingsHeader title="Chats" onBack={onBack} />
 
-      {/* Chat Display & Wallpaper */}
-      <SettingsSectionTitle>CHAT DISPLAY & WALLPAPER</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 2.5 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-          <WallpaperOutlined sx={{ fontSize: 20, color: SETTINGS_THEME.accent }} />
-          <Typography sx={{ fontWeight: 600, fontSize: "0.95rem", color: "#FFFFFF" }}>
-            Chat Wallpaper
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: "flex", gap: 1.5, overflowX: "auto", pb: 1, mb: 2 }}>
+      {/* Chat Wallpaper */}
+      <SettingsSection title="CHAT WALLPAPER" sx={{ ml: 0.5, mt: 0 }} />
+      <SettingsGroup sx={{ p: 2, mb: 3 }}>
+        <Box sx={{ display: "flex", gap: 1.5, overflowX: "auto", pb: 1 }}>
           {WALLPAPERS.map((wp) => {
-            const isSelected = (chat.wallpaper || "none") === wp.url;
+            const isSelected = (chats.wallpaper || "none") === wp.id;
             return (
               <Box
                 key={wp.id}
-                onClick={() => handleUpdate("wallpaper", wp.url)}
+                component="button"
+                onClick={() => updateField("wallpaper", wp.id)}
                 sx={{
-                  flexShrink: 0,
-                  width: 72,
-                  height: 100,
-                  borderRadius: "14px",
-                  cursor: "pointer",
-                  border: isSelected
-                    ? `2.5px solid ${SETTINGS_THEME.accent}`
-                    : "1.5px solid rgba(255, 255, 255, 0.12)",
-                  backgroundColor: wp.url === "none" ? "#1A1A1E" : "#2A2A30",
-                  backgroundImage: wp.url !== "none" ? `url(${wp.url})` : "none",
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
                   display: "flex",
-                  alignItems: "flex-end",
-                  p: 0.8,
-                  transition: "transform 0.2s ease, border-color 0.2s ease",
-                  "&:hover": { transform: "scale(1.05)" },
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 0.8,
+                  bgcolor: "transparent",
+                  border: "none",
+                  cursor: "pointer",
                 }}
               >
-                <Typography
+                <Box
                   sx={{
-                    fontSize: "0.65rem",
-                    fontWeight: 700,
-                    color: "#FFFFFF",
-                    backgroundColor: "rgba(0,0,0,0.6)",
-                    borderRadius: "6px",
-                    px: 0.5,
+                    width: 58,
+                    height: 84,
+                    borderRadius: "14px",
+                    bgcolor: wp.preview,
+                    border: isSelected
+                      ? `2px solid ${SETTINGS_THEME.accent}`
+                      : "1px solid rgba(255, 255, 255, 0.1)",
+                    boxShadow: isSelected ? `0 0 12px ${SETTINGS_THEME.accent}80` : "none",
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: isSelected ? "#FFFFFF" : SETTINGS_THEME.textSecondary,
+                    fontWeight: isSelected ? 700 : 500,
                   }}
                 >
-                  {wp.name.split(" ")[0]}
+                  {wp.name}
                 </Typography>
               </Box>
             );
           })}
         </Box>
+      </SettingsGroup>
 
+      {/* Messaging Behavior */}
+      <SettingsSection title="MESSAGING & INPUT" sx={{ ml: 0.5 }} />
+      <SettingsGroup sx={{ mb: 3 }}>
         <SettingsSwitchRow
-          icon={<SendOutlined sx={{ fontSize: 20 }} />}
           title="Enter is Send"
-          subtitle="Pressing Enter on desktop or keyboard sends the message"
-          checked={chat.enterIsSend}
-          onChange={(checked) => handleUpdate("enterIsSend", checked)}
+          subtitle="Pressing Enter on keyboard immediately sends your message"
+          checked={Boolean(chats.enterIsSend)}
+          onChange={(v) => updateField("enterIsSend", v)}
+          showDivider
         />
 
         <SettingsSwitchRow
-          icon={<LinkOutlined sx={{ fontSize: 20 }} />}
           title="Link Previews"
-          subtitle="Show rich link previews for travel destinations and URLs"
-          checked={chat.linkPreviews}
-          onChange={(checked) => handleUpdate("linkPreviews", checked)}
-          isLast
+          subtitle="Generate rich preview cards for shared web URLs"
+          checked={Boolean(chats.linkPreviews)}
+          onChange={(v) => updateField("linkPreviews", v)}
         />
-      </SettingsCard>
+      </SettingsGroup>
 
       {/* Privacy & Receipts */}
-      <SettingsSectionTitle>PRIVACY & RECEIPTS</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
+      <SettingsSection title="PRIVACY & RECEIPTS" sx={{ ml: 0.5 }} />
+      <SettingsGroup sx={{ mb: 3 }}>
         <SettingsSwitchRow
-          icon={<DoneAllOutlined sx={{ fontSize: 20 }} />}
           title="Read Receipts"
-          subtitle="If turned off, you won't send or see read receipts"
-          checked={chat.readReceipts}
-          onChange={(checked) => handleUpdate("readReceipts", checked)}
+          subtitle="Let others know when you have viewed their incoming messages"
+          checked={Boolean(chats.readReceipts)}
+          onChange={(v) => updateField("readReceipts", v)}
+          showDivider
         />
 
         <SettingsSwitchRow
-          icon={<EditOutlined sx={{ fontSize: 20 }} />}
           title="Typing Indicator"
-          subtitle="Show other group members when you are composing a reply"
-          checked={chat.typingIndicator}
-          onChange={(checked) => handleUpdate("typingIndicator", checked)}
+          subtitle="Broadcast typing status while composing in real-time"
+          checked={Boolean(chats.typingIndicator)}
+          onChange={(v) => updateField("typingIndicator", v)}
         />
+      </SettingsGroup>
 
-        {/* Disappearing Messages */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            py: 2,
-            px: 2,
+      {/* In-App Notifications */}
+      <SettingsSection title="IN-APP NOTIFICATIONS" sx={{ ml: 0.5 }} />
+      <SettingsGroup sx={{ mb: 3 }}>
+        <SettingsSwitchRow
+          title="In-App Notifications"
+          subtitle="Display real-time notification alerts while using the app (excludes your currently active chat)"
+          checked={inAppNotifs}
+          onChange={(v) => {
+            setInAppNotifs(v);
+            setInAppNotificationsEnabled(v);
+            updateField("inAppNotifications", v);
           }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.8 }}>
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: "50%",
-                backgroundColor: SETTINGS_THEME.iconBg,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#FFFFFF",
-              }}
-            >
-              <TimerOutlined sx={{ fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontWeight: 600, fontSize: "0.98rem", color: "#FFFFFF" }}>
-                Disappearing Messages
-              </Typography>
-              <Typography sx={{ fontSize: "0.82rem", color: SETTINGS_THEME.textSecondary }}>
-                Auto-delete new messages after time elapsed
-              </Typography>
-            </Box>
-          </Box>
+        />
+      </SettingsGroup>
 
-          <FormControl size="small">
-            <Select
-              value={chat.disappearingMessages || "off"}
-              onChange={(e) => handleUpdate("disappearingMessages", e.target.value)}
-              sx={{
-                color: "#FFFFFF",
-                backgroundColor: "#202024",
-                borderRadius: "12px",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                "& fieldset": { borderColor: SETTINGS_THEME.divider },
-                "& .MuiSvgIcon-root": { color: "#FFFFFF" },
-              }}
-            >
-              <MenuItem value="off">Off</MenuItem>
-              <MenuItem value="24h">24 Hours</MenuItem>
-              <MenuItem value="7d">7 Days</MenuItem>
-              <MenuItem value="90d">90 Days</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-      </SettingsCard>
+      {/* Disappearing Messages */}
+      <SettingsSection title="DISAPPEARING MESSAGES" sx={{ ml: 0.5 }} />
+      <SettingsGroup sx={{ p: 1.5, mb: 3 }}>
+        <SettingsSegmentedControl
+          value={chats.disappearingMessages || "off"}
+          onChange={(val) => updateField("disappearingMessages", val)}
+          options={[
+            { label: "Off", value: "off" },
+            { label: "24 Hours", value: "24h" },
+            { label: "7 Days", value: "7d" },
+            { label: "90 Days", value: "90d" },
+          ]}
+        />
+      </SettingsGroup>
 
       {/* Media & Storage */}
-      <SettingsSectionTitle>MEDIA & STORAGE</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
+      <SettingsSection title="MEDIA & ARCHIVE" sx={{ ml: 0.5 }} />
+      <SettingsGroup sx={{ mb: 3 }}>
         <SettingsSwitchRow
-          icon={<CloudDownloadOutlined sx={{ fontSize: 20 }} />}
-          title="Auto-Download Media"
-          subtitle="Automatically download photos and trip tickets over Wi-Fi & cellular"
-          checked={chat.autoDownloadMedia}
-          onChange={(checked) => handleUpdate("autoDownloadMedia", checked)}
+          title="Media Auto-Download"
+          subtitle="Automatically download photos and audio clips over Wi-Fi & data"
+          checked={Boolean(chats.mediaAutoDownload)}
+          onChange={(v) => updateField("mediaAutoDownload", v)}
+          showDivider
         />
 
         <SettingsSwitchRow
-          icon={<ArchiveOutlined sx={{ fontSize: 20 }} />}
           title="Keep Chats Archived"
-          subtitle="Archived chats will remain archived when new messages arrive"
-          checked={chat.keepArchived}
-          onChange={(checked) => handleUpdate("keepArchived", checked)}
-          isLast
+          subtitle="Archived chats remain hidden when a new message arrives"
+          checked={Boolean(chats.keepChatsArchived)}
+          onChange={(v) => updateField("keepChatsArchived", v)}
         />
-      </SettingsCard>
+      </SettingsGroup>
 
-      {/* Storage Management & Danger */}
-      <SettingsSectionTitle>STORAGE MANAGEMENT</SettingsSectionTitle>
-      <SettingsCard sx={{ p: 0 }}>
+      {/* Storage Management */}
+      <SettingsSection title="MANAGEMENT & ACTIONS" sx={{ ml: 0.5 }} />
+      <SettingsGroup>
         <SettingsRow
-          icon={<DeleteSweepOutlined sx={{ fontSize: 20 }} />}
-          title="Clear All Messages"
-          subtitle="Delete all message history while keeping your groups and chat rooms"
+          title="Clear All Cached Messages"
+          subtitle="Clear local chat storage without deleting conversations"
           onClick={() => setClearDialogOpen(true)}
+          showChevron={false}
+          showDivider
         />
 
         <SettingsRow
-          icon={<DeleteForeverOutlined sx={{ fontSize: 20, color: SETTINGS_THEME.error }} />}
-          iconBg="rgba(240, 82, 82, 0.15)"
-          title="Delete All Chats"
-          subtitle="Leave all non-essential chat groups and clear all chat data"
-          destructive
-          onClick={() => setDeleteDialogOpen(true)}
-        />
-
-        <SettingsRow
-          icon={<RestartAltOutlined sx={{ fontSize: 20 }} />}
           title="Reset Chat Settings"
-          subtitle="Restore all chat configuration to application defaults"
-          isLast
-          onClick={handleResetSettings}
+          subtitle="Restore all chat toggles back to default values"
+          onClick={() => setResetDialogOpen(true)}
+          showChevron={false}
+          danger
         />
-      </SettingsCard>
+      </SettingsGroup>
 
-      {/* Clear Messages Dialog */}
+      {/* Reset Confirmation Dialog */}
+      <Dialog
+        open={resetDialogOpen}
+        onClose={() => setResetDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            bgcolor: SETTINGS_THEME.card,
+            color: SETTINGS_THEME.textPrimary,
+            borderRadius: "24px",
+            p: 1,
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>Reset Chat Settings?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: SETTINGS_THEME.textSecondary }}>
+            This will reset wallpaper, typing indicators, and read receipts to their default values. Your conversation messages will NOT be deleted.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setResetDialogOpen(false)} sx={{ color: SETTINGS_THEME.textSecondary, textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button onClick={handleResetChatSettings} variant="contained" color="error" sx={{ borderRadius: "14px", textTransform: "none" }}>
+            Reset Settings
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Clear Cache Confirmation Dialog */}
       <Dialog
         open={clearDialogOpen}
         onClose={() => setClearDialogOpen(false)}
-        maxWidth="xs"
-        fullWidth
         PaperProps={{
           sx: {
-            backgroundColor: "#161616",
-            color: "#FFFFFF",
+            bgcolor: SETTINGS_THEME.card,
+            color: SETTINGS_THEME.textPrimary,
             borderRadius: "24px",
-            border: `1px solid ${SETTINGS_THEME.divider}`,
             p: 1,
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: "1.2rem" }}>
-          Clear All Messages?
-        </DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>Clear Cached Messages?</DialogTitle>
         <DialogContent>
-          <Typography sx={{ color: SETTINGS_THEME.textSecondary, fontSize: "0.9rem" }}>
-            This will wipe cached messages on this device. You will remain a member of all your trip
-            groups and conversations.
+          <Typography variant="body2" sx={{ color: SETTINGS_THEME.textSecondary }}>
+            This will free up local browser storage by clearing offline message caches.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={() => setClearDialogOpen(false)}
-            sx={{ color: SETTINGS_THEME.textSecondary, textTransform: "none", fontWeight: 600 }}
-          >
+          <Button onClick={() => setClearDialogOpen(false)} sx={{ color: SETTINGS_THEME.textSecondary, textTransform: "none" }}>
             Cancel
           </Button>
           <Button
-            variant="contained"
-            onClick={handleClearAllMessages}
-            sx={{
-              backgroundColor: SETTINGS_THEME.accent,
-              color: "#FFFFFF",
-              textTransform: "none",
-              fontWeight: 700,
-              borderRadius: "14px",
-              px: 3,
+            onClick={() => {
+              sessionStorage.clear();
+              setClearDialogOpen(false);
+              alert("Local message caches cleared.");
             }}
+            variant="contained"
+            sx={{ bgcolor: SETTINGS_THEME.accent, borderRadius: "14px", textTransform: "none" }}
           >
-            Clear Messages
+            Clear Cache
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Delete All Chats Dialog */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        maxWidth="xs"
-        fullWidth
-        PaperProps={{
-          sx: {
-            backgroundColor: "#161616",
-            color: "#FFFFFF",
-            borderRadius: "24px",
-            border: `1px solid ${SETTINGS_THEME.divider}`,
-            p: 1,
-          },
-        }}
-      >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: "1.2rem", color: SETTINGS_THEME.error }}>
-          Delete All Chats?
-        </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ color: SETTINGS_THEME.textSecondary, fontSize: "0.9rem" }}>
-            This destructive action removes your chat threads and attachments. This cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={() => setDeleteDialogOpen(false)}
-            sx={{ color: SETTINGS_THEME.textSecondary, textTransform: "none", fontWeight: 600 }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDeleteAllChats}
-            sx={{
-              borderRadius: "14px",
-              textTransform: "none",
-              fontWeight: 700,
-              px: 3,
-            }}
-          >
-            Delete Everything
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={Boolean(snackbarMessage)}
-        autoHideDuration={2500}
-        onClose={() => setSnackbarMessage("")}
-        message={snackbarMessage}
-      />
-    </Box>
+    </SettingsLayout>
   );
-};
-
-export default ChatsSettingsView;
+}

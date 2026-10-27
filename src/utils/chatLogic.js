@@ -1,6 +1,5 @@
-import { db, messaging } from '../firebase'; // Import Firestore and Firebase Messaging
-import { collection, addDoc, serverTimestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
-import { getToken } from 'firebase/messaging';
+import { db } from '../firebase'; // Import Firestore
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { auth } from '../firebase';
 
 // Function to create a new chatroom

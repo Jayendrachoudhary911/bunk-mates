@@ -37,7 +37,7 @@ export const UserProvider = ({ children }) => {
     }
     return null;
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !user);
 
   useEffect(() => {
     let isMounted = true;

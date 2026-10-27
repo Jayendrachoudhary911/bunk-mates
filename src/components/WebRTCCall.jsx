@@ -41,7 +41,7 @@ export default function WebRTCCall({
   isIncoming = false,
   currentUser,
 }) {
-  const [callStatus, setCallStatus] = useState("initiating"); // "initiating" | "ringing" | "connected" | "ended"
+  const [callStatus, setCallStatus] = useState("initiating"); // "initiating" | "calling" | "ringing" | "connected" | "ended"
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
@@ -52,8 +52,21 @@ export default function WebRTCCall({
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
   const timerRef = useRef(null);
+  const durationRef = useRef(0);
+  const callStatusRef = useRef("initiating");
+  const callTimeoutRef = useRef(null);
+  const callerHistoryDocIdRef = useRef(callData?.callerHistoryDocId || null);
+  const receiverHistoryDocIdRef = useRef(callData?.receiverHistoryDocId || null);
   const unsubscribeCallRef = useRef(null);
   const unsubscribeCandidatesRef = useRef(null);
+
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
+
+  useEffect(() => {
+    callStatusRef.current = callStatus;
+  }, [callStatus]);
 
   const callType = callData?.callType || "video";
   const isVideo = callType === "video";
@@ -65,6 +78,10 @@ export default function WebRTCCall({
 
   // Cleanup helper
   const cleanupStreamsAndPC = () => {
+    if (callTimeoutRef.current) {
+      clearTimeout(callTimeoutRef.current);
+      callTimeoutRef.current = null;
+    }
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -91,17 +108,79 @@ export default function WebRTCCall({
 
   // End Call Action
   const handleEndCall = async () => {
+    if (callTimeoutRef.current) {
+      clearTimeout(callTimeoutRef.current);
+      callTimeoutRef.current = null;
+    }
+
+    const currentDuration = durationRef.current;
+    const currentStatus = callStatusRef.current;
+
     try {
       if (callData?.callID) {
         const callDocRef = doc(db, "calls", callData.callID);
+        const callSnap = await getDoc(callDocRef).catch(() => null);
+        const callDocData = callSnap?.exists() ? callSnap.data() : callData;
+
+        const isCallConnected = currentStatus === "connected" || currentDuration > 0 || callDocData?.status === "connected";
+        const finalStatus = isCallConnected ? "ended" : "missed";
+        const endReason = isCallConnected ? "normal" : "missed";
+
+        // 1. Update calls/{callID} document in Firestore
         await updateDoc(callDocRef, {
           status: "ended",
           endedAt: serverTimestamp(),
+          duration: currentDuration,
+          durationSeconds: currentDuration,
+          endReason,
         }).catch(() => {});
+
+        // History IDs
+        const callerHistoryId = callerHistoryDocIdRef.current || callDocData?.callerHistoryDocId || callData?.callerHistoryDocId;
+        const receiverHistoryId = receiverHistoryDocIdRef.current || callDocData?.receiverHistoryDocId || callData?.receiverHistoryDocId;
+        const callerId = callDocData?.callerId || callData?.callerId || currentUser.uid;
+        const receiverId = callDocData?.receiverId || callData?.receiverId;
+
+        const historyUpdate = {
+          status: finalStatus,
+          endedAt: serverTimestamp(),
+          duration: currentDuration,
+          durationSeconds: currentDuration,
+          endReason,
+        };
+
+        // 2. Update caller's callHistory subcollection document
+        if (callerId && callerHistoryId) {
+          await updateDoc(doc(db, "users", callerId, "callHistory", callerHistoryId), historyUpdate).catch(() => {});
+        }
+
+        // 3. Update receiver's callHistory subcollection document
+        if (receiverId && receiverHistoryId) {
+          await updateDoc(doc(db, "users", receiverId, "callHistory", receiverHistoryId), historyUpdate).catch(() => {});
+        }
+
+        // 4. If call was missed (unanswered) and initiated by caller, add notification for recipient
+        if (!isCallConnected && !isIncoming && receiverId) {
+          try {
+            await addDoc(collection(db, "notifications"), {
+              recipientId: receiverId,
+              senderId: callerId,
+              senderName: currentUser.displayName || callData.callerName || "User",
+              senderAvatar: currentUser.photoURL || callData.callerAvatar || "",
+              type: "missed_call",
+              callType: callData.callType || "video",
+              timestamp: serverTimestamp(),
+              read: false,
+            });
+          } catch (notifErr) {
+            console.warn("Could not send missed call notification:", notifErr);
+          }
+        }
       }
     } catch (err) {
       console.warn("Error marking call ended in firestore:", err);
     }
+
     cleanupStreamsAndPC();
     setCallStatus("ended");
     setTimeout(() => {
@@ -185,6 +264,20 @@ export default function WebRTCCall({
           // CALLER LOGIC
           setCallStatus("calling");
 
+          // 45s ringing timeout for caller if receiver does not answer
+          callTimeoutRef.current = setTimeout(() => {
+            if (callStatusRef.current === "calling" || callStatusRef.current === "initiating") {
+              handleEndCall();
+            }
+          }, 45000);
+
+          // Generate history docs with auto-generated IDs in users/{uid}/callHistory
+          const callerHistoryDocRef = doc(collection(db, "users", currentUser.uid, "callHistory"));
+          const receiverHistoryDocRef = doc(collection(db, "users", callData.receiverId, "callHistory"));
+
+          callerHistoryDocIdRef.current = callerHistoryDocRef.id;
+          receiverHistoryDocIdRef.current = receiverHistoryDocRef.id;
+
           // Send caller ICE candidates to callerCandidates subcollection
           pc.onicecandidate = (event) => {
             if (event.candidate && callDocRef) {
@@ -202,18 +295,76 @@ export default function WebRTCCall({
             type: offerDescription.type,
           };
 
-          // Save call document to Firestore
+          const callerName = currentUser.displayName || callData.callerName || "User";
+          const callerHandle = callData.callerHandle || currentUser.email?.split("@")[0] || "";
+          const callerAvatar = currentUser.photoURL || callData.callerAvatar || "";
+          const receiverName = callData.receiverName || "User";
+          const receiverHandle = callData.receiverHandle || "";
+          const receiverAvatar = callData.receiverAvatar || "";
+          const callTypeVal = callData.callType || "video";
+
+          // 1. Create caller's history entry in users/{callerId}/callHistory
+          await setDoc(callerHistoryDocRef, {
+            id: callerHistoryDocRef.id,
+            callID: callData.callID,
+            callType: callTypeVal,
+            direction: "outgoing",
+            status: "calling",
+            peerId: callData.receiverId,
+            peerName: receiverName,
+            peerAvatar: receiverAvatar,
+            peerHandle: receiverHandle,
+            callerId: currentUser.uid,
+            callerName,
+            callerAvatar,
+            callerHandle,
+            receiverId: callData.receiverId,
+            receiverName,
+            receiverAvatar,
+            receiverHandle,
+            createdAt: serverTimestamp(),
+            duration: 0,
+            durationSeconds: 0,
+          }).catch((e) => console.warn("Failed to write caller callHistory:", e));
+
+          // 2. Create receiver's history entry in users/{receiverId}/callHistory
+          await setDoc(receiverHistoryDocRef, {
+            id: receiverHistoryDocRef.id,
+            callID: callData.callID,
+            callType: callTypeVal,
+            direction: "incoming",
+            status: "calling",
+            peerId: currentUser.uid,
+            peerName: callerName,
+            peerAvatar: callerAvatar,
+            peerHandle: callerHandle,
+            callerId: currentUser.uid,
+            callerName,
+            callerAvatar,
+            callerHandle,
+            receiverId: callData.receiverId,
+            receiverName,
+            receiverAvatar,
+            receiverHandle,
+            createdAt: serverTimestamp(),
+            duration: 0,
+            durationSeconds: 0,
+          }).catch((e) => console.warn("Failed to write receiver callHistory:", e));
+
+          // 3. Save call document to Firestore calls/{callID}
           await setDoc(callDocRef, {
             callID: callData.callID,
-            callType: callData.callType || "video",
+            callType: callTypeVal,
             callerId: currentUser.uid,
-            callerName: currentUser.displayName || callData.callerName || "User",
-            callerHandle: callData.callerHandle || currentUser.email?.split("@")[0] || "",
-            callerAvatar: currentUser.photoURL || callData.callerAvatar || "",
+            callerName,
+            callerHandle,
+            callerAvatar,
             receiverId: callData.receiverId,
-            receiverName: callData.receiverName || "User",
-            receiverHandle: callData.receiverHandle || "",
-            receiverAvatar: callData.receiverAvatar || "",
+            receiverName,
+            receiverHandle,
+            receiverAvatar,
+            callerHistoryDocId: callerHistoryDocRef.id,
+            receiverHistoryDocId: receiverHistoryDocRef.id,
             status: "calling",
             offer,
             createdAt: serverTimestamp(),
@@ -226,12 +377,22 @@ export default function WebRTCCall({
 
             if (data.status === "ended") {
               handleEndCall();
-            } else if (data.status === "connected" && !timerRef.current) {
+            } else if (data.status === "connected") {
+              if (callTimeoutRef.current) {
+                clearTimeout(callTimeoutRef.current);
+                callTimeoutRef.current = null;
+              }
               setCallStatus("connected");
-              timerRef.current = setInterval(() => setDuration((prev) => prev + 1), 1000);
+              if (!timerRef.current) {
+                timerRef.current = setInterval(() => setDuration((prev) => prev + 1), 1000);
+              }
             }
 
             if (!pc.currentRemoteDescription && data.answer) {
+              if (callTimeoutRef.current) {
+                clearTimeout(callTimeoutRef.current);
+                callTimeoutRef.current = null;
+              }
               const answerDescription = new RTCSessionDescription(data.answer);
               pc.setRemoteDescription(answerDescription).catch((e) => console.warn(e));
               setCallStatus("connected");
@@ -270,6 +431,11 @@ export default function WebRTCCall({
           const callSnap = await getDoc(callDocRef);
           const callDocData = callSnap.data();
 
+          if (callDocData) {
+            callerHistoryDocIdRef.current = callDocData.callerHistoryDocId || null;
+            receiverHistoryDocIdRef.current = callDocData.receiverHistoryDocId || null;
+          }
+
           if (callDocData?.offer) {
             await pc.setRemoteDescription(new RTCSessionDescription(callDocData.offer));
             const answerDescription = await pc.createAnswer();
@@ -283,7 +449,22 @@ export default function WebRTCCall({
             await updateDoc(callDocRef, {
               answer,
               status: "connected",
+              acceptedAt: serverTimestamp(),
             });
+
+            // Update both callHistory subcollections to "connected"
+            if (callDocData?.callerHistoryDocId && callDocData?.callerId) {
+              await updateDoc(doc(db, "users", callDocData.callerId, "callHistory", callDocData.callerHistoryDocId), {
+                status: "connected",
+                acceptedAt: serverTimestamp(),
+              }).catch(() => {});
+            }
+            if (callDocData?.receiverHistoryDocId && callDocData?.receiverId) {
+              await updateDoc(doc(db, "users", callDocData.receiverId, "callHistory", callDocData.receiverHistoryDocId), {
+                status: "connected",
+                acceptedAt: serverTimestamp(),
+              }).catch(() => {});
+            }
           }
 
           // Listen for call document status updates

@@ -54,10 +54,11 @@ import {
 
 // --- THEME & DESIGN SYSTEM IMPORTS ---
 import { designTokens, glass, cardHover } from '../theme/designSystem';
+import UniversalShareToChatDialog from '../components/chats_components/UniversalShareToChatDialog';
 
 // --- FIREBASE IMPORTS ---
 import { db, auth } from '../firebase';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, limit, arrayUnion } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, getDocs, limit, arrayUnion } from 'firebase/firestore';
 
 export default function UserProfile({ matchUsername }) {
   const theme = useTheme();
@@ -92,6 +93,7 @@ export default function UserProfile({ matchUsername }) {
   const [tabValue, setTabValue] = useState(0);
   const [editOpen, setEditOpen] = useState(false);
   const [shareAnchor, setShareAnchor] = useState(null);
+  const [shareToChatOpen, setShareToChatOpen] = useState(false);
   const [snackbarState, setSnackbarState] = useState({ open: false, message: '', severity: 'success' });
 
   // Interactive Sub-Page / Modal States for Friends, Places, Memories, Trips
@@ -309,6 +311,7 @@ export default function UserProfile({ matchUsername }) {
     }
 
     fetchProfileAndTrips();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetUsername]);
 
   const handleTabChange = (event, newValue) => setTabValue(newValue);
@@ -508,6 +511,7 @@ export default function UserProfile({ matchUsername }) {
                 </Button>
                 <Menu anchorEl={shareAnchor} open={Boolean(shareAnchor)} onClose={handleShareClose}>
                   <MenuItem onClick={handleCopyLink}><ContentCopyIcon fontSize="small" sx={{ mr: 1 }} /> Copy Profile Link</MenuItem>
+                  <MenuItem onClick={() => { handleShareClose(); setShareToChatOpen(true); }}><MessageIcon fontSize="small" sx={{ mr: 1 }} /> Share to BunkMate Chats & Groups</MenuItem>
                 </Menu>
               </Box>
             </Box>
@@ -849,6 +853,15 @@ export default function UserProfile({ matchUsername }) {
       <Snackbar open={snackbarState.open} autoHideDuration={4000} onClose={() => setSnackbarState({ ...snackbarState, open: false })}>
         <Alert severity={snackbarState.severity}>{snackbarState.message}</Alert>
       </Snackbar>
+
+      <UniversalShareToChatDialog
+        open={shareToChatOpen}
+        onClose={() => setShareToChatOpen(false)}
+        itemType="user"
+        itemData={profile || {}}
+        currentUser={auth.currentUser}
+        effectiveChatTheme={mode}
+      />
     </Box>
   );
 }

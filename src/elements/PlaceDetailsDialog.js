@@ -1,5 +1,4 @@
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Box,
   Typography,
@@ -14,9 +13,11 @@ import {
   FavoriteBorder as FavoriteBorderIcon, 
   Bookmark as BookmarkIcon, 
   BookmarkBorder as BookmarkBorderIcon, 
-  Close as CloseIcon 
+  Close as CloseIcon,
+  Share as ShareIcon
 } from "../icons";
 import { glassIconBtnSx, ctaButtonSx } from "../theme/designSystem";
+import UniversalShareToChatDialog from "../components/chats_components/UniversalShareToChatDialog";
 
 const InfoItem = ({ label, value, full }) => (
   <Box sx={{ gridColumn: full ? "span 2" : "auto" }}>
@@ -42,6 +43,7 @@ const PlaceDetailsDialog = ({
 }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
 
   if (!place) return null;
 
@@ -198,6 +200,26 @@ const PlaceDetailsDialog = ({
               {saved ? "Saved" : "Save"}
             </Button>
 
+            {/* SHARE TO CHAT BUTTON */}
+            <IconButton
+              onClick={(e) => {
+                e.stopPropagation();
+                setShareDialogOpen(true);
+              }}
+              sx={{
+                p: 1.4,
+                borderRadius: "50%",
+                background: "rgba(0, 0, 0, 0.2)",
+                color: "#fff",
+                backdropFilter: "blur(22px) saturate(0.8) brightness(1.9)",
+                "&:hover": { transform: "scale(1.08)" },
+                transition: "all .25s ease",
+              }}
+              title="Share Place to Chat"
+            >
+              <ShareIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+
             {/* PRIMARY PLAN TRIP CTA */}
             <Button
               onClick={(e) => {
@@ -270,6 +292,14 @@ const PlaceDetailsDialog = ({
             <InfoItem label="Weather" value={place.weather} full />
           </Box>
         </Box>
+        {/* Share to Chat & Groups Dialog */}
+        <UniversalShareToChatDialog
+          open={shareDialogOpen}
+          onClose={() => setShareDialogOpen(false)}
+          itemType="place"
+          itemData={place || {}}
+          effectiveChatTheme={isDark ? "dark" : "light"}
+        />
       </Box>
     </SwipeableDrawer>
   );
