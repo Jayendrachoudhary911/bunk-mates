@@ -51,16 +51,7 @@ const DesktopSidebar = () => {
 
   // Always starts collapsed by default
   const [isHovered, setIsHovered] = useState(false);
-  const [unreadChats, setUnreadChats] = useState(() => {
-    try {
-      const stored = localStorage.getItem("bm_total_unread_chats");
-      if (stored !== null) {
-        const val = parseInt(stored, 10);
-        return isNaN(val) ? 0 : val;
-      }
-    } catch (e) {}
-    return 0;
-  });
+  const [unreadChats, setUnreadChats] = useState(0);
   const [unreadNotifs, setUnreadNotifs] = useState(() => {
     const uid = currentUser?.uid;
     return uid ? getCachedData(`user_unread_notifs_${uid}`, 0) : 0;
@@ -103,23 +94,11 @@ const DesktopSidebar = () => {
       if (!isNaN(count)) setUnreadChats(Math.max(0, count));
     };
 
-    const handleChatListChanged = () => {
-      try {
-        const stored = localStorage.getItem("bm_total_unread_chats");
-        if (stored !== null) {
-          const count = parseInt(stored, 10);
-          if (!isNaN(count)) setUnreadChats(Math.max(0, count));
-        }
-      } catch (e) {}
-    };
-
     window.addEventListener("bm_unread_total_changed", handleUnreadTotal);
-    window.addEventListener("bm_unread_chats_changed", handleChatListChanged);
 
     if (!currentUser?.uid) {
       return () => {
         window.removeEventListener("bm_unread_total_changed", handleUnreadTotal);
-        window.removeEventListener("bm_unread_chats_changed", handleChatListChanged);
       };
     }
 
@@ -204,7 +183,6 @@ const DesktopSidebar = () => {
 
     return () => {
       window.removeEventListener("bm_unread_total_changed", handleUnreadTotal);
-      window.removeEventListener("bm_unread_chats_changed", handleChatListChanged);
       unsubs.forEach((u) => u && u());
     };
   }, [currentUser]);

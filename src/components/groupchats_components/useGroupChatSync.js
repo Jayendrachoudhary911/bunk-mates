@@ -22,17 +22,9 @@ import { onAuthStateChanged } from "firebase/auth";
 import {
   getCachedData,
   setCachedData,
-  serializeMessages,
   getCachedUser,
   setCachedUser,
 } from "../../utils/chatCache";
-import {
-  getMessagesFromDB,
-  saveMessagesToDB,
-  getCachedMessagesSync,
-  saveLastMessageToDB,
-  markChatAsReadInDB,
-} from "../../utils/chatIndexedDB";
 import { generatePlaceSuggestions, askQuickAI } from "../../utils/chatHelpers";
 import {
   getChatDisappearingDuration,
@@ -50,21 +42,9 @@ export function useGroupChatSync(groupName) {
   const [typingMembers, setTypingMembers] = useState([]);
   const typingTimeoutRef = useRef(null);
 
-  // 1. Instant 0ms hydration from IndexedDB / memory / localStorage
-  const [messages, setMessages] = useState(() => {
-    if (!groupName) return [];
-    const inMem = getCachedMessagesSync(`group_${groupName}`);
-    if (inMem && inMem.length > 0) return inMem;
-    return getCachedData(`group_msgs_${groupName}`, []);
-  });
-
-  const [loadingMessages, setLoadingMessages] = useState(() => {
-    if (!groupName) return true;
-    const inMem = getCachedMessagesSync(`group_${groupName}`);
-    if (inMem && inMem.length > 0) return false;
-    const cached = getCachedData(`group_msgs_${groupName}`, []);
-    return !cached || cached.length === 0;
-  });
+  // Messages are fetched directly from Firestore in real-time
+  const [messages, setMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(true);
 
   const [groupInfo, setGroupInfo] = useState(() => {
     if (!groupName) return null;
@@ -91,14 +71,7 @@ export function useGroupChatSync(groupName) {
   // Set active group chat, mark group as read in DB and Firestore notifications
   useEffect(() => {
     if (!groupName || !currentUser?.uid) return;
-
-    const nowTs = Date.now();
-    try {
-      localStorage.setItem(`bunkmate_group_read_${groupName}`, nowTs.toString());
-    } catch {}
-
     setActiveChat({ type: "group", id: groupName, groupName });
-    markChatAsReadInDB(groupName, true);
     clearMarkChatUnread(groupName);
 
     // Mark group notifications as seen in Firestore
@@ -141,20 +114,10 @@ export function useGroupChatSync(groupName) {
     };
   }, [groupName, currentUser?.uid]);
 
-  // Update messages state when groupName changes (load from IndexedDB first)
+  // Reset messages when groupName changes
   useEffect(() => {
-    if (groupName) {
-      let isMounted = true;
-      getMessagesFromDB(`group_${groupName}`).then((cached) => {
-        if (isMounted && cached && cached.length > 0) {
-          setMessages(cached);
-          setLoadingMessages(false);
-        }
-      });
-      return () => {
-        isMounted = false;
-      };
-    }
+    setMessages([]);
+    setLoadingMessages(Boolean(groupName));
   }, [groupName]);
 
   // 2. Single high-performance listener for Group Metadata
@@ -264,10 +227,7 @@ export function useGroupChatSync(groupName) {
       return;
     }
 
-    const cached = getCachedData(`group_msgs_${groupName}`, []);
-    if (!cached || cached.length === 0) {
-      setLoadingMessages(true);
-    }
+    setLoadingMessages(true);
 
     const q = query(
       collection(db, "groupChat", groupName, "messages"),
@@ -326,22 +286,6 @@ export function useGroupChatSync(groupName) {
 
         const validMsgs = msgs.filter((m) => !isMessageExpired(m));
         setMessages(validMsgs);
-        saveMessagesToDB(`group_${groupName}`, validMsgs);
-        if (validMsgs.length > 0) {
-          const last = validMsgs[validMsgs.length - 1];
-          const lastSnippet = last.text || (last.dataUri ? "Photo" : "Attachment");
-          saveLastMessageToDB(groupName, {
-            lastMessage: lastSnippet,
-            timestamp: last.timestamp || Date.now(),
-            unreadCount: 0,
-            isGroup: true,
-          });
-          try {
-            localStorage.setItem(`bunkmate_group_read_${groupName}`, Date.now().toString());
-          } catch {}
-          markChatAsReadInDB(groupName, true);
-        }
-        setCachedData(`group_msgs_${groupName}`, serializeMessages(validMsgs));
       },
       (err) => {
         console.error("Group messages listener error:", err);
@@ -533,12 +477,6 @@ export function useGroupChatSync(groupName) {
           { merge: true }
         ).catch(() => {});
 
-        saveLastMessageToDB(groupName, {
-          lastMessage: groupMsgSnippet,
-          timestamp: Date.now(),
-          unreadCount: 0,
-          isGroup: true,
-        });
 
         // Group members to notify
         const members = Array.isArray(groupInfo?.members) ? groupInfo.members : [];

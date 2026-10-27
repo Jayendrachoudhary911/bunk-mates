@@ -1,6 +1,8 @@
-// src/components/PageTitleManager.jsx
 import { useEffect, useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
+import { auth, db } from "../firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 /**
  * Maps current URL pathname to a clean, descriptive page title.
@@ -232,14 +234,7 @@ function updateFaviconBadge(unreadCount, originalFaviconUrl) {
 
 export default function PageTitleManager() {
   const location = useLocation();
-  const [unreadCount, setUnreadCount] = useState(() => {
-    try {
-      const stored = localStorage.getItem("bm_total_unread_chats");
-      return stored ? Math.max(0, parseInt(stored, 10) || 0) : 0;
-    } catch (e) {
-      return 0;
-    }
-  });
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const [activeGroupName, setActiveGroupName] = useState(() => {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/group/")) {
@@ -305,40 +300,45 @@ export default function PageTitleManager() {
     };
   }, []);
 
-  // Listen to unread count events across custom events and storage changes
+  // Real-time unread count directly from Firestore DB notifications
   useEffect(() => {
+    let notifUnsub = null;
+    const authUnsub = onAuthStateChanged(auth, (user) => {
+      if (notifUnsub) {
+        notifUnsub();
+        notifUnsub = null;
+      }
+      if (!user?.uid) {
+        setUnreadCount(0);
+        return;
+      }
+      try {
+        const notifQ = query(
+          collection(db, "notifications"),
+          where("uid", "==", user.uid),
+          where("seen", "==", false)
+        );
+        notifUnsub = onSnapshot(
+          notifQ,
+          (snapshot) => {
+            setUnreadCount(snapshot.size);
+          },
+          () => {}
+        );
+      } catch {}
+    });
+
     const handleUnreadTotal = (e) => {
       const count = typeof e.detail === "number" ? e.detail : parseInt(e.detail, 10);
       setUnreadCount(isNaN(count) ? 0 : Math.max(0, count));
     };
 
-    const handleStorage = (e) => {
-      if (e.key === "bm_total_unread_chats") {
-        const count = parseInt(e.newValue || "0", 10);
-        setUnreadCount(isNaN(count) ? 0 : Math.max(0, count));
-      }
-    };
-
-    const handleChatListChanged = () => {
-      try {
-        const stored = localStorage.getItem("bm_total_unread_chats");
-        if (stored !== null) {
-          const count = parseInt(stored, 10);
-          setUnreadCount(isNaN(count) ? 0 : Math.max(0, count));
-        }
-      } catch (e) {
-        // ignore
-      }
-    };
-
     window.addEventListener("bm_unread_total_changed", handleUnreadTotal);
-    window.addEventListener("bm_unread_chats_changed", handleChatListChanged);
-    window.addEventListener("storage", handleStorage);
 
     return () => {
+      if (notifUnsub) notifUnsub();
+      authUnsub();
       window.removeEventListener("bm_unread_total_changed", handleUnreadTotal);
-      window.removeEventListener("bm_unread_chats_changed", handleChatListChanged);
-      window.removeEventListener("storage", handleStorage);
     };
   }, []);
 

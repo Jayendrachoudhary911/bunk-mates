@@ -169,11 +169,6 @@ function GroupChat({
   useEffect(() => {
     if (!currentUser?.uid || !groupName) return;
 
-    // Immediately persist local read timestamp to prevent unread badge flicker
-    try {
-      localStorage.setItem(`bunkmate_group_read_${groupName}`, Date.now().toString());
-    } catch {}
-
     const markReadInDb = async () => {
       try {
         const nowIso = new Date().toISOString();
@@ -510,12 +505,7 @@ function GroupChat({
         groupName,
         id: groupName,
       });
-      try {
-        localStorage.setItem(`bunkmate_group_read_${groupName}`, String(Date.now()));
-        window.dispatchEvent(new CustomEvent("bm_unread_chats_changed"));
-      } catch (e) {
-        // ignore
-      }
+      window.dispatchEvent(new CustomEvent("bm_unread_chats_changed"));
     }
     return () => {
       clearActiveChat();

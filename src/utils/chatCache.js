@@ -4,7 +4,19 @@
  */
 
 const STORAGE_PREFIX = "bunkmate_cache_";
-const MAX_CACHED_MESSAGES = 80; // Optimal balance for instant load and memory/localStorage safety
+const MAX_CACHED_MESSAGES = 80;
+
+// Automatically purge any legacy chat/group message caches from localStorage
+try {
+  if (typeof window !== "undefined" && window.localStorage) {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(STORAGE_PREFIX) && k.includes("_msgs_")) {
+        localStorage.removeItem(k);
+      }
+    }
+  }
+} catch (e) {}
 
 /**
  * Safely parse JSON from localStorage

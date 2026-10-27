@@ -11,13 +11,13 @@
  */
 
 import { db, auth } from "../firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot } from "firebase/firestore";
 
 const STORAGE_KEYS = {
   MUTED_CHATS: "bm_muted_chats_v1",
   FAVORITE_CHATS: "bm_favorite_chats_v1",
   PINNED_CHATS: "bm_pinned_chats_v1",
-  UNREAD_CHATS: "bm_unread_override_chats_v1",
   CHAT_LISTS: "bm_custom_chat_lists_v1",
   IN_APP_NOTIFS: "bm_in_app_notifs_enabled",
   DISAPPEARING_SETTINGS: "bm_disappearing_settings_v1",
@@ -346,47 +346,90 @@ export const togglePinChat = (chatIdOrName) => {
   return isPinned;
 };
 
-// ─── 8. Marked Unread Chats Override ─────────────────────────────────────
+// ─── 8. Marked Unread Chats (Direct Firestore Real-time Sync) ───────────
+let inMemoryMarkedUnread = new Set();
+let unreadUnsub = null;
+
+if (typeof window !== "undefined") {
+  onAuthStateChanged(auth, (user) => {
+    if (unreadUnsub) {
+      unreadUnsub();
+      unreadUnsub = null;
+    }
+    if (!user) {
+      inMemoryMarkedUnread.clear();
+      window.dispatchEvent(new CustomEvent("bm_unread_chats_changed", { detail: [] }));
+      return;
+    }
+    try {
+      unreadUnsub = onSnapshot(
+        doc(db, "users", user.uid),
+        (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            const list = Array.isArray(data.markedUnreadChats)
+              ? data.markedUnreadChats
+              : [];
+            inMemoryMarkedUnread = new Set(list.map(String));
+            window.dispatchEvent(
+              new CustomEvent("bm_unread_chats_changed", { detail: list })
+            );
+          }
+        },
+        () => {}
+      );
+    } catch {}
+  });
+}
+
 export const getMarkedUnreadChats = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.UNREAD_CHATS);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return Array.from(inMemoryMarkedUnread);
 };
 
 export const isChatMarkedUnread = (chatIdOrName) => {
   if (!chatIdOrName) return false;
-  return getMarkedUnreadChats().includes(String(chatIdOrName));
+  return inMemoryMarkedUnread.has(String(chatIdOrName));
 };
 
 export const toggleMarkChatUnread = (chatIdOrName) => {
   if (!chatIdOrName) return false;
   const id = String(chatIdOrName);
-  const list = getMarkedUnreadChats();
-  let updated;
-  let isUnread;
-  if (list.includes(id)) {
-    updated = list.filter((u) => u !== id);
-    isUnread = false;
+  const isUnread = !inMemoryMarkedUnread.has(id);
+  if (isUnread) {
+    inMemoryMarkedUnread.add(id);
   } else {
-    updated = [...list, id];
-    isUnread = true;
+    inMemoryMarkedUnread.delete(id);
   }
-  localStorage.setItem(STORAGE_KEYS.UNREAD_CHATS, JSON.stringify(updated));
-  window.dispatchEvent(new CustomEvent("bm_unread_chats_changed", { detail: updated }));
+  const uid = auth?.currentUser?.uid;
+  if (uid) {
+    updateDoc(doc(db, "users", uid), {
+      markedUnreadChats: isUnread ? arrayUnion(id) : arrayRemove(id),
+    }).catch(() => {});
+  }
+  window.dispatchEvent(
+    new CustomEvent("bm_unread_chats_changed", {
+      detail: Array.from(inMemoryMarkedUnread),
+    })
+  );
   return isUnread;
 };
 
 export const clearMarkChatUnread = (chatIdOrName) => {
   if (!chatIdOrName) return;
   const id = String(chatIdOrName);
-  const list = getMarkedUnreadChats();
-  if (list.includes(id)) {
-    const updated = list.filter((u) => u !== id);
-    localStorage.setItem(STORAGE_KEYS.UNREAD_CHATS, JSON.stringify(updated));
-    window.dispatchEvent(new CustomEvent("bm_unread_chats_changed", { detail: updated }));
+  if (inMemoryMarkedUnread.has(id)) {
+    inMemoryMarkedUnread.delete(id);
+    const uid = auth?.currentUser?.uid;
+    if (uid) {
+      updateDoc(doc(db, "users", uid), {
+        markedUnreadChats: arrayRemove(id),
+      }).catch(() => {});
+    }
+    window.dispatchEvent(
+      new CustomEvent("bm_unread_chats_changed", {
+        detail: Array.from(inMemoryMarkedUnread),
+      })
+    );
   }
 };
 

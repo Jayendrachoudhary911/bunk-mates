@@ -22,17 +22,9 @@ import { onAuthStateChanged } from "firebase/auth";
 import {
   getCachedData,
   setCachedData,
-  serializeMessages,
   getCachedUser,
   setCachedUser,
 } from "../../utils/chatCache";
-import {
-  getMessagesFromDB,
-  saveMessagesToDB,
-  getCachedMessagesSync,
-  saveLastMessageToDB,
-  markChatAsReadInDB,
-} from "../../utils/chatIndexedDB";
 import { generatePlaceSuggestions, askQuickAI } from "../../utils/chatHelpers";
 import {
   getChatDisappearingDuration,
@@ -55,21 +47,9 @@ export function useChatSync(friendId) {
       ? [currentUser.uid, friendId].sort().join("_")
       : null;
 
-  // 1. Instant hydration of messages from IndexedDB / memory / localStorage (0ms latency)
-  const [messages, setMessages] = useState(() => {
-    if (!chatId) return [];
-    const inMem = getCachedMessagesSync(chatId);
-    if (inMem && inMem.length > 0) return inMem;
-    return getCachedData(`chat_msgs_${chatId}`, []);
-  });
-
-  const [loadingMessages, setLoadingMessages] = useState(() => {
-    if (!chatId) return true;
-    const inMem = getCachedMessagesSync(chatId);
-    if (inMem && inMem.length > 0) return false;
-    const cached = getCachedData(`chat_msgs_${chatId}`, []);
-    return !cached || cached.length === 0;
-  });
+  // Messages are fetched directly from Firestore in real-time
+  const [messages, setMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(true);
 
   // 2. Hydrate friend details from cache
   const [friendDetails, setFriendDetails] = useState(() => {
@@ -109,7 +89,6 @@ export function useChatSync(friendId) {
     if (!chatId || !friendId || !currentUser?.uid) return;
 
     setActiveChat({ type: "direct", id: chatId, friendId });
-    markChatAsReadInDB(friendId, false);
     clearMarkChatUnread(friendId);
 
     // Mark any unseen notifications from this friend as seen
@@ -132,20 +111,10 @@ export function useChatSync(friendId) {
     };
   }, [chatId, friendId, currentUser?.uid]);
 
-  // Update messages state when chatId changes (load from IndexedDB first)
+  // Reset messages when chatId changes
   useEffect(() => {
-    if (chatId) {
-      let isMounted = true;
-      getMessagesFromDB(chatId).then((cached) => {
-        if (isMounted && cached && cached.length > 0) {
-          setMessages(cached);
-          setLoadingMessages(false);
-        }
-      });
-      return () => {
-        isMounted = false;
-      };
-    }
+    setMessages([]);
+    setLoadingMessages(Boolean(chatId));
   }, [chatId]);
 
   // 3. Fetch friend details with caching
@@ -197,17 +166,14 @@ export function useChatSync(friendId) {
     return () => unsub();
   }, [currentUser?.uid, friendId]);
 
-  // 5. Single, high-performance real-time listener for messages
+  // Real-time listener for messages directly from Firestore DB
   useEffect(() => {
     if (!chatId || !currentUser) {
       setLoadingMessages(false);
       return;
     }
 
-    const cached = getCachedData(`chat_msgs_${chatId}`, []);
-    if (!cached || cached.length === 0) {
-      setLoadingMessages(true);
-    }
+    setLoadingMessages(true);
 
     const q = query(
       collection(db, "chats", chatId, "messages"),
@@ -231,27 +197,12 @@ export function useChatSync(friendId) {
           }
         });
 
-        // Merge and update state (filter out expired disappearing messages)
+        // Filter out expired disappearing messages
         const validMsgs = msgs.filter((m) => !isMessageExpired(m));
         setMessages(validMsgs);
 
-        // Persist to IndexedDB asynchronously (quota-free & fast)
-        saveMessagesToDB(chatId, validMsgs);
-        if (validMsgs.length > 0 && friendId) {
-          const last = validMsgs[validMsgs.length - 1];
-          saveLastMessageToDB(friendId, {
-            lastMessage: last.text || (last.dataUri ? "Photo" : "Attachment"),
-            timestamp: last.timestamp || Date.now(),
-            unreadCount: 0,
-            isGroup: false,
-          });
-        }
-        // Sync to localStorage as fast backup
-        setCachedData(`chat_msgs_${chatId}`, serializeMessages(validMsgs));
-
         // Mark as read efficiently with read timestamp
         if (hasUnreadFromFriend) {
-          markChatAsReadInDB(friendId, false);
           clearMarkChatUnread(friendId);
           const nowIso = new Date().toISOString();
           const unreadMsgs = msgs.filter(
@@ -522,14 +473,6 @@ export function useChatSync(friendId) {
           { merge: true }
         ).catch(() => {});
 
-        if (friendId) {
-          saveLastMessageToDB(friendId, {
-            lastMessage: lastMsgSnippet,
-            timestamp: Date.now(),
-            unreadCount: 0,
-            isGroup: false,
-          });
-        }
 
         // Dispatch real-time in-app notification to friend only if friend is not in this active chat and not muted
         if (friendId && friendId !== currentUser.uid) {

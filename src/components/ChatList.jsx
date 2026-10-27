@@ -75,10 +75,7 @@ import {
   muteChat,
   unmuteChat,
 } from "../utils/chatFeaturesService";
-import {
-  saveLastMessageToDB,
-  markChatAsReadInDB,
-} from "../utils/chatIndexedDB";
+
 
 const formatTimestamp = (date) => {
   if (!date) return "";
@@ -220,12 +217,6 @@ const ChatList = ({
           const ts = raw.timestamp?.toDate ? raw.timestamp.toDate() : (raw.timestamp ? new Date(raw.timestamp) : new Date(0));
           msgs[otherUid] = text;
           tsMap[otherUid] = ts;
-          saveLastMessageToDB(otherUid, {
-            lastMessage: text,
-            timestamp: ts,
-            unreadCount: 0,
-            isGroup: false,
-          });
         }
       });
       setLatestMessages((prev) => ({ ...prev, ...msgs }));
@@ -289,11 +280,9 @@ const ChatList = ({
           const isSentByMe = rawMsg.senderId === currentUser.uid;
           const firestoreReadRaw = groupData.readTimestamps?.[currentUser.uid];
           const firestoreReadTs = firestoreReadRaw?.toDate ? firestoreReadRaw.toDate().getTime() : (firestoreReadRaw ? new Date(firestoreReadRaw).getTime() : 0);
-          const localReadTs = Number(localStorage.getItem(`bunkmate_group_read_${docSnap.id}`) || 0);
-          const effectiveReadTs = Math.max(firestoreReadTs, localReadTs);
           const msgTime = ts.getTime();
 
-          const isUnread = !isSelected && !isSentByMe && (!effectiveReadTs || (msgTime - effectiveReadTs > 1000));
+          const isUnread = !isSelected && !isSentByMe && (!firestoreReadTs || (msgTime - firestoreReadTs > 1000));
           gUnreads[docSnap.id] = isUnread ? 1 : 0;
         } else {
           // If no lastMessage yet on group document, fetch latest from groupChat/{docSnap.id}/messages
@@ -466,9 +455,6 @@ const ChatList = ({
 
     if (isGroup) {
       setGroupUnreadCounts((prev) => ({ ...prev, [selectedChatId]: 0 }));
-      try {
-        localStorage.setItem(`bunkmate_group_read_${selectedChatId}`, Date.now().toString());
-      } catch {}
 
       // Mark group notifications as seen in Firestore
       const groupNotifQ = query(
@@ -510,7 +496,6 @@ const ChatList = ({
     }
 
     clearMarkChatUnread(selectedChatId);
-    markChatAsReadInDB(selectedChatId, isGroup);
   }, [selectedChatId, currentUser?.uid, userGroups]);
 
   // Search users in Firestore when adding friend
@@ -1059,11 +1044,7 @@ const ChatList = ({
                   }
                   if (chat.type === "group") {
                     setGroupUnreadCounts((prev) => ({ ...prev, [chat.id]: 0 }));
-                    try {
-                      localStorage.setItem(`bunkmate_group_read_${chat.id}`, Date.now().toString());
-                    } catch {}
                     clearMarkChatUnread(chat.id);
-                    markChatAsReadInDB(chat.id, true);
 
                     if (currentUser?.uid) {
                       const notifQ = query(
@@ -1091,7 +1072,6 @@ const ChatList = ({
                   } else {
                     setUnreadCounts((prev) => ({ ...prev, [chat.id]: 0 }));
                     clearMarkChatUnread(chat.id);
-                    markChatAsReadInDB(chat.id, false);
 
                     if (currentUser?.uid) {
                       const notifQ = query(

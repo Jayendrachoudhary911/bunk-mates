@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged } from "firebase/auth";
 import {
@@ -20,7 +20,6 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import BetaAccessGuard from "../components/BetaAccessGuard";
 import { useBackButtonClose } from '../hooks/useBackButtonClose';
 import {
   Avatar,
@@ -85,8 +84,9 @@ import {
   InfoOutlined as InfoOutlinedIcon, 
   OpenInNew as OpenInNewIcon,
   DeleteForeverOutlined as DeleteRoundedIcon,
-  Logout as LogoutRoundedIcon,
+  Logout as LogoutRoundedIcon
 } from '../icons';
+
 
 import { weatherColors, weatherbgColors } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
@@ -114,15 +114,10 @@ import {
   togglePinChat,
   isChatMarkedUnread,
   toggleMarkChatUnread,
-  clearMarkChatUnread,
   isChatMuted,
   muteChat,
   unmuteChat,
 } from "../utils/chatFeaturesService";
-import {
-  saveLastMessageToDB,
-  markChatAsReadInDB,
-} from "../utils/chatIndexedDB";
 
 const USER_STORAGE_KEY = "bunkmateuser";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -131,18 +126,14 @@ const WEATHER_STORAGE_KEY = "bunkmate_weather";
 function Chats({ onlyList, isEmbedded = false, selectedChatId = null, onSelectChat = null }) {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Real-time chat & group states synchronized directly from Firestore DB
   const [unreadCounts, setUnreadCounts] = useState({});
   const [latestMessages, setLatestMessages] = useState({});
   const [latestTimestamps, setLatestTimestamps] = useState({});
-
   const [userGroups, setUserGroups] = useState([]);
   const [groupUnreadCounts, setGroupUnreadCounts] = useState({});
   const [latestGroupMessages, setLatestGroupMessages] = useState({});
   const [latestGroupTimestamps, setLatestGroupTimestamps] = useState({});
   const [loadingChats, setLoadingChats] = useState(true);
-
 
   const [addUserDialog, setAddUserDialog] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -172,7 +163,7 @@ function Chats({ onlyList, isEmbedded = false, selectedChatId = null, onSelectCh
   const [selectedUserProfile, setSelectedUserProfile] = useState(null);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
 
-  const [hasPendingRequest,] = useState(false);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [isRequestReceived, setIsRequestReceived] = useState(false);
   const [requestId, setRequestId] = useState(null);
   const [isCurrentUserFriend, setIsCurrentUserFriend] = useState(false);
@@ -236,26 +227,12 @@ function Chats({ onlyList, isEmbedded = false, selectedChatId = null, onSelectCh
     };
   }, []);
 
-  // Broadcast total unread counts for tab title & favicon badge
-  useEffect(() => {
-    const directTotal = Object.values(unreadCounts || {}).reduce((acc, c) => acc + (Number(c) || 0), 0);
-    const groupTotal = Object.values(groupUnreadCounts || {}).reduce((acc, c) => acc + (Number(c) || 0), 0);
-    const total = directTotal + groupTotal;
-    try {
-      localStorage.setItem("bm_total_unread_chats", String(total));
-      window.dispatchEvent(new CustomEvent("bm_unread_total_changed", { detail: total }));
-    } catch (e) {
-      // ignore
-    }
-  }, [unreadCounts, groupUnreadCounts]);
-
   // Listen to blockedUids in real time from users/{currentUser.uid}
   useEffect(() => {
     if (!currentUser?.uid) return;
     const unsub = onSnapshot(doc(db, "users", currentUser.uid), (snap) => {
       if (snap.exists()) {
         const d = snap.data();
-        setFriends(d.friends || []);
         setBlockedUids(d.blockedUids || []);
         if (d.nicknames) setNicknames(d.nicknames);
       }
@@ -310,88 +287,6 @@ function Chats({ onlyList, isEmbedded = false, selectedChatId = null, onSelectCh
   useBackButtonClose(broadcastDialogOpen, () => setBroadcastDialogOpen(false));
   useBackButtonClose(createListDialogOpen, () => setCreateListDialogOpen(false));
   useBackButtonClose(manageListsDialogOpen, () => setManageListsDialogOpen(false));
-
-  const markGroupAsRead = useCallback(async (groupId) => {
-    if (!currentUser?.uid || !groupId) return;
-    const userId = currentUser.uid;
-    const now = Date.now();
-
-    try {
-      localStorage.setItem(`bunkmate_group_read_${groupId}`, now.toString());
-    } catch {}
-
-    // 1. Mark group notifications as seen in Firestore
-    try {
-      const notifQ = query(
-        collection(db, "notifications"),
-        where("uid", "==", userId),
-        where("groupName", "==", groupId),
-        where("seen", "==", false)
-      );
-      const snap = await getDocs(notifQ);
-      snap.forEach((d) => {
-        updateDoc(doc(db, "notifications", d.id), { seen: true }).catch(() => {});
-      });
-    } catch (err) {
-      console.warn("Failed to mark group notifications seen:", err);
-    }
-
-    // 2. Update group read timestamp on groupChats in Firestore
-    try {
-      await setDoc(
-        doc(db, "groupChats", groupId),
-        {
-          readTimestamps: {
-            [userId]: serverTimestamp(),
-          },
-        },
-        { merge: true }
-      );
-    } catch (err) {
-      console.warn("Failed to update group readTimestamp:", err);
-    }
-
-    // 3. Mark recent message documents with readBy in Firestore
-    try {
-      const msgsRef = collection(db, "groupChat", groupId, "messages");
-      const q = query(msgsRef, orderBy("timestamp", "desc"), limit(25));
-      const snap = await getDocs(q);
-      const updates = [];
-      snap.forEach((docSnap) => {
-        const data = docSnap.data();
-        if (data.senderId !== userId) {
-          const hasRead = Array.isArray(data.readBy) && data.readBy.includes(userId);
-          if (!hasRead) {
-            updates.push(
-              updateDoc(doc(db, "groupChat", groupId, "messages", docSnap.id), {
-                read: true,
-                readBy: arrayUnion(userId),
-                [`readByMap.${userId}`]: new Date().toISOString(),
-              }).catch(() => {})
-            );
-          }
-        }
-      });
-      if (updates.length > 0) {
-        await Promise.all(updates);
-      }
-    } catch (err) {
-      console.warn("Could not mark messages in groupChat:", err);
-    }
-
-    setGroupUnreadCounts((prev) => ({ ...prev, [groupId]: 0 }));
-    clearMarkChatUnread(groupId);
-    markChatAsReadInDB(groupId, true);
-
-    try {
-      window.dispatchEvent(new CustomEvent("bm_unread_chats_changed"));
-      window.dispatchEvent(
-        new CustomEvent("bm_last_message_updated", {
-          detail: { chatId: groupId, unreadCount: 0, isGroup: true },
-        })
-      );
-    } catch {}
-  }, [currentUser?.uid]);
 
   const handleMarkAllAsRead = async () => {
     setMenuAnchorEl(null);
@@ -1292,53 +1187,44 @@ const handleAvatarClick = (e, chatData) => {
             pb: { xs: 0, md: 1.5 },
           }}
         >
-          {/* Top Warning Icon */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              mb: 1.5,
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 64,
-                height: 64,
-                borderRadius: 8,
-                bgcolor: mode === "dark" ? "rgba(211, 47, 47, 0.15)" : "rgba(211, 47, 47, 0.1)",
-                color: mode === "dark" ? "#ef5350" : "#d32f2f",
-              }}
-            >
-              <DeleteRoundedIcon sx={{ fontSize: 34 }} />
-            </Box>
-          </Box>
-
-          {/* Header */}
+          {/* Header with Icon */}
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               gap: 1,
-              mb: 0.75,
+              mb: 1.5,
             }}
           >
-            <Typography
-              variant="h6"
-              sx={{
-                width: "100%",
-                textAlign: "center",
-                fontWeight: 800,
-                fontSize: { xs: "1.1rem", md: "1.2rem" },
-                letterSpacing: "-0.4px",
-                overflowWrap: "anywhere",
-              }}
-            >
-              Delete Chat?
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 38,
+                  height: 38,
+                  borderRadius: 8,
+                  flexShrink: 0,
+                  bgcolor: mode === "dark" ? "rgba(211, 47, 47, 0.15)" : "rgba(211, 47, 47, 0.1)",
+                  color: mode === "dark" ? "#ef5350" : "#d32f2f",
+                }}
+              >
+                <DeleteRoundedIcon sx={{ fontSize: 20 }} />
+              </Box>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  fontSize: { xs: "1.1rem", md: "1.2rem" },
+                  letterSpacing: "-0.4px",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                Delete Chat?
+              </Typography>
+            </Box>
 
             {/* Desktop-only close button */}
             <IconButton
@@ -1346,9 +1232,6 @@ const handleAvatarClick = (e, chatData) => {
               size="small"
               aria-label="Close delete chat confirmation"
               sx={{
-                position: "absolute",
-                top: { xs: 8, md: 16 },
-                right: { xs: 12, md: 16 },
                 display: { xs: "none", md: "inline-flex" },
                 width: 34,
                 height: 34,
@@ -1382,7 +1265,6 @@ const handleAvatarClick = (e, chatData) => {
               mb: 2.5,
               fontSize: "0.84rem",
               lineHeight: 1.6,
-              textAlign: "center",
             }}
           >
             Are you sure you want to delete your conversation with{" "}
@@ -1435,6 +1317,7 @@ const handleAvatarClick = (e, chatData) => {
 
             <Button
               variant="contained"
+              color="error"
               onClick={handleConfirmDeleteChat}
               disableElevation
               fullWidth
@@ -1446,12 +1329,10 @@ const handleAvatarClick = (e, chatData) => {
                 textTransform: "none",
                 fontSize: "0.85rem",
                 fontWeight: 750,
-                bgcolor: "error.main",
-                color: "#fff",
                 boxShadow:
                   mode === "dark"
-                    ? "inset 0 1px 1px rgba(255, 255, 255, 0.2), inset 0 -1px 2px rgba(0,0,0,0.4)"
-                    : "inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+                    ? "inset 0 1px 1px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(0,0,0,0.4)"
+                    : "inset 0 1px 3px rgba(255, 255, 255, 0.71), inset 0 -1px 1px rgba(0,0,0,0.1)",
                 "&:hover": {
                   bgcolor: "error.dark",
                   boxShadow: "none",
@@ -1503,61 +1384,52 @@ const handleAvatarClick = (e, chatData) => {
             pb: { xs: 0, md: 1.5 },
           }}
         >
-          {/* Top Warning Icon */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              mb: 1.5,
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 54,
-                height: 54,
-                borderRadius: 8,
-                bgcolor:
-                  selectedMenuChat && blockedUids.includes(selectedMenuChat.id)
-                    ? mode === "dark" ? "rgba(25, 118, 210, 0.15)" : "rgba(25, 118, 210, 0.1)"
-                    : mode === "dark" ? "rgba(211, 47, 47, 0.15)" : "rgba(211, 47, 47, 0.1)",
-                color:
-                  selectedMenuChat && blockedUids.includes(selectedMenuChat.id)
-                    ? mode === "dark" ? "#90caf9" : "#1976d2"
-                    : mode === "dark" ? "#ef5350" : "#d32f2f",
-              }}
-            >
-              <BlockRoundedIcon sx={{ fontSize: 34 }} />
-            </Box>
-          </Box>
-
-          {/* Header */}
+          {/* Header with Icon */}
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               gap: 1,
-              mb: 0.75,
+              mb: 1.5,
             }}
           >
-            <Typography
-              variant="h6"
-              sx={{
-                width: "100%",
-                textAlign: "center",
-                fontWeight: 800,
-                fontSize: { xs: "1.1rem", md: "1.2rem" },
-                letterSpacing: "-0.4px",
-                overflowWrap: "anywhere",
-              }}
-            >
-              {selectedMenuChat && blockedUids.includes(selectedMenuChat.id)
-                ? `Unblock ${selectedMenuChat?.name}?`
-                : `Block ${selectedMenuChat?.name}?`}
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 38,
+                  height: 38,
+                  borderRadius: 8,
+                  flexShrink: 0,
+                  bgcolor:
+                    selectedMenuChat && blockedUids.includes(selectedMenuChat.id)
+                      ? mode === "dark" ? "rgba(25, 118, 210, 0.15)" : "rgba(25, 118, 210, 0.1)"
+                      : mode === "dark" ? "rgba(211, 47, 47, 0.15)" : "rgba(211, 47, 47, 0.1)",
+                  color:
+                    selectedMenuChat && blockedUids.includes(selectedMenuChat.id)
+                      ? mode === "dark" ? "#90caf9" : "#1976d2"
+                      : mode === "dark" ? "#ef5350" : "#d32f2f",
+                }}
+              >
+                <BlockRoundedIcon sx={{ fontSize: 20 }} />
+              </Box>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  fontSize: { xs: "1.1rem", md: "1.2rem" },
+                  letterSpacing: "-0.4px",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {selectedMenuChat && blockedUids.includes(selectedMenuChat.id)
+                  ? `Unblock ${selectedMenuChat?.name}?`
+                  : `Block ${selectedMenuChat?.name}?`}
+              </Typography>
+            </Box>
 
             {/* Desktop-only close button */}
             <IconButton
@@ -1565,9 +1437,6 @@ const handleAvatarClick = (e, chatData) => {
               size="small"
               aria-label="Close block confirmation"
               sx={{
-                position: "absolute",
-                top: { xs: 8, md: 16 },
-                right: { xs: 12, md: 16 },
                 display: { xs: "none", md: "inline-flex" },
                 width: 34,
                 height: 34,
@@ -1601,7 +1470,6 @@ const handleAvatarClick = (e, chatData) => {
               mb: 2.5,
               fontSize: "0.84rem",
               lineHeight: 1.6,
-              textAlign: "center",
             }}
           >
             {selectedMenuChat && blockedUids.includes(selectedMenuChat.id) ? (
@@ -1666,6 +1534,11 @@ const handleAvatarClick = (e, chatData) => {
 
             <Button
               variant="contained"
+              color={
+                selectedMenuChat && blockedUids.includes(selectedMenuChat.id)
+                  ? "primary"
+                  : "error"
+              }
               onClick={handleConfirmBlockFriend}
               disableElevation
               fullWidth
@@ -1677,20 +1550,11 @@ const handleAvatarClick = (e, chatData) => {
                 textTransform: "none",
                 fontSize: "0.85rem",
                 fontWeight: 750,
-                bgcolor:
-                  selectedMenuChat && blockedUids.includes(selectedMenuChat.id)
-                    ? "primary.main"
-                    : "error.main",
-                color: "#fff",
                 boxShadow:
                   mode === "dark"
-                    ? "inset 0 1px 1px rgba(255, 255, 255, 0.2), inset 0 -1px 2px rgba(0,0,0,0.4)"
-                    : "inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+                    ? "inset 0 1px 1px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(0,0,0,0.4)"
+                    : "inset 0 1px 3px rgba(255, 255, 255, 0.71), inset 0 -1px 1px rgba(0,0,0,0.1)",
                 "&:hover": {
-                  bgcolor:
-                    selectedMenuChat && blockedUids.includes(selectedMenuChat.id)
-                      ? "primary.dark"
-                      : "error.dark",
                   boxShadow: "none",
                   transform: "translate(0px)",
                 },
@@ -1742,53 +1606,44 @@ const handleAvatarClick = (e, chatData) => {
             pb: { xs: 0, md: 1.5 },
           }}
         >
-          {/* Top Warning Icon */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              mb: 1.5,
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 54,
-                height: 54,
-                borderRadius: 8,
-                bgcolor: mode === "dark" ? "rgba(211, 47, 47, 0.15)" : "rgba(211, 47, 47, 0.1)",
-                color: mode === "dark" ? "#ef5350" : "#d32f2f",
-              }}
-            >
-              <LogoutRoundedIcon sx={{ fontSize: 34 }} />
-            </Box>
-          </Box>
-
-          {/* Header */}
+          {/* Header with Icon */}
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               gap: 1,
-              mb: 0.75,
+              mb: 1.5,
             }}
           >
-            <Typography
-              variant="h6"
-              sx={{
-                width: "100%",
-                textAlign: "center",
-                fontWeight: 800,
-                fontSize: { xs: "1.1rem", md: "1.2rem" },
-                letterSpacing: "-0.4px",
-                overflowWrap: "anywhere",
-              }}
-            >
-              Leave {selectedMenuChat?.name}?
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 38,
+                  height: 38,
+                  borderRadius: 8,
+                  flexShrink: 0,
+                  bgcolor: mode === "dark" ? "rgba(211, 47, 47, 0.15)" : "rgba(211, 47, 47, 0.1)",
+                  color: mode === "dark" ? "#ef5350" : "#d32f2f",
+                }}
+              >
+                <LogoutRoundedIcon sx={{ fontSize: 20 }} />
+              </Box>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  fontSize: { xs: "1.1rem", md: "1.2rem" },
+                  letterSpacing: "-0.4px",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                Leave {selectedMenuChat?.name}?
+              </Typography>
+            </Box>
 
             {/* Desktop-only close button */}
             <IconButton
@@ -1796,9 +1651,6 @@ const handleAvatarClick = (e, chatData) => {
               size="small"
               aria-label="Close leave group confirmation"
               sx={{
-                position: "absolute",
-                top: { xs: 8, md: 16 },
-                right: { xs: 12, md: 16 },
                 display: { xs: "none", md: "inline-flex" },
                 width: 34,
                 height: 34,
@@ -1832,7 +1684,6 @@ const handleAvatarClick = (e, chatData) => {
               mb: 2.5,
               fontSize: "0.84rem",
               lineHeight: 1.6,
-              textAlign: "center",
             }}
           >
             Are you sure you want to leave{" "}
@@ -1885,6 +1736,7 @@ const handleAvatarClick = (e, chatData) => {
 
             <Button
               variant="contained"
+              color="error"
               onClick={handleConfirmLeaveGroup}
               disableElevation
               fullWidth
@@ -1896,12 +1748,10 @@ const handleAvatarClick = (e, chatData) => {
                 textTransform: "none",
                 fontSize: "0.85rem",
                 fontWeight: 750,
-                bgcolor: "error.main",
-                color: "#fff",
                 boxShadow:
                   mode === "dark"
-                    ? "inset 0 1px 1px rgba(255, 255, 255, 0.2), inset 0 -1px 2px rgba(0,0,0,0.4)"
-                    : "inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+                    ? "inset 0 1px 1px rgba(255, 255, 255, 0.11), inset 0 -1px 1px rgba(0,0,0,0.4)"
+                    : "inset 0 1px 3px rgba(255, 255, 255, 0.71), inset 0 -1px 1px rgba(0,0,0,0.1)",
                 "&:hover": {
                   bgcolor: "error.dark",
                   boxShadow: "none",
@@ -1924,28 +1774,31 @@ const handleAvatarClick = (e, chatData) => {
 useEffect(() => {
   if (!currentUser || !selectedUserProfile) return;
 
-  const q = query(
-    collection(db, "notifications"),
-    where("uid", "==", currentUser.uid),
-    where("type", "==", "friend_request")
-  );
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const received = snapshot.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .find(
-        (r) =>
-          r.senderId === selectedUserProfile.uid &&
-          (r.status === "pending" || r.status === "accepted")
-      );
+  const notificationsRef = collection(db, "notifications");
+  const unsubscribe = onSnapshot(notificationsRef, (snapshot) => {
+    const requests = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const sent = requests.find(
+      (r) =>
+        r.type === "friend_request" &&
+        r.senderId === currentUser.uid &&
+        r.uid === selectedUserProfile.uid &&
+        (r.status === "pending" || r.status === "accepted")
+    );
+    const received = requests.find(
+      (r) =>
+        r.type === "friend_request" &&
+        r.senderId === selectedUserProfile.uid &&
+        r.uid === currentUser.uid &&
+        r.status === "pending"
+    );
 
-    setIsRequestReceived(!!received && received.status === "pending");
-    if (received) {
-      setRequestId(received.id);
-      if (received.status === "accepted") {
-        setIsCurrentUserFriend(true);
-      }
-    }
+    setHasPendingRequest(!!sent);
+    setIsRequestReceived(!!received);
+    setRequestId(received ? received.id : sent ? sent.id : null);
     setLoadingRequestState(false);
+    if (sent?.status === "accepted" || received?.status === "accepted") {
+      setIsCurrentUserFriend(true);
+    }
   });
 
   return () => unsubscribe();
@@ -2156,10 +2009,32 @@ const handleCreateGroup = async () => {
 };
 
 
-  // 1. Real-time users collection listener
+useEffect(() => {
+  if (!currentUser) return;
+
+  const unsubs = onSnapshot(doc(db, "userChats", currentUser.uid), (docSnap) => {
+    if (docSnap.exists()) {
+      const chatsData = docSnap.data();
+      const sortedChats = Object.entries(chatsData).sort(
+        (a, b) => b[1].date?.seconds - a[1].date?.seconds
+      );
+      setUsers(
+        sortedChats.map(([chatId, data]) => ({
+          ...data.userInfo,
+          chatId,
+          lastMessage: data.lastMessage?.text || '',
+        }))
+      );
+    }
+  });
+
+  return () => unsubs();
+}, [currentUser]);
+
+  
   useEffect(() => {
-    if (!currentUser?.uid) return;
-    const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
+    if (!currentUser) return;
+    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
       const usersList = [];
       snapshot.forEach((docSnap) => {
         if (docSnap.id !== currentUser.uid) {
@@ -2170,398 +2045,122 @@ const handleCreateGroup = async () => {
       setLoadingChats(false);
     });
     return () => unsubscribe();
-  }, [currentUser?.uid]);
+  }, [currentUser]);
 
-  // 2. Real-time direct chat documents sync from Firestore 'chats' collection
+  const userIdsKey = React.useMemo(() => users.map(u => u.id).sort().join(','), [users]);
+
   useEffect(() => {
-    if (!currentUser?.uid) return;
-    const chatsQ = query(
-      collection(db, "chats"),
-      where("users", "array-contains", currentUser.uid)
-    );
-    const unsub = onSnapshot(chatsQ, (snap) => {
-      const msgs = {};
-      const tsMap = {};
-      snap.forEach((docSnap) => {
-        const data = docSnap.data();
-        const otherUid = (data.users || []).find((u) => u !== currentUser.uid);
-        if (otherUid && data.lastMessage) {
-          const raw = data.lastMessage;
-          const text = typeof raw === "string" ? raw : (raw.text || "No messages yet");
-          const ts = raw.timestamp?.toDate ? raw.timestamp.toDate() : (raw.timestamp ? new Date(raw.timestamp) : new Date(0));
-          msgs[otherUid] = text;
-          tsMap[otherUid] = ts;
-          saveLastMessageToDB(otherUid, {
-            lastMessage: text,
-            timestamp: ts,
-            unreadCount: 0,
-            isGroup: false,
-          });
-        }
+    if (!currentUser || users.length === 0) return;
+
+    const unsubscribes = users.map((user) => {
+      const chatId = [currentUser.uid, user.id].sort().join('_');
+      const q = query(
+        collection(db, 'chats', chatId, 'messages'),
+        orderBy('timestamp', 'desc'),
+        limit(1)
+      );
+
+      return onSnapshot(q, (snapshot) => {
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const msg = formatMessageSnippet(data);
+          const ts = data.timestamp?.toDate?.() || (data.timestamp ? new Date(data.timestamp) : new Date(0));
+          const unread =
+            data.senderId !== currentUser.uid && !data.isRead ? 1 : 0;
+
+          setLatestMessages((prev) => ({ ...prev, [user.id]: msg }));
+          setUnreadCounts((prev) => ({ ...prev, [user.id]: unread }));
+          setLatestTimestamps((prev) => ({ ...prev, [user.id]: ts }));
+
+        });
       });
-      setLatestMessages((prev) => ({ ...prev, ...msgs }));
-      setLatestTimestamps((prev) => ({ ...prev, ...tsMap }));
-    }, (err) => {
-      console.warn("Direct chats snapshot error:", err);
     });
-    return () => unsub();
-  }, [currentUser?.uid]);
 
-  // 3. Fallback direct chat fetch for friends whose chat summary doc does not exist yet
+    return () => unsubscribes.forEach((unsub) => unsub && unsub());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userIdsKey, currentUser]);
+
+
   useEffect(() => {
-    if (!currentUser?.uid || friends.length === 0) return;
-    friends.forEach((friendId) => {
-      if (!latestMessages[friendId] || latestMessages[friendId] === "No messages yet") {
-        const chatId = [currentUser.uid, friendId].sort().join("_");
-        const q = query(
-          collection(db, "chats", chatId, "messages"),
-          orderBy("timestamp", "desc"),
-          limit(1)
-        );
-        getDocs(q).then((snap) => {
-          if (!snap.empty) {
-            const data = snap.docs[0].data();
-            const msg = formatMessageSnippet(data);
-            const ts = data.timestamp?.toDate?.() || (data.timestamp ? new Date(data.timestamp) : new Date(0));
-            setLatestMessages((prev) => ({ ...prev, [friendId]: msg }));
-            setLatestTimestamps((prev) => ({ ...prev, [friendId]: ts }));
-          }
+    if (!currentUser) return;
+    const q = query(collection(db, 'groupChats'), where('members', 'array-contains', currentUser.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const groups = [];
+      snapshot.forEach((docSnap) => {
+        groups.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      setUserGroups(groups);
+      setLoadingChats(false);
+    });
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  const groupIdsKey = React.useMemo(() => userGroups.map(g => g.id).sort().join(','), [userGroups]);
+
+  useEffect(() => {
+    if (!currentUser || userGroups.length === 0) return;
+    
+    const unsubscribes = userGroups.map(group => {
+      const q = query(
+        collection(db, 'groupChat', group.id, 'messages'),
+        orderBy('timestamp', 'desc'),
+        limit(1)
+      );
+      
+      return onSnapshot(q, (snapshot) => {
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          const msg = formatMessageSnippet(data);
+          const ts = data.timestamp?.toDate?.() || (data.timestamp ? new Date(data.timestamp) : new Date(0));
+          const msgMillis = data.timestamp?.toMillis ? data.timestamp.toMillis() : (ts instanceof Date ? ts.getTime() : 0);
+          
+          // Check if message is unread for current user
+          const localReadTs = Number(localStorage.getItem(`bunkmate_group_read_${group.id}`) || 0);
+          const isSentByMe = data.senderId === currentUser.uid;
+          const isReadByMember = Array.isArray(data.readBy) && data.readBy.includes(currentUser.uid);
+          const isReadInDoc = data.read === true && (!data.readBy || data.readBy.includes(currentUser.uid));
+          const isReadLocally = localReadTs > 0 && msgMillis > 0 && msgMillis <= localReadTs;
+
+          const unread = !isSentByMe && !isReadByMember && !isReadInDoc && !isReadLocally;
+          
+          setLatestGroupMessages(prev => ({
+            ...prev,
+            [group.id]: msg
+          }));
+          setGroupUnreadCounts(prev => ({
+            ...prev,
+            [group.id]: unread ? 1 : 0
+          }));
+          setLatestGroupTimestamps(prev => ({
+            ...prev,
+            [group.id]: ts
+          }));
+        });
+      });
+    });
+    
+    return () => unsubscribes.forEach(unsub => unsub());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupIdsKey, currentUser]);
+
+  const handleSelect = async (userId) => {
+    if (!currentUser) return;
+    const chatId = [currentUser.uid, userId].sort().join('_');
+    const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('timestamp', 'desc'), limit(20));
+    const snapshot = await getDocs(q);
+
+    snapshot.forEach(async (docSnap) => {
+      const data = docSnap.data();
+      if (data.senderId !== currentUser.uid && (!data.isRead || !data.readAt)) {
+        await updateDoc(doc(db, 'chats', chatId, 'messages', docSnap.id), {
+          isRead: true,
+          read: true,
+          readAt: new Date().toISOString(),
         }).catch(() => {});
       }
     });
-  }, [currentUser?.uid, friends, latestMessages]);
 
-  // 4. Real-time group chats sync from Firestore 'groupChats' collection
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-    const q = query(
-      collection(db, "groupChats"),
-      where("members", "array-contains", currentUser.uid)
-    );
-
-    const unsub = onSnapshot(q, (snapshot) => {
-      const groups = [];
-      const gMsgs = {};
-      const gTs = {};
-      const gUnreads = {};
-
-      snapshot.forEach((docSnap) => {
-        const groupData = { id: docSnap.id, ...docSnap.data() };
-        groups.push(groupData);
-
-        if (groupData.lastMessage) {
-          const rawMsg = groupData.lastMessage;
-          const msg = typeof rawMsg === "string" ? rawMsg : (rawMsg.text || "No messages yet");
-          const ts = rawMsg.timestamp?.toDate ? rawMsg.timestamp.toDate() : (rawMsg.timestamp ? new Date(rawMsg.timestamp) : new Date());
-          gMsgs[docSnap.id] = msg;
-          gTs[docSnap.id] = ts;
-
-          const isSelected = selectedChatId === docSnap.id;
-          const isSentByMe = rawMsg.senderId === currentUser.uid;
-          const firestoreReadRaw = groupData.readTimestamps?.[currentUser.uid];
-          const firestoreReadTs = firestoreReadRaw?.toDate ? firestoreReadRaw.toDate().getTime() : (firestoreReadRaw ? new Date(firestoreReadRaw).getTime() : 0);
-          const localReadTs = Number(localStorage.getItem(`bunkmate_group_read_${docSnap.id}`) || 0);
-          const effectiveReadTs = Math.max(firestoreReadTs, localReadTs);
-          const msgTime = ts.getTime();
-
-          const isUnread = !isSelected && !isSentByMe && (!effectiveReadTs || (msgTime - effectiveReadTs > 1000));
-          gUnreads[docSnap.id] = isUnread ? 1 : 0;
-        } else {
-          // If no lastMessage yet on group document, fetch latest from groupChat/{docSnap.id}/messages
-          const msgQ = query(
-            collection(db, "groupChat", docSnap.id, "messages"),
-            orderBy("timestamp", "desc"),
-            limit(1)
-          );
-          getDocs(msgQ).then((msgSnap) => {
-            if (!msgSnap.empty) {
-              const d = msgSnap.docs[0].data();
-              const snippet = formatMessageSnippet(d);
-              const ts = d.timestamp?.toDate ? d.timestamp.toDate() : (d.timestamp ? new Date(d.timestamp) : new Date(0));
-              setLatestGroupMessages((prev) => ({ ...prev, [docSnap.id]: snippet }));
-              setLatestGroupTimestamps((prev) => ({ ...prev, [docSnap.id]: ts }));
-              setDoc(doc(db, "groupChats", docSnap.id), {
-                lastMessage: {
-                  text: snippet,
-                  senderId: d.senderId || "",
-                  timestamp: d.timestamp || serverTimestamp(),
-                },
-                lastMessageTimestamp: d.timestamp || serverTimestamp(),
-                updatedAt: serverTimestamp(),
-              }, { merge: true }).catch(() => {});
-            }
-          }).catch(() => {});
-        }
-      });
-
-      setUserGroups(groups);
-      setLatestGroupMessages((prev) => ({ ...prev, ...gMsgs }));
-      setLatestGroupTimestamps((prev) => ({ ...prev, ...gTs }));
-      setGroupUnreadCounts((prev) => {
-        const next = { ...prev };
-        Object.entries(gUnreads).forEach(([gid, count]) => {
-          if (count === 0 && !isChatMarkedUnread(gid)) {
-            next[gid] = 0;
-          } else if (count > 0) {
-            next[gid] = Math.max(next[gid] || 0, count);
-          }
-        });
-        if (selectedChatId) next[selectedChatId] = 0;
-        return next;
-      });
-      setLoadingChats(false);
-    }, (err) => {
-      console.warn("groupChats snapshot error:", err);
-      setLoadingChats(false);
-    });
-
-    return () => unsub();
-  }, [currentUser?.uid, selectedChatId]);
-
-  // 5. Real-time unseen notifications listener for precise unread badges across direct & group chats
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-
-    const notifQ = query(
-      collection(db, "notifications"),
-      where("uid", "==", currentUser.uid),
-      where("seen", "==", false)
-    );
-
-    const unsub = onSnapshot(notifQ, (snapshot) => {
-      const dUnreads = {};
-      const gUnreads = {};
-
-      snapshot.forEach((docSnap) => {
-        const notif = docSnap.data();
-        if (notif.groupName) {
-          if (selectedChatId !== notif.groupName) {
-            gUnreads[notif.groupName] = (gUnreads[notif.groupName] || 0) + 1;
-          } else {
-            updateDoc(doc(db, "notifications", docSnap.id), { seen: true }).catch(() => {});
-          }
-        } else if (notif.senderId && notif.senderId !== currentUser.uid) {
-          if (selectedChatId !== notif.senderId) {
-            dUnreads[notif.senderId] = (dUnreads[notif.senderId] || 0) + 1;
-          } else {
-            updateDoc(doc(db, "notifications", docSnap.id), { seen: true }).catch(() => {});
-          }
-        }
-      });
-
-      setUnreadCounts(dUnreads);
-      setGroupUnreadCounts((prev) => {
-        const merged = { ...prev };
-        // Reset groups that have no unseen notifications unless locally marked unread
-        Object.keys(merged).forEach((gid) => {
-          if (!gUnreads[gid] && !isChatMarkedUnread(gid)) {
-            merged[gid] = 0;
-          }
-        });
-        Object.assign(merged, gUnreads);
-        if (selectedChatId) merged[selectedChatId] = 0;
-        return merged;
-      });
-    }, (err) => {
-      console.warn("Unseen notifications listener error:", err);
-    });
-
-    return () => unsub();
-  }, [currentUser?.uid, selectedChatId]);
-
-  // 6. Real-time recent notifications listener (incoming message snippet updates)
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-
-    const notifQ = query(
-      collection(db, "notifications"),
-      where("uid", "==", currentUser.uid),
-      orderBy("timestamp", "desc"),
-      limit(25)
-    );
-
-    const unsub = onSnapshot(notifQ, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === "added" || change.type === "modified") {
-          const notif = change.doc.data();
-          const snippet = notif.content || (notif.imageUrl ? "Photo" : "New message");
-          const ts = notif.timestamp?.toDate ? notif.timestamp.toDate() : new Date();
-
-          if (notif.groupName) {
-            setLatestGroupMessages((prev) => ({ ...prev, [notif.groupName]: snippet }));
-            setLatestGroupTimestamps((prev) => ({ ...prev, [notif.groupName]: ts }));
-          } else if (notif.senderId && notif.senderId !== currentUser.uid) {
-            setLatestMessages((prev) => ({ ...prev, [notif.senderId]: snippet }));
-            setLatestTimestamps((prev) => ({ ...prev, [notif.senderId]: ts }));
-          }
-        }
-      });
-    }, (err) => {
-      console.warn("Recent notifications listener error:", err);
-    });
-
-    return () => unsub();
-  }, [currentUser?.uid]);
-
-  // 7. Active/selected direct chat listener (live message when open)
-  useEffect(() => {
-    if (!currentUser || !selectedChatId) return;
-    const isUserChat = users.some((u) => u.id === selectedChatId);
-    if (!isUserChat) return;
-
-    const chatId = [currentUser.uid, selectedChatId].sort().join('_');
-    const q = query(
-      collection(db, 'chats', chatId, 'messages'),
-      orderBy('timestamp', 'desc'),
-      limit(1)
-    );
-
-    const unsub = onSnapshot(q, (snapshot) => {
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        const msg = formatMessageSnippet(data);
-        const ts = data.timestamp?.toDate?.() || (data.timestamp ? new Date(data.timestamp) : new Date(0));
-        setLatestMessages((prev) => ({ ...prev, [selectedChatId]: msg }));
-        setUnreadCounts((prev) => ({ ...prev, [selectedChatId]: 0 }));
-        setLatestTimestamps((prev) => ({ ...prev, [selectedChatId]: ts }));
-      });
-    });
-
-    return () => unsub();
-  }, [selectedChatId, currentUser, users]);
-
-  // 8. Active/selected group chat listener (live message when open)
-  useEffect(() => {
-    if (!currentUser || !selectedChatId) return;
-    const isGroupChat = userGroups.some((g) => g.id === selectedChatId);
-    if (!isGroupChat) return;
-
-    const q = query(
-      collection(db, 'groupChat', selectedChatId, 'messages'),
-      orderBy('timestamp', 'desc'),
-      limit(1)
-    );
-
-    const unsub = onSnapshot(q, (snapshot) => {
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        const msg = formatMessageSnippet(data);
-        const ts = data.timestamp?.toDate?.() || (data.timestamp ? new Date(data.timestamp) : new Date(0));
-        try {
-          localStorage.setItem(`bunkmate_group_read_${selectedChatId}`, Date.now().toString());
-        } catch {}
-        setLatestGroupMessages((prev) => ({ ...prev, [selectedChatId]: msg }));
-        setLatestGroupTimestamps((prev) => ({ ...prev, [selectedChatId]: ts }));
-        setGroupUnreadCounts((prev) => ({ ...prev, [selectedChatId]: 0 }));
-      });
-    });
-
-    return () => unsub();
-  }, [selectedChatId, currentUser, userGroups]);
-
-  // 9. Window event listener for optimistic local updates
-  useEffect(() => {
-    const handleLastMsgUpdated = (e) => {
-      if (!e.detail) return;
-      const { chatId, lastMessage, timestamp, unreadCount, isGroup } = e.detail;
-      const ts = timestamp ? new Date(timestamp) : new Date();
-      if (isGroup) {
-        if (lastMessage) setLatestGroupMessages((prev) => ({ ...prev, [chatId]: lastMessage }));
-        setLatestGroupTimestamps((prev) => ({ ...prev, [chatId]: ts }));
-        if (typeof unreadCount === "number") {
-          setGroupUnreadCounts((prev) => ({ ...prev, [chatId]: unreadCount }));
-        }
-      } else {
-        if (lastMessage) setLatestMessages((prev) => ({ ...prev, [chatId]: lastMessage }));
-        setLatestTimestamps((prev) => ({ ...prev, [chatId]: ts }));
-        if (typeof unreadCount === "number") {
-          setUnreadCounts((prev) => ({ ...prev, [chatId]: unreadCount }));
-        }
-      }
-    };
-
-    window.addEventListener("bm_last_message_updated", handleLastMsgUpdated);
-    return () => {
-      window.removeEventListener("bm_last_message_updated", handleLastMsgUpdated);
-    };
-  }, []);
-
-  // 10. Automatically mark selected chat as read in Firestore and clear notifications
-  useEffect(() => {
-    if (!currentUser?.uid || !selectedChatId) return;
-
-    const isGroup = userGroups.some((g) => g.id === selectedChatId);
-
-    if (isGroup) {
-      setGroupUnreadCounts((prev) => ({ ...prev, [selectedChatId]: 0 }));
-      try {
-        localStorage.setItem(`bunkmate_group_read_${selectedChatId}`, Date.now().toString());
-      } catch {}
-
-      // Mark group notifications as seen in Firestore
-      const groupNotifQ = query(
-        collection(db, "notifications"),
-        where("uid", "==", currentUser.uid),
-        where("groupName", "==", selectedChatId),
-        where("seen", "==", false)
-      );
-      getDocs(groupNotifQ).then((snap) => {
-        snap.forEach((d) => {
-          updateDoc(doc(db, "notifications", d.id), { seen: true }).catch(() => {});
-        });
-      }).catch(() => {});
-
-      // Update group read timestamp in Firestore
-      setDoc(
-        doc(db, "groupChats", selectedChatId),
-        {
-          readTimestamps: {
-            [currentUser.uid]: serverTimestamp(),
-          },
-        },
-        { merge: true }
-      ).catch(() => {});
-
-      markGroupAsRead(selectedChatId).catch(() => {});
-    } else {
-      setUnreadCounts((prev) => ({ ...prev, [selectedChatId]: 0 }));
-
-      // Mark direct notifications as seen in Firestore
-      const directNotifQ = query(
-        collection(db, "notifications"),
-        where("uid", "==", currentUser.uid),
-        where("senderId", "==", selectedChatId),
-        where("seen", "==", false)
-      );
-      getDocs(directNotifQ).then((snap) => {
-        snap.forEach((d) => {
-          updateDoc(doc(db, "notifications", d.id), { seen: true }).catch(() => {});
-        });
-      }).catch(() => {});
-    }
-
-    clearMarkChatUnread(selectedChatId);
-    markChatAsReadInDB(selectedChatId, isGroup);
-  }, [selectedChatId, currentUser?.uid, userGroups, markGroupAsRead]);
-
-  const handleSelect = (userId) => {
-    if (!currentUser) return;
     setUnreadCounts((prev) => ({ ...prev, [userId]: 0 }));
-    clearMarkChatUnread(userId);
-    markChatAsReadInDB(userId, false);
-
-    const notifQ = query(
-      collection(db, "notifications"),
-      where("uid", "==", currentUser.uid),
-      where("senderId", "==", userId),
-      where("seen", "==", false)
-    );
-    getDocs(notifQ).then((snap) => {
-      snap.forEach((d) => {
-        updateDoc(doc(db, "notifications", d.id), { seen: true }).catch(() => {});
-      });
-    }).catch(() => {});
-
     if (onSelectChat) {
       onSelectChat({ type: "user", id: userId });
     } else {
@@ -2569,52 +2168,76 @@ const handleCreateGroup = async () => {
     }
   };
 
-  const handleGroupClick = (groupId) => {
-    if (!currentUser) return;
-    
-    // Update local unread count immediately
-    setGroupUnreadCounts(prev => ({
-      ...prev,
-      [groupId]: 0
-    }));
-    clearMarkChatUnread(groupId);
-    markChatAsReadInDB(groupId, true);
+const handleGroupClick = async (groupId) => {
+  if (!currentUser) return;
+  
+  // Mark messages as read first
+  await markGroupAsRead(groupId);
+  
+  // Update local unread count immediately
+  setGroupUnreadCounts(prev => ({
+    ...prev,
+    [groupId]: 0
+  }));
+  
+  // Navigate or select
+  if (onSelectChat) {
+    onSelectChat({ type: "group", id: groupId });
+  } else {
+    navigate(`/group/${groupId}`);
+  }
+};
 
-    try {
-      localStorage.setItem(`bunkmate_group_read_${groupId}`, Date.now().toString());
-    } catch {}
+async function markGroupAsRead(groupId) {
+  const user = auth.currentUser;
+  if (!user?.uid || !groupId) return;
+  
+  const userId = user.uid;
+  const now = Date.now();
 
-    const notifQ = query(
-      collection(db, "notifications"),
-      where("uid", "==", currentUser.uid),
-      where("groupName", "==", groupId),
-      where("seen", "==", false)
-    );
-    getDocs(notifQ).then((snap) => {
-      snap.forEach((d) => {
-        updateDoc(doc(db, "notifications", d.id), { seen: true }).catch(() => {});
-      });
-    }).catch(() => {});
+  // 1. Immediately store local read timestamp to prevent any UI glitch
+  try {
+    localStorage.setItem(`bunkmate_group_read_${groupId}`, now.toString());
+  } catch {}
 
-    setDoc(
-      doc(db, "groupChats", groupId),
-      {
-        readTimestamps: {
-          [currentUser.uid]: serverTimestamp(),
-        },
-      },
-      { merge: true }
-    ).catch(() => {});
-    
-    // Navigate or select immediately without blocking
-    if (onSelectChat) {
-      onSelectChat({ type: "group", id: groupId });
-    } else {
-      navigate(`/group/${groupId}`);
-    }
+  try {
+    // 2. Fetch last 20 messages with a simple timestamp order query (no composite index needed!)
+    const updateCollection = async (colName) => {
+      try {
+        const msgsRef = collection(db, colName, groupId, 'messages');
+        const q = query(msgsRef, orderBy('timestamp', 'desc'), limit(20));
+        const snap = await getDocs(q);
+        const updates = [];
+        snap.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data.senderId !== userId) {
+            const hasRead = Array.isArray(data.readBy) && data.readBy.includes(userId);
+            if (!hasRead) {
+              updates.push(
+                updateDoc(doc(db, colName, groupId, 'messages', docSnap.id), {
+                  read: true,
+                  status: 'delivered',
+                  readBy: arrayUnion(userId),
+                  readAt: serverTimestamp(),
+                }).catch(() => {})
+              );
+            }
+          }
+        });
+        if (updates.length > 0) {
+          await Promise.all(updates);
+        }
+      } catch (err) {
+        console.warn(`Could not mark messages in ${colName}:`, err);
+      }
+    };
 
-    markGroupAsRead(groupId).catch(() => {});
-  };
+    await updateCollection('groupChat');
+    await updateCollection('groupChats').catch(() => {});
+  } catch (e) {
+    console.error('Error marking group as read:', e);
+  }
+}
 
 
   const formatTimestamp = (date) => {
@@ -2736,14 +2359,16 @@ const [friendRequests, setFriendRequests] = useState([]);
 
 useEffect(() => {
   if (!currentUser) return;
-  const q = query(
-    collection(db, "notifications"),
-    where("uid", "==", currentUser.uid),
-    where("type", "==", "friend_request")
-  );
+  const notificationsRef = collection(db, "notifications");
 
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const reqs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const unsubscribe = onSnapshot(notificationsRef, (snapshot) => {
+    const reqs = snapshot.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter(
+        (r) =>
+          r.type === "friend_request" &&
+          (r.uid === currentUser.uid || r.senderId === currentUser.uid)
+      );
     setFriendRequests(reqs);
   });
 
@@ -2894,7 +2519,7 @@ const combinedChats = [
     photoURL: user.photoURL,
     lastMessage: latestMessages[user.id] || 'No messages yet',
     timestamp: latestTimestamps[user.id] || new Date(0),
-    unreadCount: selectedChatId === user.id ? 0 : ((unreadCounts[user.id] || 0) + (isChatMarkedUnread(user.id) && !unreadCounts[user.id] ? 1 : 0)),
+    unreadCount: (unreadCounts[user.id] || 0) + (isChatMarkedUnread(user.id) && !unreadCounts[user.id] ? 1 : 0),
     rawUser: user,
   })),
   ...userGroups.map((group) => {
@@ -2909,7 +2534,7 @@ const combinedChats = [
       memberCount: group.members?.length || 0,
       lastMessage: msgText,
       timestamp: latestGroupTimestamps[group.id] || new Date(0),
-      unreadCount: selectedChatId === group.id ? 0 : ((groupUnreadCounts[group.id] || 0) + (isChatMarkedUnread(group.id) && !groupUnreadCounts[group.id] ? 1 : 0)),
+      unreadCount: (groupUnreadCounts[group.id] || 0) + (isChatMarkedUnread(group.id) && !groupUnreadCounts[group.id] ? 1 : 0),
       rawGroup: group,
     };
   }),
@@ -3139,8 +2764,7 @@ const filteredCombinedChats = combinedChats.filter((chat) => {
 
   return (
       <ThemeProvider theme={theme}>
-        {/* <DeviceGuard> */}
-      <BetaAccessGuard fallback={<ChatListSkeleton count={8} sx={{ p: 2 }} isDark={mode === "dark"} onlyList={onlyList} />}>
+        
         <Box
           sx={{
             width: "100%",
@@ -5149,8 +4773,7 @@ sx={{
   </Typography>
 </Box>
           </Box>
-        </BetaAccessGuard>
-        {/* </DeviceGuard> */}
+       
     </ThemeProvider>
   );
 }
