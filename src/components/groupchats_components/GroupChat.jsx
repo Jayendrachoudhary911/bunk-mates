@@ -31,12 +31,6 @@ import ProgressiveBlur from "../ProgressiveBlur";
 import {
   doc,
   updateDoc,
-  setDoc,
-  query,
-  collection,
-  where,
-  getDocs,
-  serverTimestamp,
   arrayUnion,
 } from "firebase/firestore";
 import { db } from "../../firebase";
@@ -185,35 +179,8 @@ function GroupChat({
               [`readByMap.${currentUser.uid}`]: nowIso,
             };
             updateDoc(doc(db, "groupChat", groupName, "messages", m.id), payload).catch(() => {});
-            updateDoc(doc(db, "groupChats", groupName, "messages", m.id), payload).catch(() => {});
           }
         }
-
-        // Mark group notifications as seen in Firestore
-        const notifQ = query(
-          collection(db, "notifications"),
-          where("uid", "==", currentUser.uid),
-          where("groupName", "==", groupName),
-          where("seen", "==", false)
-        );
-        getDocs(notifQ)
-          .then((snap) => {
-            snap.forEach((d) => {
-              updateDoc(doc(db, "notifications", d.id), { seen: true }).catch(() => {});
-            });
-          })
-          .catch(() => {});
-
-        // Update read timestamp on groupChats document in Firestore
-        setDoc(
-          doc(db, "groupChats", groupName),
-          {
-            readTimestamps: {
-              [currentUser.uid]: serverTimestamp(),
-            },
-          },
-          { merge: true }
-        ).catch(() => {});
 
         window.dispatchEvent(new CustomEvent("bm_unread_chats_changed"));
         window.dispatchEvent(

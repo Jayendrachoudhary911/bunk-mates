@@ -58,6 +58,7 @@ import Cropper from "react-easy-crop";
 import { QRCodeSVG } from "qrcode.react";
 import QrScanner from "./QrScanner";
 import getCroppedImg from "../utils/cropImage";
+import { useThemeToggle } from "../contexts/ThemeToggleContext";
 
 import {
   SettingsLayout,
@@ -104,6 +105,7 @@ export default function ProfilePic({ currentUser, isEmbedded = false, onClose })
   // Navigation view state
   const [currentView, setCurrentView] = useState("main");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { setMode } = useThemeToggle();
 
   const activeUser = currentUser || auth.currentUser;
 
@@ -212,15 +214,23 @@ export default function ProfilePic({ currentUser, isEmbedded = false, onClose })
 
     // Load User Preferences
     loadUserPreferences(uid).then((prefs) => {
-      setPreferences(prefs);
+      if (prefs) {
+        setPreferences(prefs);
+        if (prefs.appearance?.theme) {
+          setMode(prefs.appearance.theme);
+        }
+      }
     });
 
     return () => unsubscribe();
-  }, [activeUser, currentUser]);
+  }, [activeUser, currentUser, setMode]);
 
   // Update Preferences Handler
   const handleUpdatePreferences = async (newPreferences) => {
     setPreferences(newPreferences);
+    if (newPreferences?.appearance?.theme) {
+      setMode(newPreferences.appearance.theme);
+    }
     if (activeUser) {
       try {
         await saveUserPreferences(activeUser.uid, newPreferences);

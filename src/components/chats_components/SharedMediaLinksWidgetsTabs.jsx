@@ -3,8 +3,6 @@ import React, { useState, useMemo } from "react";
 import {
   Box,
   Typography,
-  Tabs,
-  Tab,
   ButtonBase,
   IconButton,
 } from "@mui/material";
@@ -13,10 +11,12 @@ import LinkIcon from "@mui/icons-material/Link";
 import WidgetsIcon from "@mui/icons-material/Widgets";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import { motion } from "framer-motion";
 import { extractUrls } from "../../utils/chatHelpers";
 
 const SharedMediaLinksWidgetsTabs = ({
   messages = [],
+  searchQuery = "",
   onOpenImage,
   onJumpToMessage,
   onOpenTrip,
@@ -30,16 +30,16 @@ const SharedMediaLinksWidgetsTabs = ({
   const sharedMedia = useMemo(() => {
     const list = [];
     (messages || []).forEach((m) => {
-      if (m.dataUri) list.push({ url: m.dataUri, msgId: m.id, date: m.createdAt || m.timestamp });
-      if (m.imageUrl) list.push({ url: m.imageUrl, msgId: m.id, date: m.createdAt || m.timestamp });
+      if (m.dataUri) list.push({ url: m.dataUri, msgId: m.id });
+      if (m.imageUrl) list.push({ url: m.imageUrl, msgId: m.id });
       if (Array.isArray(m.images)) {
         m.images.forEach((img) => {
-          if (img) list.push({ url: img, msgId: m.id, date: m.createdAt || m.timestamp });
+          if (img) list.push({ url: img, msgId: m.id });
         });
       }
       if (Array.isArray(m.imageUrls)) {
         m.imageUrls.forEach((img) => {
-          if (img) list.push({ url: img, msgId: m.id, date: m.createdAt || m.timestamp });
+          if (img) list.push({ url: img, msgId: m.id });
         });
       }
     });
@@ -68,7 +68,7 @@ const SharedMediaLinksWidgetsTabs = ({
     return list;
   }, [messages]);
 
-  // 3. Extract all Widgets (Trips, Places, Budgets, Expenses, Checklists, Timelines, Polls, Notes)
+  // 3. Extract all Widgets
   const sharedWidgets = useMemo(() => {
     const list = [];
     (messages || []).forEach((m) => {
@@ -133,52 +133,120 @@ const SharedMediaLinksWidgetsTabs = ({
     return list;
   }, [messages]);
 
+  const filteredMedia = useMemo(() => {
+    if (!searchQuery.trim()) return sharedMedia;
+    return sharedMedia;
+  }, [sharedMedia, searchQuery]);
+
+  const filteredLinks = useMemo(() => {
+    if (!searchQuery.trim()) return sharedLinks;
+    const q = searchQuery.toLowerCase();
+    return sharedLinks.filter(
+      (item) => item.rawUrl.toLowerCase().includes(q) || item.senderName.toLowerCase().includes(q)
+    );
+  }, [sharedLinks, searchQuery]);
+
+  const filteredWidgets = useMemo(() => {
+    if (!searchQuery.trim()) return sharedWidgets;
+    const q = searchQuery.toLowerCase();
+    return sharedWidgets.filter(
+      (w) => w.title.toLowerCase().includes(q) || w.subtitle.toLowerCase().includes(q)
+    );
+  }, [sharedWidgets, searchQuery]);
+
+  const tabsData = [
+    { label: `Media (${sharedMedia.length})`, icon: <ImageIcon sx={{ fontSize: 16 }} /> },
+    { label: `Links (${sharedLinks.length})`, icon: <LinkIcon sx={{ fontSize: 16 }} /> },
+    { label: `Widgets (${sharedWidgets.length})`, icon: <WidgetsIcon sx={{ fontSize: 16 }} /> },
+  ];
+
   return (
-    <Box sx={{ width: "100%", mt: 1.5 }}>
-      {/* Tab Headers */}
-      <Tabs
-        value={tabIndex}
-        onChange={(_, val) => setTabIndex(val)}
-        variant="fullWidth"
+    <Box sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
+      {/* Seamless Sliding Pill Tab Switcher */}
+      <Box
         sx={{
-          minHeight: 38,
-          borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"}`,
-          "& .MuiTab-root": {
-            minHeight: 38,
-            textTransform: "none",
-            fontWeight: 700,
-            fontSize: "0.82rem",
-            color: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.6)",
-            "&.Mui-selected": { color: "#00b7ff" },
-          },
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          bgcolor: isDark ? "#161618" : "#eaeaea",
+          borderRadius: "14px",
+          p: 0.5,
+          mb: 2,
+          minHeight: 40,
+          position: "relative",
         }}
       >
-        <Tab icon={<ImageIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Media (${sharedMedia.length})`} />
-        <Tab icon={<LinkIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Links (${sharedLinks.length})`} />
-        <Tab icon={<WidgetsIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Widgets (${sharedWidgets.length})`} />
-      </Tabs>
+        {tabsData.map((tab, idx) => {
+          const isSelected = tabIndex === idx;
 
-      {/* Tab Panels */}
-      <Box sx={{ py: 1.5 }}>
+          return (
+            <ButtonBase
+              key={idx}
+              onClick={() => setTabIndex(idx)}
+              sx={{
+                position: "relative",
+                zIndex: 1,
+                minHeight: 36,
+                borderRadius: "12px",
+                textTransform: "none",
+                fontWeight: 600,
+                fontSize: "0.8rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 0.8,
+                color: isSelected
+                  ? isDark
+                    ? "#fff"
+                    : "#111"
+                  : isDark
+                  ? "rgba(255,255,255,0.55)"
+                  : "rgba(0,0,0,0.55)",
+                transition: "color 0.2s ease",
+              }}
+            >
+              {isSelected && (
+                <Box
+                  component={motion.div}
+                  layoutId="sharedMediaActiveTabPill"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    bgcolor: isDark ? "#28282d" : "#ffffff",
+                    borderRadius: "12px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                    zIndex: -1,
+                  }}
+                />
+              )}
+              {tab.icon}
+              <Typography variant="caption" sx={{ fontWeight: 700, fontSize: "0.8rem" }}>
+                {tab.label}
+              </Typography>
+            </ButtonBase>
+          );
+        })}
+      </Box>
+
+      {/* Tab Panels with Full Height Scrolling */}
+      <Box sx={{ py: 0.5, flex: 1, minHeight: 0, overflowY: "auto", pr: 0.5 }}>
         {/* TAB 0: Media Grid */}
         {tabIndex === 0 && (
           <>
-            {sharedMedia.length === 0 ? (
+            {filteredMedia.length === 0 ? (
               <Box sx={{ p: 3, textAlign: "center", opacity: 0.55 }}>
-                <Typography variant="caption">No photos or media shared yet</Typography>
+                <Typography variant="caption">No photos or media found</Typography>
               </Box>
             ) : (
               <Box
                 sx={{
                   display: "grid",
                   gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: 0.8,
-                  maxHeight: 280,
-                  overflowY: "auto",
-                  pr: 0.4,
+                  gap: 1,
+                  pb: 2,
                 }}
               >
-                {sharedMedia.map((m, idx) => (
+                {filteredMedia.map((m, idx) => (
                   <ButtonBase
                     key={idx}
                     onClick={() => onOpenImage && onOpenImage(m.url, sharedMedia.map((sm) => sm.url))}
@@ -186,10 +254,9 @@ const SharedMediaLinksWidgetsTabs = ({
                       width: "100%",
                       paddingTop: "100%",
                       position: "relative",
-                      borderRadius: "10px",
+                      borderRadius: "12px",
                       overflow: "hidden",
                       bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
-                      "&:hover img": { transform: "scale(1.08)" },
                     }}
                   >
                     <Box
@@ -204,7 +271,6 @@ const SharedMediaLinksWidgetsTabs = ({
                         width: "100%",
                         height: "100%",
                         objectFit: "cover",
-                        transition: "transform 0.25s ease",
                       }}
                     />
                   </ButtonBase>
@@ -217,32 +283,29 @@ const SharedMediaLinksWidgetsTabs = ({
         {/* TAB 1: Links List */}
         {tabIndex === 1 && (
           <>
-            {sharedLinks.length === 0 ? (
+            {filteredLinks.length === 0 ? (
               <Box sx={{ p: 3, textAlign: "center", opacity: 0.55 }}>
-                <Typography variant="caption">No links shared in this conversation</Typography>
+                <Typography variant="caption">No links found</Typography>
               </Box>
             ) : (
               <Box
                 sx={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: 0.8,
-                  maxHeight: 280,
-                  overflowY: "auto",
-                  pr: 0.4,
+                  gap: 1,
+                  pb: 2,
                 }}
               >
-                {sharedLinks.map((item, idx) => (
+                {filteredLinks.map((item, idx) => (
                   <Box
                     key={idx}
                     sx={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      p: 1.1,
-                      borderRadius: "12px",
+                      p: 1.2,
+                      borderRadius: "14px",
                       bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
-                      border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"}`,
                     }}
                   >
                     <Box
@@ -254,13 +317,13 @@ const SharedMediaLinksWidgetsTabs = ({
                         noWrap
                         sx={{
                           fontWeight: 600,
-                          fontSize: "0.82rem",
-                          color: isDark ? "#00b7ff" : "#0288d1",
+                          fontSize: "0.85rem",
+                          color: isDark ? "#ffffff" : "#111111",
                         }}
                       >
                         {item.rawUrl}
                       </Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.6, fontSize: "0.68rem" }} noWrap>
+                      <Typography variant="caption" sx={{ opacity: 0.6, fontSize: "0.7rem" }} noWrap>
                         Shared by {item.senderName}
                       </Typography>
                     </Box>
@@ -271,7 +334,7 @@ const SharedMediaLinksWidgetsTabs = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       size="small"
-                      sx={{ color: isDark ? "#00b7ff" : "#0288d1", p: 0.6 }}
+                      sx={{ color: isDark ? "rgba(255,255,255,0.8)" : "rgba(0,0,0,0.7)", p: 0.6 }}
                     >
                       <OpenInNewIcon sx={{ fontSize: 16 }} />
                     </IconButton>
@@ -285,22 +348,20 @@ const SharedMediaLinksWidgetsTabs = ({
         {/* TAB 2: Widgets List */}
         {tabIndex === 2 && (
           <>
-            {sharedWidgets.length === 0 ? (
+            {filteredWidgets.length === 0 ? (
               <Box sx={{ p: 3, textAlign: "center", opacity: 0.55 }}>
-                <Typography variant="caption">No widgets shared in this conversation</Typography>
+                <Typography variant="caption">No widgets found</Typography>
               </Box>
             ) : (
               <Box
                 sx={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: 0.8,
-                  maxHeight: 280,
-                  overflowY: "auto",
-                  pr: 0.4,
+                  gap: 1,
+                  pb: 2,
                 }}
               >
-                {sharedWidgets.map((w, idx) => (
+                {filteredWidgets.map((w, idx) => (
                   <Box
                     key={idx}
                     onClick={() => {
@@ -310,11 +371,10 @@ const SharedMediaLinksWidgetsTabs = ({
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      p: 1.1,
-                      px: 1.3,
-                      borderRadius: "12px",
+                      p: 1.2,
+                      px: 1.4,
+                      borderRadius: "14px",
                       bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
-                      border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"}`,
                       cursor: "pointer",
                       transition: "all 0.15s ease",
                       "&:hover": {
@@ -326,8 +386,8 @@ const SharedMediaLinksWidgetsTabs = ({
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, minWidth: 0, flex: 1 }}>
                       <Box
                         sx={{
-                          width: 34,
-                          height: 34,
+                          width: 36,
+                          height: 36,
                           borderRadius: "10px",
                           bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
                           display: "flex",
@@ -340,11 +400,11 @@ const SharedMediaLinksWidgetsTabs = ({
                         {w.icon}
                       </Box>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "0.82rem" }} noWrap>
+                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "0.85rem" }} noWrap>
                           {w.title}
                         </Typography>
                         {w.subtitle && (
-                          <Typography variant="caption" sx={{ opacity: 0.65, display: "block", fontSize: "0.68rem" }} noWrap>
+                          <Typography variant="caption" sx={{ opacity: 0.65, display: "block", fontSize: "0.7rem" }} noWrap>
                             {w.subtitle}
                           </Typography>
                         )}

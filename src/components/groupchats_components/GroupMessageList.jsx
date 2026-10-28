@@ -10,6 +10,7 @@ import {
   isDifferentDay,
   getMessageDateLabel,
   getTimestampDate,
+  getMessageSeconds,
 } from "../../utils/chatHelpers";
 
 const bounce = keyframes`
@@ -25,8 +26,8 @@ const getMessageShape = (messages, index, currentUserId) => {
 
   const within1Min = (a, b) => {
     if (!a?.timestamp || !b?.timestamp) return false;
-    const aSec = a.timestamp.seconds || (new Date(a.timestamp).getTime() / 1000);
-    const bSec = b.timestamp.seconds || (new Date(b.timestamp).getTime() / 1000);
+    const aSec = getMessageSeconds(a.timestamp);
+    const bSec = getMessageSeconds(b.timestamp);
     return Math.abs(aSec - bSec) < 60;
   };
 
@@ -52,8 +53,8 @@ const shouldShowTimestamp = (messages, index) => {
   if (!nextMsg) return true;
   if (nextMsg.senderId !== msg.senderId) return true;
 
-  const aSec = msg.timestamp?.seconds || (new Date(msg.timestamp).getTime() / 1000);
-  const bSec = nextMsg.timestamp?.seconds || (new Date(nextMsg.timestamp).getTime() / 1000);
+  const aSec = getMessageSeconds(msg.timestamp);
+  const bSec = getMessageSeconds(nextMsg.timestamp);
   return Math.abs(aSec - bSec) > 60;
 };
 
@@ -105,7 +106,7 @@ const GroupMessageList = ({
       if (isNewDay || !currentGroup) {
         const label = getMessageDateLabel(msg?.timestamp);
         const d = getTimestampDate(msg?.timestamp);
-        const dateKey = `date_${d.getFullYear()}_${d.getMonth()}_${d.getDate()}_${index}`;
+        const dateKey = `date_${d.getFullYear()}_${d.getMonth()}_${d.getDate()}`;
 
         currentGroup = {
           dateKey,

@@ -84,13 +84,13 @@ export async function saveAuthUserToLocalDb(authUser, apiKey = FIREBASE_API_KEY)
     value: recordValue,
   };
 
-  // 1. Write to localStorage
+  // 1. Write to sessionStorage only (never localStorage)
   try {
-    localStorage.setItem(fbaseKey, JSON.stringify(recordValue));
-    localStorage.setItem("bunkmates_auth_user", JSON.stringify(recordValue));
+    localStorage.removeItem(fbaseKey);
+    localStorage.removeItem("bunkmates_auth_user");
     sessionStorage.setItem("bunkmates_auth_user", JSON.stringify(recordValue));
   } catch (err) {
-    console.warn("[LocalDB] localStorage write warning:", err);
+    console.warn("[LocalDB] storage write warning:", err);
   }
 
   // 2. Write to IndexedDB firebaseLocalStorageDb -> firebaseLocalStorage
@@ -148,9 +148,11 @@ export async function getAuthUserFromLocalDb(apiKey = FIREBASE_API_KEY) {
 
   const fbaseKey = `firebase:authUser:${apiKey}:[DEFAULT]`;
 
-  // 1. Try localStorage
+  // 1. Try sessionStorage and clean up legacy localStorage
   try {
-    const raw = localStorage.getItem(fbaseKey);
+    localStorage.removeItem(fbaseKey);
+    localStorage.removeItem("bunkmates_auth_user");
+    const raw = sessionStorage.getItem("bunkmates_auth_user");
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && (parsed.uid || parsed.value?.uid)) {
@@ -805,7 +807,7 @@ export async function exchangeQrLoginToken({ sessionId, clientSecret }) {
 
     if (typeof window !== "undefined") {
       sessionStorage.setItem("bunkmates_auth_user", JSON.stringify(userObj));
-      localStorage.setItem("bunkmates_auth_user", JSON.stringify(userObj));
+      localStorage.removeItem("bunkmates_auth_user");
       sessionStorage.setItem("bunkmates_auth_welcome", "true");
 
       if (approvedDevice?.id) {

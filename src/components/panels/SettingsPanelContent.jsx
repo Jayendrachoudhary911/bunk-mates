@@ -174,7 +174,17 @@ const SettingsPanelContent = () => {
 
             <Switch
               checked={isDark}
-              onChange={toggleTheme}
+              onChange={() => {
+                const nextMode = isDark ? "light" : "dark";
+                toggleTheme();
+                if (currentUser?.uid) {
+                  import("../../services/settingsService").then(({ saveUserPreferences }) => {
+                    saveUserPreferences(currentUser.uid, {
+                      appearance: { theme: nextMode },
+                    }).catch(() => {});
+                  });
+                }
+              }}
               color="primary"
             />
           </Box>

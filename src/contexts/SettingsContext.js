@@ -12,29 +12,36 @@ const defaultSettings = {
 const SettingsContext = createContext();
 
 export function SettingsProvider({ children }) {
-  const [settings, setSettings] = useState(defaultSettings);
-
-  // Load from localStorage/cookie on mount
-  useEffect(() => {
-    let loaded = null;
+  // Synchronously initialize from localStorage / cookie on mount to avoid defaults overwriting
+  const [settings, setSettings] = useState(() => {
     try {
-      const local = localStorage.getItem(SETTINGS_KEY);
-      if (local) loaded = JSON.parse(local);
-      if (!loaded) {
+      if (typeof window !== "undefined") {
+        const local = localStorage.getItem(SETTINGS_KEY);
+        if (local) return { ...defaultSettings, ...JSON.parse(local) };
+      }
+      if (typeof document !== "undefined") {
         const cookie = document.cookie
           .split("; ")
           .find((row) => row.startsWith(SETTINGS_KEY + "="))
           ?.split("=")[1];
-        if (cookie) loaded = JSON.parse(decodeURIComponent(cookie));
+        if (cookie) return { ...defaultSettings, ...JSON.parse(decodeURIComponent(cookie)) };
       }
     } catch {}
-    if (loaded) setSettings({ ...defaultSettings, ...loaded });
-  }, []);
+    return defaultSettings;
+  });
 
-  // Save to localStorage/cookie on change
+  const isInitialMount = React.useRef(true);
+
+  // Save to localStorage/cookie ONLY on actual changes, NOT on reload/mount
   useEffect(() => {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    document.cookie = `${SETTINGS_KEY}=${encodeURIComponent(JSON.stringify(settings))}; path=/; max-age=31536000`;
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      document.cookie = `${SETTINGS_KEY}=${encodeURIComponent(JSON.stringify(settings))}; path=/; max-age=31536000`;
+    } catch {}
   }, [settings]);
 
   // Actions

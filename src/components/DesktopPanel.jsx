@@ -78,9 +78,7 @@ const DesktopPanel = ({
               : "rgba(250, 250, 250, 0.9)",
             backdropFilter: "blur(28px) saturate(1.4)",
             WebkitBackdropFilter: "blur(28px) saturate(1.4)",
-            boxShadow: isDark
-              ? "-8px 0 32px rgba(0, 0, 0, 0.35)"
-              : "-8px 0 28px rgba(0, 0, 0, 0.08)",
+            boxShadow: 'none',
             overflow: "hidden",
           }}
         >
@@ -113,7 +111,7 @@ const DesktopPanel = ({
                 overflowY: "auto",
                 overflowX: "hidden",
                 position: "relative",
-                p: noPadding ? 0 : 0.5,
+                p: noPadding ? 0 : 0,
                 scrollbarWidth: "thin",
                 scrollbarColor: isDark
                   ? "rgba(255, 255, 255, 0.15) transparent"

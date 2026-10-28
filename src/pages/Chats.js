@@ -1774,34 +1774,42 @@ const handleAvatarClick = (e, chatData) => {
 useEffect(() => {
   if (!currentUser || !selectedUserProfile) return;
 
-  const notificationsRef = collection(db, "notifications");
-  const unsubscribe = onSnapshot(notificationsRef, (snapshot) => {
-    const requests = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const sent = requests.find(
-      (r) =>
-        r.type === "friend_request" &&
-        r.senderId === currentUser.uid &&
-        r.uid === selectedUserProfile.uid &&
-        (r.status === "pending" || r.status === "accepted")
-    );
-    const received = requests.find(
-      (r) =>
-        r.type === "friend_request" &&
-        r.senderId === selectedUserProfile.uid &&
-        r.uid === currentUser.uid &&
-        r.status === "pending"
-    );
+  setLoadingRequestState(true);
 
-    setHasPendingRequest(!!sent);
-    setIsRequestReceived(!!received);
-    setRequestId(received ? received.id : sent ? sent.id : null);
-    setLoadingRequestState(false);
-    if (sent?.status === "accepted" || received?.status === "accepted") {
-      setIsCurrentUserFriend(true);
+  // Targeted queries instead of scanning entire notifications collection
+  const checkFriendRequestStatus = async () => {
+    try {
+      const sentSnap = await getDocs(query(
+        collection(db, "notifications"),
+        where("type", "==", "friend_request"),
+        where("senderId", "==", currentUser.uid),
+        where("uid", "==", selectedUserProfile.uid)
+      ));
+      const sent = sentSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .find(r => r.status === "pending" || r.status === "accepted");
+
+      const receivedSnap = await getDocs(query(
+        collection(db, "notifications"),
+        where("type", "==", "friend_request"),
+        where("senderId", "==", selectedUserProfile.uid),
+        where("uid", "==", currentUser.uid)
+      ));
+      const received = receivedSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .find(r => r.status === "pending");
+
+      setHasPendingRequest(!!sent);
+      setIsRequestReceived(!!received);
+      setRequestId(received ? received.id : sent ? sent.id : null);
+      if (sent?.status === "accepted" || received?.status === "accepted") {
+        setIsCurrentUserFriend(true);
+      }
+    } catch (err) {
+      console.error("Error checking friend request status:", err);
     }
-  });
+    setLoadingRequestState(false);
+  };
 
-  return () => unsubscribe();
+  checkFriendRequestStatus();
 }, [selectedUserProfile, currentUser]);
 
 
@@ -1925,7 +1933,10 @@ useEffect(() => {
         const userRef = doc(db, "users", currentUser.uid);
         const userSnap = await getDoc(userRef);
 
-        if (!userSnap.exists()) return;
+        if (!userSnap.exists()) {
+          setLoadingChats(false);
+          return;
+        }
         const uData = userSnap.data();
 
         const friendsUIDs = uData.friends || [];
@@ -1934,6 +1945,8 @@ useEffect(() => {
 
         if (friendsUIDs.length === 0) {
           setFriendsList([]);
+          setUsers([]);
+          setLoadingChats(false);
           return;
         }
 
@@ -1956,8 +1969,16 @@ useEffect(() => {
           });
 
         setFriendsList(fetchedFriends);
+
+        // Populate chat list users from friends data (avoids full users collection scan)
+        const usersFromFriends = friendDocs
+          .filter(d => d.exists())
+          .map(d => ({ id: d.id, ...d.data() }));
+        setUsers(usersFromFriends);
+        setLoadingChats(false);
       } catch (err) {
         console.error("Failed to fetch friends and profile data:", err);
+        setLoadingChats(false);
       }
     };
 
@@ -2001,51 +2022,14 @@ const handleCreateGroup = async () => {
     setSelectedFriends([]);
 
     setSnackbar({ open: true, message: "Group created successfully!" });
-
   } catch (error) {
     console.error("Error creating group:", error);
     setSnackbar({ open: true, message: "Failed to create group." });
   }
 };
 
-
-useEffect(() => {
-  if (!currentUser) return;
-
-  const unsubs = onSnapshot(doc(db, "userChats", currentUser.uid), (docSnap) => {
-    if (docSnap.exists()) {
-      const chatsData = docSnap.data();
-      const sortedChats = Object.entries(chatsData).sort(
-        (a, b) => b[1].date?.seconds - a[1].date?.seconds
-      );
-      setUsers(
-        sortedChats.map(([chatId, data]) => ({
-          ...data.userInfo,
-          chatId,
-          lastMessage: data.lastMessage?.text || '',
-        }))
-      );
-    }
-  });
-
-  return () => unsubs();
-}, [currentUser]);
-
-  
-  useEffect(() => {
-    if (!currentUser) return;
-    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const usersList = [];
-      snapshot.forEach((docSnap) => {
-        if (docSnap.id !== currentUser.uid) {
-          usersList.push({ id: docSnap.id, ...docSnap.data() });
-        }
-      });
-      setUsers(usersList);
-      setLoadingChats(false);
-    });
-    return () => unsubscribe();
-  }, [currentUser]);
+// Chat list users are populated from the friends fetch above,
+// eliminating thousands of unnecessary Firestore reads.
 
   const userIdsKey = React.useMemo(() => users.map(u => u.id).sort().join(','), [users]);
 
@@ -2114,14 +2098,12 @@ useEffect(() => {
           const ts = data.timestamp?.toDate?.() || (data.timestamp ? new Date(data.timestamp) : new Date(0));
           const msgMillis = data.timestamp?.toMillis ? data.timestamp.toMillis() : (ts instanceof Date ? ts.getTime() : 0);
           
-          // Check if message is unread for current user
-          const localReadTs = Number(localStorage.getItem(`bunkmate_group_read_${group.id}`) || 0);
+          // Check if message is unread for current user in real-time from Firestore
           const isSentByMe = data.senderId === currentUser.uid;
           const isReadByMember = Array.isArray(data.readBy) && data.readBy.includes(currentUser.uid);
           const isReadInDoc = data.read === true && (!data.readBy || data.readBy.includes(currentUser.uid));
-          const isReadLocally = localReadTs > 0 && msgMillis > 0 && msgMillis <= localReadTs;
 
-          const unread = !isSentByMe && !isReadByMember && !isReadInDoc && !isReadLocally;
+          const unread = !isSentByMe && !isReadByMember && !isReadInDoc;
           
           setLatestGroupMessages(prev => ({
             ...prev,
@@ -2195,13 +2177,8 @@ async function markGroupAsRead(groupId) {
   const userId = user.uid;
   const now = Date.now();
 
-  // 1. Immediately store local read timestamp to prevent any UI glitch
   try {
-    localStorage.setItem(`bunkmate_group_read_${groupId}`, now.toString());
-  } catch {}
-
-  try {
-    // 2. Fetch last 20 messages with a simple timestamp order query (no composite index needed!)
+    // Fetch last 20 messages with a simple timestamp order query (no composite index needed!)
     const updateCollection = async (colName) => {
       try {
         const msgsRef = collection(db, colName, groupId, 'messages');
@@ -2233,7 +2210,7 @@ async function markGroupAsRead(groupId) {
     };
 
     await updateCollection('groupChat');
-    await updateCollection('groupChats').catch(() => {});
+    // Removed: duplicate updateCollection('groupChats') — messages live only in 'groupChat'
   } catch (e) {
     console.error('Error marking group as read:', e);
   }
@@ -2248,26 +2225,61 @@ async function markGroupAsRead(groupId) {
   };
 
 
-  // Fetch all users for search (excluding current user and already-friends)
-useEffect(() => {
-  if (searchTerm.trim() === '') return setSearchResults([]);
-  const fetchUsers = async () => {
-    const usersSnapshot = await getDocs(collection(db, "users"));
-    const matches = [];
-    usersSnapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      if (
-        data.username?.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        data.uid !== currentUser.uid &&
-        !friends.includes(data.uid)
-      ) {
-        matches.push({ ...data, uid: docSnap.id });
+  // Search users with debounce and targeted query
+  useEffect(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) {
+      setSearchResults([]);
+      return;
+    }
+
+    // Debounce search to avoid excessive Firestore reads on every keystroke
+    const timer = setTimeout(async () => {
+      try {
+        // Query users by username prefix, limited to 25 to avoid reading entire collection
+        const q = query(
+          collection(db, "users"),
+          where("username", ">=", term),
+          where("username", "<=", term + "\uf8ff"),
+          limit(25)
+        );
+        const usersSnapshot = await getDocs(q);
+        const matches = [];
+        usersSnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const targetUid = data.uid || docSnap.id;
+          if (targetUid !== currentUser?.uid && !friends.includes(targetUid)) {
+            matches.push({ ...data, uid: targetUid });
+          }
+        });
+
+        // Fallback: if username prefix query returned empty (e.g. searching by display name),
+        // query a small batch (limit 25) instead of the entire table
+        if (matches.length === 0) {
+          const fallbackSnap = await getDocs(query(collection(db, "users"), limit(25)));
+          fallbackSnap.forEach((docSnap) => {
+            const data = docSnap.data();
+            const targetUid = data.uid || docSnap.id;
+            const uname = (data.username || "").toLowerCase();
+            const dname = (data.name || "").toLowerCase();
+            if (
+              (uname.includes(term) || dname.includes(term)) &&
+              targetUid !== currentUser?.uid &&
+              !friends.includes(targetUid)
+            ) {
+              matches.push({ ...data, uid: targetUid });
+            }
+          });
+        }
+
+        setSearchResults(matches);
+      } catch (err) {
+        console.error("Search failed:", err);
       }
-    });
-    setSearchResults(matches);
-  };
-  fetchUsers();
-}, [searchTerm, currentUser, friends]);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, currentUser, friends]);
 
 // Add friend logic
 // --- Enhanced Friend Logic (visibility + requests) ---
@@ -2359,20 +2371,39 @@ const [friendRequests, setFriendRequests] = useState([]);
 
 useEffect(() => {
   if (!currentUser) return;
-  const notificationsRef = collection(db, "notifications");
 
-  const unsubscribe = onSnapshot(notificationsRef, (snapshot) => {
-    const reqs = snapshot.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter(
-        (r) =>
-          r.type === "friend_request" &&
-          (r.uid === currentUser.uid || r.senderId === currentUser.uid)
-      );
-    setFriendRequests(reqs);
+  // Two targeted queries instead of scanning entire notifications collection
+  const receivedQ = query(
+    collection(db, "notifications"),
+    where("type", "==", "friend_request"),
+    where("uid", "==", currentUser.uid)
+  );
+  const sentQ = query(
+    collection(db, "notifications"),
+    where("type", "==", "friend_request"),
+    where("senderId", "==", currentUser.uid)
+  );
+
+  const allReqs = { received: [], sent: [] };
+  const mergeAndUpdate = () => {
+    const combined = [...allReqs.received, ...allReqs.sent];
+    const unique = Array.from(new Map(combined.map(r => [r.id, r])).values());
+    setFriendRequests(unique);
+  };
+
+  const unsubReceived = onSnapshot(receivedQ, (snap) => {
+    allReqs.received = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    mergeAndUpdate();
+  });
+  const unsubSent = onSnapshot(sentQ, (snap) => {
+    allReqs.sent = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    mergeAndUpdate();
   });
 
-  return () => unsubscribe();
+  return () => {
+    unsubReceived();
+    unsubSent();
+  };
 }, [currentUser]);
 
 
@@ -4833,15 +4864,21 @@ const showPrivateOverlay = isPrivate && !isCurrentUserFriend && !isSelf;
         const groupsData = groupsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setMutualGroups(groupsData.filter((g) => g.members?.includes(user.uid)));
 
-        // Friends (mutual)
-        const usersSnap = await getDocs(collection(db, "users"));
-        const allUsers = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        const currentFriends = allUsers.find((u) => u.uid === currentUser.uid)?.friends || [];
-        const targetFriends  = allUsers.find((u) => u.uid === user.uid)?.friends || [];
-        const mutuals = allUsers.filter(
-          (u) => currentFriends.includes(u.uid) && targetFriends.includes(u.uid)
+        // Friends (mutual) — fetch only both users' friend lists, not all users
+        const [currentUserSnap, targetUserSnap] = await Promise.all([
+          getDoc(doc(db, "users", currentUser.uid)),
+          getDoc(doc(db, "users", user.uid)),
+        ]);
+        const currentFriends = currentUserSnap.exists() ? currentUserSnap.data()?.friends || [] : [];
+        const targetFriends = targetUserSnap.exists() ? targetUserSnap.data()?.friends || [] : [];
+        const mutualUids = currentFriends.filter(uid => targetFriends.includes(uid));
+        const mutualProfiles = await Promise.all(
+          mutualUids.slice(0, 20).map(async (uid) => {
+            const snap = await getDoc(doc(db, "users", uid));
+            return snap.exists() ? { id: snap.id, uid, ...snap.data() } : null;
+          })
         );
-        setMutualFriends(mutuals);
+        setMutualFriends(mutualProfiles.filter(Boolean));
       } catch (err) {
         console.error("Error fetching mutual data:", err);
       }

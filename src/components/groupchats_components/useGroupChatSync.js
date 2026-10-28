@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { useUser } from "../../contexts/UserContext";
 import {
   getCachedData,
   setCachedData,
@@ -35,8 +36,25 @@ import {
 } from "../../utils/chatFeaturesService";
 
 export function useGroupChatSync(groupName) {
-  const [currentUser, setCurrentUser] = useState(() => auth.currentUser);
-  const [authLoading, setAuthLoading] = useState(!auth.currentUser);
+  let contextUser = null;
+  try {
+    const ctx = useUser();
+    contextUser = ctx?.user || null;
+  } catch (e) {
+    // Graceful fallback if invoked outside UserProvider
+  }
+
+  const [currentUser, setCurrentUser] = useState(() => auth.currentUser || contextUser);
+  const [authLoading, setAuthLoading] = useState(!auth.currentUser && !contextUser);
+
+  useEffect(() => {
+    if (contextUser && (!currentUser || currentUser.uid !== contextUser.uid)) {
+      setCurrentUser(contextUser);
+      setAuthLoading(false);
+    }
+  }, [contextUser, currentUser]);
+
+  const activeUser = currentUser || contextUser || auth.currentUser;
 
   // Typing members state
   const [typingMembers, setTypingMembers] = useState([]);
@@ -62,11 +80,19 @@ export function useGroupChatSync(groupName) {
   // Auth observer
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (usr) => {
-      setCurrentUser(usr);
-      setAuthLoading(false);
+      if (usr) {
+        setCurrentUser(usr);
+        setAuthLoading(false);
+      } else if (contextUser) {
+        setCurrentUser(contextUser);
+        setAuthLoading(false);
+      } else {
+        setCurrentUser(null);
+        setAuthLoading(false);
+      }
     });
     return () => unsub();
-  }, []);
+  }, [contextUser]);
 
   // Set active group chat, mark group as read in DB and Firestore notifications
   useEffect(() => {
@@ -137,7 +163,8 @@ export function useGroupChatSync(groupName) {
 
       if (data.name) {
         try {
-          localStorage.setItem(`bm_group_name_${groupName}`, data.name);
+          localStorage.removeItem(`bm_group_name_${groupName}`);
+          sessionStorage.setItem(`bm_group_name_${groupName}`, data.name);
         } catch (e) {}
         window.dispatchEvent(
           new CustomEvent("bm_group_info_loaded", {
@@ -386,88 +413,127 @@ export function useGroupChatSync(groupName) {
 
   // 5. Send message (text, image, structured cards, reply)
   const sendMessage = useCallback(
-    async ({
-      text = "",
-      imageUrl = null,
-      images = null,
-      replyTo = null,
-      type = "text",
-      cardData = null,
-      viewOnce = false,
-    }) => {
-      if ((!text.trim() && !imageUrl && !images && !cardData) || !groupName || !currentUser) {
+    async (optionsOrText) => {
+      const opts =
+        typeof optionsOrText === "string"
+          ? { text: optionsOrText }
+          : optionsOrText || {};
+
+      const {
+        text = "",
+        imageUrl = null,
+        images = null,
+        replyTo = null,
+        replyingTo = null,
+        type = "text",
+        cardData = null,
+        viewOnce = false,
+      } = opts;
+
+      const trimmedText = typeof text === "string" ? text.trim() : "";
+      const replyTarget = replyTo || replyingTo || null;
+      const effectiveUser = currentUser || contextUser || auth.currentUser;
+
+      if (
+        (!trimmedText && !imageUrl && !images && !cardData) ||
+        !groupName ||
+        !effectiveUser
+      ) {
         return;
       }
+
       setIsSending(true);
 
-      // Immediately clear typing state
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      updateDoc(doc(db, "groupChats", groupName), {
-        [`drafts.${currentUser.uid}`]: false,
-      }).catch(() => {});
-
-      const msgData = {
-        senderId: currentUser.uid,
-        senderName:
-          currentUser.displayName ||
-          memberInfo[currentUser.uid]?.name ||
-          "Member",
-        senderPhoto:
-          currentUser.photoURL || memberInfo[currentUser.uid]?.photoURL || "",
-        text: text.trim(),
-        type: imageUrl ? "image" : type,
-        timestamp: serverTimestamp(),
-        reactions: [],
-        readBy: [currentUser.uid],
-        readByMap: { [currentUser.uid]: new Date().toISOString() },
-      };
-
-      const disappearingDuration = getChatDisappearingDuration(groupName, groupInfo?.disappearingDuration);
-      if (disappearingDuration > 0) {
-        msgData.expiresAt = Date.now() + disappearingDuration;
-      }
-
-      if (viewOnce) {
-        msgData.viewOnce = true;
-        msgData.viewedByOnce = [];
-      }
-
-      if (imageUrl) {
-        msgData.dataUri = imageUrl;
-      }
-
-      if (images && Array.isArray(images)) {
-        msgData.images = images;
-        msgData.type = "image_group";
-      }
-
-      if (cardData) {
-        msgData.cardData = cardData;
-      }
-
-      if (replyTo) {
-        msgData.replyTo = {
-          id: replyTo.id,
-          text: replyTo.text || "",
-          senderName: replyTo.senderName || "Member",
-          imageUrl: replyTo.imageUrl || replyTo.dataUri || null,
-        };
-      }
-
       try {
+        // Immediately clear typing state
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        updateDoc(doc(db, "groupChats", groupName), {
+          [`drafts.${effectiveUser.uid}`]: false,
+        }).catch(() => {});
+
+        const msgData = {
+          senderId: effectiveUser.uid,
+          senderName:
+            effectiveUser.displayName ||
+            memberInfo[effectiveUser.uid]?.name ||
+            "Member",
+          senderPhoto:
+            effectiveUser.photoURL || memberInfo[effectiveUser.uid]?.photoURL || "",
+          text: trimmedText,
+          type: imageUrl
+            ? "image"
+            : images && Array.isArray(images) && images.length > 0
+            ? "image_group"
+            : type || "text",
+          timestamp: serverTimestamp(),
+          reactions: [],
+          readBy: [effectiveUser.uid],
+          readByMap: { [effectiveUser.uid]: new Date().toISOString() },
+        };
+
+        const disappearingDuration = getChatDisappearingDuration(
+          groupName,
+          groupInfo?.disappearingDuration
+        );
+        if (disappearingDuration > 0) {
+          msgData.expiresAt = Date.now() + disappearingDuration;
+        }
+
+        if (viewOnce) {
+          msgData.viewOnce = true;
+          msgData.viewedByOnce = [];
+        }
+
+        if (imageUrl) {
+          msgData.dataUri = imageUrl;
+        }
+
+        if (images && Array.isArray(images) && images.length > 0) {
+          msgData.images = images;
+          msgData.type = "image_group";
+        }
+
+        if (cardData) {
+          msgData.cardData = cardData;
+        }
+
+        if (replyTarget) {
+          msgData.replyTo = {
+            id: replyTarget.id || "",
+            text: replyTarget.text || "",
+            senderName:
+              replyTarget.senderName ||
+              (replyTarget.senderId && memberInfo[replyTarget.senderId]?.name) ||
+              "Member",
+            imageUrl: replyTarget.imageUrl || replyTarget.dataUri || null,
+          };
+        }
+
         await addDoc(
           collection(db, "groupChat", groupName, "messages"),
           msgData
         );
 
-        const groupMsgSnippet = msgData.text || (msgData.dataUri ? "Photo" : "Attachment");
-        const senderDisplayName = memberInfo[currentUser.uid]?.name || currentUser.displayName || "Member";
+        const groupMsgSnippet =
+          msgData.text ||
+          (msgData.dataUri
+            ? "Photo"
+            : images
+            ? "Photos"
+            : cardData
+            ? "Card"
+            : "Attachment");
+        const senderDisplayName =
+          memberInfo[effectiveUser.uid]?.name ||
+          effectiveUser.displayName ||
+          "Member";
+
         setDoc(
           doc(db, "groupChats", groupName),
           {
             lastMessage: {
               text: groupMsgSnippet,
-              senderId: currentUser.uid,
+              senderId: effectiveUser.uid,
               senderName: senderDisplayName,
               timestamp: serverTimestamp(),
             },
@@ -477,25 +543,32 @@ export function useGroupChatSync(groupName) {
           { merge: true }
         ).catch(() => {});
 
-
         // Group members to notify
-        const members = Array.isArray(groupInfo?.members) ? groupInfo.members : [];
-        const otherMembers = members.filter((m) => m !== currentUser.uid);
+        const members = Array.isArray(groupInfo?.members)
+          ? groupInfo.members
+          : [];
+        const otherMembers = members.filter((m) => m !== effectiveUser.uid);
         const groupTitle = groupInfo?.name || groupName || "Group";
-        const senderName = memberInfo[currentUser.uid]?.name || currentUser.displayName || "Member";
-        const senderAvatar = memberInfo[currentUser.uid]?.photoURL || currentUser.photoURL || "";
+        const senderName =
+          memberInfo[effectiveUser.uid]?.name ||
+          effectiveUser.displayName ||
+          "Member";
+        const senderAvatar =
+          memberInfo[effectiveUser.uid]?.photoURL ||
+          effectiveUser.photoURL ||
+          "";
 
         // 1. Detect mentions in text (@username)
-        const mentionMatches = (text.match(/@([a-zA-Z0-9_.-]+)/g) || []).map((m) =>
-          m.slice(1).toLowerCase()
-        );
+        const mentionMatches = (
+          trimmedText.match(/@([a-zA-Z0-9_.-]+)/g) || []
+        ).map((m) => m.slice(1).toLowerCase());
         const mentionedUids = new Set();
         if (mentionMatches.length > 0) {
           Object.entries(memberInfo).forEach(([uid, info]) => {
             if (
               info?.username &&
               mentionMatches.includes(info.username.toLowerCase()) &&
-              uid !== currentUser.uid
+              uid !== effectiveUser.uid
             ) {
               mentionedUids.add(uid);
             }
@@ -508,11 +581,12 @@ export function useGroupChatSync(groupName) {
             const uSnap = await getDoc(doc(db, "users", uid));
             if (uSnap.exists()) {
               const uData = uSnap.data();
-              // If user currently has this group open, do not send notification
-              if (uData.activeChat?.groupName === groupName || uData.activeChat?.id === groupName) {
+              if (
+                uData.activeChat?.groupName === groupName ||
+                uData.activeChat?.id === groupName
+              ) {
                 return false;
               }
-              // If user muted this group
               if (uData.mutedChats?.[groupName]) {
                 return false;
               }
@@ -529,10 +603,10 @@ export function useGroupChatSync(groupName) {
           if (allowed) {
             addDoc(collection(db, "notifications"), {
               uid,
-              senderId: currentUser.uid,
+              senderId: effectiveUser.uid,
               type: "mention",
               title: `${senderName} mentioned you in ${groupTitle}`,
-              content: text,
+              content: trimmedText,
               pic: senderAvatar,
               groupName: groupName,
               seen: false,
@@ -546,17 +620,23 @@ export function useGroupChatSync(groupName) {
         const isPoll = type === "poll" || Boolean(cardData?.options);
         const isTimeline = type === "timeline";
         const isChecklist = type === "checklist";
-        const isReply = Boolean(replyTo?.senderId && replyTo.senderId !== currentUser.uid);
+        const isReply = Boolean(
+          replyTarget?.senderId && replyTarget.senderId !== effectiveUser.uid
+        );
 
         if (isReply) {
-          const allowed = await checkMemberNotificationAllowed(replyTo.senderId);
+          const allowed = await checkMemberNotificationAllowed(
+            replyTarget.senderId
+          );
           if (allowed) {
             addDoc(collection(db, "notifications"), {
-              uid: replyTo.senderId,
-              senderId: currentUser.uid,
+              uid: replyTarget.senderId,
+              senderId: effectiveUser.uid,
               type: "reply",
               title: `${senderName} replied to you in ${groupTitle}`,
-              content: text || (isPhoto ? "Sent a photo" : "Replied to your message"),
+              content:
+                trimmedText ||
+                (isPhoto ? "Sent a photo" : "Replied to your message"),
               pic: senderAvatar,
               imageUrl: imageUrl || null,
               groupName: groupName,
@@ -567,16 +647,19 @@ export function useGroupChatSync(groupName) {
         }
 
         // Notify other group members (excluding already notified mentioned users)
-        const remainingMembers = otherMembers.filter((m) => !mentionedUids.has(m) && (m !== replyTo?.senderId));
-        
+        const remainingMembers = otherMembers.filter(
+          (m) => !mentionedUids.has(m) && m !== replyTarget?.senderId
+        );
+
         let generalNotifType = "group_chat";
         let generalNotifTitle = `${senderName} in ${groupTitle}`;
-        let generalNotifContent = text;
+        let generalNotifContent = trimmedText;
 
         if (isPoll) {
           generalNotifType = "poll";
           generalNotifTitle = `📊 New Poll in ${groupTitle}`;
-          generalNotifContent = cardData?.question || text || "New poll created";
+          generalNotifContent =
+            cardData?.question || trimmedText || "New poll created";
         } else if (isTimeline) {
           generalNotifType = "timeline";
           generalNotifTitle = `🗓️ Trip Timeline in ${groupTitle}`;
@@ -588,7 +671,9 @@ export function useGroupChatSync(groupName) {
         } else if (isPhoto) {
           generalNotifType = "photo";
           generalNotifTitle = `${senderName} in ${groupTitle}`;
-          generalNotifContent = text ? `Sent a photo: "${text}"` : "Sent a photo";
+          generalNotifContent = trimmedText
+            ? `Sent a photo: "${trimmedText}"`
+            : "Sent a photo";
         }
 
         for (const uid of remainingMembers) {
@@ -596,7 +681,7 @@ export function useGroupChatSync(groupName) {
           if (allowed) {
             addDoc(collection(db, "notifications"), {
               uid,
-              senderId: currentUser.uid,
+              senderId: effectiveUser.uid,
               type: generalNotifType,
               title: generalNotifTitle,
               content: generalNotifContent,
@@ -614,7 +699,7 @@ export function useGroupChatSync(groupName) {
         setIsSending(false);
       }
     },
-    [groupName, currentUser, memberInfo, groupInfo]
+    [groupName, currentUser, contextUser, memberInfo, groupInfo]
   );
 
   // 6. Interactive Poll Vote

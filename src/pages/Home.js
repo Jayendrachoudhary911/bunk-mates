@@ -174,7 +174,8 @@ const Home = () => {
     try {
       const uid = auth.currentUser?.uid;
       if (uid) {
-        const raw = localStorage.getItem(`bunkmate_cache_user_${uid}`);
+        localStorage.removeItem(`bunkmate_cache_user_${uid}`);
+        const raw = sessionStorage.getItem(`bunkmate_cache_user_${uid}`);
         if (raw) return JSON.parse(raw);
       }
     } catch (e) {}
@@ -309,7 +310,8 @@ const Home = () => {
           const data = convertTimestamps(docSnap.data());
           setUserData(data);
           try {
-            localStorage.setItem(`bunkmate_cache_user_${firebaseUser.uid}`, JSON.stringify(data));
+            localStorage.removeItem(`bunkmate_cache_user_${firebaseUser.uid}`);
+            sessionStorage.setItem(`bunkmate_cache_user_${firebaseUser.uid}`, JSON.stringify(data));
           } catch (e) {}
           setUserType(data.type || "");
         }

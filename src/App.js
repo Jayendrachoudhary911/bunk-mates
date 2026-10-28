@@ -10,7 +10,7 @@ import 'leaflet/dist/leaflet.css';
 import { UserProvider, useUser } from './contexts/UserContext';
 import { WeatherProvider } from "./contexts/WeatherContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
-import { ThemeToggleProvider, useThemeToggle } from './contexts/ThemeToggleContext';
+import { ThemeToggleProvider, useThemeToggle, applyDomTheme } from './contexts/ThemeToggleContext';
 import { BackgroundProvider } from "./contexts/BackgroundContext";
 import { DesktopPanelProvider } from "./contexts/DesktopPanelContext";
 import { CallProvider } from "./contexts/CallContext";
@@ -76,9 +76,7 @@ onMessage(messaging, (payload) => {
 function BodyBackgroundSetter() {
   const { mode } = useThemeToggle();
   useEffect(() => {
-    document.body.style.backgroundColor = mode === "dark" ? "#0c0c0c" : "#f1f1f1";
-    document.body.style.setProperty('--slick-dot-color', mode === "dark" ? "#888" : "#bbb");
-    document.body.style.setProperty('--slick-dot-active-color', mode === "dark" ? "#ffffff" : "#000000");
+    applyDomTheme(mode);
   }, [mode]);
   return null;
 }

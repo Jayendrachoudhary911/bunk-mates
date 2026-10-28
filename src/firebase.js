@@ -1,6 +1,12 @@
 // src/firebase.js
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import {
+  getAuth,
+  initializeAuth,
+  indexedDBLocalPersistence,
+  browserSessionPersistence,
+  GoogleAuthProvider
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getMessaging } from 'firebase/messaging';
 import { getStorage } from "firebase/storage";
@@ -17,7 +23,31 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+
+// Initialize Auth with IndexedDB and Session persistence only (never localStorage)
+let auth;
+try {
+  auth = initializeAuth(app, {
+    persistence: [indexedDBLocalPersistence, browserSessionPersistence],
+  });
+} catch (e) {
+  auth = getAuth(app);
+}
+
+// Immediately remove any legacy auth keys from localStorage
+try {
+  if (typeof window !== "undefined" && window.localStorage) {
+    const fbaseKey = `firebase:authUser:${firebaseConfig.apiKey}:[DEFAULT]`;
+    localStorage.removeItem(fbaseKey);
+    localStorage.removeItem("bunkmates_auth_user");
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("firebase:authUser:") || k === "bunkmates_auth_user")) {
+        localStorage.removeItem(k);
+      }
+    }
+  }
+} catch (e) {}
 const googleProvider = new GoogleAuthProvider();
 const firestore = getFirestore(app);
 const db = getFirestore(app);

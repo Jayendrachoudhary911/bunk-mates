@@ -25,9 +25,9 @@ function resolvePageTitle(pathname, activeGroupName = null) {
     }
     const rawGroupName = pathname.replace("/group/", "");
     try {
-      const cached = localStorage.getItem(`bm_group_name_${rawGroupName}`);
+      const cached = sessionStorage.getItem(`bm_group_name_${rawGroupName}`);
       if (cached) return cached;
-      const rawInfo = localStorage.getItem(`bunkmate_cache_group_info_${rawGroupName}`);
+      const rawInfo = sessionStorage.getItem(`bunkmate_cache_group_info_${rawGroupName}`);
       if (rawInfo) {
         const parsed = JSON.parse(rawInfo);
         if (parsed?.name) return parsed.name;
@@ -240,9 +240,9 @@ export default function PageTitleManager() {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/group/")) {
       const raw = window.location.pathname.replace("/group/", "");
       try {
-        const cached = localStorage.getItem(`bm_group_name_${raw}`);
+        const cached = sessionStorage.getItem(`bm_group_name_${raw}`);
         if (cached) return cached;
-        const rawInfo = localStorage.getItem(`bunkmate_cache_group_info_${raw}`);
+        const rawInfo = sessionStorage.getItem(`bunkmate_cache_group_info_${raw}`);
         if (rawInfo) {
           const parsed = JSON.parse(rawInfo);
           if (parsed?.name) return parsed.name;
@@ -269,12 +269,12 @@ export default function PageTitleManager() {
     if (location.pathname.startsWith("/group/")) {
       const raw = location.pathname.replace("/group/", "");
       try {
-        const cached = localStorage.getItem(`bm_group_name_${raw}`);
+        const cached = sessionStorage.getItem(`bm_group_name_${raw}`);
         if (cached) {
           setActiveGroupName(cached);
           return;
         }
-        const rawInfo = localStorage.getItem(`bunkmate_cache_group_info_${raw}`);
+        const rawInfo = sessionStorage.getItem(`bunkmate_cache_group_info_${raw}`);
         if (rawInfo) {
           const parsed = JSON.parse(rawInfo);
           if (parsed?.name) {

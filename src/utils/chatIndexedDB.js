@@ -21,14 +21,17 @@ if (typeof window !== "undefined" && window.indexedDB) {
 try {
   if (typeof window !== "undefined" && window.localStorage) {
     localStorage.removeItem("bunkmate_chat_meta_map");
-    localStorage.removeItem("bunkmate_group_meta_map");
+    localStorage.removeItem("bunkmates_auth_user");
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
       if (
         key &&
-        (key.startsWith("bunkmate_cache_chat_msgs_") ||
-          key.startsWith("bunkmate_cache_group_msgs_") ||
-          key.startsWith("bunkmate_cache_msgs_"))
+        (key.startsWith("bunkmate_cache_") ||
+          key.startsWith("bm_group_") ||
+          key.startsWith("firebase:authUser:") ||
+          key === "bunkmates_auth_user" ||
+          key.includes("blockedMessages_") ||
+          key.includes("bunkmate_group_read_"))
       ) {
         localStorage.removeItem(key);
       }

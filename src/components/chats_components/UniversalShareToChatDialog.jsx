@@ -337,7 +337,6 @@ const UniversalShareToChatDialog = ({
 
             if (dest.type === "group") {
               await addDoc(collection(db, "groupChat", dest.id, "messages"), fwdPayload).catch(() => {});
-              await addDoc(collection(db, "groupChats", dest.id, "messages"), fwdPayload).catch(() => {});
             } else if (dest.type === "direct") {
               await addDoc(collection(db, "chats", dest.id, "messages"), fwdPayload).catch(() => {});
             }
@@ -356,7 +355,6 @@ const UniversalShareToChatDialog = ({
             };
             if (dest.type === "group") {
               await addDoc(collection(db, "groupChat", dest.id, "messages"), notePayload).catch(() => {});
-              await addDoc(collection(db, "groupChats", dest.id, "messages"), notePayload).catch(() => {});
             } else {
               await addDoc(collection(db, "chats", dest.id, "messages"), notePayload).catch(() => {});
             }
@@ -395,7 +393,6 @@ const UniversalShareToChatDialog = ({
             };
 
             await addDoc(collection(db, "groupChat", dest.id, "messages"), msgPayload).catch(() => {});
-            await addDoc(collection(db, "groupChats", dest.id, "messages"), msgPayload).catch(() => {});
 
             const updatePayload = {
               lastMessage: personalNote.trim() || `Shared a ${itemType}`,

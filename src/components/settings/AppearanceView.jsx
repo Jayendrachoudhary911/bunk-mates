@@ -23,8 +23,9 @@ const ACCENT_OPTIONS = [
 ];
 
 export default function AppearanceView({ onBack, preferences, onUpdatePreferences }) {
-  const { mode, setMode, setAccent } = useThemeToggle();
-  const appearance = preferences.appearance || {};
+  const { mode, themePreference, setMode, setAccent } = useThemeToggle();
+  const appearance = preferences?.appearance || {};
+  const isDark = mode === "dark";
 
   const handleThemeChange = (newTheme) => {
     onUpdatePreferences({
@@ -34,12 +35,7 @@ export default function AppearanceView({ onBack, preferences, onUpdatePreference
         theme: newTheme,
       },
     });
-    if (newTheme === "system") {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setMode(prefersDark ? "dark" : "light");
-    } else {
-      setMode(newTheme);
-    }
+    setMode(newTheme);
   };
 
   const handleAccentChange = (accentId) => {
@@ -88,6 +84,7 @@ export default function AppearanceView({ onBack, preferences, onUpdatePreference
 
   const currentSize = appearance.fontSize || "medium";
   const previewFontSize = currentSize === "small" ? "0.85rem" : currentSize === "large" ? "1.1rem" : "0.95rem";
+  const activeSelectedTheme = appearance.theme || (themePreference === "system" ? "system" : mode);
 
   return (
     <SettingsLayout>
@@ -97,7 +94,7 @@ export default function AppearanceView({ onBack, preferences, onUpdatePreference
       <SettingsSection title="THEME SELECTION" sx={{ ml: 0.5, mt: 0 }} />
       <SettingsGroup sx={{ p: 1.5, mb: 3 }}>
         <SettingsSegmentedControl
-          value={appearance.theme || (mode === "dark" ? "dark" : "light")}
+          value={activeSelectedTheme}
           onChange={handleThemeChange}
           options={[
             { label: "Dark", value: "dark" },
@@ -139,7 +136,13 @@ export default function AppearanceView({ onBack, preferences, onUpdatePreference
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    border: isSelected ? "3px solid #FFFFFF" : "2px solid rgba(255, 255, 255, 0.2)",
+                    border: isSelected
+                      ? isDark
+                        ? "3px solid #FFFFFF"
+                        : "3px solid #111111"
+                      : isDark
+                      ? "2px solid rgba(255, 255, 255, 0.2)"
+                      : "2px solid rgba(0, 0, 0, 0.15)",
                     boxShadow: isSelected ? `0 0 16px ${opt.color}80` : "none",
                     transition: "transform 0.15s ease",
                     "&:hover": { transform: "scale(1.08)" },
@@ -152,7 +155,9 @@ export default function AppearanceView({ onBack, preferences, onUpdatePreference
                 <Typography
                   variant="caption"
                   sx={{
-                    color: isSelected ? "#FFFFFF" : SETTINGS_THEME.textSecondary,
+                    color: isSelected
+                      ? isDark ? "#FFFFFF" : "#111111"
+                      : isDark ? "#A0A3AD" : "#616770",
                     fontWeight: isSelected ? 700 : 500,
                     fontSize: "0.75rem",
                   }}
@@ -182,10 +187,11 @@ export default function AppearanceView({ onBack, preferences, onUpdatePreference
       {/* Live Text Preview Box */}
       <Card
         sx={{
-          bgcolor: SETTINGS_THEME.surface,
+          bgcolor: isDark ? SETTINGS_THEME.surface : "#ffffff",
           p: 2.2,
           borderRadius: "20px",
-          border: "1px solid rgba(255, 255, 255, 0.05)",
+          border: isDark ? "1px solid rgba(255, 255, 255, 0.05)" : "1px solid rgba(0, 0, 0, 0.06)",
+          boxShadow: isDark ? "none" : "0 2px 12px rgba(0,0,0,0.03)",
           mb: 3,
         }}
       >
@@ -197,7 +203,7 @@ export default function AppearanceView({ onBack, preferences, onUpdatePreference
         </Typography>
         <Typography
           sx={{
-            color: SETTINGS_THEME.textPrimary,
+            color: isDark ? "#FFFFFF" : "#111111",
             fontSize: previewFontSize,
             lineHeight: 1.6,
           }}

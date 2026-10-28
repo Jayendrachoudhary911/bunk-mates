@@ -20,12 +20,10 @@ export const useUser = () => {
 export const UserProvider = ({ children }) => {
   const [user, setUserState] = useState(() => {
     if (typeof window !== "undefined") {
-      const apiKey = firebaseConfig?.apiKey || "AIzaSyCP_l2uREbRMcV6aHhB8yZXK7NdGNltxpA";
-      const fbaseKey = `firebase:authUser:${apiKey}:[DEFAULT]`;
-      const stored =
-        sessionStorage.getItem("bunkmates_auth_user") ||
-        localStorage.getItem("bunkmates_auth_user") ||
-        localStorage.getItem(fbaseKey);
+      try {
+        localStorage.removeItem("bunkmates_auth_user");
+      } catch (e) {}
+      const stored = sessionStorage.getItem("bunkmates_auth_user");
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
@@ -53,9 +51,7 @@ export const UserProvider = ({ children }) => {
         if (localUser && isMounted) {
           setUserState(localUser);
         } else if (isMounted) {
-          const stored =
-            sessionStorage.getItem("bunkmates_auth_user") ||
-            localStorage.getItem("bunkmates_auth_user");
+          const stored = sessionStorage.getItem("bunkmates_auth_user");
           if (stored) {
             try {
               setUserState(JSON.parse(stored));
@@ -101,13 +97,12 @@ export const UserProvider = ({ children }) => {
     setUserState(newUser);
     const apiKey = firebaseConfig?.apiKey || "AIzaSyCP_l2uREbRMcV6aHhB8yZXK7NdGNltxpA";
     if (typeof window !== "undefined") {
+      localStorage.removeItem("bunkmates_auth_user");
       if (newUser) {
         sessionStorage.setItem("bunkmates_auth_user", JSON.stringify(newUser));
-        localStorage.setItem("bunkmates_auth_user", JSON.stringify(newUser));
         saveAuthUserToLocalDb(newUser, apiKey).catch(() => {});
       } else {
         sessionStorage.removeItem("bunkmates_auth_user");
-        localStorage.removeItem("bunkmates_auth_user");
         removeAuthUserFromLocalDb(apiKey).catch(() => {});
       }
     }

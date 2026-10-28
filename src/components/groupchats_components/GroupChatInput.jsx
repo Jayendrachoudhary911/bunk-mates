@@ -21,7 +21,6 @@ import GroupStructuredActionsMenu from "./GroupStructuredActionsMenu";
 import GroupMentionDrawer from "./GroupMentionDrawer";
 import SlashCommandPalette, { getFilteredCommands } from "../chats_components/SlashCommandPalette";
 import EmojiCommandPalette, { getFilteredEmojis } from "../chats_components/EmojiCommandPalette";
-import ProgressiveBlur from "../ProgressiveBlur";
 
 const GroupChatInput = ({
   input,
@@ -192,7 +191,7 @@ const GroupChatInput = ({
       return;
     }
 
-    onSendMessage();
+    onSendMessage(trimmed);
   };
 
   const handleKeyDown = (e) => {
@@ -279,12 +278,6 @@ const GroupChatInput = ({
         position: "relative",
       }}
     >
-      <ProgressiveBlur
-        mode={isDark ? "dark" : "light"}
-        direction="top"
-        height="100%"
-        blur="24px"
-      />
 
       {/* 0. Emoji Command Palette */}
       <EmojiCommandPalette

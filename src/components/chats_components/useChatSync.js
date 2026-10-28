@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { useUser } from "../../contexts/UserContext";
 import {
   getCachedData,
   setCachedData,
@@ -39,12 +40,29 @@ import {
  * with instant 0ms localStorage hydration and minimal network roundtrips.
  */
 export function useChatSync(friendId) {
-  const [currentUser, setCurrentUser] = useState(() => auth.currentUser);
-  const [authLoading, setAuthLoading] = useState(!auth.currentUser);
+  let contextUser = null;
+  try {
+    const ctx = useUser();
+    contextUser = ctx?.user || null;
+  } catch (e) {
+    // Graceful fallback if invoked outside UserProvider
+  }
+
+  const [currentUser, setCurrentUser] = useState(() => auth.currentUser || contextUser);
+  const [authLoading, setAuthLoading] = useState(!auth.currentUser && !contextUser);
+
+  useEffect(() => {
+    if (contextUser && (!currentUser || currentUser.uid !== contextUser.uid)) {
+      setCurrentUser(contextUser);
+      setAuthLoading(false);
+    }
+  }, [contextUser, currentUser]);
+
+  const activeUser = currentUser || contextUser || auth.currentUser;
 
   const chatId =
-    currentUser && friendId
-      ? [currentUser.uid, friendId].sort().join("_")
+    activeUser && friendId
+      ? [activeUser.uid, friendId].sort().join("_")
       : null;
 
   // Messages are fetched directly from Firestore in real-time
@@ -59,8 +77,8 @@ export function useChatSync(friendId) {
   });
 
   const [nickname, setNickname] = useState(() => {
-    if (!currentUser || !friendId) return "";
-    return getCachedData(`nickname_${currentUser.uid}_${friendId}`, "");
+    if (!activeUser || !friendId) return "";
+    return getCachedData(`nickname_${activeUser.uid}_${friendId}`, "");
   });
 
   const [blockedUids, setBlockedUids] = useState([]);
@@ -78,11 +96,19 @@ export function useChatSync(friendId) {
   // Monitor auth state
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (usr) => {
-      setCurrentUser(usr);
-      setAuthLoading(false);
+      if (usr) {
+        setCurrentUser(usr);
+        setAuthLoading(false);
+      } else if (contextUser) {
+        setCurrentUser(contextUser);
+        setAuthLoading(false);
+      } else {
+        setCurrentUser(null);
+        setAuthLoading(false);
+      }
     });
     return () => unsub();
-  }, []);
+  }, [contextUser]);
 
   // Set active chat, mark unread messages as read in DB and Firestore notifications
   useEffect(() => {
@@ -336,16 +362,21 @@ export function useChatSync(friendId) {
         .filter((g) => (g.members || []).map(String).includes(String(friendId)));
       setCommonGroups(sharedGroups);
 
-      // Fetch common trips
-      const tripsSnap = await getDocs(collection(db, "trips"));
+      // Fetch common trips (filter by currentUser to avoid scanning entire trips collection)
+      const tripsSnap = await getDocs(
+        query(
+          collection(db, "trips"),
+          where("members", "array-contains", currentUser.uid)
+        )
+      );
       const sharedTrips = tripsSnap.docs
         .map((d) => ({ id: d.id, ...d.data() }))
         .filter((t) => {
           const members = (t.members || []).map(String);
           const contributors = (t.contributorUids || []).map(String);
           return (
-            (members.includes(String(currentUser.uid)) && members.includes(String(friendId))) ||
-            (contributors.includes(String(currentUser.uid)) && contributors.includes(String(friendId)))
+            members.includes(String(friendId)) ||
+            contributors.includes(String(friendId))
           );
         });
       setCommonTrips(sharedTrips);
@@ -370,112 +401,142 @@ export function useChatSync(friendId) {
     }
   }, [currentUser?.uid, friendId]);
 
-  // 9. Send message (supports text, image, replies, view-once, disappearing messages)
+  // 9. Send message (supports text, image, cards, replies, view-once, disappearing messages)
   const sendMessage = useCallback(
-    async ({
-      text = "",
-      imageUrl = null,
-      replyingTo = null,
-      viewOnce = false,
-      type = null,
-      images = null,
-    }) => {
-      if ((!text.trim() && !imageUrl && !images) || !chatId || !currentUser) return;
-      setIsSending(true);
+    async (optionsOrText) => {
+      const opts =
+        typeof optionsOrText === "string"
+          ? { text: optionsOrText }
+          : optionsOrText || {};
 
-      // Clear remote typing indicator
-      if (chatId) {
-        updateDoc(doc(db, "chats", chatId), {
-          [`drafts.${currentUser.uid}`]: "",
-        }).catch(() => {});
-      }
+      const {
+        text = "",
+        imageUrl = null,
+        replyingTo = null,
+        replyTo = null,
+        viewOnce = false,
+        type = null,
+        images = null,
+        cardData = null,
+      } = opts;
 
-      // Check if blocked
-      const isBlocked = (friendDetails?.blockedUids || []).includes(currentUser.uid);
-      if (isBlocked) {
-        const localKey = `blockedMessages_${friendId}`;
-        const localMessages = getCachedData(localKey, []);
-        const blockedMsg = {
-          id: `blocked_${Date.now()}`,
-          senderId: currentUser.uid,
-          text: text.trim(),
-          dataUri: imageUrl || null,
-          timestamp: new Date().toISOString(),
-          blocked: true,
-          replyTo: replyingTo
-            ? {
-                id: replyingTo.id,
-                text: replyingTo.text || "",
-                senderId: replyingTo.senderId,
-                imageUrl: replyingTo.imageUrl || replyingTo.dataUri || null,
-              }
-            : null,
-        };
-        localMessages.push(blockedMsg);
-        setCachedData(localKey, localMessages);
-        setMessages((prev) => [...prev, blockedMsg]);
-        setIsSending(false);
+      const trimmedText = typeof text === "string" ? text.trim() : "";
+      const replyTarget = replyingTo || replyTo || null;
+      const effectiveUser = currentUser || contextUser || auth.currentUser;
+      const effectiveChatId =
+        chatId ||
+        (effectiveUser && friendId
+          ? [effectiveUser.uid, friendId].sort().join("_")
+          : null);
+
+      if (
+        (!trimmedText && !imageUrl && !images && !cardData) ||
+        !effectiveChatId ||
+        !effectiveUser
+      ) {
         return;
       }
 
-      const disappearingDuration = getChatDisappearingDuration(chatId) || getChatDisappearingDuration(friendId);
-
-      const newMsg = {
-        senderId: currentUser.uid,
-        text: text.trim(),
-        type: type || (imageUrl ? "image" : images ? "image_group" : "text"),
-        timestamp: serverTimestamp(),
-        isRead: false,
-        reactions: [],
-      };
-
-      if (disappearingDuration > 0) {
-        newMsg.expiresAt = Date.now() + disappearingDuration;
-      }
-
-      if (viewOnce) {
-        newMsg.viewOnce = true;
-        newMsg.viewedOnce = false;
-      }
-
-      if (imageUrl) {
-        newMsg.dataUri = imageUrl;
-      }
-
-      if (images && Array.isArray(images)) {
-        newMsg.images = images;
-      }
-
-      if (replyingTo) {
-        newMsg.replyTo = {
-          id: replyingTo.id,
-          text: replyingTo.text || "",
-          senderId: replyingTo.senderId,
-          imageUrl: replyingTo.imageUrl || replyingTo.dataUri || null,
-        };
-      }
+      setIsSending(true);
 
       try {
-        await addDoc(collection(db, "chats", chatId, "messages"), newMsg);
+        // Clear remote typing indicator
+        if (effectiveChatId) {
+          updateDoc(doc(db, "chats", effectiveChatId), {
+            [`drafts.${effectiveUser.uid}`]: "",
+          }).catch(() => {});
+        }
 
-        const lastMsgSnippet = newMsg.text || (newMsg.dataUri ? "Photo" : "Attachment");
+        // Check if blocked
+        const isBlocked = (friendDetails?.blockedUids || []).includes(
+          effectiveUser.uid
+        );
+
+        const disappearingDuration =
+          getChatDisappearingDuration(effectiveChatId) ||
+          getChatDisappearingDuration(friendId);
+
+        const newMsg = {
+          senderId: effectiveUser.uid,
+          text: trimmedText,
+          type:
+            type ||
+            (imageUrl
+              ? "image"
+              : images && images.length > 0
+              ? "image_group"
+              : cardData
+              ? "card"
+              : "text"),
+          timestamp: serverTimestamp(),
+          isRead: false,
+          reactions: [],
+        };
+
+        if (isBlocked) {
+          newMsg.blocked = true;
+        }
+
+        if (disappearingDuration > 0) {
+          newMsg.expiresAt = Date.now() + disappearingDuration;
+        }
+
+        if (viewOnce) {
+          newMsg.viewOnce = true;
+          newMsg.viewedOnce = false;
+        }
+
+        if (imageUrl) {
+          newMsg.dataUri = imageUrl;
+        }
+
+        if (images && Array.isArray(images) && images.length > 0) {
+          newMsg.images = images;
+        }
+
+        if (cardData) {
+          newMsg.cardData = cardData;
+        }
+
+        if (replyTarget) {
+          newMsg.replyTo = {
+            id: replyTarget.id || "",
+            text: replyTarget.text || "",
+            senderId: replyTarget.senderId || "",
+            imageUrl: replyTarget.imageUrl || replyTarget.dataUri || null,
+          };
+        }
+
+        await addDoc(
+          collection(db, "chats", effectiveChatId, "messages"),
+          newMsg
+        );
+
+        const lastMsgSnippet =
+          trimmedText ||
+          (newMsg.dataUri
+            ? "Photo"
+            : images
+            ? "Photos"
+            : cardData
+            ? "Card"
+            : "Attachment");
         setDoc(
-          doc(db, "chats", chatId),
+          doc(db, "chats", effectiveChatId),
           {
             lastMessage: {
               text: lastMsgSnippet,
-              senderId: currentUser.uid,
+              senderId: effectiveUser.uid,
               timestamp: serverTimestamp(),
             },
-            users: [currentUser.uid, friendId],
+            users: [effectiveUser.uid, friendId],
             updatedAt: serverTimestamp(),
           },
           { merge: true }
         ).catch(() => {});
 
-
         // Dispatch real-time in-app notification to friend only if friend is not in this active chat and not muted
-        if (friendId && friendId !== currentUser.uid) {
+        if (friendId && friendId !== effectiveUser.uid) {
           let shouldSendNotification = true;
           try {
             const friendSnap = await getDoc(doc(db, "users", friendId));
@@ -485,16 +546,17 @@ export function useChatSync(friendId) {
               // If the friend currently has THIS chat open, suppress notifications!
               if (
                 fActive &&
-                (fActive.id === chatId ||
-                 fActive.friendId === currentUser.uid ||
-                 fActive.chatId === chatId)
+                (fActive.id === effectiveChatId ||
+                  fActive.friendId === effectiveUser.uid ||
+                  fActive.chatId === effectiveChatId)
               ) {
                 shouldSendNotification = false;
               }
               // If the friend has muted notifications for this chat or user
               if (
                 fData.mutedChats &&
-                (fData.mutedChats[chatId] || fData.mutedChats[currentUser.uid])
+                (fData.mutedChats[effectiveChatId] ||
+                  fData.mutedChats[effectiveUser.uid])
               ) {
                 shouldSendNotification = false;
               }
@@ -502,23 +564,29 @@ export function useChatSync(friendId) {
           } catch {}
 
           if (shouldSendNotification) {
-            const notifType = imageUrl ? "photo" : replyingTo ? "reply" : "chat";
-            const notifTitle = currentUser.displayName || "New Message";
+            const notifType = imageUrl
+              ? "photo"
+              : replyTarget
+              ? "reply"
+              : "chat";
+            const notifTitle = effectiveUser.displayName || "New Message";
             const notifContent = imageUrl
-              ? (text.trim() ? `Sent a photo: "${text.trim()}"` : "Sent a photo")
-              : replyingTo
-              ? `Replied to your message: "${text.trim()}"`
-              : text.trim();
+              ? trimmedText
+                ? `Sent a photo: "${trimmedText}"`
+                : "Sent a photo"
+              : replyTarget
+              ? `Replied to your message: "${trimmedText}"`
+              : trimmedText || "Sent a message";
 
             addDoc(collection(db, "notifications"), {
               uid: friendId,
-              senderId: currentUser.uid,
+              senderId: effectiveUser.uid,
               type: notifType,
               title: notifTitle,
               content: notifContent,
-              pic: currentUser.photoURL || "",
+              pic: effectiveUser.photoURL || "",
               imageUrl: imageUrl || null,
-              chatId: chatId,
+              chatId: effectiveChatId,
               seen: false,
               timestamp: serverTimestamp(),
             }).catch(() => {});
@@ -530,7 +598,7 @@ export function useChatSync(friendId) {
         setIsSending(false);
       }
     },
-    [chatId, currentUser, friendDetails?.blockedUids, friendId]
+    [chatId, currentUser, contextUser, friendDetails?.blockedUids, friendId]
   );
 
   // 10. Reactions handling (toggle emoji)

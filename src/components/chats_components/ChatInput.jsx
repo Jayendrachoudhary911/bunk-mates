@@ -19,7 +19,6 @@ import EmojiIcon from "@mui/icons-material/SentimentSatisfiedAlt";
 import EmojiPicker from "emoji-picker-react";
 import SlashCommandPalette, { getFilteredCommands } from "./SlashCommandPalette";
 import EmojiCommandPalette, { getFilteredEmojis } from "./EmojiCommandPalette";
-import ProgressiveBlur from "../ProgressiveBlur";
 
 const ChatInput = ({
   input,
@@ -141,7 +140,7 @@ const ChatInput = ({
       return;
     }
 
-    onSendMessage();
+    onSendMessage(trimmed);
   };
 
   const handleKeyDown = (e) => {
@@ -286,13 +285,6 @@ const ChatInput = ({
         position: "relative",
       }}
     >
-      <ProgressiveBlur
-        mode={isDark ? "dark" : "light"}
-        direction="top"
-        height="100%"
-        blur="24px"
-      />
-
       {/* 0. Emoji Command Palette */}
       <EmojiCommandPalette
         input={input}

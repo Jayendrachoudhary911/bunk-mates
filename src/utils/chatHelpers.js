@@ -12,9 +12,12 @@ const groqClient = new OpenAI({
  */
 export const getMessageSeconds = (ts) => {
   if (!ts) return Date.now() / 1000;
+  if (ts instanceof Date) return ts.getTime() / 1000;
   if (typeof ts.seconds === "number") return ts.seconds;
   if (typeof ts.toMillis === "function") return ts.toMillis() / 1000;
-  if (ts._seconds) return ts._seconds;
+  if (typeof ts.toDate === "function") return ts.toDate().getTime() / 1000;
+  if (ts._seconds != null) return ts._seconds;
+  if (typeof ts === "number") return ts < 10000000000 ? ts : ts / 1000;
   const d = new Date(ts).getTime();
   return isNaN(d) ? Date.now() / 1000 : d / 1000;
 };
@@ -420,8 +423,10 @@ export const getTimestampDate = (ts) => {
  * Determine if two message timestamps belong to different calendar days
  */
 export const isDifferentDay = (tsA, tsB) => {
+  if (!tsA || !tsB) return false;
   const dA = getTimestampDate(tsA);
   const dB = getTimestampDate(tsB);
+  if (isNaN(dA.getTime()) || isNaN(dB.getTime())) return false;
   return (
     dA.getFullYear() !== dB.getFullYear() ||
     dA.getMonth() !== dB.getMonth() ||
@@ -444,7 +449,7 @@ export const getMessageDateLabel = (ts) => {
   const diffTime = today.getTime() - msgDay.getTime();
   const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return "Today";
+  if (diffDays <= 0) return "Today";
   if (diffDays === 1) return "Yesterday";
   if (diffDays > 1 && diffDays < 7) {
     return date.toLocaleDateString(undefined, { weekday: "long" });

@@ -7,14 +7,55 @@ import {
   Divider,
 } from "@mui/material";
 import { ArrowBack, ArrowForwardIos, Launch } from "@mui/icons-material";
+import { useThemeToggle } from "../../contexts/ThemeToggleContext";
+
+export function useSettingsTheme() {
+  const { mode } = useThemeToggle();
+  return mode || "dark";
+}
+
+export const getSettingsThemeTokens = (isDark = true) => ({
+  bg: isDark ? "#0c0c0c" : "#f1f1f1",
+  card: isDark ? "#161616" : "#ffffff",
+  surface: isDark ? "#202024" : "#e4e6eb",
+  textPrimary: isDark ? "#FFFFFF" : "#111111",
+  textSecondary: isDark ? "#A0A3AD" : "#616770",
+  divider: isDark ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.06)",
+  border: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.06)",
+  accent: "#287FE0",
+  success: "#29C99A",
+  error: "#F05252",
+});
 
 export const SETTINGS_THEME = {
-  bg: "#000000",
-  card: "#161616",
-  surface: "#202024",
-  textPrimary: "#FFFFFF",
-  textSecondary: "#A0A3AD",
-  divider: "rgba(255, 255, 255, 0.06)",
+  get bg() {
+    const isLight = typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "light";
+    return isLight ? "#f1f1f1" : "#0c0c0c";
+  },
+  get card() {
+    const isLight = typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "light";
+    return isLight ? "#ffffff" : "#161616";
+  },
+  get surface() {
+    const isLight = typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "light";
+    return isLight ? "#e4e6eb" : "#202024";
+  },
+  get textPrimary() {
+    const isLight = typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "light";
+    return isLight ? "#111111" : "#FFFFFF";
+  },
+  get textSecondary() {
+    const isLight = typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "light";
+    return isLight ? "#616770" : "#A0A3AD";
+  },
+  get divider() {
+    const isLight = typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "light";
+    return isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.06)";
+  },
+  get border() {
+    const isLight = typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "light";
+    return isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.05)";
+  },
   accent: "#287FE0",
   success: "#29C99A",
   error: "#F05252",
@@ -24,13 +65,17 @@ export const SETTINGS_THEME = {
  * Common Layout wrapper for Settings screens
  */
 export function SettingsLayout({ children, maxWidth = 640, sx = {} }) {
+  const mode = useSettingsTheme();
+  const isDark = mode === "dark";
+  const tokens = getSettingsThemeTokens(isDark);
+
   return (
     <Box
       sx={{
         width: "100%",
         minHeight: "100vh",
-        bgcolor: SETTINGS_THEME.bg,
-        color: SETTINGS_THEME.textPrimary,
+        bgcolor: tokens.bg,
+        color: tokens.textPrimary,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -38,6 +83,7 @@ export function SettingsLayout({ children, maxWidth = 640, sx = {} }) {
         px: { xs: 2, sm: 3 },
         pt: { xs: 2, sm: 3 },
         pb: { xs: 12, sm: 8 },
+        transition: "background-color 0.2s ease, color 0.2s ease",
         ...sx,
       }}
     >
@@ -59,6 +105,10 @@ export function SettingsLayout({ children, maxWidth = 640, sx = {} }) {
  * Top Header matching the reference screenshots
  */
 export function SettingsHeader({ title, onBack, rightAction, subtitle }) {
+  const mode = useSettingsTheme();
+  const isDark = mode === "dark";
+  const tokens = getSettingsThemeTokens(isDark);
+
   return (
     <Box
       sx={{
@@ -79,11 +129,11 @@ export function SettingsHeader({ title, onBack, rightAction, subtitle }) {
               width: 42,
               height: 42,
               borderRadius: "50%",
-              bgcolor: SETTINGS_THEME.surface,
-              color: SETTINGS_THEME.textPrimary,
-              border: "1px solid rgba(255, 255, 255, 0.05)",
+              bgcolor: tokens.surface,
+              color: tokens.textPrimary,
+              border: `1px solid ${tokens.border}`,
               "&:hover": {
-                bgcolor: "rgba(255, 255, 255, 0.15)",
+                bgcolor: isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.1)",
               },
             }}
           >
@@ -96,7 +146,7 @@ export function SettingsHeader({ title, onBack, rightAction, subtitle }) {
             sx={{
               fontWeight: 700,
               fontSize: { xs: "1.45rem", sm: "1.65rem" },
-              color: SETTINGS_THEME.textPrimary,
+              color: tokens.textPrimary,
               letterSpacing: -0.3,
             }}
           >
@@ -105,7 +155,7 @@ export function SettingsHeader({ title, onBack, rightAction, subtitle }) {
           {subtitle && (
             <Typography
               variant="caption"
-              sx={{ color: SETTINGS_THEME.textSecondary, display: "block" }}
+              sx={{ color: tokens.textSecondary, display: "block" }}
             >
               {subtitle}
             </Typography>
@@ -122,6 +172,10 @@ export function SettingsHeader({ title, onBack, rightAction, subtitle }) {
  * Section Title
  */
 export function SettingsSection({ title, sx = {} }) {
+  const mode = useSettingsTheme();
+  const isDark = mode === "dark";
+  const tokens = getSettingsThemeTokens(isDark);
+
   return (
     <Typography
       variant="caption"
@@ -130,7 +184,7 @@ export function SettingsSection({ title, sx = {} }) {
         letterSpacing: "1.2px",
         fontWeight: 700,
         fontSize: "0.75rem",
-        color: SETTINGS_THEME.textSecondary,
+        color: tokens.textSecondary,
         ml: 1.5,
         mb: 1.2,
         mt: 3,
@@ -147,16 +201,22 @@ export function SettingsSection({ title, sx = {} }) {
  * Grouped rounded card
  */
 export function SettingsGroup({ children, sx = {} }) {
+  const mode = useSettingsTheme();
+  const isDark = mode === "dark";
+  const tokens = getSettingsThemeTokens(isDark);
+
   return (
     <Box
       sx={{
-        bgcolor: SETTINGS_THEME.card,
+        bgcolor: tokens.card,
         borderRadius: "26px",
-        border: "1px solid rgba(255, 255, 255, 0.04)",
+        border: `1px solid ${tokens.border}`,
+        boxShadow: isDark ? "none" : "0 2px 12px rgba(0,0,0,0.03)",
         overflow: "hidden",
         width: "100%",
         display: "flex",
         flexDirection: "column",
+        transition: "background-color 0.2s ease, border-color 0.2s ease",
         ...sx,
       }}
     >
@@ -189,6 +249,10 @@ export function SettingsRow({
   disabled = false,
   danger = false,
 }) {
+  const mode = useSettingsTheme();
+  const isDark = mode === "dark";
+  const tokens = getSettingsThemeTokens(isDark);
+
   return (
     <>
       <Box
@@ -209,7 +273,7 @@ export function SettingsRow({
           cursor: disabled ? "not-allowed" : onClick ? "pointer" : "default",
           opacity: disabled ? 0.45 : 1,
           transition: "background-color 0.15s ease",
-          "&:hover": onClick && !disabled ? { bgcolor: "rgba(255, 255, 255, 0.04)" } : {},
+          "&:hover": onClick && !disabled ? { bgcolor: isDark ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.04)" } : {},
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, flex: 1, minWidth: 0, pr: 1.5 }}>
@@ -219,11 +283,11 @@ export function SettingsRow({
                 width: 40,
                 height: 40,
                 borderRadius: "50%",
-                bgcolor: SETTINGS_THEME.surface,
+                bgcolor: tokens.surface,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: danger ? SETTINGS_THEME.error : SETTINGS_THEME.textPrimary,
+                color: danger ? tokens.error : tokens.textPrimary,
                 flexShrink: 0,
               }}
             >
@@ -237,7 +301,7 @@ export function SettingsRow({
               sx={{
                 fontWeight: 600,
                 fontSize: "0.95rem",
-                color: danger ? SETTINGS_THEME.error : SETTINGS_THEME.textPrimary,
+                color: danger ? tokens.error : tokens.textPrimary,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -249,7 +313,7 @@ export function SettingsRow({
               <Typography
                 variant="caption"
                 sx={{
-                  color: SETTINGS_THEME.textSecondary,
+                  color: tokens.textSecondary,
                   fontSize: "0.8rem",
                   display: "block",
                   lineHeight: 1.35,
@@ -267,15 +331,15 @@ export function SettingsRow({
           {trailing}
           {showChevron && !trailing && (
             isExternal ? (
-              <Launch sx={{ fontSize: 18, color: SETTINGS_THEME.textSecondary }} />
+              <Launch sx={{ fontSize: 18, color: tokens.textSecondary }} />
             ) : (
-              <ArrowForwardIos sx={{ fontSize: 14, color: SETTINGS_THEME.textSecondary }} />
+              <ArrowForwardIos sx={{ fontSize: 14, color: tokens.textSecondary }} />
             )
           )}
         </Box>
       </Box>
       {showDivider && (
-        <Divider sx={{ borderColor: SETTINGS_THEME.divider, ml: IconComponent ? "76px" : 2, mr: 2 }} />
+        <Divider sx={{ borderColor: tokens.divider, ml: IconComponent ? "76px" : 2, mr: 2 }} />
       )}
     </>
   );
@@ -293,6 +357,10 @@ export function SettingsSwitchRow({
   showDivider = false,
   disabled = false,
 }) {
+  const mode = useSettingsTheme();
+  const isDark = mode === "dark";
+  const tokens = getSettingsThemeTokens(isDark);
+
   return (
     <>
       <Box
@@ -313,11 +381,11 @@ export function SettingsSwitchRow({
                 width: 40,
                 height: 40,
                 borderRadius: "50%",
-                bgcolor: SETTINGS_THEME.surface,
+                bgcolor: tokens.surface,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: SETTINGS_THEME.textPrimary,
+                color: tokens.textPrimary,
                 flexShrink: 0,
               }}
             >
@@ -331,7 +399,7 @@ export function SettingsSwitchRow({
               sx={{
                 fontWeight: 600,
                 fontSize: "0.95rem",
-                color: SETTINGS_THEME.textPrimary,
+                color: tokens.textPrimary,
               }}
             >
               {title}
@@ -340,7 +408,7 @@ export function SettingsSwitchRow({
               <Typography
                 variant="caption"
                 sx={{
-                  color: SETTINGS_THEME.textSecondary,
+                  color: tokens.textSecondary,
                   fontSize: "0.8rem",
                   display: "block",
                   lineHeight: 1.35,
@@ -361,12 +429,12 @@ export function SettingsSwitchRow({
             "& .MuiSwitch-switchBase.Mui-checked": {
               color: "#FFFFFF",
               "& + .MuiSwitch-track": {
-                backgroundColor: SETTINGS_THEME.accent,
+                backgroundColor: tokens.accent,
                 opacity: 1,
               },
             },
             "& .MuiSwitch-track": {
-              backgroundColor: "rgba(255, 255, 255, 0.2)",
+              backgroundColor: isDark ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.2)",
               opacity: 1,
               borderRadius: 16,
             },
@@ -374,7 +442,7 @@ export function SettingsSwitchRow({
         />
       </Box>
       {showDivider && (
-        <Divider sx={{ borderColor: SETTINGS_THEME.divider, ml: IconComponent ? "76px" : 2, mr: 2 }} />
+        <Divider sx={{ borderColor: tokens.divider, ml: IconComponent ? "76px" : 2, mr: 2 }} />
       )}
     </>
   );
@@ -384,11 +452,15 @@ export function SettingsSwitchRow({
  * Segmented Control for 2-4 mutual options
  */
 export function SettingsSegmentedControl({ options = [], value, onChange }) {
+  const mode = useSettingsTheme();
+  const isDark = mode === "dark";
+  const tokens = getSettingsThemeTokens(isDark);
+
   return (
     <Box
       sx={{
         display: "flex",
-        bgcolor: SETTINGS_THEME.surface,
+        bgcolor: tokens.surface,
         borderRadius: "16px",
         p: 0.5,
         width: "100%",
@@ -411,14 +483,14 @@ export function SettingsSegmentedControl({ options = [], value, onChange }) {
               border: "none",
               outline: "none",
               cursor: "pointer",
-              bgcolor: isSelected ? SETTINGS_THEME.accent : "transparent",
-              color: isSelected ? "#FFFFFF" : SETTINGS_THEME.textSecondary,
+              bgcolor: isSelected ? tokens.accent : "transparent",
+              color: isSelected ? "#FFFFFF" : tokens.textSecondary,
               fontWeight: isSelected ? 700 : 500,
               fontSize: "0.85rem",
               transition: "all 0.2s ease",
               textAlign: "center",
               "&:hover": {
-                color: "#FFFFFF",
+                color: isSelected ? "#FFFFFF" : tokens.textPrimary,
               },
             }}
           >
@@ -429,3 +501,4 @@ export function SettingsSegmentedControl({ options = [], value, onChange }) {
     </Box>
   );
 }
+

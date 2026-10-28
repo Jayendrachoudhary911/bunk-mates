@@ -14,7 +14,6 @@ import VideoIcon from "@mui/icons-material/VideocamOutlined";
 import InfoIcon from "@mui/icons-material/InfoOutlined";
 import { useCall } from "../../contexts/CallContext";
 import { safeImageUrl } from "../../utils/uiHelpers";
-import ProgressiveBlur from "../ProgressiveBlur";
 
 const GroupChatHeader = ({
   groupInfo,
@@ -78,12 +77,6 @@ const GroupChatHeader = ({
         overflow: "hidden",
       }}
     >
-      <ProgressiveBlur
-        mode={isDark ? "dark" : "light"}
-        direction="bottom"
-        height="100%"
-        blur="20px"
-      />
       <Toolbar
         sx={{
           position: "relative",
