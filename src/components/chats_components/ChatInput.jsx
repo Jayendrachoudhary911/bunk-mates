@@ -43,10 +43,38 @@ const ChatInput = ({
   effectiveChatTheme = "dark",
 }) => {
   const isDark = effectiveChatTheme === "dark";
+  const [pastedImages, setPastedImages] = useState([]);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [slashIndex, setSlashIndex] = useState(0);
   const [emojiIndex, setEmojiIndex] = useState(0);
   const inputRef = useRef(null);
+
+  // Handle clipboard paste for images
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imageFiles = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith("image/")) {
+        const file = items[i].getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      imageFiles.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setPastedImages((prev) => [...prev, event.target.result]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const handleRemovePastedImage = (index) => {
+    setPastedImages((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const filteredCommands = React.useMemo(() => {
     return getFilteredCommands(input, hasTrip);
@@ -106,9 +134,30 @@ const ChatInput = ({
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     const trimmed = input.trim();
-    if (!trimmed || isSending) return;
+    if (!trimmed && pastedImages.length === 0) return;
+
+    if (pastedImages.length > 0) {
+      if (onSendMessage) {
+        if (pastedImages.length === 1) {
+          onSendMessage({
+            text: trimmed,
+            imageUrl: pastedImages[0],
+            replyingTo,
+          });
+        } else {
+          onSendMessage({
+            text: trimmed,
+            images: pastedImages,
+            replyingTo,
+          });
+        }
+      }
+      setInput("");
+      setPastedImages([]);
+      return;
+    }
 
     // Check slash commands
     if (trimmed === "/budget" && onSendBudget) {
@@ -369,13 +418,15 @@ const ChatInput = ({
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Paper
           elevation={0}
+          onPaste={handlePaste}
           sx={{
             flex: 1,
             display: "flex",
-            alignItems: "center",
+            flexDirection: pastedImages.length > 0 ? "column" : "row",
+            alignItems: pastedImages.length > 0 ? "stretch" : "center",
             px: 0.4,
             py: 0.4,
-            borderRadius: "28px",
+            borderRadius: pastedImages.length > 0 ? "20px" : "28px",
             bgcolor: isDark
               ? "rgba(30, 30, 30, 0.65)"
               : "rgba(255, 255, 255, 0.8)",
@@ -385,20 +436,125 @@ const ChatInput = ({
               isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"
             }`,
             boxShadow: 'none',
+            overflow: "hidden",
+            transition: "all 200ms ease",
           }}
         >
-          {/* Attachment / Action Buttons Group */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0 }}>
-            {/* Camera Button (Hides when typing) */}
-            <Collapse in={!input.trim()} orientation="horizontal" timeout={200}>
+          {/* Pasted Images Preview Strip */}
+          {pastedImages.length > 0 && (
+            <Box
+              sx={{
+                p: 1.2,
+                pb: 0.8,
+                display: "flex",
+                alignItems: "center",
+                gap: 1.2,
+                overflowX: "auto",
+                "&::-webkit-scrollbar": { height: 4 },
+                "&::-webkit-scrollbar-thumb": {
+                  bgcolor: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
+                  borderRadius: 2,
+                },
+              }}
+            >
+              {pastedImages.map((imgUri, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    position: "relative",
+                    display: "inline-block",
+                    borderRadius: "14px",
+                    overflow: "hidden",
+                    border: `1px solid ${
+                      isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"
+                    }`,
+                    bgcolor: isDark ? "#111" : "#f0f0f0",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={imgUri}
+                    alt={`Pasted image ${idx + 1}`}
+                    sx={{
+                      width: 90,
+                      height: 72,
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={() => handleRemovePastedImage(idx)}
+                    sx={{
+                      position: "absolute",
+                      top: 3,
+                      right: 3,
+                      bgcolor: "rgba(0,0,0,0.65)",
+                      color: "#fff",
+                      p: 0.35,
+                      "&:hover": {
+                        bgcolor: "rgba(255, 77, 77, 0.9)",
+                      },
+                    }}
+                  >
+                    <CloseIcon sx={{ fontSize: 13 }} />
+                  </IconButton>
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          {/* Lower controls row: Attachment buttons, TextField, Send button */}
+          <Box sx={{ display: "flex", alignItems: "center", width: "100%", gap: 0 }}>
+            {/* Attachment / Action Buttons Group */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0 }}>
+              {/* Camera Button (Hides when typing or image attached) */}
+              <Collapse in={!input.trim() && pastedImages.length === 0} orientation="horizontal" timeout={200}>
+                <IconButton
+                  component="label"
+                  size="small"
+                  aria-label="Attach images"
+                  sx={{
+                    width: 42,
+                    height: 42,
+                    mr: 0.5,
+                    borderRadius: 8,
+                    color: isDark ? "rgba(255, 255, 255, 0.75)" : "text.secondary",
+                    bgcolor: isDark ? "rgba(255, 255, 255, 0.035)" : "rgba(0, 0, 0, 0.035)",
+                    boxShadow: isDark
+                      ? "inset 0 1px 1px rgba(255, 255, 255, 0.08), inset 0 -1px 2px rgba(0,0,0,0.3)"
+                      : "inset 0 1px 1px rgba(255, 255, 255, 0.6), inset 0 -1px 2px rgba(0,0,0,0.08)",
+                    transition: "all 180ms ease",
+                    "&:hover": {
+                      bgcolor: isDark ? "rgba(255, 255, 255, 0.09)" : "rgba(0, 0, 0, 0.07)",
+                      color: isDark ? "#fff" : "text.primary",
+                      boxShadow: "none",
+                    },
+                    "&:active": {
+                      transform: "scale(0.95)",
+                    },
+                  }}
+                >
+                  <CameraIcon sx={{ fontSize: 20 }} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    hidden
+                    onChange={onImageSelect}
+                  />
+                </IconButton>
+              </Collapse>
+
+              {/* Emoji Button */}
               <IconButton
-                component="label"
                 size="small"
-                aria-label="Attach images"
+                onClick={(e) => setEmojiAnchorEl(e.currentTarget)}
+                aria-label="Open emoji picker"
                 sx={{
                   width: 42,
                   height: 42,
-                  mr: 0.5,
                   borderRadius: 8,
                   color: isDark ? "rgba(255, 255, 255, 0.75)" : "text.secondary",
                   bgcolor: isDark ? "rgba(255, 255, 255, 0.035)" : "rgba(0, 0, 0, 0.035)",
@@ -416,114 +572,75 @@ const ChatInput = ({
                   },
                 }}
               >
-                <CameraIcon sx={{ fontSize: 20 }} />
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  hidden
-                  onChange={onImageSelect}
-                />
+                <EmojiIcon sx={{ fontSize: 20 }} />
               </IconButton>
-            </Collapse>
+            </Box>
 
-            {/* Emoji Button */}
-            <IconButton
-              size="small"
-              onClick={(e) => setEmojiAnchorEl(e.currentTarget)}
-              aria-label="Open emoji picker"
+            {/* Text Field */}
+            <TextField
+              inputRef={inputRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                onTyping(e.target.value);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder={pastedImages.length > 0 ? "Add a caption..." : "Type your message..."}
+              multiline
+              maxRows={4}
+              variant="standard"
+              InputProps={{
+                disableUnderline: true,
+                sx: {
+                  color: isDark ? "#fff" : "#111",
+                  fontSize: "1rem",
+                  px: 1,
+                  py: 0.6,
+                },
+              }}
+              sx={{ flex: 1 }}
+            />
+
+            {/* Send Button */}
+            <Button
+              type="submit"
+              disabled={!input.trim() && pastedImages.length === 0}
+              disableElevation
               sx={{
-                width: 42,
+                width: 64,
                 height: 42,
+                minWidth: 48,
+                px: 2,
                 borderRadius: 8,
-                color: isDark ? "rgba(255, 255, 255, 0.75)" : "text.secondary",
-                bgcolor: isDark ? "rgba(255, 255, 255, 0.035)" : "rgba(0, 0, 0, 0.035)",
+                textTransform: "none",
+                bgcolor: isDark ? "#cacaca" : "#252525",
+                color: isDark ? "#111" : "#fff",
                 boxShadow: isDark
-                  ? "inset 0 1px 1px rgba(255, 255, 255, 0.08), inset 0 -1px 2px rgba(0,0,0,0.3)"
-                  : "inset 0 1px 1px rgba(255, 255, 255, 0.6), inset 0 -1px 2px rgba(0,0,0,0.08)",
+                  ? "inset 0 1px 4px rgba(255, 255, 255, 1), inset 0 -1px 8px rgba(0, 0, 0, 0.9)"
+                  : "inset 0 1px 4px rgba(255, 255, 255, 0.8), inset 0 -1px 6px rgba(0,0,0,0.2)",
                 transition: "all 180ms ease",
                 "&:hover": {
-                  bgcolor: isDark ? "rgba(255, 255, 255, 0.09)" : "rgba(0, 0, 0, 0.07)",
-                  color: isDark ? "#fff" : "text.primary",
+                  bgcolor: isDark ? "rgba(255, 255, 255, 0.85)" : "rgba(17, 17, 17, 0.85)",
                   boxShadow: "none",
+                  transform: "translate(0px)",
                 },
                 "&:active": {
-                  transform: "scale(0.95)",
+                  transform: "scale(0.98)",
+                },
+                "&:disabled": {
+                  bgcolor: isDark
+                    ? "rgba(255, 255, 255, 0.05)"
+                    : "rgba(0, 0, 0, 0.04)",
+                  color: isDark
+                    ? "rgba(255, 255, 255, 0.25)"
+                    : "rgba(0, 0, 0, 0.25)",
+                  boxShadow: "none",
                 },
               }}
             >
-              <EmojiIcon sx={{ fontSize: 20 }} />
-            </IconButton>
-          </Box>
-
-          {/* Text Field */}
-          <TextField
-            inputRef={inputRef}
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              onTyping(e.target.value);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="Type your message..."
-            multiline
-            maxRows={4}
-            variant="standard"
-            InputProps={{
-              disableUnderline: true,
-              sx: {
-                color: isDark ? "#fff" : "#111",
-                fontSize: "1rem",
-                px: 1,
-                py: 0.6,
-              },
-            }}
-            sx={{ flex: 1 }}
-          />
-
-{/* Send Button */}
-          <Button
-            type="submit"
-            disabled={!input.trim() || isSending}
-            disableElevation
-            sx={{
-              width: 64,
-              height: 42,
-              minWidth: 48,
-              px: 2,
-              borderRadius: 8,
-              textTransform: "none",
-              bgcolor: isDark ? "#cacaca" : "#252525",
-              color: isDark ? "#111" : "#fff",
-              boxShadow: isDark
-                ? "inset 0 1px 4px rgba(255, 255, 255, 1), inset 0 -1px 8px rgba(0, 0, 0, 0.9)"
-                : "inset 0 1px 4px rgba(255, 255, 255, 0.8), inset 0 -1px 6px rgba(0,0,0,0.2)",
-              transition: "all 180ms ease",
-              "&:hover": {
-                bgcolor: isDark ? "rgba(255, 255, 255, 0.85)" : "rgba(17, 17, 17, 0.85)",
-                boxShadow: "none",
-                transform: "translate(0px)",
-              },
-              "&:active": {
-                transform: "scale(0.98)",
-              },
-              "&:disabled": {
-                bgcolor: isDark
-                  ? "rgba(255, 255, 255, 0.05)"
-                  : "rgba(0, 0, 0, 0.04)",
-                color: isDark
-                  ? "rgba(255, 255, 255, 0.25)"
-                  : "rgba(0, 0, 0, 0.25)",
-                boxShadow: "none",
-              },
-            }}
-          >
-            {isSending ? (
-              <CircularProgress size={20} sx={{ color: "inherit" }} />
-            ) : (
               <SendIcon sx={{ fontSize: 20 }} />
-            )}
-          </Button>
+            </Button>
+          </Box>
         </Paper>
       </Box>
 

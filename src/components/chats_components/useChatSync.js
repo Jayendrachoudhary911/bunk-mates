@@ -92,6 +92,7 @@ export function useChatSync(friendId) {
   const [pinnedMessages, setPinnedMessages] = useState([]);
 
   const typingTimeoutRef = useRef(null);
+  const pendingMessagesRef = useRef(new Map());
 
   // Monitor auth state
   useEffect(() => {
@@ -194,6 +195,7 @@ export function useChatSync(friendId) {
 
   // Real-time listener for messages directly from Firestore DB
   useEffect(() => {
+    pendingMessagesRef.current.clear();
     if (!chatId || !currentUser) {
       setLoadingMessages(false);
       return;
@@ -216,6 +218,15 @@ export function useChatSync(friendId) {
         querySnapshot.forEach((docSnap) => {
           const msg = docSnap.data();
           msg.id = docSnap.id;
+          const hasPending = Boolean(docSnap.metadata?.hasPendingWrites);
+          msg.hasPendingWrites = hasPending;
+          msg.isSending = hasPending;
+          msg.status = hasPending ? "sending" : "sent";
+
+          if (msg.clientTempId) {
+            pendingMessagesRef.current.delete(msg.clientTempId);
+          }
+
           msgs.push(msg);
 
           if (msg.senderId !== currentUser.uid && !msg.isRead) {
@@ -225,7 +236,14 @@ export function useChatSync(friendId) {
 
         // Filter out expired disappearing messages
         const validMsgs = msgs.filter((m) => !isMessageExpired(m));
-        setMessages(validMsgs);
+
+        // Reconcile remaining optimistic pending messages
+        const existingIds = new Set(validMsgs.map((m) => m.clientTempId || m.id));
+        const remainingPending = Array.from(pendingMessagesRef.current.values()).filter(
+          (p) => !existingIds.has(p.id) && !existingIds.has(p.clientTempId)
+        );
+
+        setMessages([...validMsgs, ...remainingPending]);
 
         // Mark as read efficiently with read timestamp
         if (hasUnreadFromFriend) {
@@ -437,6 +455,69 @@ export function useChatSync(friendId) {
         return;
       }
 
+      // Check if blocked
+      const isBlocked = (friendDetails?.blockedUids || []).includes(
+        effectiveUser.uid
+      );
+
+      const disappearingDuration =
+        getChatDisappearingDuration(effectiveChatId) ||
+        getChatDisappearingDuration(friendId);
+
+      const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+      const optimisticMsg = {
+        id: tempId,
+        clientTempId: tempId,
+        senderId: effectiveUser.uid,
+        text: trimmedText,
+        type:
+          type ||
+          (imageUrl
+            ? "image"
+            : images && images.length > 0
+            ? "image_group"
+            : cardData
+            ? "card"
+            : "text"),
+        timestamp: new Date(),
+        isRead: false,
+        reactions: [],
+        isSending: true,
+        hasPendingWrites: true,
+        status: "sending",
+      };
+
+      if (isBlocked) {
+        optimisticMsg.blocked = true;
+      }
+      if (disappearingDuration > 0) {
+        optimisticMsg.expiresAt = Date.now() + disappearingDuration;
+      }
+      if (viewOnce) {
+        optimisticMsg.viewOnce = true;
+        optimisticMsg.viewedOnce = false;
+      }
+      if (imageUrl) {
+        optimisticMsg.dataUri = imageUrl;
+      }
+      if (images && Array.isArray(images) && images.length > 0) {
+        optimisticMsg.images = images;
+      }
+      if (cardData) {
+        optimisticMsg.cardData = cardData;
+      }
+      if (replyTarget) {
+        optimisticMsg.replyTo = {
+          id: replyTarget.id || "",
+          text: replyTarget.text || "",
+          senderId: replyTarget.senderId || "",
+          imageUrl: replyTarget.imageUrl || replyTarget.dataUri || null,
+        };
+      }
+
+      pendingMessagesRef.current.set(tempId, optimisticMsg);
+      setMessages((prev) => [...prev, optimisticMsg]);
       setIsSending(true);
 
       try {
@@ -447,16 +528,8 @@ export function useChatSync(friendId) {
           }).catch(() => {});
         }
 
-        // Check if blocked
-        const isBlocked = (friendDetails?.blockedUids || []).includes(
-          effectiveUser.uid
-        );
-
-        const disappearingDuration =
-          getChatDisappearingDuration(effectiveChatId) ||
-          getChatDisappearingDuration(friendId);
-
         const newMsg = {
+          clientTempId: tempId,
           senderId: effectiveUser.uid,
           text: trimmedText,
           type:
@@ -594,11 +667,14 @@ export function useChatSync(friendId) {
         }
       } catch (err) {
         console.error("Failed to send message:", err);
+        pendingMessagesRef.current.delete(tempId);
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
       } finally {
-        setIsSending(false);
+        pendingMessagesRef.current.delete(tempId);
+        setIsSending(pendingMessagesRef.current.size > 0);
       }
     },
-    [chatId, currentUser, contextUser, friendDetails?.blockedUids, friendId]
+    [chatId, currentUser, contextUser, friendDetails, friendId]
   );
 
   // 10. Reactions handling (toggle emoji)

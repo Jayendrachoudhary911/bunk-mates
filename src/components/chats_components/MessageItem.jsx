@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Box, Typography, Paper, IconButton, Tooltip } from "@mui/material";
+import { Box, Typography, Paper, IconButton, Tooltip, CircularProgress } from "@mui/material";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
 import CallRoundedIcon from "@mui/icons-material/CallRounded";
 import PhoneMissedIcon from "@mui/icons-material/PhoneMissed";
@@ -367,7 +367,7 @@ const MessageItem = ({
           component="img"
           src={imagesList[0]}
           alt="chat media"
-          onClick={(e) => { e.stopPropagation(); onImageClick(imagesList[0], imagesList); }}
+          onClick={(e) => { e.stopPropagation(); onImageClick(imagesList[0], imagesList, { text: msg.text }); }}
           sx={{ width: "100%", maxWidth: 320, maxHeight: 320, borderRadius: "14px", objectFit: "cover", display: "block", cursor: "zoom-in" }}
         />
       );
@@ -377,7 +377,7 @@ const MessageItem = ({
       return (
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", width: "100%", maxWidth: 320, borderRadius: "14px", overflow: "hidden" }}>
           {imagesList.map((img, idx) => (
-            <Box key={idx} component="img" src={img} alt={`chat media ${idx}`} onClick={(e) => { e.stopPropagation(); onImageClick(img, imagesList); }} sx={{ width: "100%", height: 150, objectFit: "cover", display: "block", cursor: "zoom-in" }} />
+            <Box key={idx} component="img" src={img} alt={`chat media ${idx}`} onClick={(e) => { e.stopPropagation(); onImageClick(img, imagesList, { text: msg.text }); }} sx={{ width: "100%", height: 150, objectFit: "cover", display: "block", cursor: "zoom-in" }} />
           ))}
         </Box>
       );
@@ -386,9 +386,9 @@ const MessageItem = ({
     if (imagesList.length === 3) {
       return (
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", width: "100%", maxWidth: 320, borderRadius: "14px", overflow: "hidden" }}>
-          <Box component="img" src={imagesList[0]} alt="chat media 0" onClick={(e) => { e.stopPropagation(); onImageClick(imagesList[0], imagesList); }} sx={{ gridColumn: "1 / -1", width: "100%", height: 140, objectFit: "cover", display: "block", cursor: "zoom-in" }} />
+          <Box component="img" src={imagesList[0]} alt="chat media 0" onClick={(e) => { e.stopPropagation(); onImageClick(imagesList[0], imagesList, { text: msg.text }); }} sx={{ gridColumn: "1 / -1", width: "100%", height: 140, objectFit: "cover", display: "block", cursor: "zoom-in" }} />
           {imagesList.slice(1, 3).map((img, idx) => (
-            <Box key={idx} component="img" src={img} alt={`chat media ${idx + 1}`} onClick={(e) => { e.stopPropagation(); onImageClick(img, imagesList); }} sx={{ width: "100%", height: 110, objectFit: "cover", display: "block", cursor: "zoom-in" }} />
+            <Box key={idx} component="img" src={img} alt={`chat media ${idx + 1}`} onClick={(e) => { e.stopPropagation(); onImageClick(img, imagesList, { text: msg.text }); }} sx={{ width: "100%", height: 110, objectFit: "cover", display: "block", cursor: "zoom-in" }} />
           ))}
         </Box>
       );
@@ -402,7 +402,7 @@ const MessageItem = ({
         {displayList.map((img, idx) => {
           const isFourth = idx === 3;
           return (
-            <Box key={idx} sx={{ position: "relative", width: "100%", height: 115, overflow: "hidden", cursor: "zoom-in" }} onClick={(e) => { e.stopPropagation(); onImageClick(img, imagesList); }}>
+            <Box key={idx} sx={{ position: "relative", width: "100%", height: 115, overflow: "hidden", cursor: "zoom-in" }} onClick={(e) => { e.stopPropagation(); onImageClick(img, imagesList, { text: msg.text }); }}>
               <Box component="img" src={img} alt={`chat media ${idx}`} sx={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               {isFourth && extraCount > 0 && (
                 <Box sx={{ position: "absolute", inset: 0, bgcolor: "rgba(0, 0, 0, 0.65)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "1.25rem" }}>
@@ -925,7 +925,7 @@ const MessageItem = ({
           </Box>
         ) : (
           /* REGULAR MESSAGE BUBBLE */
-          (!hasImages || isStructuredCard || msg.text) && (!hasImages || isStructuredCard) && (
+          (!hasImages || isStructuredCard || Boolean(msg.text && msg.text.trim())) && (
             <Paper
               ref={bubbleRef}
               elevation={0}
@@ -938,7 +938,11 @@ const MessageItem = ({
               sx={{
                 width: "fit-content",
                 minWidth: isStructuredCard ? { xs: "100%", sm: 340 } : "fit-content",
-                maxWidth: isStructuredCard ? { xs: "98%", sm: "88%", md: "78%" } : { xs: "88%", sm: "75%" },
+                maxWidth: isStructuredCard
+                  ? { xs: "98%", sm: "88%", md: "78%" }
+                  : hasImages
+                  ? 320
+                  : { xs: "88%", sm: "75%" },
                 boxSizing: "border-box",
                 borderRadius: borderRadius || (isOwn ? "20px 20px 4px 20px" : "20px 20px 20px 4px"),
                 bgcolor: isStructuredCard ? "transparent" : isOwn ? (isDark ? "#305ae4" : "#c8d6ec") : (isDark ? "rgba(40, 40, 40, 0.75)" : "rgb(255, 255, 255)"),
@@ -951,6 +955,7 @@ const MessageItem = ({
                 position: "relative",
                 cursor: "pointer",
                 userSelect: "text",
+                mt: hasImages ? 0.6 : 0,
               }}
               onClick={(e) => {
                 if (isSelectionMode) {
@@ -1016,13 +1021,25 @@ const MessageItem = ({
         {renderDetachedReactions()}
 
         {/* Timestamp and delivery status */}
-        {showTimestamp && (
+        {(showTimestamp || msg.isSending || msg.hasPendingWrites || msg.status === "sending") && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, mt: 0.2, mb: 0.4, px: 0.5 }}>
             <Typography variant="caption" sx={{ fontSize: "0.68rem", color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.45)" }}>
               {formatMessageTime(msg.timestamp)}
             </Typography>
             {msg.edited && <Typography variant="caption" sx={{ fontSize: "0.65rem", fontStyle: "italic", color: isDark ? "#777" : "#aaa" }}>edited</Typography>}
-            {isOwn && <DoneAllIcon sx={{ fontSize: 14, color: msg.isRead ? "#00b7ff" : (isDark ? "#777" : "#aaa") }} />}
+            {isOwn && (
+              (msg.isSending || msg.hasPendingWrites || msg.status === "sending") ? (
+                <CircularProgress
+                  size={12}
+                  thickness={5}
+                  sx={{
+                    color: isDark ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.4)",
+                  }}
+                />
+              ) : (
+                <DoneAllIcon sx={{ fontSize: 14, color: msg.isRead ? "#00b7ff" : (isDark ? "#777" : "#aaa") }} />
+              )
+            )}
           </Box>
         )}
       </Box>
@@ -1042,6 +1059,9 @@ export default React.memo(MessageItem, (prev, next) => {
     prev.msg.viewOnce === next.msg.viewOnce &&
     prev.msg.viewedOnce === next.msg.viewedOnce &&
     prev.msg.isRead === next.msg.isRead &&
+    prev.msg.isSending === next.msg.isSending &&
+    prev.msg.hasPendingWrites === next.msg.hasPendingWrites &&
+    prev.msg.status === next.msg.status &&
     prev.msg.edited === next.msg.edited &&
     prev.isOwn === next.isOwn &&
     prev.borderRadius === next.borderRadius &&

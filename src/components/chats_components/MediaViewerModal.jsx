@@ -20,6 +20,8 @@ const MediaViewerModal = ({
   onClose,
   imageUrl,
   images = [],
+  captions = {},
+  caption = "",
   initialIndex = 0,
 }) => {
   // Aggregate images list (fallback to imageUrl if images array is empty)
@@ -141,6 +143,7 @@ const MediaViewerModal = ({
   }, [open, handlePrev, handleNext, onClose, resetTransform]);
 
   const currentImg = imagesList[currentIndex] || imageUrl;
+  const currentCaption = (captions && captions[currentImg]) || (currentIndex === 0 ? caption : "") || "";
   if (!open || !currentImg) return null;
 
   const handleDownload = () => {
@@ -448,6 +451,44 @@ const MediaViewerModal = ({
           >
             <ChevronRightIcon sx={{ fontSize: { xs: 28, sm: 36 } }} />
           </IconButton>
+        )}
+
+        {/* Caption / Text Overlay */}
+        {Boolean(currentCaption && currentCaption.trim()) && (
+          <Box
+            sx={{
+              position: "absolute",
+              bottom: { xs: 12, sm: 20 },
+              left: "50%",
+              transform: "translateX(-50%)",
+              maxWidth: { xs: "90%", sm: "640px" },
+              width: "fit-content",
+              px: { xs: 2, sm: 2.8 },
+              py: { xs: 0.9, sm: 1.2 },
+              borderRadius: "18px",
+              bgcolor: "rgba(18, 18, 22, 0.82)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.6)",
+              textAlign: "center",
+              zIndex: 16,
+              pointerEvents: "auto",
+            }}
+          >
+            <Typography
+              sx={{
+                color: "#ffffff",
+                fontSize: { xs: "0.88rem", sm: "0.96rem" },
+                fontWeight: 500,
+                lineHeight: 1.45,
+                wordBreak: "break-word",
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {currentCaption.trim()}
+            </Typography>
+          </Box>
         )}
       </Box>
 

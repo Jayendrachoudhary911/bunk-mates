@@ -47,12 +47,40 @@ const GroupChatInput = ({
   effectiveChatTheme = "dark",
 }) => {
   const isDark = effectiveChatTheme === "dark";
+  const [pastedImages, setPastedImages] = useState([]);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [mentionDrawerOpen, setMentionDrawerOpen] = useState(false);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [slashIndex, setSlashIndex] = useState(0);
   const [emojiIndex, setEmojiIndex] = useState(0);
   const inputRef = useRef(null);
+
+  // Handle clipboard paste for images
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imageFiles = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith("image/")) {
+        const file = items[i].getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      imageFiles.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setPastedImages((prev) => [...prev, event.target.result]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const handleRemovePastedImage = (index) => {
+    setPastedImages((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const filteredCommands = React.useMemo(() => {
     return getFilteredCommands(input, hasTrip);
@@ -158,9 +186,30 @@ const GroupChatInput = ({
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     const trimmed = input.trim();
-    if (!trimmed || isSending) return;
+    if (!trimmed && pastedImages.length === 0) return;
+
+    if (pastedImages.length > 0) {
+      if (onSendMessage) {
+        if (pastedImages.length === 1) {
+          onSendMessage({
+            text: trimmed,
+            imageUrl: pastedImages[0],
+            replyTo,
+          });
+        } else {
+          onSendMessage({
+            text: trimmed,
+            images: pastedImages,
+            replyTo,
+          });
+        }
+      }
+      setInput("");
+      setPastedImages([]);
+      return;
+    }
 
     if (trimmed === "/budget" && onSendBudget) {
       onSendBudget();
@@ -361,13 +410,14 @@ const GroupChatInput = ({
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Paper
           elevation={0}
+          onPaste={handlePaste}
           sx={{
             flex: 1,
             display: "flex",
             flexDirection: "column",
             px: 0.4,
             py: 0.4,
-            borderRadius: "28px",
+            borderRadius: pastedImages.length > 0 ? "20px" : "28px",
             bgcolor: isDark
               ? "rgba(30, 30, 30, 0.65)"
               : "rgba(255, 255, 255, 0.8)",
@@ -437,6 +487,71 @@ const GroupChatInput = ({
             </Box>
           </Collapse>
 
+          {/* Pasted Images Preview Strip */}
+          {pastedImages.length > 0 && (
+            <Box
+              sx={{
+                p: 1.2,
+                pb: 0.8,
+                display: "flex",
+                alignItems: "center",
+                gap: 1.2,
+                overflowX: "auto",
+                "&::-webkit-scrollbar": { height: 4 },
+                "&::-webkit-scrollbar-thumb": {
+                  bgcolor: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
+                  borderRadius: 2,
+                },
+              }}
+            >
+              {pastedImages.map((imgUri, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    position: "relative",
+                    display: "inline-block",
+                    borderRadius: "14px",
+                    overflow: "hidden",
+                    border: `1px solid ${
+                      isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"
+                    }`,
+                    bgcolor: isDark ? "#111" : "#f0f0f0",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={imgUri}
+                    alt={`Pasted image ${idx + 1}`}
+                    sx={{
+                      width: 90,
+                      height: 72,
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={() => handleRemovePastedImage(idx)}
+                    sx={{
+                      position: "absolute",
+                      top: 3,
+                      right: 3,
+                      bgcolor: "rgba(0,0,0,0.65)",
+                      color: "#fff",
+                      p: 0.35,
+                      "&:hover": {
+                        bgcolor: "rgba(255, 77, 77, 0.9)",
+                      },
+                    }}
+                  >
+                    <CloseIcon sx={{ fontSize: 13 }} />
+                  </IconButton>
+                </Box>
+              ))}
+            </Box>
+          )}
+
           <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
             {/* Left Side: Emoji Button */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 0 }}>
@@ -474,7 +589,11 @@ const GroupChatInput = ({
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder={
-                editingMsg ? "Editing group message..." : "Type a message or @ to mention..."
+                editingMsg
+                  ? "Editing group message..."
+                  : pastedImages.length > 0
+                  ? "Add a caption..."
+                  : "Type a message or @ to mention..."
               }
               multiline
               maxRows={4}
@@ -493,8 +612,8 @@ const GroupChatInput = ({
 
             {/* Right Side: Camera/Attach Buttons vs Send Button with smooth optimized transitions */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              {/* Camera & Attach buttons (Displayed when user is NOT typing) */}
-              <Collapse in={!input.trim()} orientation="horizontal" timeout={150}>
+              {/* Camera & Attach buttons (Displayed when user is NOT typing and no pasted image) */}
+              <Collapse in={!input.trim() && pastedImages.length === 0} orientation="horizontal" timeout={150}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                   <IconButton
                     component="label"
@@ -558,8 +677,8 @@ const GroupChatInput = ({
                 </Box>
               </Collapse>
 
-              {/* Send / Edit Button (Displayed when user is TYPING or editing message) */}
-              <Collapse in={Boolean(input.trim() || editingMsg)} orientation="horizontal" timeout={150}>
+              {/* Send / Edit Button (Displayed when user is TYPING, has pasted image, or editing message) */}
+              <Collapse in={Boolean(input.trim() || pastedImages.length > 0 || editingMsg)} orientation="horizontal" timeout={150}>
                 {editingMsg ? (
                   <Box sx={{ display: "flex", gap: 0.8 }}>
                     <Button
@@ -592,7 +711,7 @@ const GroupChatInput = ({
                 ) : (
                   <Button
                     type="submit"
-                    disabled={!input.trim() || isSending}
+                    disabled={!input.trim() && pastedImages.length === 0}
                     disableElevation
                     sx={{
                       width: 64,
@@ -625,11 +744,7 @@ const GroupChatInput = ({
                       },
                     }}
                   >
-                    {isSending ? (
-                      <CircularProgress size={20} sx={{ color: "inherit" }} />
-                    ) : (
-                      <SendIcon sx={{ fontSize: 20 }} />
-                    )}
+                    <SendIcon sx={{ fontSize: 20 }} />
                   </Button>
                 )}
               </Collapse>

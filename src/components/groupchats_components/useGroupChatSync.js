@@ -76,6 +76,7 @@ export function useGroupChatSync(groupName) {
   const [checklist, setChecklist] = useState([]);
   const [timelineStats, setTimelineStats] = useState(null);
   const [isSending, setIsSending] = useState(false);
+  const pendingMessagesRef = useRef(new Map());
 
   // Auth observer
   useEffect(() => {
@@ -249,6 +250,7 @@ export function useGroupChatSync(groupName) {
 
   // 3. Single listener for Group Messages
   useEffect(() => {
+    pendingMessagesRef.current.clear();
     if (!groupName) {
       setLoadingMessages(false);
       return;
@@ -269,6 +271,15 @@ export function useGroupChatSync(groupName) {
         const missingUids = [];
         querySnapshot.forEach((docSnap) => {
           const m = { id: docSnap.id, ...docSnap.data() };
+          const hasPending = Boolean(docSnap.metadata?.hasPendingWrites);
+          m.hasPendingWrites = hasPending;
+          m.isSending = hasPending;
+          m.status = hasPending ? "sending" : "sent";
+
+          if (m.clientTempId) {
+            pendingMessagesRef.current.delete(m.clientTempId);
+          }
+
           msgs.push(m);
           if (
             m.senderId &&
@@ -312,7 +323,14 @@ export function useGroupChatSync(groupName) {
         }
 
         const validMsgs = msgs.filter((m) => !isMessageExpired(m));
-        setMessages(validMsgs);
+
+        // Reconcile remaining optimistic pending messages
+        const existingIds = new Set(validMsgs.map((m) => m.clientTempId || m.id));
+        const remainingPending = Array.from(pendingMessagesRef.current.values()).filter(
+          (p) => !existingIds.has(p.id) && !existingIds.has(p.clientTempId)
+        );
+
+        setMessages([...validMsgs, ...remainingPending]);
       },
       (err) => {
         console.error("Group messages listener error:", err);
@@ -442,6 +460,73 @@ export function useGroupChatSync(groupName) {
         return;
       }
 
+      const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+      const senderDisplayName =
+        memberInfo[effectiveUser.uid]?.name ||
+        effectiveUser.displayName ||
+        "Member";
+      const senderAvatar =
+        memberInfo[effectiveUser.uid]?.photoURL ||
+        effectiveUser.photoURL ||
+        "";
+
+      const optimisticMsg = {
+        id: tempId,
+        clientTempId: tempId,
+        senderId: effectiveUser.uid,
+        senderName: senderDisplayName,
+        senderPhoto: senderAvatar,
+        text: trimmedText,
+        type: imageUrl
+          ? "image"
+          : images && Array.isArray(images) && images.length > 0
+          ? "image_group"
+          : type || "text",
+        timestamp: new Date(),
+        reactions: [],
+        readBy: [effectiveUser.uid],
+        readByMap: { [effectiveUser.uid]: new Date().toISOString() },
+        isSending: true,
+        hasPendingWrites: true,
+        status: "sending",
+      };
+
+      const disappearingDuration = getChatDisappearingDuration(
+        groupName,
+        groupInfo?.disappearingDuration
+      );
+      if (disappearingDuration > 0) {
+        optimisticMsg.expiresAt = Date.now() + disappearingDuration;
+      }
+      if (viewOnce) {
+        optimisticMsg.viewOnce = true;
+        optimisticMsg.viewedByOnce = [];
+      }
+      if (imageUrl) {
+        optimisticMsg.dataUri = imageUrl;
+      }
+      if (images && Array.isArray(images) && images.length > 0) {
+        optimisticMsg.images = images;
+        optimisticMsg.type = "image_group";
+      }
+      if (cardData) {
+        optimisticMsg.cardData = cardData;
+      }
+      if (replyTarget) {
+        optimisticMsg.replyTo = {
+          id: replyTarget.id || "",
+          text: replyTarget.text || "",
+          senderName:
+            replyTarget.senderName ||
+            (replyTarget.senderId && memberInfo[replyTarget.senderId]?.name) ||
+            "Member",
+          imageUrl: replyTarget.imageUrl || replyTarget.dataUri || null,
+        };
+      }
+
+      pendingMessagesRef.current.set(tempId, optimisticMsg);
+      setMessages((prev) => [...prev, optimisticMsg]);
       setIsSending(true);
 
       try {
@@ -452,13 +537,10 @@ export function useGroupChatSync(groupName) {
         }).catch(() => {});
 
         const msgData = {
+          clientTempId: tempId,
           senderId: effectiveUser.uid,
-          senderName:
-            effectiveUser.displayName ||
-            memberInfo[effectiveUser.uid]?.name ||
-            "Member",
-          senderPhoto:
-            effectiveUser.photoURL || memberInfo[effectiveUser.uid]?.photoURL || "",
+          senderName: senderDisplayName,
+          senderPhoto: senderAvatar,
           text: trimmedText,
           type: imageUrl
             ? "image"
@@ -523,10 +605,6 @@ export function useGroupChatSync(groupName) {
             : cardData
             ? "Card"
             : "Attachment");
-        const senderDisplayName =
-          memberInfo[effectiveUser.uid]?.name ||
-          effectiveUser.displayName ||
-          "Member";
 
         setDoc(
           doc(db, "groupChats", groupName),
@@ -549,14 +627,7 @@ export function useGroupChatSync(groupName) {
           : [];
         const otherMembers = members.filter((m) => m !== effectiveUser.uid);
         const groupTitle = groupInfo?.name || groupName || "Group";
-        const senderName =
-          memberInfo[effectiveUser.uid]?.name ||
-          effectiveUser.displayName ||
-          "Member";
-        const senderAvatar =
-          memberInfo[effectiveUser.uid]?.photoURL ||
-          effectiveUser.photoURL ||
-          "";
+        const senderName = senderDisplayName;
 
         // 1. Detect mentions in text (@username)
         const mentionMatches = (
@@ -695,8 +766,11 @@ export function useGroupChatSync(groupName) {
         }
       } catch (err) {
         console.error("Failed to send group message:", err);
+        pendingMessagesRef.current.delete(tempId);
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
       } finally {
-        setIsSending(false);
+        pendingMessagesRef.current.delete(tempId);
+        setIsSending(pendingMessagesRef.current.size > 0);
       }
     },
     [groupName, currentUser, contextUser, memberInfo, groupInfo]

@@ -1,10 +1,11 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Box, Popover, Button, IconButton, Chip, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Popover, Button, IconButton, Chip, Typography, useMediaQuery, useTheme } from "@mui/material";
 import ShortcutRoundedIcon from "@mui/icons-material/ShortcutRounded";
 import ShareRoundedIcon from "@mui/icons-material/ShareRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import CloudUploadRoundedIcon from "@mui/icons-material/CloudUploadRounded";
 import EmojiPicker from "emoji-picker-react";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase";
@@ -95,7 +96,12 @@ function Chatroom({
   const [pendingImageDataUri, setPendingImageDataUri] = useState("");
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
   const [viewingImageUrl, setViewingImageUrl] = useState("");
+  const [viewingImageCaption, setViewingImageCaption] = useState("");
   const [activeMediaList, setActiveMediaList] = useState([]);
+
+  // Drag and Drop State
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const dragCounterRef = useRef(0);
 
   // Trip selection and Contact sharing dialog states
   const [selectTripOpen, setSelectTripOpen] = useState(false);
@@ -157,6 +163,23 @@ function Chatroom({
     return Array.from(new Set(list.filter(Boolean)));
   }, [messages]);
 
+  // Map image URLs to their message caption/text for media viewer
+  const imageCaptionMap = React.useMemo(() => {
+    const map = {};
+    messages.forEach((m) => {
+      const text = (m.text || "").trim();
+      if (!text) return;
+      if (m.dataUri) map[m.dataUri] = text;
+      if (m.imageUrl) map[m.imageUrl] = text;
+      if (Array.isArray(m.images)) {
+        m.images.forEach((img) => {
+          if (img) map[img] = text;
+        });
+      }
+    });
+    return map;
+  }, [messages]);
+
   const [searchDrawerOpen, setSearchDrawerOpen] = useState(false);
 
   // Smooth scroll & glow on message
@@ -177,6 +200,7 @@ function Chatroom({
   const handleOpenImage = useCallback(
     (url, customList = null, options = {}) => {
       setViewingImageUrl(url);
+      setViewingImageCaption(options?.text || options?.caption || "");
       setActiveMediaList(customList || allChatImages);
       setMediaViewerOpen(true);
 
@@ -297,8 +321,43 @@ function Chatroom({
   ]);
 
   const handleSendMessage = useCallback(
-    (customText) => {
-      const textToSend = typeof customText === "string" ? customText : input;
+    (customTextOrOpts) => {
+      if (typeof customTextOrOpts === "object" && customTextOrOpts !== null) {
+        const { text = "", imageUrl, images, replyingTo: customReply } = customTextOrOpts;
+        const replyTarget = customReply !== undefined ? customReply : replyingTo;
+
+        if (imageUrl || (images && images.length > 0)) {
+          sendMessage({
+            text: (text || "").trim(),
+            imageUrl,
+            images,
+            replyingTo: replyTarget,
+          });
+          setInput("");
+          setReplyingTo(null);
+          return;
+        }
+
+        const textToSend = text || input;
+        if (!textToSend || !textToSend.trim()) return;
+
+        if (editingMsgId) {
+          editMessage(editingMsgId, textToSend);
+          setEditingMsgId(null);
+          setInput("");
+          return;
+        }
+
+        sendMessage({
+          text: textToSend,
+          replyingTo: replyTarget,
+        });
+        setInput("");
+        setReplyingTo(null);
+        return;
+      }
+
+      const textToSend = typeof customTextOrOpts === "string" ? customTextOrOpts : input;
       if (!textToSend || !textToSend.trim()) return;
 
       if (editingMsgId) {
@@ -316,6 +375,78 @@ function Chatroom({
       setReplyingTo(null);
     },
     [editingMsgId, editMessage, input, sendMessage, replyingTo]
+  );
+
+  // Drag and Drop handlers for media drop
+  const handleDragEnter = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current += 1;
+    if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
+      const hasImage = Array.from(e.dataTransfer.items).some(
+        (item) => item.kind === "file" && item.type.startsWith("image/")
+      );
+      if (hasImage) {
+        setIsDraggingFile(true);
+      }
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDraggingFile(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current = 0;
+      setIsDraggingFile(false);
+
+      const files = Array.from(e.dataTransfer.files || []).filter((f) =>
+        f.type.startsWith("image/")
+      );
+      if (files.length === 0) return;
+
+      if (files.length === 1) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          setPendingImageDataUri(reader.result);
+          setImageCropperOpen(true);
+        };
+        reader.readAsDataURL(files[0]);
+      } else {
+        Promise.all(
+          files.map(
+            (file) =>
+              new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(file);
+              })
+          )
+        ).then((dataUrls) => {
+          sendMessage({
+            type: "image_group",
+            images: dataUrls,
+            replyingTo,
+          });
+          setReplyingTo(null);
+        });
+      }
+    },
+    [replyingTo, sendMessage]
   );
 
   const handleImageFileSelect = useCallback(
@@ -505,6 +636,10 @@ function Chatroom({
 
   return (
     <Box
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       sx={{
         display: "flex",
         flexDirection: "column",
@@ -515,6 +650,48 @@ function Chatroom({
         height: '100%',
       }}
     >
+      {/* Drag & Drop Visual Overlay */}
+      {isDraggingFile && (
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 9999,
+            bgcolor: isDark ? "rgba(10, 15, 25, 0.88)" : "rgba(240, 248, 255, 0.92)",
+            backdropFilter: "blur(8px)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "3px dashed #00b7ff",
+            borderRadius: "16px",
+            m: 1.5,
+            pointerEvents: "none",
+          }}
+        >
+          <Box
+            sx={{
+              p: 2.5,
+              borderRadius: "50%",
+              bgcolor: "rgba(0, 183, 255, 0.15)",
+              color: "#00b7ff",
+              mb: 2,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <CloudUploadRoundedIcon sx={{ fontSize: 54 }} />
+          </Box>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: isDark ? "#fff" : "#111", mb: 0.5 }}>
+            Drop image here to send
+          </Typography>
+          <Typography variant="body2" sx={{ color: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.6)" }}>
+            Release to open image cropper and caption editor
+          </Typography>
+        </Box>
+      )}
+
       {/* 1. Header */}
       <ChatHeader
         friendDetails={friendDetails}
@@ -841,6 +1018,8 @@ function Chatroom({
         onClose={() => setMediaViewerOpen(false)}
         imageUrl={viewingImageUrl}
         images={activeMediaList.length > 0 ? activeMediaList : allChatImages}
+        captions={imageCaptionMap}
+        caption={viewingImageCaption}
       />
 
       {/* 9. Standalone Emoji Picker Popover */}

@@ -51,6 +51,7 @@ const shouldShowTimestamp = (messages, index) => {
   const msg = messages[index];
   const nextMsg = messages[index + 1];
   if (!nextMsg) return true;
+  if (msg?.isSending || msg?.hasPendingWrites || msg?.status === "sending") return true;
   if (nextMsg.senderId !== msg.senderId) return true;
 
   const aSec = getMessageSeconds(msg.timestamp);
